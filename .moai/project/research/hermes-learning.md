@@ -1,6 +1,6 @@
 # Hermes Agent Self-Evolution 파이프라인 심층 분석
 
-> **분석일**: 2026-04-21 · **대상**: `hermes-agent-main/{agent, trajectory_compressor.py, skills, mcp_serve.py, acp_*}` · **용도**: SPEC-GOOSE-TRAJECTORY-001 / COMPRESSOR-001 / INSIGHTS-001 / ERROR-CLASS-001 / MEMORY-001 근거
+> **분석일**: 2026-04-21 · **대상**: `hermes-agent-main/{agent, trajectory_compressor.py, skills, mcp_serve.py, acp_*}` · **용도**: SPEC-GENIE-TRAJECTORY-001 / COMPRESSOR-001 / INSIGHTS-001 / ERROR-CLASS-001 / MEMORY-001 근거
 
 ## 1. 학습 파이프라인 E2E
 
@@ -340,7 +340,7 @@ acp_adapter/
 - ACP = IDE 프로토콜 (VS Code/Zed/JetBrains)
 - 둘다 tool schema 노출 (OpenAI 형식)
 
-## 10. GOOSE Go 포팅 매핑
+## 10. GENIE Go 포팅 매핑
 
 ```
 internal/
@@ -376,31 +376,31 @@ internal/
 - mcp/{server,registry}: 600
 - **합계: ~4,000 Go LoC** (Python 원본 ~3,500)
 
-## 11. GOOSE SPEC 도출
+## 11. GENIE SPEC 도출
 
-### SPEC-GOOSE-TRAJECTORY-001
+### SPEC-GENIE-TRAJECTORY-001
 - `SaveTrajectory(trajectory, model, completed) -> error`
 - ShareGPT JSON-L 포맷
-- 저장소: `~/.goose/trajectories/{success,failed}/YYYY-MM-DD.jsonl`
+- 저장소: `~/.genie/trajectories/{success,failed}/YYYY-MM-DD.jsonl`
 - 익명화 (redact pipeline, 선택적)
 
-### SPEC-GOOSE-COMPRESSOR-001
+### SPEC-GENIE-COMPRESSOR-001
 - 기간별 메트릭
 - Protected head/tail 전략
 - 중간 LLM 요약 (Gemini 3 Flash 또는 구성 가능)
 - TrajectoryMetrics 수집
 
-### SPEC-GOOSE-INSIGHTS-001
+### SPEC-GENIE-INSIGHTS-001
 - overview/models/tools/activity 다차원
 - busiest_day, max_streak, active_days
 - JSON 또는 terminal UI (테이블)
 
-### SPEC-GOOSE-MEMORY-001 (재작성)
+### SPEC-GENIE-MEMORY-001 (재작성)
 - MemoryProvider interface
 - Builtin (SQLite, 파일) + 외부 1개 (Honcho/Hindsight/Mem0)
 - Session 격리 (session_id)
 
-### SPEC-GOOSE-ERROR-CLASS-001
+### SPEC-GENIE-ERROR-CLASS-001
 - 14 FailoverReason enum
 - 입력: error, provider, model, approx_tokens, context_length
 - 출력: ClassifiedError
@@ -443,4 +443,4 @@ LoRA 파인튜닝 준비는 별도 (internal/learning/lora — Rust).
 
 ---
 
-**결론**: Hermes 자기개선 파이프라인 = **Trajectory 수집 → 지능형 압축 → 다층 Insights → Swappable Memory → Skill 자동 발견 → MCP 게이트웨이** 6단. GOOSE 포팅 **재사용 55%**, ~4,000 Go LoC (Python 3,500). Tokenizer 의존성 제거 (Go unicode counting), async → goroutine+channel.
+**결론**: Hermes 자기개선 파이프라인 = **Trajectory 수집 → 지능형 압축 → 다층 Insights → Swappable Memory → Skill 자동 발견 → MCP 게이트웨이** 6단. GENIE 포팅 **재사용 55%**, ~4,000 Go LoC (Python 3,500). Tokenizer 의존성 제거 (Go unicode counting), async → goroutine+channel.

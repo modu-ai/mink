@@ -1,4 +1,4 @@
-# GOOSE-AGENT - Ecosystem Document v4.0 GLOBAL EDITION
+# GENIE-AGENT - Ecosystem Document v4.0 GLOBAL EDITION
 
 > **비전:** 글로벌 오픈소스 AI 에이전트 생태계 (MIT) + 자기진화 플러그인/스킬 마켓
 
@@ -25,7 +25,7 @@
 - AI 에이전트 개발자: 10만+
 - **타깃**: Year 1에 10,000 contributors
 
-### 1.3 GOOSE 생태계 철학
+### 1.3 GENIE 생태계 철학
 
 - **MIT License**: 완전 자유 (상업, 수정, 재배포)
 - **Meritocratic**: 기여 = 영향력
@@ -76,7 +76,7 @@ When user greets in the morning:
 ## Example dialogue
 
 User: "Good morning"
-GOOSE: "Good morning, Alex! Today you have 3 meetings (first at 10 AM with John).
+GENIE: "Good morning, Alex! Today you have 3 meetings (first at 10 AM with John).
 Weather is sunny, 22°C - nice day for a walk.
 Top news: [Tech stock up 5%, New AI release]
 You seem more energetic than last week - great momentum!"
@@ -97,7 +97,7 @@ pub fn translate_document(input: String) -> FnResult<String> {
 
 **TS Plugin 예시**:
 ```typescript
-import { definePlugin } from '@gooseagent/sdk';
+import { definePlugin } from '@genieagent/sdk';
 
 export default definePlugin({
   name: 'notion-sync',
@@ -122,7 +122,7 @@ export default definePlugin({
 
 **Agent Card 예시**:
 ```yaml
-id: "urn:goose:agent:legal-review-global"
+id: "urn:genie:agent:legal-review-global"
 name: "Legal Review Pro"
 version: "2.1.0"
 author:
@@ -150,7 +150,7 @@ sla:
 
 endpoint:
   type: "https"
-  url: "https://agents.legalai.com/goose"
+  url: "https://agents.legalai.com/genie"
   auth: "oauth2_pkce"
 
 a2a_version: "0.3"
@@ -209,19 +209,19 @@ graph TD
 
 ---
 
-## 4. Genie SDK (Goose SDK)
+## 4. Genie SDK (Genie SDK)
 
 ### 4.1 Go SDK
 
 ```bash
-go get github.com/gooseagent/goose-sdk-go
+go get github.com/genieagent/genie-sdk-go
 ```
 
 ```go
-import "github.com/gooseagent/goose-sdk-go"
+import "github.com/genieagent/genie-sdk-go"
 
 func main() {
-    plugin := goose.NewPlugin("my-plugin")
+    plugin := genie.NewPlugin("my-plugin")
     plugin.AddTool(&MyTool{})
     plugin.Run()
 }
@@ -230,12 +230,12 @@ func main() {
 ### 4.2 TypeScript SDK
 
 ```bash
-npm install -g @gooseagent/cli
-goose init my-plugin
+npm install -g @genieagent/cli
+genie init my-plugin
 cd my-plugin
-goose dev       # Hot reload
-goose test
-goose publish
+genie dev       # Hot reload
+genie test
+genie publish
 ```
 
 ### 4.3 SDK 기능
@@ -290,7 +290,7 @@ goose publish
 ### 6.1 공식 채널
 
 **Discord** (메인 실시간 채널):
-- Server: "GOOSE Community"
+- Server: "GENIE Community"
 - 채널 (다국어):
   - `#general` (영어)
   - `#korean` (한국어)
@@ -307,7 +307,7 @@ goose publish
 - RFC
 
 **Reddit**:
-- /r/gooseagent
+- /r/genieagent
 - AMA 매월
 
 **LinkedIn**:
@@ -315,7 +315,7 @@ goose publish
 - 구인/네트워킹
 
 **Bluesky / Twitter**:
-- @gooseagent
+- @genieagent
 - 업데이트, 뉴스
 
 ### 6.2 지역 밋업 (Global Gaggle)
@@ -341,7 +341,7 @@ goose publish
 **3-Tier 기여자**:
 - **Featherweight** (첫 기여): Welcome kit
 - **Wing** (10+ commits): T-shirt + 배지
-- **Leader Goose** (100+ commits): Conference invite + GitHub Sponsors
+- **Leader Genie** (100+ commits): Conference invite + GitHub Sponsors
 
 **Rewards**:
 - GitHub Sponsors (월간)
@@ -353,7 +353,7 @@ goose publish
 
 ## 7. 개발자 인센티브
 
-### 7.1 GOOSE Dev Program
+### 7.1 GENIE Dev Program
 
 | 마일스톤 | 보상 |
 |---------|------|
@@ -444,7 +444,7 @@ goose publish
 sequenceDiagram
     participant P as Plugin (WASM)
     participant S as Sandbox
-    participant G as GOOSE Core
+    participant G as GENIE Core
     participant U as User
     
     U->>G: "Use my-plugin"
@@ -466,7 +466,7 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    participant G as GOOSE
+    participant G as GENIE
     participant R as Registry
     participant E as External Agent
     
@@ -486,21 +486,21 @@ sequenceDiagram
 
 ### 10.1 문서
 
-- `docs.gooseagent.org` (메인)
+- `docs.genieagent.org` (메인)
 - 다국어 번역 (en/ko/ja/zh)
 - API Reference (OpenAPI)
 - Tutorial (30min quickstart + 1h deep dive)
 
 ### 10.2 예제
 
-- `github.com/gooseagent/examples`
+- `github.com/genieagent/examples`
 - 카테고리별 예제
 - Production-ready patterns
 - Best practices
 
 ### 10.3 비디오
 
-- YouTube: "GOOSE Agent"
+- YouTube: "GENIE Agent"
 - Weekly dev updates
 - Tutorial playlists (다국어)
 - Conference talks
@@ -584,7 +584,7 @@ sequenceDiagram
 
 ## 14. 결론
 
-GOOSE 생태계의 약속:
+GENIE 생태계의 약속:
 1. **Open Source Forever**: MIT, 인수 X
 2. **Fair Revenue**: 70/30 개발자 우대
 3. **Transparent Governance**: RFC, 공개 결정
@@ -596,6 +596,6 @@ GOOSE 생태계의 약속:
 Version: 4.0.0 GLOBAL EDITION
 Created: 2026-04-21
 License: MIT
-Community: github.com/gooseagent/goose
+Community: github.com/genieagent/genie
 
 > **"A gaggle of developers, building the future together."**

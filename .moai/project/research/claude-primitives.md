@@ -1,6 +1,6 @@
 # Claude Code 4 Primitives 심층 분석 (Skills · MCP · Agents · Hooks)
 
-> **분석일**: 2026-04-21 · **대상**: `claude-code-source-map/` · **용도**: SPEC-GOOSE-SKILLS-001 / MCP-001 / SUBAGENT-001 / HOOK-001 / PLUGIN-001
+> **분석일**: 2026-04-21 · **대상**: `claude-code-source-map/` · **용도**: SPEC-GENIE-SKILLS-001 / MCP-001 / SUBAGENT-001 / HOOK-001 / PLUGIN-001
 
 ## 1. 4-Primitive 아키텍처
 
@@ -310,9 +310,9 @@ type HookJSONOutput =
 
 **MCPB 파일** (복합 서버): DXT 매니페스트 + user config variables 치환.
 
-## 7. GOOSE Go 포팅 매핑
+## 7. GENIE Go 포팅 매핑
 
-| Primitive | Claude Code | GOOSE Go |
+| Primitive | Claude Code | GENIE Go |
 |-----------|------------|----------|
 | **Skills** | skills/, loadSkillsDir.ts, parseSkill* | internal/skill/{loader, parser, schema, conditional, remote}.go |
 | **MCP** | tools/MCPTool/, mcpWebSocket*, mcpAuth* | internal/mcp/{client, server, transport, validation, auth}.go |
@@ -320,16 +320,16 @@ type HookJSONOutput =
 | **Hooks** | hooks/, useCanUseTool, toolPermission/ | internal/hook/{types, permission, handlers, plugin_loader}.go |
 | **Plugin Host** | utils/plugins/ | internal/plugin/{validator, walker, loader, mcp_integration, mcpb}.go |
 
-## 8. GOOSE SPEC 도출
+## 8. GENIE SPEC 도출
 
-### SPEC-GOOSE-SKILLS-001
+### SPEC-GENIE-SKILLS-001
 - YAML frontmatter parsing
 - 조건부 활성화 (gitignore 패턴)
 - 원격 로드 (${CLAUDE_SKILL_DIR}, ${CLAUDE_SESSION_ID} 치환)
 - 실행 모드: inline / fork / conditional
 - 권한 제어: disableModelInvocation, allowedTools, SAFE_SKILL_PROPERTIES
 
-### SPEC-GOOSE-MCP-001
+### SPEC-GENIE-MCP-001
 - 양방향 통신 (클라이언트 + 서버)
 - 전송: stdio/WebSocket/SSE
 - 리소스: resources/read, tools/list, prompts/list
@@ -337,19 +337,19 @@ type HookJSONOutput =
 - Deferred loading (ToolSearch)
 - 이름 충돌: mcp__{server}__{tool}
 
-### SPEC-GOOSE-SUBAGENT-001
+### SPEC-GENIE-SUBAGENT-001
 - 생명주기 3단계
 - Isolation: fork / worktree / background
 - Memory scopes: user / project / local
 - Role profile override
 
-### SPEC-GOOSE-HOOK-001
+### SPEC-GENIE-HOOK-001
 - 24 runtime events
 - Blocking 방식 (PreToolUse continue=false, watchPaths, additionalContext)
 - Permission flow (allow/deny/ask)
 - Plugin hook 통합 (clearThenRegister 원자성)
 
-### SPEC-GOOSE-PLUGIN-001
+### SPEC-GENIE-PLUGIN-001
 - manifest.json 스키마
 - 4 primitive 패키징
 - MCPB 파일 + user config variables 치환
@@ -376,7 +376,7 @@ type HookJSONOutput =
 - File State Cache (TS Set/Map → sync.Map)
 - Session Compaction
 
-## 10. 설계 원칙 (GOOSE 계승)
+## 10. 설계 원칙 (GENIE 계승)
 
 1. **Progressive Disclosure (L0-L3)**: Effort 기반 토큰 예산
 2. **Atomic State Transitions**: clearThenRegister (hot-reload)
@@ -387,4 +387,4 @@ type HookJSONOutput =
 
 ---
 
-**결론**: 4-primitive는 강결합 모놀리식 → 플러그 앤 플레이 모듈식. GOOSE 포팅 **재사용 80% / 부분재작성 15% / 완전재작성 5%**.
+**결론**: 4-primitive는 강결합 모놀리식 → 플러그 앤 플레이 모듈식. GENIE 포팅 **재사용 80% / 부분재작성 15% / 완전재작성 5%**.

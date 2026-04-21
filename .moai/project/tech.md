@@ -1,4 +1,4 @@
-# GOOSE-AGENT - Technology Document v4.1 POLYGLOT HYBRID
+# GENIE-AGENT - Technology Document v4.1 POLYGLOT HYBRID
 
 > **비전:** 글로벌 오픈소스 AI 에이전트 - Polyglot 3-언어 하이브리드 아키텍처
 > **핵심:** Rust (크리티컬 20%) + Go (오케스트레이션 70%) + TypeScript (UI 10%)
@@ -29,7 +29,7 @@
 | **Google ADK** | Go 에이전트 SDK | 에이전트 협업 = Go |
 | **$50K → $35K/월** | Hot path 3개만 Rust | 30% 비용 절감 |
 
-### 0.3 GOOSE의 선택 근거
+### 0.3 GENIE의 선택 근거
 
 - **MoAI-ADK-Go 38,700줄 직접 재사용** → Go 오케스트레이션 70%
 - **2026 벤치마크**: Rust 2-12x 빠른 CPU, 40% 낮은 레이턴시
@@ -45,23 +45,23 @@
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │  📘 TypeScript Layer (Client Edge - 10% LOC)                 │
-│  goose-cli (Ink) │ goose-desktop (Tauri) │                   │
-│  goose-mobile (RN) │ goose-web (Next.js)                     │
+│  genie-cli (Ink) │ genie-desktop (Tauri) │                   │
+│  genie-mobile (RN) │ genie-web (Next.js)                     │
 ├──────────────────────────────────────────────────────────────┤
 │  Bridge: gRPC (.proto contracts, cross-language)             │
 ├──────────────────────────────────────────────────────────────┤
 │  🐹 Go Layer (Orchestration Majority - 70% LOC)              │
-│  goosed daemon │ Agent Runtime │ Learning Coord              │
+│  genied daemon │ Agent Runtime │ Learning Coord              │
 │  LLM Router │ Tools │ Memory │ Transport │ Gateway           │
 ├──────────────────────────────────────────────────────────────┤
 │  Bridge: gRPC + CGO (hot paths only)                         │
 ├──────────────────────────────────────────────────────────────┤
 │  🦀 Rust Layer (Performance & Security Critical - 20% LOC)   │
-│  goose-ml (LoRA 훈련, Vector 연산)                            │
-│  goose-wasm (Extism/Wasmtime 샌드박스)                        │
-│  goose-crypto (E2EE Relay, Noise Protocol)                   │
-│  goose-desktop (OS Accessibility API)                        │
-│  goose-graph (Identity Graph 최적화)                          │
+│  genie-ml (LoRA 훈련, Vector 연산)                            │
+│  genie-wasm (Extism/Wasmtime 샌드박스)                        │
+│  genie-crypto (E2EE Relay, Noise Protocol)                   │
+│  genie-desktop (OS Accessibility API)                        │
+│  genie-graph (Identity Graph 최적화)                          │
 ├──────────────────────────────────────────────────────────────┤
 │  Infrastructure                                               │
 │  SQLite/FTS5 │ Qdrant │ Graphiti │ Ollama │ WASI            │
@@ -72,7 +72,7 @@
 
 | # | 레이어 | 언어 | 근거 | 참조 |
 |---|-------|-----|------|------|
-| 1 | **Daemon 오케스트레이터** (goosed) | 🐹 **Go** | MoAI-ADK-Go 계승, goroutines | MoAI-ADK |
+| 1 | **Daemon 오케스트레이터** (genied) | 🐹 **Go** | MoAI-ADK-Go 계승, goroutines | MoAI-ADK |
 | 2 | **Agent Runtime** | 🐹 Go | Google ADK, goroutines | ADK-Go |
 | 3 | **Learning Engine 코어** | 🐹 Go | SPEC-REFLECT 계승 | MoAI-ADK |
 | 4 | **ML/LoRA 훈련 엔진** | 🦀 **Rust** | Candle/Burn, SIMD, GPU | Agentor |
@@ -106,7 +106,7 @@
 
 ### 2.1 Rust 적용 영역 (5개 크레이트)
 
-**goose-ml** (ML/LoRA 훈련):
+**genie-ml** (ML/LoRA 훈련):
 | 의존성 | 용도 |
 |-------|------|
 | **candle-core** | Huggingface의 Rust ML 프레임워크 |
@@ -117,7 +117,7 @@
 | **ndarray** | NumPy-like 배열 |
 | **rayon** | 데이터 병렬 처리 |
 
-**goose-wasm** (WASM 샌드박스):
+**genie-wasm** (WASM 샌드박스):
 | 의존성 | 용도 |
 |-------|------|
 | **wasmtime** | Microsoft Wassette 기반 |
@@ -125,7 +125,7 @@
 | **wit-bindgen** | Component Model |
 | **cap-std** | Capability-based std |
 
-**goose-crypto** (E2EE & Relay):
+**genie-crypto** (E2EE & Relay):
 | 의존성 | 용도 |
 |-------|------|
 | **snow** | Noise Protocol (WireGuard 동일) |
@@ -135,7 +135,7 @@
 | **chacha20poly1305** | AEAD |
 | **argon2** | 패스워드 해싱 |
 
-**goose-desktop** (OS Accessibility):
+**genie-desktop** (OS Accessibility):
 | 의존성 | 용도 |
 |-------|------|
 | **accessibility-ng** | macOS AXUIElement |
@@ -145,7 +145,7 @@
 | **windows-rs** | Windows UIA |
 | **atspi** | Linux AT-SPI2 |
 
-**goose-vector** (Vector 연산):
+**genie-vector** (Vector 연산):
 | 의존성 | 용도 |
 |-------|------|
 | **hnsw_rs** | HNSW 근사 최근접 |
@@ -159,11 +159,11 @@
 ```toml
 [workspace]
 members = [
-    "crates/goose-ml",
-    "crates/goose-wasm",
-    "crates/goose-crypto",
-    "crates/goose-desktop",
-    "crates/goose-vector",
+    "crates/genie-ml",
+    "crates/genie-wasm",
+    "crates/genie-crypto",
+    "crates/genie-desktop",
+    "crates/genie-vector",
 ]
 ```
 
@@ -222,7 +222,7 @@ members = [
 |-------|------|
 | **cgo** (stdlib) | C 인터페이스 |
 | **purego** | Pure Go dlopen (CGO 없이) |
-| `crates/goose-ml/goose_ml.h` | Rust → C 헤더 |
+| `crates/genie-ml/genie_ml.h` | Rust → C 헤더 |
 
 ### 3.5 데이터베이스
 
@@ -236,23 +236,23 @@ members = [
 
 ## 4. TypeScript 기술 스택 (Client UI - 10%)
 
-### 4.1 goose-cli (Terminal)
+### 4.1 genie-cli (Terminal)
 - ink 6.x (ESM), react 19.x, @inkjs/ui 3.x, commander 12.x
 - @connectrpc/connect 2.x (gRPC 클라이언트)
 
-### 4.2 goose-desktop (Tauri v2)
+### 4.2 genie-desktop (Tauri v2)
 - tauri 2.x (Rust backend 자체적)
 - react 19.x, zustand 5.x, tailwindcss 4.x
 - shadcn/ui, framer-motion 11.x
 
-### 4.3 goose-mobile (React Native)
+### 4.3 genie-mobile (React Native)
 - react-native 0.76+ (New Architecture)
 - @picovoice/porcupine-react-native 3.x
 - whisper.rn 0.4+
 - react-native-executorch 0.2+ (LoRA)
 - react-native-stripe
 
-### 4.4 goose-web (Next.js 15)
+### 4.4 genie-web (Next.js 15)
 - next 15.x, react 19.x
 - @connectrpc/connect-web 2.x
 
@@ -263,22 +263,22 @@ members = [
 ### 5.1 통합 빌드 파이프라인
 
 ```bash
-# 1. Rust 크레이트 빌드 (goose-ml, goose-wasm 등)
+# 1. Rust 크레이트 빌드 (genie-ml, genie-wasm 등)
 cd crates
 cargo build --release
-cbindgen --crate goose-ml --output goose_ml.h  # C 헤더 생성
+cbindgen --crate genie-ml --output genie_ml.h  # C 헤더 생성
 
 # 2. Go 바이너리 빌드 (Rust 의존성 link)
 cd ..
-go build -o bin/goosed ./cmd/goosed/
-go build -o bin/goose ./cmd/goose/
+go build -o bin/genied ./cmd/genied/
+go build -o bin/genie ./cmd/genie/
 
 # 3. TypeScript 빌드 (Turborepo)
 cd packages
 turbo build
 
 # 4. Tauri 데스크톱 (Rust + TS)
-cd packages/goose-desktop
+cd packages/genie-desktop
 bun tauri build
 ```
 
@@ -309,7 +309,7 @@ jobs:
 
 ## 6. 보안 모델 (Rust 크리티컬 영역)
 
-### 6.1 E2EE (Rust goose-crypto)
+### 6.1 E2EE (Rust genie-crypto)
 
 **Noise Protocol + WireGuard 영감**:
 - X25519 (키 교환)
@@ -323,7 +323,7 @@ jobs:
 - 메모리 제어 + 비밀 누출 방지
 - 배터리 수명 향상
 
-### 6.2 WASM Sandbox (Rust goose-wasm)
+### 6.2 WASM Sandbox (Rust genie-wasm)
 
 **Wasmtime 기반 (Microsoft Wassette 패턴)**:
 - 메모리 격리
@@ -335,7 +335,7 @@ jobs:
 - Rust, Go, C, AssemblyScript, Zig 지원
 - OCI 레지스트리 + OSV 스캔
 
-### 6.3 OS Accessibility (Rust goose-desktop)
+### 6.3 OS Accessibility (Rust genie-desktop)
 
 **네이티브 OS API 안전 접근**:
 - macOS: AXUIElement, ScreenCaptureKit
@@ -425,11 +425,11 @@ Rust 크리티컬 영역이 L4 (WASM), L7 (E2EE)을 강화:
 
 ### ADR-012: User-specific LoRA Adapters
 
-**Update:** LoRA 훈련 = **Rust goose-ml**. On-device QLoRA 성능 극대화.
+**Update:** LoRA 훈련 = **Rust genie-ml**. On-device QLoRA 성능 극대화.
 
 ### ADR-013: Privacy-preserving Stack
 
-**Update:** E2EE Relay = **Rust goose-crypto** (Mullvad GotaTun 패턴).
+**Update:** E2EE Relay = **Rust genie-crypto** (Mullvad GotaTun 패턴).
 
 ### ADR-014: Identity Graph with POLE+O (유지)
 
@@ -473,7 +473,7 @@ Rust 크리티컬 영역이 L4 (WASM), L7 (E2EE)을 강화:
 - xAI, OpenRouter, DeepSeek, Mistral (P1-P2)
 - Naver HyperCLOVA X, KT Mi:dm (P3)
 
-**온디바이스 추론**: Rust **goose-ml** (candle, ort)
+**온디바이스 추론**: Rust **genie-ml** (candle, ort)
 
 ---
 
@@ -485,7 +485,7 @@ Go 기반 harness (MoAI 계승):
 벤치마크:
 - MASEval (multi-agent)
 - HAL (ICLR 2026)
-- GOOSE-Bench (개인화, 자체)
+- GENIE-Bench (개인화, 자체)
 
 **Rust ML 레이어 별도 벤치마크**:
 - Candle vs PyTorch (Huggingface 기준)
@@ -514,8 +514,8 @@ Go 기반 harness (MoAI 계승):
 
 ```bash
 # 필수
-GOOSE_HOME=~/.goose
-GOOSE_LOCALE=en|ko|ja|zh
+GENIE_HOME=~/.genie
+GENIE_LOCALE=en|ko|ja|zh
 
 # Rust build
 CARGO_BUILD_JOBS=8
@@ -534,13 +534,13 @@ ANTHROPIC_API_KEY=...
 OLLAMA_HOST=http://localhost:11434
 
 # Learning Engine
-GOOSE_LEARNING_ENABLED=true
-GOOSE_LORA_TRAINING=true  # Rust goose-ml
-GOOSE_FEDERATED_LEARNING=false
+GENIE_LEARNING_ENABLED=true
+GENIE_LORA_TRAINING=true  # Rust genie-ml
+GENIE_FEDERATED_LEARNING=false
 
 # Privacy
-GOOSE_ENCRYPTION=true  # Rust goose-crypto
-GOOSE_RELAY_URL=wss://relay.gooseagent.org
+GENIE_ENCRYPTION=true  # Rust genie-crypto
+GENIE_RELAY_URL=wss://relay.genieagent.org
 ```
 
 ---
@@ -586,7 +586,7 @@ GOOSE_RELAY_URL=wss://relay.gooseagent.org
 | Desktop | Rust (Tauri) + TS | Tauri 서명, auto-update |
 | iOS/Android | TS + Rust (ExecuTorch) | App Store, Play Store |
 | Web | TS | Vercel |
-| npm | TS | `@gooseagent/*` |
+| npm | TS | `@genieagent/*` |
 | Cargo | Rust | crates.io (SDK) |
 | Docker | Go + Rust | Multi-arch |
 | Go module | Go | pkg.go.dev |
@@ -603,9 +603,9 @@ RUN cargo build --release
 # Stage 2: Go 빌드 (Rust 링크)
 FROM golang:1.26-alpine AS go-builder
 WORKDIR /app
-COPY --from=rust-builder /app/crates/target/release/libgoose_ml.a /usr/lib/
+COPY --from=rust-builder /app/crates/target/release/libgenie_ml.a /usr/lib/
 COPY . .
-RUN CGO_ENABLED=1 go build -o goosed ./cmd/goosed/
+RUN CGO_ENABLED=1 go build -o genied ./cmd/genied/
 
 # Stage 3: TS 빌드 (필요시)
 FROM node:22-alpine AS ts-builder
@@ -616,9 +616,9 @@ RUN cd packages && bun install && turbo build
 # Stage 4: 최종 이미지
 FROM alpine:3.20
 RUN apk --no-cache add ca-certificates
-COPY --from=go-builder /app/goosed /usr/local/bin/
+COPY --from=go-builder /app/genied /usr/local/bin/
 EXPOSE 50051
-ENTRYPOINT ["goosed"]
+ENTRYPOINT ["genied"]
 ```
 
 ---
@@ -694,14 +694,14 @@ ENTRYPOINT ["goosed"]
 
 ```
 🦀 Rust (20% - Critical)
-  ├─ ML/LoRA 훈련 (goose-ml)
-  ├─ WASM 샌드박스 (goose-wasm)
-  ├─ E2EE 암호화 (goose-crypto)
-  ├─ Desktop OS API (goose-desktop)
-  └─ Vector 연산 (goose-vector)
+  ├─ ML/LoRA 훈련 (genie-ml)
+  ├─ WASM 샌드박스 (genie-wasm)
+  ├─ E2EE 암호화 (genie-crypto)
+  ├─ Desktop OS API (genie-desktop)
+  └─ Vector 연산 (genie-vector)
 
 🐹 Go (70% - Orchestration)
-  ├─ goosed daemon (MoAI-ADK-Go 계승)
+  ├─ genied daemon (MoAI-ADK-Go 계승)
   ├─ Agent Runtime
   ├─ Learning Engine Core
   ├─ LLM Router
@@ -709,10 +709,10 @@ ENTRYPOINT ["goosed"]
   └─ Gateway + MCP
 
 📘 TypeScript (10% - UI)
-  ├─ goose-cli (Ink)
-  ├─ goose-desktop (Tauri)
-  ├─ goose-mobile (React Native)
-  └─ goose-web (Next.js 15)
+  ├─ genie-cli (Ink)
+  ├─ genie-desktop (Tauri)
+  ├─ genie-mobile (React Native)
+  └─ genie-web (Next.js 15)
 ```
 
 **원칙**:
@@ -736,7 +736,7 @@ License: MIT
 Base: MoAI-ADK-Go (38,700 LOC) + Rust security layer + TS UI
 Reference: Claude Code + Hermes Agent + MoAI-ADK + 2026 Industry patterns
 
-> **"Rust for safety. Go for velocity. TypeScript for UX. All together for GOOSE."**
+> **"Rust for safety. Go for velocity. TypeScript for UX. All together for GENIE."**
 
 Sources:
 - [Rust vs Go 2026 Benchmarks](https://tech-insider.org/rust-vs-go-2026/)

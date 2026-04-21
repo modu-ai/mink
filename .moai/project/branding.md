@@ -1,6 +1,6 @@
-# GOOSE-AGENT - Branding & UX Document v4.0 GLOBAL EDITION
+# GENIE-AGENT - Branding & UX Document v4.0 GLOBAL EDITION
 
-> **브랜드 비전:** "GOOSE knows you. Every day, a little more."
+> **브랜드 비전:** "GENIE knows you. Every day, a little more."
 > 글로벌 오픈소스 AI 에이전트 - 평생 동반자 브랜드
 
 ---
@@ -9,7 +9,7 @@
 
 ### 1.1 프로젝트명 유래
 
-**"GOOSE"** = 세 가지 의미의 융합:
+**"GENIE"** = 세 가지 의미의 융합:
 1. **창립자 브랜드**: 사용자명 `goos` + `e` = 개인 프로젝트 아이덴티티
 2. **거위(鵝)의 특성**: 똑똑함, 평생 가족 기억, 장거리 이동, 무리 지능
 3. **Backronym**: **G**enerative **O**pen **O**rchestrator for **S**elf-Evolving **E**agent
@@ -32,7 +32,7 @@
 
 ### 1.4 v3.0 → v4.0 브랜드 전환
 
-| 항목 | v3.0 Genie Korea | v4.0 GOOSE Global |
+| 항목 | v3.0 Genie Korea | v4.0 GENIE Global |
 |-----|------------------|-------------------|
 | 메타포 | 지니 (아라비안나이트) | 거위 (자연/가족) |
 | 시장 | 한국 전용 | 글로벌 |
@@ -42,13 +42,13 @@
 
 ---
 
-## 2. 거위 은유 체계 (Goose Metaphor System)
+## 2. 거위 은유 체계 (Genie Metaphor System)
 
 ### 2.1 핵심 매핑 (25+ 개념)
 
-| 거위 세계 | GOOSE-Agent | 설명 |
+| 거위 세계 | GENIE-Agent | 설명 |
 |----------|-------------|------|
-| 거위 (Goose) | Personal AI Agent | 사용자 전용 에이전트 |
+| 거위 (Genie) | Personal AI Agent | 사용자 전용 에이전트 |
 | 주인 (Master) | User | 사용자 |
 | 둥지 (Nest) | Desktop App | PC 홈 |
 | 비행 (Flight) | Mobile App | 이동 중 |
@@ -179,24 +179,24 @@
 **Lucide React** (기본 라이브러리)
 
 **커스텀 거위 세트**:
-- 💨 Flying Goose (활동 중)
+- 💨 Flying Genie (활동 중)
 - 🥚 Egg (새 스킬)
 - 🏡 Nest (홈)
 - 📬 Honking (알림)
 - 🌾 Grain (토큰)
 - 🦢 Gaggle (팀)
-- 🌙 Night Goose (다크 모드)
-- ☀️ Dawn Goose (라이트 모드)
+- 🌙 Night Genie (다크 모드)
+- ☀️ Dawn Genie (라이트 모드)
 
 ---
 
 ## 5. UX 원칙
 
-### 5.1 First Day with GOOSE (Hatching 🥚)
+### 5.1 First Day with GENIE (Hatching 🥚)
 
 **환영 경험**:
 ```
-1. Welcome: "Hi, I'm your new GOOSE"
+1. Welcome: "Hi, I'm your new GENIE"
 2. Your name: "What should I call you?"
 3. Persona: 5 personalities + Custom
 4. Language: Auto-detected + override
@@ -209,13 +209,13 @@
 ### 5.2 Month 1 - Growing Together 🌱
 
 - 학습 진행도 대시보드
-- "GOOSE is learning about you..."
+- "GENIE is learning about you..."
 - 초기 개인화 결과 표시
 - 사용자가 학습 데이터 검토 가능
 
 예시 UI:
 ```
-[GOOSE Learning Progress]
+[GENIE Learning Progress]
 📊 Identity Graph: 45 nodes, 128 relations
 🎯 Patterns Detected: 7
 💭 Style Adaptation: 78% confident
@@ -228,11 +228,11 @@
 - 사용자 패턴 인식 완성
 - LoRA 초기 훈련 완료
 
-### 5.4 Year 1 - Your GOOSE 🦢
+### 5.4 Year 1 - Your GENIE 🦢
 
 - User LoRA 완전 활성
 - 90%+ 정확도 예측
-- "Your GOOSE, only you"
+- "Your GENIE, only you"
 
 ---
 
@@ -248,7 +248,7 @@
 
 ### 6.2 음성 인터페이스
 
-- **Wake Word**: "Hey GOOSE" (영어)
+- **Wake Word**: "Hey GENIE" (영어)
 - **한국어**: "구스야" (한국어 모드)
 - **日本語**: "グース" (일본어 모드)
 - **STT**: Whisper on-device
@@ -256,7 +256,7 @@
 
 ### 6.3 제스처
 
-- 홈 화면 위→아래 스와이프: GOOSE 소환
+- 홈 화면 위→아래 스와이프: GENIE 소환
 - 좌측 엣지 스와이프: 히스토리
 - 우측 엣지 스와이프: 에이전트 상태
 - 꾹 누르기: 즉시 실행
@@ -277,7 +277,7 @@
 - "What's your wish?"
 - Fuzzy search (skills, agents, recent)
 
-### 7.3 Learning Dashboard (GOOSE만의 기능) ⭐
+### 7.3 Learning Dashboard (GENIE만의 기능) ⭐
 
 **Identity Graph 시각화**:
 - 노드/관계 탐색
@@ -308,7 +308,7 @@
 
 ## 8. 톤 & 언어 가이드
 
-### 8.1 GOOSE Voice Principles
+### 8.1 GENIE Voice Principles
 
 1. **Warm (따뜻함)**: 거위처럼 충성스럽고 친근
 2. **Smart (똑똑함)**: 깊이 있는 이해 보여주기
@@ -340,17 +340,17 @@
 
 ### 9.1 GitHub 브랜딩
 
-- Repo: `github.com/gooseagent/goose`
+- Repo: `github.com/genieagent/genie`
 - Banner: 비행하는 거위 일러스트
 - Contributor 뱃지:
-  - "Leader Goose" (창립 기여자)
+  - "Leader Genie" (창립 기여자)
   - "Wing" (주요 기여자, 100+ commits)
   - "Feather" (일반 기여자)
   - "Featherweight" (첫 기여자)
 
 ### 9.2 Discord Community
 
-- 서버명: **GOOSE Community**
+- 서버명: **GENIE Community**
 - 채널 구조:
   - `#nest` (general)
   - `#flight` (support)
@@ -360,19 +360,19 @@
   - `#gaggle-ko` (한국어)
   - `#gaggle-ja` (日本語)
   - `#gaggle-zh` (中文)
-- 봇: **Gander Bot** (GOOSE 자체가 Discord 모더레이션)
+- 봇: **Gander Bot** (GENIE 자체가 Discord 모더레이션)
 
 ### 9.3 Social Media
 
-- X/Twitter: @gooseagent
-- YouTube: "GOOSE Agent"
-- Reddit: r/gooseagent
-- LinkedIn: GOOSE Agent (Company page)
-- Bluesky: @gooseagent.bsky.social
+- X/Twitter: @genieagent
+- YouTube: "GENIE Agent"
+- Reddit: r/genieagent
+- LinkedIn: GENIE Agent (Company page)
+- Bluesky: @genieagent.bsky.social
 
 ### 9.4 Blog & Content
 
-- Domain: `blog.gooseagent.org`
+- Domain: `blog.genieagent.org`
 - 정기 시리즈:
   - "Migration Notes" (릴리즈)
   - "Flying Together" (커뮤니티 하이라이트)
@@ -385,7 +385,7 @@
 
 ### 10.1 태그라인 (다국어)
 
-- **English**: "GOOSE knows you. Every day, a little more."
+- **English**: "GENIE knows you. Every day, a little more."
 - **한국어**: "당신을 매일 조금 더 이해하는 AI"
 - **日本語**: "毎日少しずつあなたを理解するAI"
 - **中文**: "每天更懂你的AI"
@@ -458,7 +458,7 @@
 
 ### 12.2 Migration Conference (연간)
 
-- GOOSE 개발자/사용자 컨퍼런스
+- GENIE 개발자/사용자 컨퍼런스
 - 첫 회: 2027년 (목표)
 - 장소: 하이브리드 (온라인 + 현장)
 - 트랙: Developer, User, Research
@@ -468,7 +468,7 @@
 **3-Tier 기여자 체계**:
 1. **Featherweight** (첫 기여): Welcome kit
 2. **Wing** (10+ commits): T-shirt + 뱃지
-3. **Leader Goose** (100+ commits): Conference invite + GitHub Sponsors 지원
+3. **Leader Genie** (100+ commits): Conference invite + GitHub Sponsors 지원
 
 **Rewards**:
 - GitHub Sponsors
@@ -497,7 +497,7 @@
 
 - MIT 라이선스 조건
 - 플러그인 개발자 가이드
-- "Powered by GOOSE" 배지 (옵션)
+- "Powered by GENIE" 배지 (옵션)
 
 ### 13.3 미디어 키트
 
@@ -513,11 +513,11 @@
 ### 14.1 Origin Story
 
 "In a world where AI talks to billions but knows no one,
-one goose set out to change that.
+one genie set out to change that.
 
 Like the wild geese that remember their mates for life,
 and return to the same nest each spring,
-GOOSE was built on a simple truth:
+GENIE was built on a simple truth:
 **Real intelligence is personal.**
 
 Not a chatbot with your face painted on.
@@ -525,16 +525,16 @@ Not a custom GPT with a clever prompt.
 A living, learning companion that grows with you—
 one conversation, one day, one year at a time.
 
-This is GOOSE."
+This is GENIE."
 
-### 14.2 Why "Goose"?
+### 14.2 Why "Genie"?
 
 우리는 거위를 선택했다. 이유:
 
-1. **충성심**: 거위는 평생 짝을 기억한다. GOOSE도 평생 당신을 기억한다.
+1. **충성심**: 거위는 평생 짝을 기억한다. GENIE도 평생 당신을 기억한다.
 2. **지능**: 거위는 매우 똑똑한 새. 지도를 기억하고, 리더를 돌아가며 맡는다.
 3. **협력**: V자 비행은 에너지 효율. 우리 에이전트도 서로 돕는다.
-4. **경계**: 거위는 훌륭한 경비병. GOOSE도 당신을 보호한다.
+4. **경계**: 거위는 훌륭한 경비병. GENIE도 당신을 보호한다.
 5. **진화**: 계절 이동 = 적응 = continual learning.
 
 ---
@@ -572,4 +572,4 @@ Created: 2026-04-21
 License: MIT
 Brand: Independent, community-owned
 
-> **"GOOSE. Because your AI should know YOU."**
+> **"GENIE. Because your AI should know YOU."**

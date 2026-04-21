@@ -1,6 +1,6 @@
 # Claude Code Agentic Core 심층 분석
 
-> **분석일**: 2026-04-21 · **대상**: `claude-code-source-map/` · **수준**: Very Thorough · **용도**: GOOSE-AGENT SPEC-GOOSE-QUERY-001 / TASK-001 / CONTEXT-001 근거
+> **분석일**: 2026-04-21 · **대상**: `claude-code-source-map/` · **수준**: Very Thorough · **용도**: GENIE-AGENT SPEC-GENIE-QUERY-001 / TASK-001 / CONTEXT-001 근거
 
 ## 1. Core Loop 구조
 
@@ -106,9 +106,9 @@ export const getUserContext = memoize(async () => ({
 }))
 ```
 
-## 4. GOOSE Go 포팅 매핑
+## 4. GENIE Go 포팅 매핑
 
-| Claude Code (TS) | GOOSE (Go) | 패키지 |
+| Claude Code (TS) | GENIE (Go) | 패키지 |
 |-----------------|-----------|-------|
 | QueryEngine | QueryEngine | `internal/query/` |
 | query() + queryLoop() | QueryLoop | `internal/query/loop/` |
@@ -163,9 +163,9 @@ export const getUserContext = memoize(async () => ({
 9. **Coordinator mode changes tool visibility**: isCoordinatorMode() → worker 도구만
 10. **Context memoized per session**: getSystemContext() + getUserContext() 한 번만 계산
 
-## 7. GOOSE SPEC 도출
+## 7. GENIE SPEC 도출
 
-### SPEC-GOOSE-QUERY-001: QueryEngine & Query Loop
+### SPEC-GENIE-QUERY-001: QueryEngine & Query Loop
 
 EARS 요구사항:
 ```
@@ -189,11 +189,11 @@ AND query loop MUST:
 AND streaming MUST NOT buffer, support abortController, support middleware hooks
 ```
 
-### SPEC-GOOSE-TASK-001: Task Type Hierarchy
+### SPEC-GENIE-TASK-001: Task Type Hierarchy
 
 5 task types (discriminated union), 각각 생명주기 콜백(onStarted, onProgress, onCompleted, onError) + AppState.tasks[] 등록 + stop() 전파. InProcessTeammate는 TeammateIdentity + mailbox + UI cap 50 + permissionMode cycling + idle notification. RemoteAgent는 task-notification XML + resume from sessionId.
 
-### SPEC-GOOSE-CONTEXT-001: Context Window Management
+### SPEC-GENIE-CONTEXT-001: Context Window Management
 
 systemPrompt + userContext + systemContext 로드(memoized), normalize messages, tokenCountWithEstimation, calculateTokenWarningState 기반 auto-compact trigger, compaction 적용(autoCompact/reactiveCompact/snip), task_budget 누적 추적, CompactBoundary yield, snip 경계는 redacted_thinking 보존.
 
@@ -206,7 +206,7 @@ systemPrompt + userContext + systemContext 로드(memoized), normalize messages,
 
 ## 9. 결론
 
-Claude Code agentic core = **async generator streaming query loop + 5 task type union**. GOOSE 포팅 시:
+Claude Code agentic core = **async generator streaming query loop + 5 task type union**. GENIE 포팅 시:
 - streaming 채널
 - context.Context로 AsyncLocalStorage 대체
 - Go struct + mutex for AppState

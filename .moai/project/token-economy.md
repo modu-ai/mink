@@ -1,4 +1,4 @@
-# GOOSE-AGENT - Token Economy Document v4.0 GLOBAL EDITION
+# GENIE-AGENT - Token Economy Document v4.0 GLOBAL EDITION
 
 > **비전:** 오픈소스 프로젝트의 지속 가능성을 위한 글로벌 토큰 경제
 
@@ -16,7 +16,7 @@
 | KT 통합 | 매각 후 통합 | **완전 제거** |
 | 규제 | 한국 전용 | **글로벌 (GDPR/CCPA/PIPA)** |
 
-### 1.2 GOOSE 토큰 경제 철학
+### 1.2 GENIE 토큰 경제 철학
 
 - **Open Source 지속가능성**: 코어 MIT + 선택 유료 서비스
 - **Fair Revenue Share**: 개발자 70%, 플랫폼 30%
@@ -28,7 +28,7 @@
 
 ## 2. 3-Tier 통화 시스템
 
-### 2.1 GOOSE Credits (무료) 🆓
+### 2.1 GENIE Credits (무료) 🆓
 
 **획득**:
 | 활동 | 보상 | 한도 |
@@ -48,7 +48,7 @@
 
 **제약**: 환급 불가, 양도 불가, 유효기간 180일
 
-### 2.2 GOOSE Tokens (GEN - 유료) 💰
+### 2.2 GENIE Tokens (GEN - 유료) 💰
 
 **단위**: 1 GEN = $0.01 USD (1,000 GEN = $10)
 
@@ -96,7 +96,7 @@
 **환불**: 7일 전액, 8-30일 부분 (Stripe Dispute)
 **유효기간**: 2년
 
-### 2.3 GOOSE Coins (개발자 수익) 🪙
+### 2.3 GENIE Coins (개발자 수익) 🪙
 
 **획득**: 판매액 70% (스킬/플러그인/에이전트)
 
@@ -147,7 +147,7 @@
 ### 3.4 FAMILY (v4.0 신규)
 - **$49.99/월** (₩69,900)
 - 4인 공유 (Pro)
-- 독립 GOOSE 인스턴스 × 4
+- 독립 GENIE 인스턴스 × 4
 - 가족 대시보드
 - 자녀 보호 모드
 - 30% 할인
@@ -176,7 +176,7 @@
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant A as GOOSE App
+    participant A as GENIE App
     participant S as Stripe
     participant L as Token Ledger
     
@@ -194,7 +194,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant G as GOOSE
+    participant G as GENIE
     participant T as Token Ledger
     participant LLM as LLM API
     
@@ -235,7 +235,7 @@ sequenceDiagram
 
 ### 5.1 법적 분류
 
-**GOOSE Credits/Tokens/Coins = "Virtual Goods"**
+**GENIE Credits/Tokens/Coins = "Virtual Goods"**
 - NOT: 암호화폐, 증권, 전자화폐
 - 선례: Steam Wallet, Roblox Robux, App Store credits
 - 글로벌 규제 일관성
@@ -366,7 +366,7 @@ $10 user payment
 
 **"Pay for what you use. Own what you create."**
 
-GOOSE 토큰 경제의 원칙:
+GENIE 토큰 경제의 원칙:
 1. 오픈소스 지속가능성 (코어 MIT)
 2. Fair Revenue Share (70/30)
 3. BYOK 우선 (자체 키 무료)

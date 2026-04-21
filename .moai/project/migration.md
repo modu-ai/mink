@@ -1,6 +1,6 @@
-# GOOSE-AGENT - Migration Guide & Pivot Journey v4.0
+# GENIE-AGENT - Migration Guide & Pivot Journey v4.0
 
-> **문서 목적:** 5번의 피벗을 거쳐 GOOSE에 도착한 여정을 기록. 새 팀원, 기여자, 이해관계자를 위한 프로젝트 스토리.
+> **문서 목적:** 5번의 피벗을 거쳐 GENIE에 도착한 여정을 기록. 새 팀원, 기여자, 이해관계자를 위한 프로젝트 스토리.
 
 ---
 
@@ -13,7 +13,7 @@
 - v1.0 Oz World (2026-04-10)
 - v2.0 Genie Global (2026-04-10)
 - v3.0 Genie Korea (2026-04-21)
-- **v4.0 GOOSE Global** (2026-04-21 ~)
+- **v4.0 GENIE Global** (2026-04-21 ~)
 
 각 피벗의 **이유와 학습**을 정리하여, 앞으로 같은 실수 반복을 방지한다.
 
@@ -38,7 +38,7 @@
                 ├─ KT 기가지니 이식
                 └─ 한국 매각 타깃 (500-800억원)
 
-2026-04-21 ━━━ v4.0 GOOSE Global ⭐
+2026-04-21 ━━━ v4.0 GENIE Global ⭐
                 ├─ 자기진화 개인화 AI
                 ├─ Go + TypeScript
                 └─ 글로벌 오픈소스 (MIT)
@@ -156,7 +156,7 @@
 
 ---
 
-### 2.5 v4.0: GOOSE Global (2026-04-21 ~, **현재**)
+### 2.5 v4.0: GENIE Global (2026-04-21 ~, **현재**)
 
 **날짜**: 2026-04-21 ~
 **언어**: **Go + TypeScript** (Rust → Go)
@@ -181,7 +181,7 @@
    - 커뮤니티 = 지속 가능
 
 3. **장기 브랜드**:
-   - "GOOSE" = 사용자명 goos 연결 = 개인 애착
+   - "GENIE" = 사용자명 goos 연결 = 개인 애착
    - 거위 = 평생 동반자 은유와 일치
    - 영구 독립 브랜드 (인수 X)
 
@@ -334,7 +334,7 @@ v0.2부터 이 세 프로젝트 분석이 기반.
 ### 6.2 언어 변경 (Rust → Go)
 
 **Naming 변경**:
-- `genie-` prefix → `goose-` prefix
+- `genie-` prefix → `genie-` prefix
 - Rust crates → Go packages
 
 **구조 변경**:
@@ -388,7 +388,7 @@ v0.2부터 이 세 프로젝트 분석이 기반.
 
 ### 7.1 핵심 비전 고정 (Immutable)
 
-**GOOSE의 불변 핵심** (변경 X):
+**GENIE의 불변 핵심** (변경 X):
 - ✅ 자기진화 개인화 AI
 - ✅ 오픈소스 MIT
 - ✅ Go + TypeScript
@@ -485,7 +485,7 @@ v4.0 이후 모든 중대 변경은 RFC 필요:
 - v0.2 ~ v3.0 설계 문서 (재활용)
 
 **브랜드**:
-- GOOSE 메타포 (새로움, 장기 가능)
+- GENIE 메타포 (새로움, 장기 가능)
 - 거위 심볼리즘
 - MIT 라이선스 정체성
 
@@ -502,9 +502,9 @@ v4.0 이후 모든 중대 변경은 RFC 필요:
 ### 9.2 첫 번째 스프린트 (Phase 1)
 
 **Month 1 (MVP 시작)**:
-- Go 코어 포팅 (`goose-core`)
+- Go 코어 포팅 (`genie-core`)
 - MoAI-ADK SPEC-REFLECT 계승
-- Basic CLI (`goose-cli`)
+- Basic CLI (`genie-cli`)
 
 **Month 2-3 (확장)**:
 - Identity Graph (Graphiti 통합)
@@ -538,10 +538,10 @@ v4.0 이후 모든 중대 변경은 RFC 필요:
 
 ### 10.2 새로운 v4.0 지지자
 
-"안녕하세요, GOOSE 커뮤니티에 오신 것을 환영합니다.
+"안녕하세요, GENIE 커뮤니티에 오신 것을 환영합니다.
 MIT 라이선스의 완전 오픈소스 AI 에이전트입니다.
 자기진화 + 100% 개인화 = 평생 동반자 AI.
-참여 방법은 github.com/gooseagent/goose."
+참여 방법은 github.com/genieagent/genie."
 
 ### 10.3 코드 기여자
 
@@ -557,9 +557,9 @@ Enterprise 지원 계약도 가능 (2027년 예정)."
 
 ### 10.5 학술 연구자
 
-"GOOSE는 자기진화 AI 연구의 open platform.
+"GENIE는 자기진화 AI 연구의 open platform.
 ICLR 2026 Lifelong Agents Workshop 참여 예정.
-데이터셋 (익명) 공개 가능. Research@gooseagent.org."
+데이터셋 (익명) 공개 가능. Research@genieagent.org."
 
 ---
 
@@ -590,7 +590,7 @@ ICLR 2026 Lifelong Agents Workshop 참여 예정.
 
 ## 12. 결론
 
-5번의 피벗을 거쳐 **GOOSE**에 도착했다.
+5번의 피벗을 거쳐 **GENIE**에 도착했다.
 
 이제는 확고한 비전:
 - **자기진화 개인화 AI**
@@ -624,7 +624,7 @@ v4.0은 다음에 바뀌지 않는다.
 - v1.0: `goos-agent-os` (Oz World)
 - v2.0: `genie-agent` (글로벌)
 - v3.0: `genie-kr` (한국)
-- **v4.0: `goose-agent`** (글로벌)
+- **v4.0: `genie-agent`** (글로벌)
 
 ### C. 타깃 매각가/가치
 
@@ -640,4 +640,4 @@ Version: 4.0.0
 Created: 2026-04-21
 Status: Final (v4.0은 변하지 않는다)
 
-> **"5 pivots. 1 destination. GOOSE."**
+> **"5 pivots. 1 destination. GENIE."**

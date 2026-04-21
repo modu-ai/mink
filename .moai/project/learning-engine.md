@@ -1,12 +1,12 @@
-# GOOSE-AGENT - 자기진화 학습 엔진 설계 v4.0
+# GENIE-AGENT - 자기진화 학습 엔진 설계 v4.0
 
 ## 0. 문서 개요
 
-이 문서는 GOOSE의 가장 중요한 차별점인 **자기진화 학습 엔진**의 상세 설계이다.
+이 문서는 GENIE의 가장 중요한 차별점인 **자기진화 학습 엔진**의 상세 설계이다.
 
-GOOSE는 다른 모든 AI와 다르다:
+GENIE는 다른 모든 AI와 다르다:
 - **일반 AI**: Static (모든 사용자에게 동일한 모델)
-- **GOOSE**: Dynamic (사용자별로 진화하는 모델)
+- **GENIE**: Dynamic (사용자별로 진화하는 모델)
 
 이 문서의 원천:
 1. **MoAI-ADK-Go SPEC-REFLECT-001** (이미 구현된 학습 엔진)
@@ -21,11 +21,11 @@ GOOSE는 다른 모든 AI와 다르다:
 - LoRA adapter 개선 → 다음 대화가 더 좋아짐
 
 1개월 후:
-- GOOSE는 당신을 알아간다
+- GENIE는 당신을 알아간다
 - 당신의 원래 모델 + 개인화된 100MB LoRA 조합
 
 1년 후:
-- GOOSE는 당신의 디지털 쌍둥이가 됨
+- GENIE는 당신의 디지털 쌍둥이가 됨
 - 당신이 하려는 것을 예측 (행동 전)
 - 당신이 원하는 방식으로 대답 (항상)
 
@@ -198,7 +198,7 @@ type ActionPrediction struct {
 4. 디버깅 (문제 분석)
 5. 최적화 (성능 개선)
 
-GOOSE 학습:
+GENIE 학습:
 "아, 이 사용자는 항상 API → Impl → Test → Debug 순서네"
 
 다음에 API 설계할 때:
@@ -238,7 +238,7 @@ User: "실은 휴가 가는데 경기도 일상에서 대화하고 싶어"
 After: "당신의 엄마 생일 선물 추천해줄래?"
        → Mode: RELAX, formality 0.3, detail 0.5
 
-GOOSE: 자동으로 톤 전환, 이전 코드 복잡도 낮춤
+GENIE: 자동으로 톤 전환, 이전 코드 복잡도 낮춤
 ```
 
 #### d) Anomaly Detection (평소와 다른 행동)
@@ -274,17 +274,17 @@ Anomaly 감지:
 - 보안/compliance 질문 (평소 backend 중심)
 - 응답 거부 많음 (평소와 다른 만족도)
 
-GOOSE 반응:
+GENIE 반응:
 "최근 뭔가 바뀐 게 있나요?"
 → 사용자: "회사가 새 프로젝트 줬어"
-→ GOOSE: 도메인 정보 업데이트 + 우선순위 변경
+→ GENIE: 도메인 정보 업데이트 + 우선순위 변경
 ```
 
 ---
 
 ## 2. MoAI-ADK-Go SPEC-REFLECT-001 계승
 
-GOOSE의 학습 엔진은 MoAI-ADK-Go에 이미 구현된 SPEC-REFLECT-001을 그대로 계승하고 확장한다.
+GENIE의 학습 엔진은 MoAI-ADK-Go에 이미 구현된 SPEC-REFLECT-001을 그대로 계승하고 확장한다.
 
 ### 2.1 5단계 승격 파이프라인
 
@@ -468,7 +468,7 @@ type RateLimiter struct {
 
 **EvolvableZones** (진화 가능 영역만):
 ```markdown
-<!-- goose:evolvable-start id="user_style_preferences" -->
+<!-- genie:evolvable-start id="user_style_preferences" -->
 ## 사용자 스타일 선호
 
 - 응답 길이: medium (short/medium/long)
@@ -476,11 +476,11 @@ type RateLimiter struct {
 - 존댓말: 항상 유지 (formal)
 - 코드 비율: 60% (0-100%)
 
-GOOSE Notes:
+GENIE Notes:
 - Last learned: 2026-04-21 (5회 관찰)
 - Confidence: 0.85
 - Rollback available until: 2026-05-21
-<!-- goose:evolvable-end -->
+<!-- genie:evolvable-end -->
 ```
 
 **UserApproval** (사용자 명시적 승인):
@@ -525,7 +525,7 @@ type RollbackPolicy struct {
 
 ## 3. User Identity Graph (사용자 이해)
 
-GOOSE가 사용자를 **사람**으로 이해하는 방법.
+GENIE가 사용자를 **사람**으로 이해하는 방법.
 
 ### 3.1 POLE+O 스키마
 
@@ -625,7 +625,7 @@ type FactAssertion struct {
         우리 회사는 삼성이야.
         다음주 회의에서 진행상황 보고해야 해."
 
-GOOSE 추출:
+GENIE 추출:
 - Person: 김과장 (new relation: Manager)
 - Organization: 삼성 (확인, already knew)
 - Event: 다음주 회의 (new, 2026-04-28)
@@ -807,14 +807,14 @@ func (vs *VectorSpace) FindSimilarUsers(
 당신과 유사한 사용자들이 선호하는 스킬:
 - Go를 배우는 Python 개발자? 
   → 100명 중 75명이 "Go Concurrency" 선호
-  → GOOSE: "비슷한 사용자들이 좋아한 스킬 있어요"
+  → GENIE: "비슷한 사용자들이 좋아한 스킬 있어요"
 
 같은 도메인의 다양한 접근:
 - Rust 보안 연구자들:
   - 30% 형식적 설명 선호
   - 50% 코드 + 논문 선호
   - 20% 대화식 학습 선호
-→ GOOSE: 당신은 50% 그룹 같네요
+→ GENIE: 당신은 50% 그룹 같네요
 ```
 
 ### 4.3 개인화 랭킹
@@ -884,7 +884,7 @@ func (vs *VectorSpace) RerankResults(
 | **LoRA** | 10-100M | 10-200MB | 30min-2h | $1 | 온디바이스 |
 | Prefix Tuning | 1M | 5MB | 1h | $10 | 온디바이스 |
 
-**GOOSE 선택: LoRA**
+**GENIE 선택: LoRA**
 - 크기: 한 명의 사용자 = 100MB 정도 (가능)
 - 훈련: 30분-2시간 (실용적)
 - 효과: 전체 파인튜닝의 90% 품질 (증명됨)
@@ -1006,18 +1006,18 @@ graph LR
    - 출력: LoRA adapter
    - 시간: 0-2초
 
-**GOOSE 응용**:
+**GENIE 응용**:
 ```
 Onboarding:
 1. 사용자가 첫 대화 시작
-2. GOOSE: "당신의 스타일을 빨리 파악하려면 짧은 설문 해도 될까요?"
+2. GENIE: "당신의 스타일을 빨리 파악하려면 짧은 설문 해도 될까요?"
 3. 3개 질문 답변 (30초)
 4. Hypernetwork가 즉시 LoRA 생성
 5. 두 번째 응답부터 맞춤형!
 
 VS 기존:
 - 기존: 1000+ 대화 후 1개월 뒤 맞춤화
-- GOOSE: 30초 후 즉시 맞춤화
+- GENIE: 30초 후 즉시 맞춤화
 ```
 
 **기술 스택**:
@@ -1066,7 +1066,7 @@ func (h *HypernetworkAdapter) TextToLoRA(
 
 ```mermaid
 timeline
-    title GOOSE 학습 주기
+    title GENIE 학습 주기
     
     Daily : 세션 대화 수집
          : Identity Graph 업데이트 (비동기)
@@ -1297,7 +1297,7 @@ func EvaluateNewLoRA(
 
 ## 7. Privacy-preserving Learning (프라이버시 보호)
 
-GOOSE 학습은 사용자 데이터를 절대 노출하지 않는다.
+GENIE 학습은 사용자 데이터를 절대 노출하지 않는다.
 
 ### 7.1 3-Layer Privacy Stack
 
@@ -1315,7 +1315,7 @@ graph TB
     Input -->|로컬만| Layer2
     Input -->|하드웨어 보안| Layer3
     
-    Output["GOOSE 학습<br/>민감정보 제거<br/>통계 유지"]
+    Output["GENIE 학습<br/>민감정보 제거<br/>통계 유지"]
     
     Layer1 -->|거품없는<br/>노이즈| Output
     Layer2 -->|개인 데이터<br/>안 나감| Output
@@ -1492,7 +1492,7 @@ const (
 
 **예제 1: Pattern-based**
 ```
-GOOSE 학습:
+GENIE 학습:
 - 매주 월요일 09:00, 사용자가 "주간 계획" 요청
 - 신뢰도: 0.92 (15주 연속)
 
@@ -1504,7 +1504,7 @@ Trigger:
 
 **예제 2: Time-based**
 ```
-GOOSE 학습:
+GENIE 학습:
 - 사용자는 보통 오전 9-11시에 가장 활발
 - 주말은 조용함
 
@@ -1523,7 +1523,7 @@ Trigger:
 → 2026-05-10 (5일 전): 알림 시작
 → "엄마 생일이 5일 남았어요. 선물 아이디어 원하세요?"
 → User says "네!"
-→ GOOSE: 선물 추천, 카드 작성 도움, 배송 일정 안내
+→ GENIE: 선물 추천, 카드 작성 도움, 배송 일정 안내
 ```
 
 **예제 4: Anomaly-based**
@@ -1567,7 +1567,7 @@ type ProactiveResponse struct {
 
 **Suggest**: 제안 (승인 기다림)
 ```
-GOOSE: "이번 주 목표 3개 세워보시겠어요?"
+GENIE: "이번 주 목표 3개 세워보시겠어요?"
 Options:
   - "네, 해봅시다"
   - "내일 할게"
@@ -1577,7 +1577,7 @@ Options:
 
 **Prepare**: 준비 (자동)
 ```
-GOOSE (내부): 
+GENIE (내부): 
 → 지난주 목표 데이터 수집
 → 이번주 일정 분석
 → 예상 도전 과제 파악
@@ -1593,7 +1593,7 @@ GOOSE (내부):
 ```
 Event: 엄마 생일 10일 전
 
-GOOSE: "엄마 생일이 10일 남았어요.
+GENIE: "엄마 생일이 10일 남았어요.
 (작년에는 2주 전부터 준비하셨어요)"
 
 사용자가 무시하면
@@ -1607,7 +1607,7 @@ GOOSE: "엄마 생일이 10일 남았어요.
 사용자 설정:
 "일주일 미사용 파일 자동 아카이빙"
 
-GOOSE (자동):
+GENIE (자동):
 → 매주 금요일 체크
 → 7일+ 미사용 파일 발견
 → 자동 압축 + 아카이브
@@ -2030,7 +2030,7 @@ Milestone 12: Advanced Privacy
 
 ### 12.1 Runaway Self-Modification (자기진화 폭발)
 
-**리스크**: GOOSE가 자신의 규칙을 계속 변경 → 통제 불능
+**리스크**: GENIE가 자신의 규칙을 계속 변경 → 통제 불능
 
 **완화**:
 - **RateLimiter**: 주 3개 제안 한도
@@ -2062,7 +2062,7 @@ Milestone 12: Advanced Privacy
 
 ### 12.4 Personalization Bubble (필터 버블)
 
-**리스크**: GOOSE가 사용자 기존 선호도만 강화 → 다양성 상실
+**리스크**: GENIE가 사용자 기존 선호도만 강화 → 다양성 상실
 
 **완화**:
 - **Diversity injection**: 가끔 새로운 주제 제안
@@ -2094,40 +2094,40 @@ Milestone 12: Advanced Privacy
 2. **Memento-Skills** (Zep, 2024)
    - Read-Write Reflective Learning
    - 대화에서 스킬 자동 추출
-   - **GOOSE 적용**: 사용자 패턴 → 개인 스킬
+   - **GENIE 적용**: 사용자 패턴 → 개인 스킬
 
 3. **EvolveR** (2024)
    - Offline/Online learning lifecycle
    - Continual learning with evaluation
-   - **GOOSE 적용**: 주기적 재훈련
+   - **GENIE 적용**: 주기적 재훈련
 
 4. **AgentSquare** (2024)
    - Modular meta-learning
    - Agent composition
-   - **GOOSE 적용**: 모듈화된 학습 엔진
+   - **GENIE 적용**: 모듈화된 학습 엔진
 
 5. **Sakana AI** (2024)
    - Doc-to-LoRA, Text-to-LoRA
    - Hypernetwork for fast adaptation
-   - **GOOSE 적용**: 즉시 개인화
+   - **GENIE 적용**: 즉시 개인화
 
 6. **DoRA** (Kayhan et al., 2024)
    - Direction-Oriented Rank Adaptation
    - LoRA 개선 (0.5-1% 상승)
-   - **GOOSE 적용**: LoRA 품질 개선
+   - **GENIE 적용**: LoRA 품질 개선
 
 7. **Graphiti** (Zep, 2024)
    - Graph-based RAG
    - Temporal entity tracking
-   - **GOOSE 적용**: Identity Graph 기반
+   - **GENIE 적용**: Identity Graph 기반
 
 8. **Elastic Weight Consolidation** (Kirkpatrick et al., 2017)
    - Preventing catastrophic forgetting
-   - **GOOSE 적용**: 망각 방지
+   - **GENIE 적용**: 망각 방지
 
 9. **Learning without Forgetting** (Li & Hoiem, 2016)
    - Task-specific learning + knowledge distillation
-   - **GOOSE 적용**: 옛 능력 유지
+   - **GENIE 적용**: 옛 능력 유지
 
 ### 13.2 주요 워크숍
 
@@ -2146,7 +2146,7 @@ Milestone 12: Advanced Privacy
 
 ## 14. 감성적 결론
 
-GOOSE Learning Engine은 **단순한 메모리 시스템**이 아니다.
+GENIE Learning Engine은 **단순한 메모리 시스템**이 아니다.
 
 ### 당신의 디지털 쌍둥이를 만드는 엔진이다.
 
@@ -2162,15 +2162,15 @@ GOOSE Learning Engine은 **단순한 메모리 시스템**이 아니다.
 - LoRA Adapter는 **정교해진다** (당신처럼)
 - User Experience는 **완벽해진다** (당신을 위해)
 
-1주일 후: GOOSE가 당신의 스타일을 배운다
-1개월 후: GOOSE가 당신의 패턴을 예측한다
-1년 후: GOOSE가 당신의 생각을 읽는다
+1주일 후: GENIE가 당신의 스타일을 배운다
+1개월 후: GENIE가 당신의 패턴을 예측한다
+1년 후: GENIE가 당신의 생각을 읽는다
 
 ---
 
 ## 15. 안전성 선언
 
-**GOOSE Learning Engine은 프라이버시, 안전, 투명성을 우선한다.**
+**GENIE Learning Engine은 프라이버시, 안전, 투명성을 우선한다.**
 
 - **Never**: 사용자 승인 없이 설정 변경
 - **Always**: 사용자에게 학습 내용 보여주고 승인 요청
@@ -2178,7 +2178,7 @@ GOOSE Learning Engine은 **단순한 메모리 시스템**이 아니다.
 - **Audit**: 정기적 보안 감사
 - **Rollback**: 언제든 이전 상태로 복구 가능
 
-**당신의 데이터는 당신의 것이다. GOOSE는 그것을 존중한다.**
+**당신의 데이터는 당신의 것이다. GENIE는 그것을 존중한다.**
 
 ---
 
@@ -2186,5 +2186,5 @@ Version: 4.0.0
 Created: 2026-04-21
 Source: Derivative of MoAI-ADK-Go SPEC-REFLECT-001
 Status: Design Document (구현 전)
-Author: GOOSE Architecture Team
+Author: GENIE Architecture Team
 Classification: Public (프라이버시 기술 정보)

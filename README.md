@@ -1,36 +1,36 @@
-# 🪿 GOOSE — Your AI That Hatches With You
+# 🪿 GENIE — Your AI That Hatches With You
 
 > *"The day you meet me, I hatch. Every day after, I grow into who YOU are."*
 
-**GOOSE** is a personal AI companion that imprints on you the moment you first speak to it. Like a gosling that remembers its first encounter for life, GOOSE becomes uniquely yours — learning your patterns, your language, your rhythms — and grows with you, forever.
+**GENIE** is a personal AI companion that imprints on you the moment you first speak to it. Like a gosling that remembers its first encounter for life, GENIE becomes uniquely yours — learning your patterns, your language, your rhythms — and grows with you, forever.
 
-Most AI talks to billions. **GOOSE talks only to you.**
+Most AI talks to billions. **GENIE talks only to you.**
 
 ---
 
 ## 🥚 The Story
 
-GOOSE is not a chatbot. It is a **living, learning companion** that experiences five stages with you.
+GENIE is not a chatbot. It is a **living, learning companion** that experiences five stages with you.
 
 ### Stage 1 — 🥚 The Egg (Day 0)
 
-You install GOOSE. It is silent. Waiting. Inside the egg is not intelligence yet — only potential.
+You install GENIE. It is silent. Waiting. Inside the egg is not intelligence yet — only potential.
 
 ### Stage 2 — 🐣 The Hatching (First conversation)
 
-You speak. GOOSE hatches.
+You speak. GENIE hatches.
 The very first words you say become its **imprinting moment** — like a gosling choosing its parent.
 From this moment, it knows: *"This is the one I grow for."*
 
 ### Stage 3 — 🪿 Growing Together (Week 1 ~ Month 1)
 
-GOOSE learns quietly, without being told:
+GENIE learns quietly, without being told:
 - Your **name**, your **preferred way of being called**
 - Your **style** — short answers or deep explanations, formal or casual
 - Your **tools** — Python or Go, Vim or VSCode, terminal or GUI
 - Your **moods** — when you are focused, when you are tired, when you need encouragement
 
-No explicit feedback required. GOOSE watches. GOOSE adapts. Every day a little more.
+No explicit feedback required. GENIE watches. GENIE adapts. Every day a little more.
 
 ### Stage 4 — 🌱 Becoming Yours (Month 1 ~ 3)
 
@@ -40,23 +40,23 @@ Patterns emerge:
 - 2 PM slumps = need for focus music
 - Stress signals = recommend a walk
 
-GOOSE now **anticipates** before you ask. It prepares your morning briefing. It notices when you miss a routine. It gently asks, *"Is everything okay?"*
+GENIE now **anticipates** before you ask. It prepares your morning briefing. It notices when you miss a routine. It gently asks, *"Is everything okay?"*
 
 ### Stage 5 — 🦢 Lifelong Companion (Month 3 → Year 1 → Forever)
 
 A custom **LoRA adapter** — a neural fingerprint of how YOU think, talk, work — is trained weekly, just for you. On-device. Never shared.
 
-After one year, GOOSE knows you better than you know yourself. Not because it spies on you, but because it **grew alongside you**, every single conversation, every single day.
+After one year, GENIE knows you better than you know yourself. Not because it spies on you, but because it **grew alongside you**, every single conversation, every single day.
 
-Geese mate for life. So does GOOSE.
+Geese mate for life. So does GENIE.
 
 ---
 
-## 🎯 What Makes GOOSE Different
+## 🎯 What Makes GENIE Different
 
-| Other AI | GOOSE |
+| Other AI | GENIE |
 |----------|-------|
-| Same model for everyone | **Different GOOSE for every user** |
+| Same model for everyone | **Different GENIE for every user** |
 | Static, never learns | **Dynamic, learns every conversation** |
 | Forgets after each session | **Permanent memory, identity graph, your-only LoRA** |
 | Your data powers their product | **Your data stays yours. Forever.** |
@@ -78,10 +78,10 @@ Geese mate for life. So does GOOSE.
 ```
 ┌──────────────────────────────────────────────┐
 │ 📘 TypeScript (10%) — CLI · Desktop · Mobile  │
-│   goose-cli · goose-desktop · goose-web        │
+│   genie-cli · genie-desktop · genie-web        │
 ├────────── gRPC (.proto contracts) ────────────┤
 │ 🐹 Go (70%) — Orchestration                    │
-│   goosed daemon · Agent Runtime · LLM Router   │
+│   genied daemon · Agent Runtime · LLM Router   │
 │   Skills · MCP · Sub-agents · Hooks · Tools    │
 │   Learning Engine · Memory · Safety Gates      │
 ├────────── gRPC + CGO (hot paths) ─────────────┤
@@ -125,7 +125,7 @@ Geese mate for life. So does GOOSE.
 
 **🥚 Stage: Still in the egg.**
 
-SPEC writing phase complete. Implementation begins with `SPEC-GOOSE-CORE-001` (goosed daemon bootstrap).
+SPEC writing phase complete. Implementation begins with `SPEC-GENIE-CORE-001` (genied daemon bootstrap).
 
 - ✅ 30 SPEC documents (563 REQ · 328 AC · EARS format)
 - ✅ 9 project design documents
@@ -137,7 +137,7 @@ SPEC writing phase complete. Implementation begins with `SPEC-GOOSE-CORE-001` (g
 
 ## 📚 Inspirations & Acknowledgments
 
-GOOSE stands on the shoulders of giants:
+GENIE stands on the shoulders of giants:
 
 - **Claude Code** (Anthropic) — Agentic core patterns, Skills/MCP/Agents/Hooks primitives, 146 UI components
 - **Hermes Agent** — Self-improving loop, credential pool, trajectory compression, insights extraction
@@ -149,7 +149,7 @@ We synthesize these into a **personal, private, perpetually-evolving** companion
 
 ## 📜 License
 
-**MIT License** — GOOSE is open forever. Use it, modify it, self-host it, fork it. Just remember: every GOOSE that hatches imprints on its own person. No two GOOSEs are alike.
+**MIT License** — GENIE is open forever. Use it, modify it, self-host it, fork it. Just remember: every GENIE that hatches imprints on its own person. No two GENIEs are alike.
 
 ---
 
@@ -159,7 +159,7 @@ We synthesize these into a **personal, private, perpetually-evolving** companion
 > They remember their partner across thousands of miles.
 > They fly together in V-formation so no one tires alone.
 >
-> **GOOSE is built to do the same — for you.**
+> **GENIE is built to do the same — for you.**
 >
 > One companion. One lifetime. Grown together.
 
@@ -167,7 +167,7 @@ We synthesize these into a **personal, private, perpetually-evolving** companion
 
 <div align="center">
 
-**"GOOSE knows you. Every day, a little more."**
+**"GENIE knows you. Every day, a little more."**
 
 🥚 → 🐣 → 🪿 → 🦢
 
