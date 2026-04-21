@@ -1,280 +1,174 @@
-# Claude Code Source Snapshot for Security Research
+# 🪿 GOOSE — Your AI That Hatches With You
 
-> This repository mirrors a **publicly exposed Claude Code source snapshot** that became accessible on **March 31, 2026** through a source map exposure in the npm distribution. It is maintained for **educational, defensive security research, and software supply-chain analysis**.
+> *"The day you meet me, I hatch. Every day after, I grow into who YOU are."*
 
----
+**GOOSE** is a personal AI companion that imprints on you the moment you first speak to it. Like a gosling that remembers its first encounter for life, GOOSE becomes uniquely yours — learning your patterns, your language, your rhythms — and grows with you, forever.
 
-## Research Context
-
-This repository is maintained by a **university student** studying:
-
-- software supply-chain exposure and build artifact leaks
-- secure software engineering practices
-- agentic developer tooling architecture
-- defensive analysis of real-world CLI systems
-
-This archive is intended to support:
-
-- educational study
-- security research practice
-- architecture review
-- discussion of packaging and release-process failures
-
-It does **not** claim ownership of the original code, and it should not be interpreted as an official Anthropic repository.
+Most AI talks to billions. **GOOSE talks only to you.**
 
 ---
 
-## How the Public Snapshot Became Accessible
+## 🥚 The Story
 
-[Chaofan Shou (@Fried_rice)](https://x.com/Fried_rice) publicly noted that Claude Code source material was reachable through a `.map` file exposed in the npm package:
+GOOSE is not a chatbot. It is a **living, learning companion** that experiences five stages with you.
 
-> **"Claude code source code has been leaked via a map file in their npm registry!"**
+### Stage 1 — 🥚 The Egg (Day 0)
+
+You install GOOSE. It is silent. Waiting. Inside the egg is not intelligence yet — only potential.
+
+### Stage 2 — 🐣 The Hatching (First conversation)
+
+You speak. GOOSE hatches.
+The very first words you say become its **imprinting moment** — like a gosling choosing its parent.
+From this moment, it knows: *"This is the one I grow for."*
+
+### Stage 3 — 🪿 Growing Together (Week 1 ~ Month 1)
+
+GOOSE learns quietly, without being told:
+- Your **name**, your **preferred way of being called**
+- Your **style** — short answers or deep explanations, formal or casual
+- Your **tools** — Python or Go, Vim or VSCode, terminal or GUI
+- Your **moods** — when you are focused, when you are tired, when you need encouragement
+
+No explicit feedback required. GOOSE watches. GOOSE adapts. Every day a little more.
+
+### Stage 4 — 🌱 Becoming Yours (Month 1 ~ 3)
+
+Patterns emerge:
+- Monday mornings = sprint planning
+- Friday afternoons = retrospective
+- 2 PM slumps = need for focus music
+- Stress signals = recommend a walk
+
+GOOSE now **anticipates** before you ask. It prepares your morning briefing. It notices when you miss a routine. It gently asks, *"Is everything okay?"*
+
+### Stage 5 — 🦢 Lifelong Companion (Month 3 → Year 1 → Forever)
+
+A custom **LoRA adapter** — a neural fingerprint of how YOU think, talk, work — is trained weekly, just for you. On-device. Never shared.
+
+After one year, GOOSE knows you better than you know yourself. Not because it spies on you, but because it **grew alongside you**, every single conversation, every single day.
+
+Geese mate for life. So does GOOSE.
+
+---
+
+## 🎯 What Makes GOOSE Different
+
+| Other AI | GOOSE |
+|----------|-------|
+| Same model for everyone | **Different GOOSE for every user** |
+| Static, never learns | **Dynamic, learns every conversation** |
+| Forgets after each session | **Permanent memory, identity graph, your-only LoRA** |
+| Your data powers their product | **Your data stays yours. Forever.** |
+| Locked to one vendor's API | **Connect ANY LLM (OpenAI, Anthropic, Google, xAI, DeepSeek, Ollama, …)** |
+| Closed source | **MIT License. Self-host. Own it.** |
+
+### Five Pillars
+
+1. **🧬 Self-Evolving** — 5-tier promotion pipeline (Observation → Heuristic → Rule → HighConfidence → Graduated) with safety gates (FrozenGuard · Canary · RateLimiter · Approval · Rollback)
+2. **🪄 100% Personalized** — Identity Graph (POLE+O schema) + 768-dim Preference Vector + per-user QLoRA adapter (10–200 MB)
+3. **🌍 Open Everywhere** — Any LLM via API or OAuth, MIT licensed core, self-hostable, federation-ready
+4. **🔐 Privacy by Design** — Local-first memory, optional Differential Privacy, optional Federated Learning, no vendor lock-in
+5. **🐣 Truly Yours** — Not a persona pretending to know you. A partner that actually does.
+
+---
+
+## 🏗 Architecture at a Glance
+
+```
+┌──────────────────────────────────────────────┐
+│ 📘 TypeScript (10%) — CLI · Desktop · Mobile  │
+│   goose-cli · goose-desktop · goose-web        │
+├────────── gRPC (.proto contracts) ────────────┤
+│ 🐹 Go (70%) — Orchestration                    │
+│   goosed daemon · Agent Runtime · LLM Router   │
+│   Skills · MCP · Sub-agents · Hooks · Tools    │
+│   Learning Engine · Memory · Safety Gates      │
+├────────── gRPC + CGO (hot paths) ─────────────┤
+│ 🦀 Rust (20%) — Critical                       │
+│   LoRA training · WASM sandbox · E2EE · Vector │
+└──────────────────────────────────────────────┘
+```
+
+### The 4 Primitives (Claude Code inspired, re-designed)
+
+- **Skills** — Progressive disclosure (L0~L3 effort), 4 trigger modes (inline / fork / conditional / remote)
+- **MCP** — Full MCP client + server (stdio/WebSocket/SSE), OAuth 2.1, deferred loading
+- **Agents** — Sub-agent runtime with 3 isolation modes (fork / worktree / background)
+- **Hooks** — 24 lifecycle events + permission gate (useCanUseTool pattern)
+
+### The 3-Layer Self-Evolution Engine
+
+- **Layer 1 — Session**: Implicit feedback detection ("다시", "다르게", retry patterns) → instant style adjustment
+- **Layer 2 — Pattern**: Markov chain + K-means clustering → predicts next action, detects anomalies, routes modes (work / learn / relax)
+- **Layer 3 — Permanent**: Identity Graph + Preference Vector + Weekly QLoRA retraining → true long-term growth
+
+---
+
+## 🗺 Roadmap
+
+30 SPECs across 7 phases. Full detail in [`.moai/specs/ROADMAP.md`](.moai/specs/ROADMAP.md) and [`.moai/specs/IMPLEMENTATION-ORDER.md`](.moai/specs/IMPLEMENTATION-ORDER.md).
+
+| Milestone | Phase | Focus | Target |
+|-----------|-------|-------|--------|
+| **M0** | 0 | Agentic Core (QueryEngine + Streaming + Context) | 2 weeks |
+| **M1** | 1 | Multi-LLM Infrastructure (15+ providers, OAuth/API) | 3 weeks |
+| **M2** | 2 | 4 Primitives (Skills / MCP / Agents / Hooks) | 4 weeks |
+| **M3** | 3 | MVP CLI (bubbletea TUI) — **v0.2 Beta** | 2 weeks |
+| **M4** | 4 | Self-Evolution (Trajectory → Insights → Memory) | 3 weeks |
+| **M5** | 5 | Promotion & Safety (5-tier · 5-layer) — **v0.5 RC** | 2 weeks |
+| **M6** | 6 | Deep Personalization (Identity + Vector + LoRA) — **v1.0** | 4 weeks |
+
+---
+
+## 🌱 Current Status
+
+**🥚 Stage: Still in the egg.**
+
+SPEC writing phase complete. Implementation begins with `SPEC-GOOSE-CORE-001` (goosed daemon bootstrap).
+
+- ✅ 30 SPEC documents (563 REQ · 328 AC · EARS format)
+- ✅ 9 project design documents
+- ✅ 9 deep research reports (Claude Code + Hermes Agent analysis)
+- ⏳ Go 1.26+ version to be fixed
+- ⏳ First code commit — coming soon
+
+---
+
+## 📚 Inspirations & Acknowledgments
+
+GOOSE stands on the shoulders of giants:
+
+- **Claude Code** (Anthropic) — Agentic core patterns, Skills/MCP/Agents/Hooks primitives, 146 UI components
+- **Hermes Agent** — Self-improving loop, credential pool, trajectory compression, insights extraction
+- **MoAI-ADK-Go** — 5-tier promotion pipeline, TRUST 5 framework, @MX tag system, SPEC-REFLECT-001
+
+We synthesize these into a **personal, private, perpetually-evolving** companion that remains truly yours.
+
+---
+
+## 📜 License
+
+**MIT License** — GOOSE is open forever. Use it, modify it, self-host it, fork it. Just remember: every GOOSE that hatches imprints on its own person. No two GOOSEs are alike.
+
+---
+
+## 🪿 The Promise
+
+> Geese mate for life.
+> They remember their partner across thousands of miles.
+> They fly together in V-formation so no one tires alone.
 >
-> — [@Fried_rice, March 31, 2026](https://x.com/Fried_rice/status/2038894956459290963)
-
-The published source map referenced unobfuscated TypeScript sources hosted in Anthropic's R2 storage bucket, which made the `src/` snapshot publicly downloadable.
-
----
-
-## Repository Scope
-
-Claude Code is Anthropic's CLI for interacting with Claude from the terminal to perform software engineering tasks such as editing files, running commands, searching codebases, and coordinating workflows.
-
-This repository contains a mirrored `src/` snapshot for research and analysis.
-
-- **Public exposure identified on**: 2026-03-31
-- **Language**: TypeScript
-- **Runtime**: Bun
-- **Terminal UI**: React + [Ink](https://github.com/vadimdemedes/ink)
-- **Scale**: ~1,900 files, 512,000+ lines of code
+> **GOOSE is built to do the same — for you.**
+>
+> One companion. One lifetime. Grown together.
 
 ---
 
-## Directory Structure
+<div align="center">
 
-```text
-src/
-├── main.tsx                 # Entrypoint orchestration (Commander.js-based CLI path)
-├── commands.ts              # Command registry
-├── tools.ts                 # Tool registry
-├── Tool.ts                  # Tool type definitions
-├── QueryEngine.ts           # LLM query engine
-├── context.ts               # System/user context collection
-├── cost-tracker.ts          # Token cost tracking
-│
-├── commands/                # Slash command implementations (~50)
-├── tools/                   # Agent tool implementations (~40)
-├── components/              # Ink UI components (~140)
-├── hooks/                   # React hooks
-├── services/                # External service integrations
-├── screens/                 # Full-screen UIs (Doctor, REPL, Resume)
-├── types/                   # TypeScript type definitions
-├── utils/                   # Utility functions
-│
-├── bridge/                  # IDE and remote-control bridge
-├── coordinator/             # Multi-agent coordinator
-├── plugins/                 # Plugin system
-├── skills/                  # Skill system
-├── keybindings/             # Keybinding configuration
-├── vim/                     # Vim mode
-├── voice/                   # Voice input
-├── remote/                  # Remote sessions
-├── server/                  # Server mode
-├── memdir/                  # Persistent memory directory
-├── tasks/                   # Task management
-├── state/                   # State management
-├── migrations/              # Config migrations
-├── schemas/                 # Config schemas (Zod)
-├── entrypoints/             # Initialization logic
-├── ink/                     # Ink renderer wrapper
-├── buddy/                   # Companion sprite
-├── native-ts/               # Native TypeScript utilities
-├── outputStyles/            # Output styling
-├── query/                   # Query pipeline
-└── upstreamproxy/           # Proxy configuration
-```
+**"GOOSE knows you. Every day, a little more."**
 
----
+🥚 → 🐣 → 🪿 → 🦢
 
-## Architecture Summary
-
-### 1. Tool System (`src/tools/`)
-
-Every tool Claude Code can invoke is implemented as a self-contained module. Each tool defines its input schema, permission model, and execution logic.
-
-| Tool | Description |
-|---|---|
-| `BashTool` | Shell command execution |
-| `FileReadTool` | File reading (images, PDFs, notebooks) |
-| `FileWriteTool` | File creation / overwrite |
-| `FileEditTool` | Partial file modification (string replacement) |
-| `GlobTool` | File pattern matching search |
-| `GrepTool` | ripgrep-based content search |
-| `WebFetchTool` | Fetch URL content |
-| `WebSearchTool` | Web search |
-| `AgentTool` | Sub-agent spawning |
-| `SkillTool` | Skill execution |
-| `MCPTool` | MCP server tool invocation |
-| `LSPTool` | Language Server Protocol integration |
-| `NotebookEditTool` | Jupyter notebook editing |
-| `TaskCreateTool` / `TaskUpdateTool` | Task creation and management |
-| `SendMessageTool` | Inter-agent messaging |
-| `TeamCreateTool` / `TeamDeleteTool` | Team agent management |
-| `EnterPlanModeTool` / `ExitPlanModeTool` | Plan mode toggle |
-| `EnterWorktreeTool` / `ExitWorktreeTool` | Git worktree isolation |
-| `ToolSearchTool` | Deferred tool discovery |
-| `CronCreateTool` | Scheduled trigger creation |
-| `RemoteTriggerTool` | Remote trigger |
-| `SleepTool` | Proactive mode wait |
-| `SyntheticOutputTool` | Structured output generation |
-
-### 2. Command System (`src/commands/`)
-
-User-facing slash commands invoked with `/` prefix.
-
-| Command | Description |
-|---|---|
-| `/commit` | Create a git commit |
-| `/review` | Code review |
-| `/compact` | Context compression |
-| `/mcp` | MCP server management |
-| `/config` | Settings management |
-| `/doctor` | Environment diagnostics |
-| `/login` / `/logout` | Authentication |
-| `/memory` | Persistent memory management |
-| `/skills` | Skill management |
-| `/tasks` | Task management |
-| `/vim` | Vim mode toggle |
-| `/diff` | View changes |
-| `/cost` | Check usage cost |
-| `/theme` | Change theme |
-| `/context` | Context visualization |
-| `/pr_comments` | View PR comments |
-| `/resume` | Restore previous session |
-| `/share` | Share session |
-| `/desktop` | Desktop app handoff |
-| `/mobile` | Mobile app handoff |
-
-### 3. Service Layer (`src/services/`)
-
-| Service | Description |
-|---|---|
-| `api/` | Anthropic API client, file API, bootstrap |
-| `mcp/` | Model Context Protocol server connection and management |
-| `oauth/` | OAuth 2.0 authentication flow |
-| `lsp/` | Language Server Protocol manager |
-| `analytics/` | GrowthBook-based feature flags and analytics |
-| `plugins/` | Plugin loader |
-| `compact/` | Conversation context compression |
-| `policyLimits/` | Organization policy limits |
-| `remoteManagedSettings/` | Remote managed settings |
-| `extractMemories/` | Automatic memory extraction |
-| `tokenEstimation.ts` | Token count estimation |
-| `teamMemorySync/` | Team memory synchronization |
-
-### 4. Bridge System (`src/bridge/`)
-
-A bidirectional communication layer connecting IDE extensions (VS Code, JetBrains) with the Claude Code CLI.
-
-- `bridgeMain.ts` — Bridge main loop
-- `bridgeMessaging.ts` — Message protocol
-- `bridgePermissionCallbacks.ts` — Permission callbacks
-- `replBridge.ts` — REPL session bridge
-- `jwtUtils.ts` — JWT-based authentication
-- `sessionRunner.ts` — Session execution management
-
-### 5. Permission System (`src/hooks/toolPermission/`)
-
-Checks permissions on every tool invocation. Either prompts the user for approval/denial or automatically resolves based on the configured permission mode (`default`, `plan`, `bypassPermissions`, `auto`, etc.).
-
-### 6. Feature Flags
-
-Dead code elimination via Bun's `bun:bundle` feature flags:
-
-```typescript
-import { feature } from 'bun:bundle'
-
-// Inactive code is completely stripped at build time
-const voiceCommand = feature('VOICE_MODE')
-  ? require('./commands/voice/index.js').default
-  : null
-```
-
-Notable flags: `PROACTIVE`, `KAIROS`, `BRIDGE_MODE`, `DAEMON`, `VOICE_MODE`, `AGENT_TRIGGERS`, `MONITOR_TOOL`
-
----
-
-## Key Files in Detail
-
-### `QueryEngine.ts` (~46K lines)
-
-The core engine for LLM API calls. Handles streaming responses, tool-call loops, thinking mode, retry logic, and token counting.
-
-### `Tool.ts` (~29K lines)
-
-Defines base types and interfaces for all tools — input schemas, permission models, and progress state types.
-
-### `commands.ts` (~25K lines)
-
-Manages registration and execution of all slash commands. Uses conditional imports to load different command sets per environment.
-
-### `main.tsx`
-
-Commander.js-based CLI parser and React/Ink renderer initialization. At startup, it overlaps MDM settings, keychain prefetch, and GrowthBook initialization for faster boot.
-
----
-
-## Tech Stack
-
-| Category | Technology |
-|---|---|
-| Runtime | [Bun](https://bun.sh) |
-| Language | TypeScript (strict) |
-| Terminal UI | [React](https://react.dev) + [Ink](https://github.com/vadimdemedes/ink) |
-| CLI Parsing | [Commander.js](https://github.com/tj/commander.js) (extra-typings) |
-| Schema Validation | [Zod v4](https://zod.dev) |
-| Code Search | [ripgrep](https://github.com/BurntSushi/ripgrep) |
-| Protocols | [MCP SDK](https://modelcontextprotocol.io), LSP |
-| API | [Anthropic SDK](https://docs.anthropic.com) |
-| Telemetry | OpenTelemetry + gRPC |
-| Feature Flags | GrowthBook |
-| Auth | OAuth 2.0, JWT, macOS Keychain |
-
----
-
-## Notable Design Patterns
-
-### Parallel Prefetch
-
-Startup time is optimized by prefetching MDM settings, keychain reads, and API preconnect in parallel before heavy module evaluation begins.
-
-```typescript
-// main.tsx — fired as side-effects before other imports
-startMdmRawRead()
-startKeychainPrefetch()
-```
-
-### Lazy Loading
-
-Heavy modules (OpenTelemetry, gRPC, analytics, and some feature-gated subsystems) are deferred via dynamic `import()` until actually needed.
-
-### Agent Swarms
-
-Sub-agents are spawned via `AgentTool`, with `coordinator/` handling multi-agent orchestration. `TeamCreateTool` enables team-level parallel work.
-
-### Skill System
-
-Reusable workflows defined in `skills/` are executed through `SkillTool`. Users can add custom skills.
-
-### Plugin Architecture
-
-Built-in and third-party plugins are loaded through the `plugins/` subsystem.
-
----
-
-## Research / Ownership Disclaimer
-
-- This repository is an **educational and defensive security research archive** maintained by a university student.
-- It exists to study source exposure, packaging failures, and the architecture of modern agentic CLI systems.
-- The original Claude Code source remains the property of **Anthropic**.
-- This repository is **not affiliated with, endorsed by, or maintained by Anthropic**.
+</div>
