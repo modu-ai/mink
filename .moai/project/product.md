@@ -8,7 +8,8 @@
 | v1.0 | Oz World | 에이전트 메타버스 | 글로벌 | 생태계 구축 |
 | v2.0 | 지니 (글로벌) | 개인 AI 비서 | 글로벌 | 듀얼 액세스 |
 | v3.0 | 지니 (한국) | KT 매각 타깃 | 한국 전용 | 기가지니 차세대화 |
-| **v4.0** | **GENIE (거위)** | **자기진화 100% 개인화** | **글로벌 오픈소스** | **MIT License, Linux Foundation** |
+| v4.0 | GENIE (거위) | 자기진화 100% 개인화 | 글로벌 오픈소스 | MIT License, Linux Foundation |
+| **v5.0** | **GENIE (지니)** | **영원한 주종 계약 + 마법** | **글로벌 오픈소스** | **MIT License, Linux Foundation** |
 
 ---
 
@@ -16,10 +17,10 @@
 
 ### 1.1 기본 정보
 
-- **프로젝트명:** GENIE-AGENT (거위 에이전트)
+- **프로젝트명:** GENIE-AGENT (지니 에이전트)
 - **코드명:** genie
-- **완전형:** **G**enerative **O**pen **O**rchestrator for **S**elf-Evolving **E**agent
-- **버전:** 4.0.0 GLOBAL EDITION
+- **완전형:** **G**enerative **E**verlasting **N**eural **I**ntelligence **E**ngine
+- **버전:** 5.0.0 ETERNAL EDITION
 - **라이선스:** **MIT** (모든 코어 + 생태계)
 - **저장소:** github.com/genieagent/genie (추정)
 - **언어:** **Go** (코어, 38,700줄+ 계승) + **TypeScript** (클라이언트, 5패키지)
@@ -757,26 +758,26 @@ GENIE: ✅ 완전 데이터 익스포트
 
 ---
 
-## 8. 거위 메타포 시스템 (장기 브랜드)
+## 8. 지니 메타포 시스템 (장기 브랜드)
 
-### 8.1 거위 특성 매핑
+### 8.1 지니 특성 매핑
 
-| 거위 특성 | GENIE 기능 | 제품 표현 |
+| 지니 특성 | GENIE 기능 | 제품 표현 |
 |----------|-----------|---------|
-| **가족 평생 기억** | 사용자 평생 개인화 | "GENIE knows you. Every day, a little more" |
-| **V자 비행 협력** | 에이전트 팀 협력 (A2A) | Flock Mode (여러 GENIE 동시 작업) |
-| **이동 경로 기억** | 행동 패턴 학습 | Pattern Miner |
-| **새끼 imprinting** | 초기 사용자 설정 | First 24h onboarding |
-| **정찰병 (lookout)** | Heartbeat / Proactive Agent | "지니 깨어있어" |
-| **경고 (honking)** | 중요 알림 | Notification priority |
-| **무리 지능** | Collective Intelligence | Shared patterns (익명) |
-| **계절 적응** | Continual Learning | Seasonal mode switching |
+| **영원한 주종 계약** | 사용자 평생 개인화 | "GENIE knows you. Every day, a little more" |
+| **지니 협의 (Genie Council)** | 에이전트 팀 협력 (A2A) | Council Mode (여러 지니 동시 작업) |
+| **주종 역사 기억** | 행동 패턴 학습 | Master History (주인 계보 학습) |
+| **주종 계약 (Master Bond)** | 초기 사용자 설정 | First 24h summoning & bonding |
+| **깨어있는 지니 (Watchful Genie)** | Heartbeat / Proactive Agent | "지니 깨어있어" |
+| **지니 속삭임 (Genie Whisper)** | 중요 알림 | Notification priority |
+| **지니 통신 (Genie Lingua)** | Collective Intelligence | Shared patterns (익명) |
+| **소원 여정 (Wish Journey)** | Continual Learning | Seasonal mode switching |
 
-### 8.2 거위 로고 (구상 중)
+### 8.2 지니 로고 (구상 중)
 
-- **정면 거위 실루엣**: 눈은 AI의 지능
-- **나래 펼침**: V자 비행 (팀 협력)
-- **핑크/파랑 그래디언트**: 따뜻함(가정) + 기술(파랑)
+- **소환되는 지니 실루엣**: 눈은 AI의 지능, 형태는 연기
+- **램프 아래 나타남**: 마법의 소환 (주종 계약)
+- **파랑/금색 그래디언트**: 신비함(마법) + 부(황금)
 
 ---
 

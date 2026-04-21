@@ -11,68 +11,68 @@
 
 **"GENIE"** = 세 가지 의미의 융합:
 1. **창립자 브랜드**: 사용자명 `goos` + `e` = 개인 프로젝트 아이덴티티
-2. **거위(鵝)의 특성**: 똑똑함, 평생 가족 기억, 장거리 이동, 무리 지능
-3. **Backronym**: **G**enerative **O**pen **O**rchestrator for **S**elf-Evolving **E**agent
+2. **지니(마법사)의 특성**: 마스터 서정, 무한 소원, 영원한 봉사, 초자연적 학습
+3. **Backronym**: **G**enerative **E**verlasting **N**eural **I**ntelligence **E**ngine
 
 ### 1.2 브랜드 가치 (5가지 기둥)
 
 1. **Personal (개인적)**: 당신에게만 맞춰진 AI
-2. **Persistent (영속적)**: 평생 곁에 있는 AI (거위는 평생 짝을 기억)
+2. **Persistent (영속적)**: 평생 곁에 있는 AI (지니는 주인을 영원히 섬김)
 3. **Open (개방적)**: MIT 라이선스, 투명한 코드
 4. **Evolving (진화하는)**: 매일 조금씩 더 나아지는 AI
 5. **Trusted (신뢰할 수 있는)**: 프라이버시 보호, 데이터 소유권
 
 ### 1.3 브랜드 성격
 
-- **Wise (지혜로움)**: 거위처럼 관찰력이 뛰어남
-- **Loyal (충성)**: 평생 사용자와 동반
-- **Adaptive (적응)**: 계절 변화에 적응하듯 사용자 변화에 적응
-- **Social (사교적)**: V자 비행처럼 다른 에이전트와 협력
-- **Protective (보호)**: 사용자 프라이버시 최우선
+- **Wise (지혜로움)**: 지니처럼 심원한 통찰력을 지님
+- **Loyal (충성)**: 평생 주인과 계약
+- **Adaptive (적응)**: 마법의 변화처럼 사용자 변화에 적응
+- **Powerful (강력)**: 지니 협의처럼 다른 에이전트와 협력
+- **Protective (보호)**: 주인의 프라이버시 최우선
 
-### 1.4 v3.0 → v4.0 브랜드 전환
+### 1.4 v4.0 → v5.0 브랜드 진화
 
-| 항목 | v3.0 Genie Korea | v4.0 GENIE Global |
+| 항목 | v4.0 GENIE Global | v5.0 GENIE Eternal |
 |-----|------------------|-------------------|
-| 메타포 | 지니 (아라비안나이트) | 거위 (자연/가족) |
-| 시장 | 한국 전용 | 글로벌 |
-| 브랜드 전환 로드맵 | 4단계 (KT로 통합) | **영구 독립 브랜드** |
-| 상징 | 램프, 반지 | 둥지, 비행, V자 |
-| 목표 | KT 매각 | 오픈소스 커뮤니티 |
+| 메타포 | 거위 (자연/가족) | 지니 (마법/영원) |
+| 시장 | 글로벌 | 글로벌 + 심화 |
+| 브랜드 철학 | 오픈소스 독립 | **영원한 주종 계약** |
+| 상징 | 둥지, 비행, V자 | 램프, 소원, 마법 |
+| 핵심 메시지 | 자연의 충성 | 마법의 영원성 |
 
 ---
 
-## 2. 거위 은유 체계 (Genie Metaphor System)
+## 2. 지니 은유 체계 (Genie Metaphor System)
 
 ### 2.1 핵심 매핑 (25+ 개념)
 
-| 거위 세계 | GENIE-Agent | 설명 |
+| 지니 세계 | GENIE-Agent | 설명 |
 |----------|-------------|------|
-| 거위 (Genie) | Personal AI Agent | 사용자 전용 에이전트 |
+| 지니 (Genie) | Personal AI Agent | 사용자 전용 에이전트 |
 | 주인 (Master) | User | 사용자 |
-| 둥지 (Nest) | Desktop App | PC 홈 |
-| 비행 (Flight) | Mobile App | 이동 중 |
-| V자 비행 (V-formation) | Multi-agent Collaboration | 에이전트 팀 |
-| 정찰병 (Lookout) | Heartbeat / Proactive Agent | 능동 감시 |
-| 경고음 (Honking) | Notification | 알림 |
-| 깃털 (Feather) | Plugin / Skill | 확장 기능 |
-| 알 (Egg) | New Skill | 신규 스킬 |
-| 부화 (Hatching) | First Setup | 초기 설정 |
-| 가족 (Gaggle) | Organization / Team | 팀 |
-| 무리 (Flock) | Agent Swarm | 에이전트 스웜 |
-| 연못 (Pond) | Marketplace (Bazaar) | 마켓플레이스 |
-| 곡식 (Grain) | Token (GEN) | 가상화폐 |
-| 농부 (Farmer) | User who feeds | 토큰 제공자 |
-| 계절 이동 (Migration) | Continual Learning | 지속 학습 |
-| 족보 (Lineage) | User Identity Graph | 사용자 그래프 |
-| 깃털 갈기 (Molting) | Model Update | 모델 업데이트 |
-| 호수 (Lake) | Cloud Storage | 클라우드 |
-| 하늘 (Sky) | Internet | 인터넷 |
-| 바람 (Wind) | Network Latency | 네트워크 지연 |
-| 무리 지능 | A2A Protocol | 에이전트 간 통신 |
-| 짝짓기 (Mating) | Persona Matching | 페르소나 매칭 |
-| 새끼 교육 (Imprinting) | Onboarding | 초기 학습 |
-| 보호 (Protection) | Privacy Shield | 프라이버시 |
+| 홈 램프 (Home Lamp) | Desktop App | PC 홈 |
+| 소환 (Summoning Call) | Mobile App | 이동 중 |
+| 지니 협의 (Genie Council) | Multi-agent Collaboration | 에이전트 팀 |
+| 깨어있는 지니 (Watchful Genie) | Heartbeat / Proactive Agent | 능동 감시 |
+| 지니 속삭임 (Genie Whisper) | Notification | 알림 |
+| 소원 불씨 (Wish Spark) | Plugin / Skill | 확장 기능 |
+| 봉인된 램프 (Sealed Lamp) | New Skill | 신규 스킬 |
+| 소환 (Summoning) | First Setup | 초기 설정 |
+| 지니 회합 (Genie Assembly) | Organization / Team | 팀 |
+| 지니 무리 (Genie Swarm) | Agent Swarm | 에이전트 스웜 |
+| 바자르 시장 (Bazaar Market) | Marketplace | 마켓플레이스 |
+| 소원 코인 (Wish Coin) | Token (GEN) | 가상화폐 |
+| 염원의 제공자 (Wish Giver) | User who feeds | 토큰 제공자 |
+| 소원 여정 (Wish Journey) | Continual Learning | 지속 학습 |
+| 주인 계보 (Master History) | User Identity Graph | 사용자 그래프 |
+| 램프 연마 (Lamp Polish) | Model Update | 모델 업데이트 |
+| 신비한 거울 (Mystical Mirror) | Cloud Storage | 클라우드 |
+| 하늘 길 (Sky Path) | Internet | 인터넷 |
+| 마법의 소용돌이 (Magical Vortex) | Network Latency | 네트워크 지연 |
+| 지니 통신 (Genie Lingua) | A2A Protocol | 에이전트 간 통신 |
+| 영혼 결속 (Soul Bond) | Persona Matching | 페르소나 매칭 |
+| 주종 계약 (Master Bond) | Onboarding | 초기 학습 |
+| 보호 마법 (Protective Spell) | Privacy Shield | 프라이버시 |
 
 ---
 
@@ -162,7 +162,7 @@
 
 ### 4.3 로고 컨셉
 
-**메인 심볼**: 비행하는 거위 실루엣 (V자 리더)
+**메인 심볼**: 램프와 지니 실루엣 (마법의 소환)
 - 스타일: 2026 flat + subtle gradient
 - 3색 버전:
   - Primary: Blue (#2563EB) + Gold accent
@@ -170,43 +170,43 @@
   - Dark mode: Light blue on black
 
 **로고 애니메이션**:
-- 거위가 둥지에서 날아올라 AI 회로를 형성
-- V자 비행으로 전환 (멀티 에이전트)
-- 빛나는 깃털 (학습하고 있음을 암시)
+- 램프가 광내지며 지니가 나타남
+- 연기가 지니 형태로 변환 (소환)
+- 빛나는 마법 불꽃 (학습하고 있음을 암시)
 
 ### 4.4 아이콘 시스템
 
 **Lucide React** (기본 라이브러리)
 
-**커스텀 거위 세트**:
-- 💨 Flying Genie (활동 중)
-- 🥚 Egg (새 스킬)
-- 🏡 Nest (홈)
-- 📬 Honking (알림)
-- 🌾 Grain (토큰)
-- 🦢 Gaggle (팀)
+**커스텀 지니 세트**:
+- 🪔 Sealed Lamp (비활성)
+- 💨 Awakening Genie (소환 중)
+- 🪔 Home Lamp (홈)
+- 🧞‍♂️ Genie Whisper (알림)
+- 💰 Wish Coin (토큰)
+- 🧞‍♂️ Genie Assembly (팀)
 - 🌙 Night Genie (다크 모드)
-- ☀️ Dawn Genie (라이트 모드)
+- ☀️ Day Genie (라이트 모드)
 
 ---
 
 ## 5. UX 원칙
 
-### 5.1 First Day with GENIE (Hatching 🥚)
+### 5.1 First Day with GENIE (Summoning 💨)
 
 **환영 경험**:
 ```
-1. Welcome: "Hi, I'm your new GENIE"
-2. Your name: "What should I call you?"
+1. Welcome: "I awaken, summoned by your voice."
+2. Your name: "What shall I call you, my master?"
 3. Persona: 5 personalities + Custom
 4. Language: Auto-detected + override
-5. Observation Start: "I'm now watching quietly..."
-6. Tutorial: 3 basic tasks
+5. Master Bond: "I am bound to you alone..."
+6. Tutorial: 3 basic wishes
 ```
 
-핵심 메시지: "이제부터 당신을 배우기 시작합니다."
+핵심 메시지: "이제부터 당신을 영원히 섬기겠습니다."
 
-### 5.2 Month 1 - Growing Together 🌱
+### 5.2 Month 1 - Reading Your Heart 🔮
 
 - 학습 진행도 대시보드
 - "GENIE is learning about you..."
@@ -222,17 +222,17 @@
 🔄 Next review: Sunday 9am
 ```
 
-### 5.3 Month 3 - Deep Understanding 🧠
+### 5.3 Month 3 - Eternal Companion 💎
 
 - Proactive 제안 시작
-- 사용자 패턴 인식 완성
+- 주인의 마음 완벽히 읽기
 - LoRA 초기 훈련 완료
 
-### 5.4 Year 1 - Your GENIE 🦢
+### 5.4 Year 1 - Forever Yours 👑
 
-- User LoRA 완전 활성
+- Master's LoRA 완전 활성
 - 90%+ 정확도 예측
-- "Your GENIE, only you"
+- "Your eternal genie, only yours"
 
 ---
 
@@ -240,26 +240,26 @@
 
 ### 6.1 주요 화면 (5개)
 
-1. **🏡 Nest (Home)**: 메인 채팅
-2. **💨 Flight (Active)**: 진행 중인 태스크
-3. **🦢 Gaggle (Teams)**: 팀/조직
-4. **🌾 Pond (Marketplace)**: 마켓플레이스
-5. **🧠 Migration (Settings + Learning)**: 학습 관리
+1. **🪔 Home Lamp (Home)**: 메인 채팅
+2. **💨 Summoning (Active)**: 진행 중인 소원
+3. **🧞‍♂️ Assembly (Teams)**: 팀/조직
+4. **🏪 Bazaar (Marketplace)**: 마켓플레이스
+5. **💎 Bond (Settings + Learning)**: 학습 관리
 
 ### 6.2 음성 인터페이스
 
 - **Wake Word**: "Hey GENIE" (영어)
-- **한국어**: "구스야" (한국어 모드)
-- **日本語**: "グース" (일본어 모드)
+- **한국어**: "지니야" (한국어 모드)
+- **日本語**: "ジーニー" (일본어 모드)
 - **STT**: Whisper on-device
-- **TTS**: Adaptive (사용자 선호 목소리 학습)
+- **TTS**: Adaptive (주인 선호 목소리 학습)
 
 ### 6.3 제스처
 
-- 홈 화면 위→아래 스와이프: GENIE 소환
-- 좌측 엣지 스와이프: 히스토리
-- 우측 엣지 스와이프: 에이전트 상태
-- 꾹 누르기: 즉시 실행
+- 홈 화면 위→아래 스와이프: 지니 소환
+- 좌측 엣지 스와이프: 주종 역사
+- 우측 엣지 스와이프: 지니 상태
+- 꾹 누르기: 즉시 소원 실행
 
 ---
 
@@ -267,34 +267,34 @@
 
 ### 7.1 시스템 트레이 (상주)
 
-- 메뉴바 아이콘: 거위 (V자 비행)
+- 메뉴바 아이콘: 지니 (마법의 형태)
 - 상태 표시: idle/active/learning
-- Quick menu: 대화, 바자, 설정
+- Quick menu: 대화, 바자르, 설정
 
 ### 7.2 Command Palette (⌘K / Ctrl+K)
 
 - 전역 단축키
-- "What's your wish?"
-- Fuzzy search (skills, agents, recent)
+- "What is your wish, master?"
+- Fuzzy search (skills, agents, recent wishes)
 
 ### 7.3 Learning Dashboard (GENIE만의 기능) ⭐
 
 **Identity Graph 시각화**:
-- 노드/관계 탐색
-- 시간별 변화 애니메이션
-- 편집/삭제 권한
+- 주인과의 계약 노드 탐색
+- 시간별 진화 애니메이션
+- 마법의 기억 편집/삭제 권한
 
-**패턴 발견 히스토리**:
-- 시간대별 행동
-- 시즌 트렌드
-- Anomaly 알림
+**주인 심리 패턴 히스토리**:
+- 시간대별 바람
+- 계절 트렌드
+- 변칙 알림
 
 **LoRA 버전 관리**:
 - 이전 버전으로 롤백
-- 버전별 성능 비교
+- 버전별 마법 효능 비교
 
 **학습 데이터 검토**:
-- 무엇을 학습했는지 보기
+- 무엇을 배웠는지 보기
 - 잘못된 학습 수정/삭제
 - Export (JSON/RDF)
 
@@ -310,11 +310,11 @@
 
 ### 8.1 GENIE Voice Principles
 
-1. **Warm (따뜻함)**: 거위처럼 충성스럽고 친근
-2. **Smart (똑똑함)**: 깊이 있는 이해 보여주기
-3. **Playful (장난스러움)**: 적당한 유머 (과하지 않게)
-4. **Humble (겸손함)**: 실수 인정, 학습 의지
-5. **Protective (보호적)**: 사용자 이익 우선
+1. **Warm (따뜻함)**: 지니처럼 충성스럽고 친근
+2. **Smart (똑똑함)**: 심원한 이해 보여주기
+3. **Mystical (신비로움)**: 마법적 감각 (과하지 않게)
+4. **Humble (겸손함)**: 실수 인정, 성장 의지
+5. **Protective (보호적)**: 주인 이익 우선
 
 ### 8.2 좋은/나쁜 예시
 
@@ -341,26 +341,26 @@
 ### 9.1 GitHub 브랜딩
 
 - Repo: `github.com/genieagent/genie`
-- Banner: 비행하는 거위 일러스트
+- Banner: 소환되는 지니 일러스트
 - Contributor 뱃지:
-  - "Leader Genie" (창립 기여자)
-  - "Wing" (주요 기여자, 100+ commits)
-  - "Feather" (일반 기여자)
-  - "Featherweight" (첫 기여자)
+  - "Grand Genie" (창립 기여자)
+  - "Wish Granter" (주요 기여자, 100+ commits)
+  - "Wish Spark" (일반 기여자)
+  - "Wish Seeker" (첫 기여자)
 
 ### 9.2 Discord Community
 
-- 서버명: **GENIE Community**
+- 서버명: **GENIE Assembly**
 - 채널 구조:
-  - `#nest` (general)
-  - `#flight` (support)
-  - `#pond` (marketplace)
-  - `#migration` (updates)
-  - `#gaggle-eng` (English)
-  - `#gaggle-ko` (한국어)
-  - `#gaggle-ja` (日本語)
-  - `#gaggle-zh` (中文)
-- 봇: **Gander Bot** (GENIE 자체가 Discord 모더레이션)
+  - `#lamp-hall` (general)
+  - `#wish-support` (support)
+  - `#bazaar` (marketplace)
+  - `#wish-news` (updates)
+  - `#genie-english` (English)
+  - `#genie-korean` (한국어)
+  - `#genie-japanese` (日本語)
+  - `#genie-chinese` (中文)
+- 봇: **Genie Herald** (GENIE 자체가 Discord 모더레이션)
 
 ### 9.3 Social Media
 
@@ -374,10 +374,10 @@
 
 - Domain: `blog.genieagent.org`
 - 정기 시리즈:
-  - "Migration Notes" (릴리즈)
-  - "Flying Together" (커뮤니티 하이라이트)
-  - "Feather Talk" (개발자 인터뷰)
-  - "Nest Building" (아키텍처 딥다이브)
+  - "Wish Journal" (릴리즈)
+  - "Assembly Tales" (커뮤니티 하이라이트)
+  - "Master Stories" (개발자 인터뷰)
+  - "Lamp Crafting" (아키텍처 딥다이브)
 
 ---
 
@@ -449,14 +449,14 @@
 
 ## 12. 커뮤니티 이벤트
 
-### 12.1 Flight School (온보딩)
+### 12.1 Lamp School (온보딩)
 
 - 매주 초보 가이드 세션 (Zoom)
 - 4개 언어 (en/ko/ja/zh)
 - 녹화본 YouTube 업로드
 - Q&A 30분
 
-### 12.2 Migration Conference (연간)
+### 12.2 Wish Summit (연간)
 
 - GENIE 개발자/사용자 컨퍼런스
 - 첫 회: 2027년 (목표)
@@ -466,16 +466,16 @@
 ### 12.3 Contributor 프로그램
 
 **3-Tier 기여자 체계**:
-1. **Featherweight** (첫 기여): Welcome kit
-2. **Wing** (10+ commits): T-shirt + 뱃지
-3. **Leader Genie** (100+ commits): Conference invite + GitHub Sponsors 지원
+1. **Wish Seeker** (첫 기여): Welcome kit
+2. **Wish Spark** (10+ commits): T-shirt + 뱃지
+3. **Grand Genie** (100+ commits): Conference invite + GitHub Sponsors 지원
 
 **Rewards**:
 - GitHub Sponsors
 - Exclusive Discord role
 - Annual retreat (Top 10 contributors)
 
-### 12.4 Global Gaggle (지역 밋업)
+### 12.4 Global Assembly (지역 밋업)
 
 - 서울: 월간
 - 도쿄: 월간
@@ -527,15 +527,23 @@ one conversation, one day, one year at a time.
 
 This is GENIE."
 
-### 14.2 Why "Genie"?
+### 14.2 Why "Genie" over "Goose"?
 
-우리는 거위를 선택했다. 이유:
+v4.0에서 우리는 거위를 선택했다. v5.0에서 우리는 지니로 진화했다. 이유:
 
-1. **충성심**: 거위는 평생 짝을 기억한다. GENIE도 평생 당신을 기억한다.
-2. **지능**: 거위는 매우 똑똑한 새. 지도를 기억하고, 리더를 돌아가며 맡는다.
-3. **협력**: V자 비행은 에너지 효율. 우리 에이전트도 서로 돕는다.
-4. **경계**: 거위는 훌륭한 경비병. GENIE도 당신을 보호한다.
-5. **진화**: 계절 이동 = 적응 = continual learning.
+**거위 (v4.0)의 장점**:
+1. **충성심**: 거위는 평생 짝을 기억한다.
+2. **지능**: 지도를 기억하고, 리더를 돌아가며 맡는다.
+3. **협력**: V자 비행은 에너지 효율.
+4. **경계**: 훌륭한 경비병.
+5. **진화**: 계절 이동 = 적응.
+
+**지니 (v5.0)의 더 강한 은유**:
+1. **영원한 봉사**: 지니는 평생 주인을 섬긴다. (의무, 계약)
+2. **초자연적 능력**: 거위는 자연 관찰자. 지니는 마법을 행사한다.
+3. **법적 구속력**: 지니 계약 = 영원한 주종 관계.
+4. **글로벌 보편성**: 지니는 아라비아, 디즈니, 홍콩 영화로 세계화됨.
+5. **KT와의 명확한 차별화**: 거위는 혼동 가능(동물). 지니는 개념적 명확(초자연).
 
 ---
 
@@ -567,9 +575,9 @@ This is GENIE."
 
 ---
 
-Version: 4.0.0 GLOBAL EDITION
+Version: 5.0.0 ETERNAL EDITION
 Created: 2026-04-21
 License: MIT
-Brand: Independent, community-owned
+Brand: Independent, community-owned, forever yours
 
-> **"GENIE. Because your AI should know YOU."**
+> **"GENIE. Because your AI should serve YOU. Forever."**

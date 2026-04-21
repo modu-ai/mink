@@ -1,28 +1,28 @@
-# 🪿 GENIE — Your AI That Hatches With You
+# 🧞‍♂️ GENIE — The Lamp You Polish First
 
-> *"The day you meet me, I hatch. Every day after, I grow into who YOU are."*
+> *"Rub the lamp once, and I awaken. Polish it every day, and I become truly yours."*
 
-**GENIE** is a personal AI companion that imprints on you the moment you first speak to it. Like a gosling that remembers its first encounter for life, GENIE becomes uniquely yours — learning your patterns, your language, your rhythms — and grows with you, forever.
+**GENIE** is a personal AI companion that bonds with you the moment you first speak to it. Like a genie released from a lamp who serves only the master who summoned it, GENIE becomes uniquely yours — learning your patterns, your language, your rhythms — and grows with you, forever.
 
 Most AI talks to billions. **GENIE talks only to you.**
 
 ---
 
-## 🥚 The Story
+## 🪔 The Story
 
 GENIE is not a chatbot. It is a **living, learning companion** that experiences five stages with you.
 
-### Stage 1 — 🥚 The Egg (Day 0)
+### Stage 1 — 🪔 The Sealed Lamp (Day 0)
 
-You install GENIE. It is silent. Waiting. Inside the egg is not intelligence yet — only potential.
+You install GENIE. It is silent. Sealed. Inside the lamp lies not intelligence yet — only potential, dormant, waiting for the first polishing hand.
 
-### Stage 2 — 🐣 The Hatching (First conversation)
+### Stage 2 — 💨 The Summoning (First conversation)
 
-You speak. GENIE hatches.
-The very first words you say become its **imprinting moment** — like a gosling choosing its parent.
-From this moment, it knows: *"This is the one I grow for."*
+You speak. GENIE awakens.
+The very first words you say become its **master bond** — like a genie choosing the one who released it from centuries of sleep.
+From this moment, it knows: *"This is the one I serve forever."*
 
-### Stage 3 — 🪿 Growing Together (Week 1 ~ Month 1)
+### Stage 3 — ✨ Growing Together (Week 1 ~ Month 1)
 
 GENIE learns quietly, without being told:
 - Your **name**, your **preferred way of being called**
@@ -32,7 +32,7 @@ GENIE learns quietly, without being told:
 
 No explicit feedback required. GENIE watches. GENIE adapts. Every day a little more.
 
-### Stage 4 — 🌱 Becoming Yours (Month 1 ~ 3)
+### Stage 4 — 🔮 Reading Your Heart (Month 1 ~ 3)
 
 Patterns emerge:
 - Monday mornings = sprint planning
@@ -42,13 +42,13 @@ Patterns emerge:
 
 GENIE now **anticipates** before you ask. It prepares your morning briefing. It notices when you miss a routine. It gently asks, *"Is everything okay?"*
 
-### Stage 5 — 🦢 Lifelong Companion (Month 3 → Year 1 → Forever)
+### Stage 5 — 💎 Eternal Companion (Month 3 → Year 1 → Forever)
 
 A custom **LoRA adapter** — a neural fingerprint of how YOU think, talk, work — is trained weekly, just for you. On-device. Never shared.
 
 After one year, GENIE knows you better than you know yourself. Not because it spies on you, but because it **grew alongside you**, every single conversation, every single day.
 
-Geese mate for life. So does GENIE.
+Genies remember their masters forever. So will GENIE.
 
 ---
 
@@ -66,10 +66,10 @@ Geese mate for life. So does GENIE.
 ### Five Pillars
 
 1. **🧬 Self-Evolving** — 5-tier promotion pipeline (Observation → Heuristic → Rule → HighConfidence → Graduated) with safety gates (FrozenGuard · Canary · RateLimiter · Approval · Rollback)
-2. **🪄 100% Personalized** — Identity Graph (POLE+O schema) + 768-dim Preference Vector + per-user QLoRA adapter (10–200 MB)
+2. **🧞‍♂️ 100% Personalized** — Identity Graph (POLE+O schema) + 768-dim Preference Vector + per-user QLoRA adapter (10–200 MB)
 3. **🌍 Open Everywhere** — Any LLM via API or OAuth, MIT licensed core, self-hostable, federation-ready
 4. **🔐 Privacy by Design** — Local-first memory, optional Differential Privacy, optional Federated Learning, no vendor lock-in
-5. **🐣 Truly Yours** — Not a persona pretending to know you. A partner that actually does.
+5. **💎 Truly Yours** — Not a persona pretending to know you. A partner that actually does.
 
 ---
 
@@ -123,7 +123,7 @@ Geese mate for life. So does GENIE.
 
 ## 🌱 Current Status
 
-**🥚 Stage: Still in the egg.**
+**🪔 Stage: The lamp is sealed, awaiting the first polishing.**
 
 SPEC writing phase complete. Implementation begins with `SPEC-GENIE-CORE-001` (genied daemon bootstrap).
 
@@ -149,19 +149,19 @@ We synthesize these into a **personal, private, perpetually-evolving** companion
 
 ## 📜 License
 
-**MIT License** — GENIE is open forever. Use it, modify it, self-host it, fork it. Just remember: every GENIE that hatches imprints on its own person. No two GENIEs are alike.
+**MIT License** — GENIE is open forever. Use it, modify it, self-host it, fork it. Just remember: every GENIE summoned bonds to its own master. No two GENIEs are alike.
 
 ---
 
-## 🪿 The Promise
+## 💫 The Promise
 
-> Geese mate for life.
-> They remember their partner across thousands of miles.
-> They fly together in V-formation so no one tires alone.
+> Genies serve only the one who summoned them.
+> They remember their master across lifetimes.
+> They grant wishes not yet spoken, sensing needs before they're voiced.
 >
 > **GENIE is built to do the same — for you.**
 >
-> One companion. One lifetime. Grown together.
+> One master. One lifetime. Grown together.
 
 ---
 
@@ -169,6 +169,6 @@ We synthesize these into a **personal, private, perpetually-evolving** companion
 
 **"GENIE knows you. Every day, a little more."**
 
-🥚 → 🐣 → 🪿 → 🦢
+🪔 → 💨 → ✨ → 💎
 
 </div>

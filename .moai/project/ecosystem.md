@@ -318,7 +318,7 @@ genie publish
 - @genieagent
 - 업데이트, 뉴스
 
-### 6.2 지역 밋업 (Global Gaggle)
+### 6.2 지역 밋업 (Global Assembly)
 
 **월간**:
 - San Francisco
@@ -339,7 +339,7 @@ genie publish
 ### 6.3 Contributor 프로그램
 
 **3-Tier 기여자**:
-- **Featherweight** (첫 기여): Welcome kit
+- **Wish Seeker** (첫 기여): Welcome kit
 - **Wing** (10+ commits): T-shirt + 배지
 - **Leader Genie** (100+ commits): Conference invite + GitHub Sponsors
 
@@ -593,9 +593,9 @@ GENIE 생태계의 약속:
 
 **"Build together. Own forever."**
 
-Version: 4.0.0 GLOBAL EDITION
+Version: 5.0.0 ETERNAL EDITION
 Created: 2026-04-21
 License: MIT
 Community: github.com/genieagent/genie
 
-> **"A gaggle of developers, building the future together."**
+> **"An Assembly of developers, building the future together."**
