@@ -1,23 +1,50 @@
 ---
 id: SPEC-GOOSE-GATEWAY-001
-version: 0.1.0
-status: Planned
+version: 0.2.0
+status: Planned (재정의)
 created: 2026-04-21
-updated: 2026-04-21
+updated: 2026-04-22
 author: manager-spec
-priority: P2
+priority: P1
 issue_number: null
 phase: 6
-size: 중(M)
+size: 대(L)
 lifecycle: spec-anchored
 ---
 
-# SPEC-GOOSE-GATEWAY-001 — Multi-Platform Messaging Gateway
+# SPEC-GOOSE-GATEWAY-001 — **Self-hosted Messenger Bridge (umbrella)** ★ v6.2 재정의
+
+> ⚠️ **v6.2 재정의 알림 (2026-04-22)**
+>
+> 본 SPEC은 ROADMAP v6.2에 따라 **전면 재정의**되었습니다. 본문은 M6 진입 시 manager-spec subagent가 완전 재작성합니다.
+>
+> **스코프 변경**:
+> - **포함 (v1.0~1.2)**: Tier A **Self-hosted long-polling** 5종
+>   - `SPEC-GOOSE-GATEWAY-TG-001` (Telegram, v1.0)
+>   - `SPEC-GOOSE-GATEWAY-DC-001` (Discord, v1.1)
+>   - `SPEC-GOOSE-GATEWAY-SL-001` (Slack, v1.1)
+>   - `SPEC-GOOSE-GATEWAY-MX-001` (Matrix, v1.2)
+>   - `SPEC-GOOSE-GATEWAY-SG-001` (Signal, v1.2)
+> - **분리 (v2.0+, 사업자 전제)**: Tier B **Business Registration 필수**
+>   - KakaoTalk (한국 사업자), WeChat (중국 법인), LINE (일본 법인), SMS (Twilio) → 별도 SPEC
+> - **제외**: 범용 Webhook은 GATEWAY-001 범위 외, 별도 사용자 가이드로 이관
+>
+> **핵심 재정의**:
+> - 본 SPEC은 `MessengerAdapter` 인터페이스 정의 + 공통 보안 계층 + 관리 UI만 담당 (umbrella)
+> - 플랫폼별 구체 구현은 위 5개 하위 SPEC에 분리
+> - **클라우드 0, 계정 0**: PC에서 outbound long-polling, NAT 뒤에서도 동작
+> - **Channel HARD rule** 준수: Journal/Health/Identity Graph 본문 송출 차단 (Signal/Matrix E2EE opt-in 제외)
+>
+> **왜 변경되었는가**:
+> 1. Hermes 모델이 Daily Companion 카테고리와 충돌 (2차 분석) → 폐기 고려
+> 2. 재평가 결과 "메신저를 PC GOOSE의 원격 리모컨으로 쓰는 패턴"은 여전히 가치 있음 → 재도입
+> 3. 단, 사업자 등록 필요 플랫폼(Kakao/WeChat/LINE/SMS)은 v2.0+로 분리하여 v1.0 범위 확정
 
 ## HISTORY
 
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
+| 0.2.0 | 2026-04-22 | ROADMAP v6.2 재정의. umbrella SPEC으로 전환. Tier A 5종(TG/DC/SL/MX/SG)만 포함, Tier B(Kakao/WeChat/LINE/SMS)는 v2.0+ 별도 SPEC 분리. Self-hosted long-polling 강조, 클라우드 0 원칙. Channel HARD rule 명시. | 세션 결정 |
 | 0.1.0 | 2026-04-21 | ROADMAP v4.0 Phase 6 신규 SPEC. Hermes `gateway/` 패턴을 Go로 이식. Telegram / Discord / Slack / Matrix / 카카오톡(알림톡) / WeChat / 일반 Webhook 봇을 통해 메신저에서 GOOSE 호출. 사용자 옵트인, 한국 시장은 카카오톡 우선. | manager-spec |
 
 ---
