@@ -282,6 +282,25 @@ goose publish
 - "New Arrivals"
 - "For Your Region"
 - "Recommended for You" (개인화)
+- **"Daily Wellness"** ⭐ v6.0 신규 (아침·점심·저녁 리추얼 플러그인)
+
+### 5.3 Daily Wellness 플러그인 카테고리 (v6.0 신규)
+
+**아침 브리핑 플러그인**:
+- 운세 커스텀 (한국/중국/서양 12궁)
+- 날씨 프로바이더 (OpenWeatherMap, 기상청)
+- 캘린더 통합 (Google Calendar, Outlook, 네이버)
+
+**건강 체크 플러그인**:
+- 약 복용 리마인더 (약물 데이터베이스 통합)
+- 칼로리 계산 (음식 인식 + API)
+- 수면 추적 (Fitbit, Apple Watch)
+- 명상 & 요가 (Headspace, Calm 통합)
+
+**저녁 일기 플러그인**:
+- 감정 분석 (EmoBERT, GoEmotions)
+- 일기 템플릿 (5-minute journal, Stoic 철학)
+- 회고 가이드 (CEO Roundtable, Retros)
 
 ---
 

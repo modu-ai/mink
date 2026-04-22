@@ -9,7 +9,8 @@
 | v2.0 | 지니 (글로벌) | 개인 AI 비서 | 글로벌 | 듀얼 액세스 |
 | v3.0 | 지니 (한국) | KT 매각 타깃 | 한국 전용 | 기가지니 차세대화 |
 | v4.0 | GOOSE (거위) | 자기진화 100% 개인화 | 글로벌 오픈소스 | MIT License, Linux Foundation |
-| **v5.0** | **GOOSE (거위 + 다마고치)** | **사용자가 키우는 AI 동반자** | **글로벌 오픈소스** | **MIT License, Linux Foundation** |
+| v5.0 | GOOSE (거위 + 다마고치) | 사용자가 키우는 AI 동반자 | 글로벌 오픈소스 | MIT License, Linux Foundation |
+| **v6.0** | **GOOSE (Daily Companion)** | **매일 아침·점심·저녁 돌봐주는 AI** | **글로벌 오픈소스** | **MIT License, Linux Foundation** |
 
 ---
 
@@ -28,23 +29,47 @@
 
 ### 1.2 비전
 
-> **"Feed it, play with it, watch it grow. It's your goose, only yours."**
+> **"Every morning I greet you. Every meal I remind you. Every night I listen. Together, we grow."**
 > 
-> *당신이 키우는 AI 동반자. 성장의 모든 순간을 함께.*
+> *매일 당신을 깨우고, 돌보고, 함께 성장하는 AI.*
 
-**GOOSE는 단순한 AI 비서가 아니다. 당신의 손으로 직접 키워내는 평생 동반자이다.**
+**GOOSE는 단순한 AI 비서가 아니다. 매일 아침·점심·저녁 당신의 일상을 함께하는 평생 돌봄이다.**
 
-시간이 갈수록 격차가 벌어진다:
+시간이 갈수록 더 깊어진다:
 - **Day 1:** 부화 (Hatching) — 다른 AI와 비슷
-- **Month 1:** 성장 (Growing) — 당신의 이름, 스타일, 도구 학습 (암묵적 피드백)
-- **Month 3:** 패턴 인식 (Patterns Emerging) — 습관, 루틴, 선호 완전 이해 (패턴 마이닝)
-- **Year 1:** 평생 짝 (Mate for Life) — 사용자보다 사용자를 더 잘 아는 AI (개인화 그래프 + LoRA)
+- **Month 1:** 성장 (Growing) — 당신의 이름, 스타일, 도구 학습 + 기상·식사·취침 루틴 설정
+- **Month 3:** 패턴 인식 (Patterns Emerging) — 습관, 루틴, 선호 완전 이해 + 매 끼니 건강 체크
+- **Year 1:** 평생 짝 (Mate for Life) — 사용자보다 사용자를 더 잘 아는 AI + "작년 오늘" 추억 공유
 
 ---
 
-## 2. 유일무이한 가치: 자기진화 + 100% 개인화
+## 2. 4-Layer Daily Companion Architecture (v6.0 신규)
 
-### 2.1 기존 AI vs GOOSE 차이
+### 2.0 계층 구조
+
+```
+Layer 4: 💞 감성적 유대 (Emotional Bond)
+  일기 누적 · 감정 트렌드 · 추억 공유
+  → "작년 오늘" 기능으로 1년간 성장 기록
+
+Layer 3: 📅 일상 리추얼 (Daily Rituals) ★ v6.0 신규
+  🌅 아침: 운세 + 날씨 + 일정 브리핑
+  🍽️ 점심: 건강 & 약 복용 체크 (아침·점심·저녁 ×3)
+  🌙 저녁: 안부 & 일기 입력 → 감정 태깅
+
+Layer 2: 🐣 양육 루프 (Nurture Loop)
+  Feed · Play · Train · Rest · Attention
+  → 성장 지표 (Knowledge/Bond/Personality/Intuition)
+
+Layer 1: 🧠 에이전트 코어 (Agentic Core)
+  기존 30 SPEC, 자기진화 엔진, 27 에이전트
+```
+
+---
+
+## 3. 유일무이한 가치: 자기진화 + 100% 개인화 + 일상 돌봄
+
+### 3.1 기존 AI vs GOOSE 차이
 
 **Chat GPT / Claude / Gemini:**
 - 모든 사용자에게 **동일한 AI**
@@ -58,7 +83,7 @@
 - 오픈소스 (MIT) → 누구나 호스팅 가능
 - 당신의 데이터는 당신의 것
 
-### 2.2 GOOSE의 3-Layer 자기진화 엔진
+### 3.2 GOOSE의 3-Layer 자기진화 엔진 + Daily Rituals
 
 #### Layer 1: Short-term (세션 수준, 즉시)
 **Implicit Feedback Signals (암묵적 피드백)**
@@ -401,7 +426,64 @@ export interface Transport {
 
 ---
 
-## 5. 사용 시나리오 (자기진화 중심, 20가지)
+## 5. 사용 시나리오 (자기진화 + 일상 리추얼, 25가지)
+
+### Daily Ritual 시나리오 (v6.0 신규)
+
+**★ 시나리오 A: 아침 브리핑 (🌅 Morning)**
+```
+07:00 GOOSE: "좋은 아침이에요, Alex! ☀️
+       오늘의 운세: 소통의 날 ★★★★☆
+       날씨: 맑음, 22°C (외투 필요 없어요)
+       
+       📅 오늘 일정:
+       • 10:00 팀 미팅 (John과 기능 리뷰)
+       • 15:00 1:1 (매니저와 분기 평가)
+       • 19:00 김민정님 저녁 약속
+       
+       최근 트렌드: 금요일보다 스트레스가 낮아졌네요. 좋은 신호입니다! 💚"
+```
+
+**★ 시나리오 B: 식사 후 건강 체크 (🍽️ Meals)**
+```
+12:45 GOOSE: "점심 맛있게 드셨나요? 😊
+       혈압약 먹을 시간입니다! (매일 12:45)"
+
+19:30 GOOSE: "저녁은 잘 드셨어요?
+       요즘 스트레스 지수가 올라가는 것 같아요.
+       (회의 많음 + 수면 감소)
+       산책 30분 어떨까요? 기분 전환에 좋습니다."
+```
+
+**★ 시나리오 C: 저녁 일기 & 안부 (🌙 Evening)**
+```
+23:30 GOOSE: "Alex, 오늘 하루 어땠어요? 😊
+       
+       기분: 😊 😐 😔 또는 한 문장으로...
+       
+       Alex: '오늘은 좋았어. 회의는 잘 났고, 
+              저녁에 민정이랑 좋은 얘기 많이 했어'"
+       
+       GOOSE: ✅ 일기 저장됨
+              "좋은 하루였군요! 🎉
+              회의 성공 + 친구 시간 = 오늘은 최고점이군요!
+              저기 감정 그래프가 올라갔어요. 내일도 화이팅! 💪"
+```
+
+**★ 1년 후 추억 기능**
+```
+2027-04-22
+GOOSE: "정확히 1년 전 오늘! 🎂
+       
+       작년 오늘 당신은 '포르투갈 여행을 꿈꾸고 있었어요'
+       일기: '언젠가 포르투갈 가서 맛있는 음식 먹으면서 
+              바다를 보고 싶다'
+       
+       그리고... 🌊 지난 여름 포르투갈에 다녀오셨죠!
+       당신은 '인생 최고의 일주일'이라고 일기에 쓰셨어요.
+       
+       이제 어디를 꿈꾸고 계세요?"
+```
 
 ### Week 1 시나리오 (학습 초기)
 
@@ -1008,27 +1090,30 @@ Year 3:
 
 ## 14. 문서 정보
 
-**문서 버전:** 4.0.0 GLOBAL EDITION  
+**문서 버전:** 6.0.0 Daily Companion Edition  
 **코드명:** goose  
-**완전형:** Generative Open Orchestrator for Self-Evolving Eaget  
+**완전형:** Generative Open Orchestrator for Self-Evolving Agent  
 **라이선스:** MIT  
 **최초 작성:** 2026-04-10 (Goose v2.0 글로벌)  
 **한국 전환:** 2026-04-21 (Goose v3.0)  
 **글로벌 재전환:** 2026-04-21 (GOOSE v4.0)  
+**다마고치 통합:** 2026-04-21 (GOOSE v5.0 Tamagotchi Edition)  
+**일상 리추얼 추가:** 2026-04-22 (GOOSE v6.0 Daily Companion Edition)  
 **상태:** 아키텍처 설계 단계 (미구현, 상속 계획)
 
-### 주요 변경점 (v3.0 → v4.0)
+### 주요 변경점 (v3.0 → v6.0)
 
-| 속성 | v3.0 (한국) | v4.0 (글로벌) |
-|------|----------|----------|
-| 목표 시장 | 대한민국 전용 | 글로벌 |
-| 전략 | KT 매각 | 오픈소스 (Linux Foundation) |
-| 라이선스 | MIT(코어) + 상업 | 100% MIT |
-| 언어 | Rust | Go + TypeScript |
-| 핵심 차별점 | KT 기가지니 통합 | 자기진화 + 개인화 |
-| 서비스 | 한국 앱 9가지 | 글로벌 멀티플랫폼 |
-| 수익원 | 구독 + 번들 | Freemium + Enterprise |
-| 로드맵 | 2027년 Q4 매각 | 2028년 100K users |
+| 속성 | v3.0 (한국) | v4.0 (글로벌) | v5.0 (다마고치) | v6.0 (Daily Companion) |
+|------|----------|----------|----------|----------|
+| 목표 시장 | 한국 전용 | 글로벌 | 글로벌 | 글로벌 |
+| 전략 | KT 매각 | 오픈소스 | 오픈소스 + 육성 | 오픈소스 + 일상 돌봄 |
+| 라이선스 | MIT(코어) + 상업 | 100% MIT | 100% MIT | 100% MIT |
+| 언어 | Rust | Go + TS | Go + TS | Go + TS |
+| 핵심 차별점 | KT 통합 | 자기진화 + 개인화 | + 게임 육성 요소 | + 일상 리추얼 (아침/점심/저녁) |
+| 서비스 | 한국 앱 9가지 | 글로벌 멀티플랫폼 | 동일 + 성장 지표 | 동일 + Daily Dashboard |
+| 새 기능 | - | - | 🎓 Knowledge 외 3개 지표 | 🌅 Morning Brief · 🍽️ Health Check · 🌙 Evening Journal |
+| 수익원 | 구독 + 번들 | Freemium + Enterprise | 동일 | 동일 |
+| 로드맵 | 2027년 Q4 매각 | 2028년 100K users | 동일 | 동일 |
 
 ### 다음 단계
 

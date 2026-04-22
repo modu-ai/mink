@@ -43,10 +43,15 @@
                 ├─ Go + TypeScript
                 └─ 글로벌 오픈소스 (MIT)
 
-2026-04-21 ━━━ v5.0 GOOSE Eternal 🪔
-                ├─ 지니 메타포 완전 재구성
-                ├─ 램프/소원/영원한 주종 계약
-                └─ 마법의 은유 체계
+2026-04-21 ━━━ v5.0 GOOSE Tamagotchi Edition 🐣
+                ├─ 거위 메타포 복귀 + 다마고치 육성
+                ├─ 4개 성장지표 & 5가지 돌봄 메커니즘
+                └─ 게임 요소 통합
+
+2026-04-22 ━━━ v6.0 GOOSE Daily Companion ⭐ (현재)
+                ├─ 일상 리추얼 추가 (아침/점심/저녁)
+                ├─ 양방향 반려 (사용자 ⇄ GOOSE 서로 돌봄)
+                └─ "감정적 증인" 원칙 도입
 ```
 
 **12일 동안 5번의 피벗**. 이것은 정상이 아니다.
@@ -201,7 +206,7 @@
 
 ---
 
-### 2.6 v5.0: GOOSE Tamagotchi Edition (2026-04-21, **현재 진화 단계**)
+### 2.6 v5.0: GOOSE Tamagotchi Edition (2026-04-21)
 
 **날짜**: 2026-04-21 ~
 **언어**: Go + TypeScript (v4.0과 동일)
@@ -275,6 +280,41 @@
 - product.md (한국어) — v5.0 이름 변경 (ETERNAL → Tamagotchi Edition)
 - migration.md (한국어) — 이 섹션 (현재 작성 중)
 - adaptation.md, ecosystem.md — 마일드 업데이트
+
+---
+
+### 2.7 v6.0: GOOSE Daily Companion Edition (2026-04-22, **현재**)
+
+**날짜**: 2026-04-22 ~
+**언어**: Go + TypeScript (v5.0과 동일)
+**컨셉**: **일상 리추얼 추가 (아침 브리핑 · 식사 건강 · 저녁 일기)**
+
+**배경 (Why Daily Companion)**:
+- v5.0 다마고치 육성은 "사용자가 GOOSE를 키운다"
+- v6.0은 "GOOSE가 사용자를 돌본다" 추가 → **양방향 반려**
+- 진정한 "동반자" = 서로를 돌보는 관계
+
+**특징**:
+- 기술 기반: v5.0 100% 계승 (변경 없음)
+- UX 레이어: **Daily Ritual Dashboard** 신규
+- 3가지 일상 터치포인트:
+  - 🌅 아침 (6-10시): 운세 + 날씨 + 일정 = 하루 준비
+  - 🍽️ 식사 후 (3회): 약 복용 + 건강 체크 = 신체 돌봄
+  - 🌙 저녁 (22-00시): 안부 + 일기 = 감정 증인
+- 신규 기능:
+  - Daily Ritual 커스터마이징 (시간·항목·형식)
+  - 감정 트렌드 분석 (일기 텍스트 → VAD 모델)
+  - "작년 오늘" 추억 공유 (1년 데이터 누적 후)
+  - Emotional Witness 원칙 (판단 없는 경청)
+
+**기술 변경 사항**: **NONE** (모바일 UI + 스케줄러만 추가)
+
+**문서 변경 범위**:
+- product.md — v6.0 정의 + 4-Layer Architecture + 일상 리추얼 시나리오
+- branding.md — §2.5 Daily Ritual 은유 + 모바일 UI 6→7 화면 + Emotional Witness
+- adaptation.md — §6 Time-based Adaptation에 Daily Ritual SCHEDULER 통합
+- migration.md — 이 섹션 (v6.0 신규)
+- ecosystem.md — Daily Wellness 플러그인 카테고리 추가
 
 ---
 

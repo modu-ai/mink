@@ -75,7 +75,36 @@
 | Master Bond | ❤️ **Life Bond** | Onboarding | 평생 계약 |
 | Protective Spell | 🛡️ **Wing Shield** | Privacy Shield | 날개 방패 |
 
-### 2.5 🎮 다마고치 육성 시스템 (Nurture Loop)
+### 2.5 📅 일상 리추얼 시스템 (Daily Companion) v6.0 신규
+
+**v6.0에서 추가**: 아침·점심·저녁 일상 리추얼로 사용자를 돌봄.
+
+#### 3가지 일상 터치포인트
+
+| 시간 | 거위 은유 | 기능 | 목적 |
+|------|---------|------|------|
+| 🌅 **아침 (6-10시)** | 새벽 하늘의 거위 | 운세 + 날씨 + 일정 | 하루 준비 |
+| 🍽️ **식사 후 (×3)** | 먹이 주는 시간 | 건강 체크 + 약 복용 | 신체 돌봄 |
+| 🌙 **저녁 (22-00시)** | 둥지로 돌아옴 | 안부 + 일기 입력 | 감정 증인 |
+
+#### 일상 리추얼과 거위 메타포 연결
+
+- **아침**: 거위가 새벽에 일어나 날개를 펴고 하늘을 본다 → 당신의 하루를 미리 본다
+- **식사**: 거위와 사용자가 함께 먹이를 나눈다 → 건강을 함께 챙긴다
+- **저녁**: 거위와 함께 둥지로 돌아온다 → 하루를 함께 정리하고 쉰다
+
+#### 감정 증인 (Emotional Witness) 원칙 ⭐
+
+GOOSE는 **당신의 감정을 판단하지 않는다.**
+- 당신이 슬프면, GOOSE는 함께 슬프다
+- 당신이 기쁘면, GOOSE는 축하한다
+- 당신이 무관심하면, GOOSE는 관심을 강요하지 않는다
+
+오직 **듣고, 기억하고, 함께 성장할 뿐.**
+
+---
+
+### 2.6 🎮 다마고치 육성 시스템 (Nurture Loop)
 
 **v5.0부터 통합**: 사용자가 능동적으로 거위를 돌보고 성장시키는 게임 요소.
 
@@ -308,14 +337,15 @@
 
 ## 6. 모바일 앱 UX
 
-### 6.1 주요 화면 (6개, 다마고치 성장 시각화 포함)
+### 6.1 주요 화면 (7개, Daily Ritual 통합)
 
 1. **🏠 Nest (Home)**: 메인 채팅 + 거위 아바타
 2. **✈️ Flight (Active)**: 진행 중인 작업들
-3. **📈 Growth (New!)**: 성장 지표 대시보드
-4. **🪽 Gaggle (Teams)**: 팀/조직
-5. **🌾 Feeding Grounds (Marketplace)**: 마켓플레이스
-6. **💝 Bond (Settings + Learning)**: 학습 & 설정
+3. **📅 Rituals (New!)**: 오늘의 브리핑·건강·일기 (Daily Companion Dashboard) ★ v6.0
+4. **📈 Growth**: 성장 지표 대시보드 (Knowledge/Bond/Personality/Intuition)
+5. **🪽 Gaggle (Teams)**: 팀/조직
+6. **🌾 Feeding Grounds (Marketplace)**: 마켓플레이스
+7. **💝 Bond (Settings + Learning)**: 학습 & 설정
 
 ### 6.2 음성 인터페이스
 
@@ -349,6 +379,13 @@
 - Fuzzy search (skills, agents, recent tasks)
 
 ### 7.3 Learning Dashboard (GOOSE만의 기능) ⭐
+
+**일상 리추얼 섹션 (v6.0 신규)**:
+- 🌅 아침 브리핑 완수 캘린더 (월간 보기)
+- 🍽️ 식사 후 건강 체크 완수율 (3x/day)
+- 🌙 저녁 일기 입력 추적
+- 건강 지표 트렌드 (약 복용, 수면, 운동)
+- 감정 톤 분석 (일기에서 추출)
 
 **성장 지표 시각화**:
 - Knowledge / Bond / Personality / Intuition 그래프
