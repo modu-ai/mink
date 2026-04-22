@@ -157,9 +157,27 @@ GOOSE-AGENT의 모든 후속 기능이 붙어야 할 **Go 데몬 프로세스 `g
 
 ---
 
-## 6. 기술적 접근 (Technical Approach)
+## 6. 기술 스택 (확정)
 
-### 6.1 제안 패키지 레이아웃
+> M0 구현 시 사용하는 의존성 목록. 후속 SPEC 작성자는 이 항목을 기준으로 삼을 것.
+
+| 구분 | 패키지 / 버전 | 근거 |
+|-----|-------------|------|
+| **Go 런타임** | `go 1.26` | 최신 안정 릴리스; 지시사항에서 명시적으로 지정 |
+| **SQLite 드라이버** | `modernc.org/sqlite` (CGO-free) | CGO 없이 순수 Go로 동작; 크로스컴파일 용이 |
+| **토크나이저** | `github.com/pkoukk/tiktoken-go` | tiktoken 호환 Go 구현; LLM 토큰 계산 (Phase 2+) |
+| **그래프 DB** | `github.com/kuzudb/go-kuzu` (임베디드) | 임베디드 그래프 DB; Phase 8 메모리 계층에서 활성화 |
+| **LLM 스트림** | `google.golang.org/grpc` (gRPC streaming) | TRANSPORT-001 설계와 일관; 양방향 스트리밍 |
+| **Rust CGO** | CGO-embedded staticlib (defer) | 실제 바인딩은 후속 SPEC으로 유예; tech.md §1.2 Rust 20% 할당 기반 |
+
+> **Phase 0 (본 SPEC)** 에서는 `modernc.org/sqlite`, gRPC, tiktoken-go, go-kuzu를 `go.mod`에 추가하되,
+> 실제 사용은 GREEN 단계 또는 후속 SPEC에서 진행한다. CGO staticlib 바인딩은 완전히 유예.
+
+---
+
+## 7. 기술적 접근 (Technical Approach)
+
+### 7.1 제안 패키지 레이아웃
 
 ```
 / (repo root)
@@ -178,7 +196,7 @@ GOOSE-AGENT의 모든 후속 기능이 붙어야 할 **Go 데몬 프로세스 `g
     └── bootstrap_config_test.go
 ```
 
-### 6.2 핵심 타입 (초안)
+### 7.2 핵심 타입 (초안)
 
 ```go
 // internal/core/state.go
@@ -200,7 +218,7 @@ type CleanupHook struct {
 }
 ```
 
-### 6.3 의존성 (최소)
+### 7.3 의존성 (최소)
 
 | 라이브러리 | 용도 | 근거 |
 |----------|------|-----|
@@ -211,7 +229,7 @@ type CleanupHook struct {
 
 gin, viper, cobra 등은 본 SPEC에서 **의도적으로 미사용**. CONFIG-001(viper)과 CLI-001(cobra)에서 도입.
 
-### 6.4 TDD 진입 순서 (RED → GREEN → REFACTOR)
+### 7.4 TDD 진입 순서 (RED → GREEN → REFACTOR)
 
 1. **RED #1**: `TestBootstrap_SucceedsWithEmptyConfig` — AC-CORE-001 → 구현 없음 → 실패.
 2. **RED #2**: `TestHealthz_ReturnsServingJSON` — AC-CORE-001 hand-off → 실패.
@@ -220,7 +238,7 @@ gin, viper, cobra 등은 본 SPEC에서 **의도적으로 미사용**. CONFIG-00
 5. **GREEN**: `internal/core/*`, `internal/health/*` 최소 구현.
 6. **REFACTOR**: state machine을 `sync/atomic.Value`로 일관화, logger를 모든 hook에 DI.
 
-### 6.5 TRUST 5 매핑
+### 7.5 TRUST 5 매핑
 
 | 차원 | 본 SPEC의 달성 방법 |
 |-----|-----------------|
@@ -232,7 +250,7 @@ gin, viper, cobra 등은 본 SPEC에서 **의도적으로 미사용**. CONFIG-00
 
 ---
 
-## 7. Exit Code 계약 (Contract)
+## 8. Exit Code 계약 (Contract)
 
 | 코드 | 의미 | 트리거 |
 |-----|------|-------|
@@ -243,7 +261,7 @@ gin, viper, cobra 등은 본 SPEC에서 **의도적으로 미사용**. CONFIG-00
 
 ---
 
-## 8. 의존성 (Dependencies)
+## 9. 의존성 (Dependencies)
 
 | 타입 | 대상 | 설명 |
 |-----|------|------|
@@ -255,7 +273,7 @@ gin, viper, cobra 등은 본 SPEC에서 **의도적으로 미사용**. CONFIG-00
 
 ---
 
-## 9. 리스크 & 완화 (Risks & Mitigations)
+## 10. 리스크 & 완화 (Risks & Mitigations)
 
 | # | 리스크 | 가능성 | 영향 | 완화 |
 |---|------|------|-----|------|
@@ -267,7 +285,7 @@ gin, viper, cobra 등은 본 SPEC에서 **의도적으로 미사용**. CONFIG-00
 
 ---
 
-## 10. 참고 (References)
+## 11. 참고 (References)
 
 ### 10.1 프로젝트 문서 (본 SPEC 근거)
 
