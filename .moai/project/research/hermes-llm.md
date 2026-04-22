@@ -1,6 +1,6 @@
 # Hermes Agent Multi-LLM Credential Pool & Routing 심층 분석
 
-> **분석일**: 2026-04-21 · **대상**: `hermes-agent-main/agent/` · **용도**: SPEC-GENIE-CREDPOOL-001 / ROUTER-001 / RATELIMIT-001 / PROMPT-CACHE-001 / COMPRESSOR-001 근거
+> **분석일**: 2026-04-21 · **대상**: `hermes-agent-main/agent/` · **용도**: SPEC-GOOSE-CREDPOOL-001 / ROUTER-001 / RATELIMIT-001 / PROMPT-CACHE-001 / COMPRESSOR-001 근거
 
 ## 1. Credential Pool 아키텍처
 
@@ -254,7 +254,7 @@ def _supports_adaptive_thinking(model) -> bool
 def _get_anthropic_max_output(model) -> int
 ```
 
-## 9. GENIE Go 포팅 매핑
+## 9. GOOSE Go 포팅 매핑
 
 ```
 internal/llm/
@@ -295,33 +295,33 @@ internal/llm/
     └── backoff.go        ← Jittered exponential
 ```
 
-## 10. GENIE SPEC 도출
+## 10. GOOSE SPEC 도출
 
-### SPEC-GENIE-CREDPOOL-001
+### SPEC-GOOSE-CREDPOOL-001
 R1. Pool entry 선택 (4 strategy)
 R2. OAuth auto-refresh (expiring 감지)
 R3. Exhausted cooldown (HTTP 429/402)
 R4. Soft lease (동시성)
 R5. ~/ 폴더 자동 동기화 (Anthropic/OpenAI/Nous)
 
-### SPEC-GENIE-ROUTER-001
+### SPEC-GOOSE-ROUTER-001
 R1. 메시지 단순성 판정 (길이/단어/개행)
 R2. 코드/URL/복잡 키워드 감지
 R3. Primary ↔ Cheap 결정
 R4. Route signature (trace용)
 
-### SPEC-GENIE-RATELIMIT-001
+### SPEC-GOOSE-RATELIMIT-001
 R1. x-ratelimit-* 헤더 파싱
 R2. 4 bucket (requests_min/hour, tokens_min/hour)
 R3. Usage % + 임계값(80%) 경고
 R4. Human-readable display
 
-### SPEC-GENIE-PROMPT-CACHE-001
+### SPEC-GOOSE-PROMPT-CACHE-001
 R1. system_and_3 strategy (max 4 breakpoints)
 R2. TTL 설정 (5m default, 1h option)
 R3. 다양한 메시지 포맷 지원
 
-### SPEC-GENIE-COMPRESSOR-001
+### SPEC-GOOSE-COMPRESSOR-001
 R1. Preflight check (rough estimate)
 R2. Tool result pruning (no LLM)
 R3. Head/tail protection (token budget)
@@ -355,4 +355,4 @@ R5. Iterative summary updates
 
 ---
 
-**결론**: Hermes Multi-LLM = **엔터프라이즈급 credential management + 지능형 라우팅 + 자동 최적화** 3층 구조. GENIE Go 포팅 **재사용 55%**, Credential Pool 원형 유지, anthropic-go/openai-go SDK 활용.
+**결론**: Hermes Multi-LLM = **엔터프라이즈급 credential management + 지능형 라우팅 + 자동 최적화** 3층 구조. GOOSE Go 포팅 **재사용 55%**, Credential Pool 원형 유지, anthropic-go/openai-go SDK 활용.

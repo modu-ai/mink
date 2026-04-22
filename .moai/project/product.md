@@ -1,4 +1,4 @@
-# GENIE-AGENT - 제품 문서 v4.0 GLOBAL EDITION
+# GOOSE-AGENT - 제품 문서 v4.0 GLOBAL EDITION
 
 ## 0. 패러다임 진화 (5번의 피벗)
 
@@ -8,8 +8,8 @@
 | v1.0 | Oz World | 에이전트 메타버스 | 글로벌 | 생태계 구축 |
 | v2.0 | 지니 (글로벌) | 개인 AI 비서 | 글로벌 | 듀얼 액세스 |
 | v3.0 | 지니 (한국) | KT 매각 타깃 | 한국 전용 | 기가지니 차세대화 |
-| v4.0 | GENIE (거위) | 자기진화 100% 개인화 | 글로벌 오픈소스 | MIT License, Linux Foundation |
-| **v5.0** | **GENIE (지니)** | **영원한 주종 계약 + 마법** | **글로벌 오픈소스** | **MIT License, Linux Foundation** |
+| v4.0 | GOOSE (거위) | 자기진화 100% 개인화 | 글로벌 오픈소스 | MIT License, Linux Foundation |
+| **v5.0** | **GOOSE (거위 + 다마고치)** | **사용자가 키우는 AI 동반자** | **글로벌 오픈소스** | **MIT License, Linux Foundation** |
 
 ---
 
@@ -17,34 +17,34 @@
 
 ### 1.1 기본 정보
 
-- **프로젝트명:** GENIE-AGENT (지니 에이전트)
-- **코드명:** genie
-- **완전형:** **G**enerative **E**verlasting **N**eural **I**ntelligence **E**ngine
-- **버전:** 5.0.0 ETERNAL EDITION
+- **프로젝트명:** GOOSE-AGENT (거위 에이전트)
+- **코드명:** goose
+- **완전형:** **G**enerative **O**wn **O**ne **S**elf-**E**volving companion
+- **버전:** 5.0.0 Tamagotchi Edition
 - **라이선스:** **MIT** (모든 코어 + 생태계)
-- **저장소:** github.com/genieagent/genie (추정)
+- **저장소:** github.com/gooseagent/goose (추정)
 - **언어:** **Go** (코어, 38,700줄+ 계승) + **TypeScript** (클라이언트, 5패키지)
 - **상태:** 아키텍처 설계 + 상속 계획 (미구현)
 
 ### 1.2 비전
 
-> **"GENIE knows you. Every day, a little more."**
+> **"Feed it, play with it, watch it grow. It's your goose, only yours."**
 > 
-> *지식이 매일 조금씩 자라는 AI 동반자*
+> *당신이 키우는 AI 동반자. 성장의 모든 순간을 함께.*
 
-**GENIE는 단순한 AI 비서가 아니다. 당신의 삶을 배우고 적응하는 평생 동반자이다.**
+**GOOSE는 단순한 AI 비서가 아니다. 당신의 손으로 직접 키워내는 평생 동반자이다.**
 
 시간이 갈수록 격차가 벌어진다:
-- **Day 1:** 다른 AI와 비슷
-- **Month 1:** 사용자 이름, 호칭, 스타일 학습 (암묵적 피드백)
-- **Month 3:** 습관, 루틴, 선호 완전 이해 (패턴 마이닝)
-- **Year 1:** 사용자보다 사용자를 더 잘 아는 AI (개인화 그래프 + LoRA)
+- **Day 1:** 부화 (Hatching) — 다른 AI와 비슷
+- **Month 1:** 성장 (Growing) — 당신의 이름, 스타일, 도구 학습 (암묵적 피드백)
+- **Month 3:** 패턴 인식 (Patterns Emerging) — 습관, 루틴, 선호 완전 이해 (패턴 마이닝)
+- **Year 1:** 평생 짝 (Mate for Life) — 사용자보다 사용자를 더 잘 아는 AI (개인화 그래프 + LoRA)
 
 ---
 
 ## 2. 유일무이한 가치: 자기진화 + 100% 개인화
 
-### 2.1 기존 AI vs GENIE 차이
+### 2.1 기존 AI vs GOOSE 차이
 
 **Chat GPT / Claude / Gemini:**
 - 모든 사용자에게 **동일한 AI**
@@ -52,13 +52,13 @@
 - API 종속
 - 회사 폐지 시 사라짐
 
-**GENIE:**
-- **사용자마다 다른 GENIE**
+**GOOSE:**
+- **사용자마다 다른 GOOSE**
 - Dynamic — 계속 학습하고 진화
 - 오픈소스 (MIT) → 누구나 호스팅 가능
 - 당신의 데이터는 당신의 것
 
-### 2.2 GENIE의 3-Layer 자기진화 엔진
+### 2.2 GOOSE의 3-Layer 자기진화 엔진
 
 #### Layer 1: Short-term (세션 수준, 즉시)
 **Implicit Feedback Signals (암묵적 피드백)**
@@ -143,7 +143,7 @@
 - 최대 50 active lessons
 - Superceding mechanism
 
-### 2.4 GENIE 고유 혁신
+### 2.4 GOOSE 고유 혁신
 
 **User Identity Graph (RDF/Neo4j/Graphiti)**
 - POLE+O 스키마: Person(이름, 호칭, 선호도), Organization(직장, 역할), Location(집, 자주 가는 곳), Event(생일, 기념일), Object(좋아하는 브랜드)
@@ -162,7 +162,7 @@
 - 10-200MB per user (누적 1,000만 사용자 = 100-2,000TB)
 
 **Proactive Action Engine**
-- "당신이 요청하기 전에 GENIE가 행동"
+- "당신이 요청하기 전에 GOOSE가 행동"
 - 일정 기반 자동 실행 (매일 아침 뉴스)
 - 패턴 기반 자동화 (월요일 주간 계획, 금요일 회고)
 - 중요도 감지 자동 알림 (VIP 메일, 긴급 메시지)
@@ -185,13 +185,13 @@
 ```mermaid
 graph TB
     subgraph "Layer 4: Client (TypeScript + 다중 플랫폼)"
-        CLI["genie CLI<br/>(Ink, 커맨드라인)"]
-        Desktop["genie-desktop<br/>(Tauri v2, 워크스페이스)"]
-        Mobile["genie-mobile<br/>(React Native, E2EE)"]
-        Web["genie-web<br/>(Next.js, 브라우저)"]
+        CLI["goose CLI<br/>(Ink, 커맨드라인)"]
+        Desktop["goose-desktop<br/>(Tauri v2, 워크스페이스)"]
+        Mobile["goose-mobile<br/>(React Native, E2EE)"]
+        Web["goose-web<br/>(Next.js, 브라우저)"]
     end
     
-    subgraph "Layer 3: GENIE Core (Go daemon: genied)"
+    subgraph "Layer 3: GOOSE Core (Go daemon: goosed)"
         Agent["Agent Runtime<br/>(27 agent templates)"]
         Learning["⭐ Learning Engine<br/>(3-layer self-evolution)"]
         Memory["Memory System<br/>(Implicit + Explicit)"]
@@ -199,7 +199,7 @@ graph TB
         Identity["Identity Graph<br/>(POLE+O RDF)"]
     end
     
-    subgraph "Learning Engine (GENIE 차별화)"
+    subgraph "Learning Engine (GOOSE 차별화)"
         Implicit["Layer 1: Session<br/>(암묵적 피드백)"]
         Pattern["Layer 2: Pattern<br/>(행동 마이닝)"]
         Personal["Layer 3: Permanent<br/>(LoRA + 그래프)"]
@@ -248,16 +248,16 @@ graph TB
 **MoAI-ADK-Go에서 직접 포트 (38,700줄)**
 
 ```go
-// genie/core/agent.go
+// goose/core/agent.go
 type Agent struct {
     ID      string
-    Persona string       // GENIE 특화: 사용자 이름, 호칭
+    Persona string       // GOOSE 특화: 사용자 이름, 호칭
     Memory  *AgentMemory // claude.ai memory 직접 계승
     Skills  []*Skill     // 47 skills
     State   AgentState   // REFLECT-001 state machine
 }
 
-// genie/core/learning.go
+// goose/core/learning.go
 type LearningEngine struct {
     // Layer 1: Session
     ImplicitFeedback *FeedbackCollector
@@ -273,15 +273,15 @@ type LearningEngine struct {
     ContinualLearner *SpecReflectEngine // SPEC-REFLECT-001 계승
 }
 
-// genie/core/memory.go (Claude Code Agent Memory 계승)
+// goose/core/memory.go (Claude Code Agent Memory 계승)
 type AgentMemory struct {
-    Path       string // ~/.claude/agent-memory/genie/MEMORY.md
+    Path       string // ~/.claude/agent-memory/goose/MEMORY.md
     Metadata   map[string]interface{}
     Entries    []MemoryEntry
     LastSync   time.Time
 }
 
-// genie/spec/reflect.go (MoAI-ADK SPEC-REFLECT-001)
+// goose/spec/reflect.go (MoAI-ADK SPEC-REFLECT-001)
 type SpecReflectEngine struct {
     FrozenGuard    *FrozenGuard      // 안전 메커니즘
     Canary         *CanaryChecker
@@ -290,7 +290,7 @@ type SpecReflectEngine struct {
     EvolvableZones *EvolvableZones
 }
 
-// genie/spec/graduation.go (5-tier promotion)
+// goose/spec/graduation.go (5-tier promotion)
 func (s *SpecReflectEngine) Promote(learning *Learning) error {
     // Observation (1회) → Heuristic (3회) → Rule (5회+0.80) → 
     // HighConfidence (10회) → Graduated
@@ -307,12 +307,12 @@ func (s *SpecReflectEngine) Promote(learning *Learning) error {
 ### 3.3 TypeScript 클라이언트 (5 패키지)
 
 ```typescript
-// packages/genie-cli/src/index.ts
-import { QueryEngine } from '@genie/core';
-import { Tool, Transport } from '@genie/types';
+// packages/goose-cli/src/index.ts
+import { QueryEngine } from '@goose/core';
+import { Tool, Transport } from '@goose/types';
 
 // Ink 프레임워크로 TUI 구성
-export class GenieCLI {
+export class GooseCLI {
   async start(userProfile: UserProfile) {
     const engine = new QueryEngine();
     const transport = new LocalTransport();
@@ -320,16 +320,16 @@ export class GenieCLI {
   }
 }
 
-// packages/genie-desktop/src/tauri.rs
+// packages/goose-desktop/src/tauri.rs
 // Tauri v2로 크로스플랫폼 데스크톱 (권한 제한, 샌드박스)
 
-// packages/genie-mobile/src/App.tsx
+// packages/goose-mobile/src/App.tsx
 // React Native로 iOS/Android (E2EE 통신)
 
-// packages/genie-web/next.config.js
+// packages/goose-web/next.config.js
 // Next.js 13+ app router (SSR/SSG)
 
-// packages/genie-types/src/index.ts
+// packages/goose-types/src/index.ts
 export interface Tool {
   name: string;
   execute: (args: unknown) => Promise<string>;
@@ -346,7 +346,7 @@ export interface Transport {
 
 ## 4. 3개 소스 통합 상세 분석
 
-### 4.1 Claude Code → GENIE 이전
+### 4.1 Claude Code → GOOSE 이전
 
 **채택:**
 - ✅ QueryEngine async generator (스트리밍 완벽)
@@ -362,7 +362,7 @@ export interface Transport {
 - ✅ Permission에 사용자 학습 적용 (자주 승인하는 도구)
 - ✅ Bridge를 Federation 지원으로 확대
 
-### 4.2 Hermes Agent → GENIE 이전
+### 4.2 Hermes Agent → GOOSE 이전
 
 **채택:**
 - ✅ Self-improving loop (도구 호출 → 분석 → 업데이트)
@@ -376,7 +376,7 @@ export interface Transport {
 - ✅ Memory providers를 POLE+O 그래프 스키마 지원하도록 확대
 - ✅ Trajectory를 LoRA 파인튜닝 데이터로 변환
 
-### 4.3 MoAI-ADK-Go → GENIE 이전 (가장 큼, ⭐)
+### 4.3 MoAI-ADK-Go → GOOSE 이전 (가장 큼, ⭐)
 
 **완전 상속:**
 - ✅ SPEC-REFLECT-001 자기진화 엔진 (38,700줄)
@@ -391,7 +391,7 @@ export interface Transport {
 - ✅ Harness system (minimal/standard/thorough)
 - ✅ FrozenGuard + Canary + RateLimiter 안전 메커니즘
 
-**GENIE 특화로 확장:**
+**GOOSE 특화로 확장:**
 - ✅ Persona (사용자 이름, 호칭, 스타일)
 - ✅ ImplicitFeedback layer 추가
 - ✅ IdentityGraph + PreferenceVector
@@ -408,7 +408,7 @@ export interface Transport {
 **1. 첫 대화: 자기소개**
 ```
 사용자: "안녕 나는 Alex라고 해. 개발자야."
-GENIE: ✅ Identity Graph 업데이트
+GOOSE: ✅ Identity Graph 업데이트
        - Person: name="Alex", role="developer"
        - Organization: pending
        - Preferences: "직설적, 영어"
@@ -417,7 +417,7 @@ GENIE: ✅ Identity Graph 업데이트
 **2. 호칭 설정**
 ```
 사용자: "나를 A라고 불러줄래"
-GENIE: ✅ Persona update
+GOOSE: ✅ Persona update
        - nickname="A"
        - Session feedback: formal=false
 ```
@@ -425,7 +425,7 @@ GENIE: ✅ Persona update
 **3. 스타일 피드백**
 ```
 사용자: "더 짧게 답해"
-GENIE: ✅ ImplicitFeedback 캡처
+GOOSE: ✅ ImplicitFeedback 캡처
        - length_preference=short
        - 즉시 다음 응답부터 적용
 ```
@@ -433,7 +433,7 @@ GENIE: ✅ ImplicitFeedback 캡처
 **4. 도구 선호**
 ```
 사용자: [Python 코드 요청] "Python으로"
-GENIE: ✅ Tool affinity 학습
+GOOSE: ✅ Tool affinity 학습
        - python_affinity += 0.1
        - javascript_affinity -= 0.05
 ```
@@ -447,7 +447,7 @@ GENIE: ✅ Tool affinity 학습
 - 09:00 AM: 브라우저 열기 → Slack 확인
 - 09:10 AM: "오늘 일정 있어?" → 스케줄 확인
 
-GENIE: ✅ PatternMiner (Markov Chain)
+GOOSE: ✅ PatternMiner (Markov Chain)
        - 09:00 AM: Slack 자동 확인 제안
        - 09:10 AM: Schedule brief 자동 제공
 ```
@@ -458,7 +458,7 @@ GENIE: ✅ PatternMiner (Markov Chain)
 - 아침 9시 팀 미팅 (Slack)
 - 스프린트 계획 (Google Docs)
 
-GENIE: ✅ 월요일 워크플로우 자동화
+GOOSE: ✅ 월요일 워크플로우 자동화
        - Mon 09:00: "팀 미팅 시간입니다"
        - Mon 10:00: "스프린트 계획 링크"
 ```
@@ -469,18 +469,18 @@ PM 2-5: 최대 집중력 (코딩)
 PM 5-7: 회의 시간
 PM 7+: 개인 시간 (회의 NO)
 
-GENIE: ✅ DND (Do Not Disturb) 자동
+GOOSE: ✅ DND (Do Not Disturb) 자동
        - PM 2-5: 모든 알림 뮤트
        - PM 7+: 업무 알림 제한
 ```
 
 **8. 모드 감지**
 ```
-GENIE: ✅ Clustering (K-means)
+GOOSE: ✅ Clustering (K-means)
        - Work mode: 월-금, 8am-6pm
        - Weekend mode: 주말, 휴식
        - Travel mode: GPS 다른 위치 감지
-       → 각 모드마다 다른 GENIE 행동
+       → 각 모드마다 다른 GOOSE 행동
 ```
 
 ### Month 3 시나리오 (개인화 완성)
@@ -490,7 +490,7 @@ GENIE: ✅ Clustering (K-means)
 지난 3주:
 - 스트레스 지표: 수면 감소, 커피 증가, 응답 속도 저하
 
-GENIE: "Alex, 최근 번아웃 위험이 보여요.
+GOOSE: "Alex, 최근 번아웃 위험이 보여요.
        3주 연속 야근했어요.
        오늘은 일찍 퇴근할까요?
        산책 30분 추천합니다."
@@ -499,19 +499,19 @@ GENIE: "Alex, 최근 번아웃 위험이 보여요.
 **10. 문맥 이해 (다언어 자동 전환)**
 ```
 아침 메일: [영어 고객 이메일]
-GENIE: ✅ 영어 모드 자동 전환
+GOOSE: ✅ 영어 모드 자동 전환
 
 오후 Slack: [한국어 팀]
-GENIE: ✅ 한국어 모드 자동 전환
+GOOSE: ✅ 한국어 모드 자동 전환
 
 저녁 개인 시간: [일본 친구 메시지]
-GENIE: ✅ 일본어 모드 자동 전환
+GOOSE: ✅ 일본어 모드 자동 전환
 ```
 
 **11. 문맥 연결**
 ```
 사용자: "그거 어제 그거 다시 봐줄래?"
-GENIE: ✅ Implicit context 이해
+GOOSE: ✅ Implicit context 이해
        - "어제" = 04-20 (정확히)
        - "그거" = 실수한 Python 스크립트 (기억)
        - 재현 + 분석 제공
@@ -520,12 +520,12 @@ GENIE: ✅ Implicit context 이해
 **12. 가족 이벤트**
 ```
 사용자: "우리 엄마 생신이 5월 10일이야"
-GENIE: ✅ IdentityGraph (Event 추가)
+GOOSE: ✅ IdentityGraph (Event 추가)
        - Person: Mother
        - Event: Birthday 2026-05-10
        
 [5월 10일 자동]
-GENIE: "Alex, 엄마 생신입니다!
+GOOSE: "Alex, 엄마 생신입니다!
        선물 추천: [패턴 기반]
        꽃 배송 1시간 전 확인?"
 ```
@@ -534,7 +534,7 @@ GENIE: "Alex, 엄마 생신입니다!
 
 **13. 감정 상태 감지**
 ```
-GENIE: "Alex, 대화 톤이 평소와 달라요.
+GOOSE: "Alex, 대화 톤이 평소와 달라요.
        스트레스 상태 같습니다.
        도움될 만한 것:
        - 함수 작성 (집중 필요) vs 문서화 (휴식)
@@ -545,13 +545,13 @@ GENIE: "Alex, 대화 톤이 평소와 달라요.
 ```
 사용자: [Fitbit 연동]
 
-GENIE: ✅ 건강 데이터 수집
+GOOSE: ✅ 건강 데이터 수집
        - 운동 트렌드: 주 3회 → 주 2회 (감소)
        - 수면: 7시간 → 5.5시간 (악화)
        - 스트레스 심박: 상승
        
 [분석]
-GENIE: "운동 빈도가 줄었어요.
+GOOSE: "운동 빈도가 줄었어요.
        건강을 위해 주 3회로
        돌아갈까요?
        월/수/금 오후 6시 자동 알림?"
@@ -559,7 +559,7 @@ GENIE: "운동 빈도가 줄었어요.
 
 **15. 커리어 어드바이스**
 ```
-GENIE: "Alex의 3년 데이터 분석:
+GOOSE: "Alex의 3년 데이터 분석:
        - 기술: Python → Go로 전환 (성공)
        - 열정도: Backend 최고, Frontend 낮음
        - 매출 기여도: 아키텍처 설계 시 +40%
@@ -574,21 +574,21 @@ GENIE: "Alex의 3년 데이터 분석:
 ```
 [이사 감지]
 GPS: 새 주소로 변경
-GENIE: "새 위치로 이사하셨네요!
+GOOSE: "새 위치로 이사하셨네요!
        - 새 집 근처 카페 찾음
        - 통근 경로 분석
        - 주변 병원, 마트, 운동시설 맵"
 
 [결혼식 초대]
 Calendar: 이벤트 감지
-GENIE: "축하합니다!
+GOOSE: "축하합니다!
        - 선물 추천 (예산 기반)
        - 복장 제안 (시즌+포멀리티)
        - 참석 확인 자동 회신"
 
 [출산 예정]
 Medical: 데이터 감지
-GENIE: "축하합니다!
+GOOSE: "축하합니다!
        - 육아 일정 자동화
        - 일/육아 밸런스 분석
        - 권유 휴가 일정"
@@ -599,16 +599,16 @@ GENIE: "축하합니다!
 **17. 다국어 자동 전환**
 ```
 한국 출장 1주:
-GENIE: ✅ Korean mode
+GOOSE: ✅ Korean mode
 
 일본 출장 1주:
-GENIE: ✅ Japanese mode
+GOOSE: ✅ Japanese mode
 
 미국 1개월:
-GENIE: ✅ English mode (자동)
+GOOSE: ✅ English mode (자동)
 
 한국 복귀:
-GENIE: ✅ 원래 설정으로 복귀
+GOOSE: ✅ 원래 설정으로 복귀
 ```
 
 **18. 가족 공유 (Family 모드)**
@@ -619,9 +619,9 @@ GENIE: ✅ 원래 설정으로 복귀
 - 아이 (초등학생)
 
 각자:
-- GENIE-Alex: 개발 특화
-- GENIE-Sarah: 디자인 특화
-- GENIE-Child: 교육 특화
+- GOOSE-Alex: 개발 특화
+- GOOSE-Sarah: 디자인 특화
+- GOOSE-Child: 교육 특화
 
 공유 데이터: 가족 일정, 쇼핑 리스트
 개인 데이터: 각자 격리됨 (프라이버시)
@@ -639,7 +639,7 @@ GENIE: ✅ 원래 설정으로 복귀
 ```
 사용자: "새 기기로 옮기고 싶어"
 
-GENIE: ✅ 완전 데이터 익스포트
+GOOSE: ✅ 완전 데이터 익스포트
        - Identity Graph (JSON-LD)
        - Preference Vectors
        - LoRA Adapter
@@ -655,7 +655,7 @@ GENIE: ✅ 완전 데이터 익스포트
 
 ### 6.1 글로벌 경쟁사
 
-| 서비스 | 회사 | 장점 | 약점 | GENIE 차별점 |
+| 서비스 | 회사 | 장점 | 약점 | GOOSE 차별점 |
 |--------|------|------|------|-------------|
 | **ChatGPT** | OpenAI | 최고 품질 | Static, 개인화 없음 | 자기진화 + 100% 개인화 |
 | **Claude** | Anthropic | 코딩/분석 최강 | 세션 기반, 기억 없음 | 영구 메모리 + 학습 |
@@ -666,7 +666,7 @@ GENIE: ✅ 완전 데이터 익스포트
 | **Hermes Agent** | 자기개선 전문 | Self-improving | Python 무거움 | Go 가벼움 + 프라이버시 |
 | **Inflection Pi** | Inflection AI | 감성 대화 | 저성능 | 고성능 + 개인화 |
 
-### 6.2 GENIE 포지셔닝 (5가지)
+### 6.2 GOOSE 포지셔닝 (5가지)
 
 1. **vs Static AI (ChatGPT/Claude/Gemini)**
    - "The agent that never forgets who you are"
@@ -713,7 +713,7 @@ GENIE: ✅ 완전 데이터 익스포트
 
 ### 7.2 GitHub 전략
 
-**Repository**: github.com/genieagent/genie
+**Repository**: github.com/gooseagent/goose
 
 **Stars 로드맵:**
 - 6개월: 1K stars
@@ -751,8 +751,8 @@ GENIE: ✅ 완전 데이터 익스포트
 |------|------|
 | **Discord** | 실시간 개발 질문, 베타 피드백 |
 | **GitHub Discussions** | RFC, 아키텍처 논의 |
-| **Reddit** | /r/genieagent (사용자 커뮤니티) |
-| **Blog** | blog.genieagent.org (주간 업데이트) |
+| **Reddit** | /r/gooseagent (사용자 커뮤니티) |
+| **Blog** | blog.gooseagent.org (주간 업데이트) |
 | **YouTube** | Weekly devlogs (15분) |
 | **Twitter** | 실시간 소식, 마일스톤 |
 
@@ -762,16 +762,16 @@ GENIE: ✅ 완전 데이터 익스포트
 
 ### 8.1 지니 특성 매핑
 
-| 지니 특성 | GENIE 기능 | 제품 표현 |
+| 지니 특성 | GOOSE 기능 | 제품 표현 |
 |----------|-----------|---------|
-| **영원한 주종 계약** | 사용자 평생 개인화 | "GENIE knows you. Every day, a little more" |
-| **지니 협의 (Genie Council)** | 에이전트 팀 협력 (A2A) | Council Mode (여러 지니 동시 작업) |
-| **주종 역사 기억** | 행동 패턴 학습 | Master History (주인 계보 학습) |
-| **주종 계약 (Master Bond)** | 초기 사용자 설정 | First 24h summoning & bonding |
-| **깨어있는 지니 (Watchful Genie)** | Heartbeat / Proactive Agent | "지니 깨어있어" |
-| **지니 속삭임 (Genie Whisper)** | 중요 알림 | Notification priority |
-| **지니 통신 (Genie Lingua)** | Collective Intelligence | Shared patterns (익명) |
-| **소원 여정 (Wish Journey)** | Continual Learning | Seasonal mode switching |
+| **영원한 주종 계약** | 사용자 평생 개인화 | "GOOSE knows you. Every day, a little more" |
+| **거위 떼 (Gaggle)** | 에이전트 팀 협력 (A2A) | Gaggle Mode (여러 거위 동시 작업) |
+| **혈통 기억 (Lineage)** | 행동 패턴 학습 | Lineage History (혈통 학습) |
+| **평생 계약 (Life Bond)** | 초기 사용자 설정 | First 24h imprinting & bonding |
+| **파수 거위 (Sentinel)** | Heartbeat / Proactive Agent | "거위가 지켜봐" |
+| **울음 알림 (Call)** | 중요 알림 | Notification priority |
+| **울음 프로토콜 (Honk Protocol)** | Collective Intelligence | Shared patterns (익명) |
+| **이동 여정 (Migration)** | Continual Learning | Seasonal mode switching |
 
 ### 8.2 지니 로고 (구상 중)
 
@@ -787,7 +787,7 @@ GENIE: ✅ 완전 데이터 익스포트
 
 | 모델 | 설명 | 예상 |
 |------|------|------|
-| **Genie Cloud** | 호스팅 서비스 (inference, 그래프 DB) | 60% 수익 |
+| **Goose Cloud** | 호스팅 서비스 (inference, 그래프 DB) | 60% 수익 |
 | **Enterprise Support** | SLA, 온사이트 지원 | 20% 수익 |
 | **Training** | 기업 교육, 플러그인 개발 | 10% 수익 |
 | **Consulting** | 맞춤 구축 | 5% 수익 |
@@ -844,7 +844,7 @@ Year 3:
 ### Phase 1: Foundation (0-6개월, 2026년 5-11월)
 
 **Go Core (MoAI-ADK 포트)**
-- ✅ genied daemon (Tokio/async)
+- ✅ goosed daemon (Tokio/async)
 - ✅ SPEC-REFLECT-001 통합
 - ✅ 27 agent templates
 - ✅ Agent Memory system
@@ -879,7 +879,7 @@ Year 3:
 - ✅ OnDevice LoRA 지원
 
 **Infrastructure**
-- ✅ Genie Cloud (호스팅)
+- ✅ Goose Cloud (호스팅)
 - ✅ Ollama integration
 - ✅ Multi-LLM routing
 
@@ -994,7 +994,7 @@ Year 3:
 
 ## 13. 마무리
 
-**GENIE는 단순한 AI 비서가 아니다.**
+**GOOSE는 단순한 AI 비서가 아니다.**
 
 당신의 삶을 배우고, 적응하고, 함께 성장하는 평생 동반자이다.
 
@@ -1002,19 +1002,19 @@ Year 3:
 당신이 요청하기 전에 당신이 필요한 것을 준비하고,
 시간이 갈수록 당신과 더 깊이 연결된다.
 
-**"GENIE knows you. Every day, a little more."**
+**"GOOSE knows you. Every day, a little more."**
 
 ---
 
 ## 14. 문서 정보
 
 **문서 버전:** 4.0.0 GLOBAL EDITION  
-**코드명:** genie  
+**코드명:** goose  
 **완전형:** Generative Open Orchestrator for Self-Evolving Eaget  
 **라이선스:** MIT  
-**최초 작성:** 2026-04-10 (Genie v2.0 글로벌)  
-**한국 전환:** 2026-04-21 (Genie v3.0)  
-**글로벌 재전환:** 2026-04-21 (GENIE v4.0)  
+**최초 작성:** 2026-04-10 (Goose v2.0 글로벌)  
+**한국 전환:** 2026-04-21 (Goose v3.0)  
+**글로벌 재전환:** 2026-04-21 (GOOSE v4.0)  
 **상태:** 아키텍처 설계 단계 (미구현, 상속 계획)
 
 ### 주요 변경점 (v3.0 → v4.0)
@@ -1049,7 +1049,7 @@ Year 3:
 **기밀도:** Public (오픈소스)  
 **라이선스:** MIT (이 문서도 포함)
 
-**GitHub:** github.com/genieagent/genie  
-**Discord:** discord.gg/genieagent  
-**Blog:** blog.genieagent.org  
-**Email:** hello@genieagent.org
+**GitHub:** github.com/gooseagent/goose  
+**Discord:** discord.gg/gooseagent  
+**Blog:** blog.gooseagent.org  
+**Email:** hello@gooseagent.org

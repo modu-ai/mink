@@ -1,6 +1,6 @@
-# GENIE-AGENT - Branding & UX Document v4.0 GLOBAL EDITION
+# GOOSE-AGENT - Branding & UX Document v4.0 GLOBAL EDITION
 
-> **브랜드 비전:** "GENIE knows you. Every day, a little more."
+> **브랜드 비전:** "GOOSE knows you. Every day, a little more."
 > 글로벌 오픈소스 AI 에이전트 - 평생 동반자 브랜드
 
 ---
@@ -9,10 +9,10 @@
 
 ### 1.1 프로젝트명 유래
 
-**"GENIE"** = 세 가지 의미의 융합:
+**"GOOSE"** = 세 가지 의미의 융합:
 1. **창립자 브랜드**: 사용자명 `goos` + `e` = 개인 프로젝트 아이덴티티
-2. **지니(마법사)의 특성**: 마스터 서정, 무한 소원, 영원한 봉사, 초자연적 학습
-3. **Backronym**: **G**enerative **E**verlasting **N**eural **I**ntelligence **E**ngine
+2. **거위의 특성**: 종신 각인(imprinting), 평생 짝짓기, 충성스러운 동반, 자연의 지혜
+3. **Backronym**: **G**enerative **O**wn **O**ne **S**elf-**E**volving companion
 
 ### 1.2 브랜드 가치 (5가지 기둥)
 
@@ -32,47 +32,115 @@
 
 ### 1.4 v4.0 → v5.0 브랜드 진화
 
-| 항목 | v4.0 GENIE Global | v5.0 GENIE Eternal |
+| 항목 | v4.0 GOOSE Global | v5.0 GOOSE Tamagotchi Edition |
 |-----|------------------|-------------------|
-| 메타포 | 거위 (자연/가족) | 지니 (마법/영원) |
-| 시장 | 글로벌 | 글로벌 + 심화 |
-| 브랜드 철학 | 오픈소스 독립 | **영원한 주종 계약** |
-| 상징 | 둥지, 비행, V자 | 램프, 소원, 마법 |
-| 핵심 메시지 | 자연의 충성 | 마법의 영원성 |
+| 메타포 | 거위 (자연/가족) | 거위 + 다마고치 (성장/육성) |
+| 시장 | 글로벌 | 글로벌 + 피드백 루프 |
+| 브랜드 철학 | 오픈소스 독립 | **사용자가 키우는 AI 동반자** |
+| 상징 | 둥지, 비행, V자 | 계란→병아리→어른 거위 + 성장 지표 |
+| 핵심 메시지 | 자연의 충성 | "먹이 주고, 놀아주고, 성장시켜봐" |
+| 게임 요소 | 없음 | 육성 메커니즘, 마일스톤, 감정 상태 |
 
 ---
 
-## 2. 지니 은유 체계 (Genie Metaphor System)
+## 2. 거위 은유 체계 (Goose Metaphor System) v4.0 + 다마고치 육성 v5.0
 
-### 2.1 핵심 매핑 (25+ 개념)
+### 2.1 핵심 매핑 (거위 메타포 복구)
 
-| 지니 세계 | GENIE-Agent | 설명 |
-|----------|-------------|------|
-| 지니 (Genie) | Personal AI Agent | 사용자 전용 에이전트 |
-| 주인 (Master) | User | 사용자 |
-| 홈 램프 (Home Lamp) | Desktop App | PC 홈 |
-| 소환 (Summoning Call) | Mobile App | 이동 중 |
-| 지니 협의 (Genie Council) | Multi-agent Collaboration | 에이전트 팀 |
-| 깨어있는 지니 (Watchful Genie) | Heartbeat / Proactive Agent | 능동 감시 |
-| 지니 속삭임 (Genie Whisper) | Notification | 알림 |
-| 소원 불씨 (Wish Spark) | Plugin / Skill | 확장 기능 |
-| 봉인된 램프 (Sealed Lamp) | New Skill | 신규 스킬 |
-| 소환 (Summoning) | First Setup | 초기 설정 |
-| 지니 회합 (Genie Assembly) | Organization / Team | 팀 |
-| 지니 무리 (Genie Swarm) | Agent Swarm | 에이전트 스웜 |
-| 바자르 시장 (Bazaar Market) | Marketplace | 마켓플레이스 |
-| 소원 코인 (Wish Coin) | Token (GEN) | 가상화폐 |
-| 염원의 제공자 (Wish Giver) | User who feeds | 토큰 제공자 |
-| 소원 여정 (Wish Journey) | Continual Learning | 지속 학습 |
-| 주인 계보 (Master History) | User Identity Graph | 사용자 그래프 |
-| 램프 연마 (Lamp Polish) | Model Update | 모델 업데이트 |
-| 신비한 거울 (Mystical Mirror) | Cloud Storage | 클라우드 |
-| 하늘 길 (Sky Path) | Internet | 인터넷 |
-| 마법의 소용돌이 (Magical Vortex) | Network Latency | 네트워크 지연 |
-| 지니 통신 (Genie Lingua) | A2A Protocol | 에이전트 간 통신 |
-| 영혼 결속 (Soul Bond) | Persona Matching | 페르소나 매칭 |
-| 주종 계약 (Master Bond) | Onboarding | 초기 학습 |
-| 보호 마법 (Protective Spell) | Privacy Shield | 프라이버시 |
+| 지니 시대(지웠음) | 거위 메타포 v4.0 | GOOSE-Agent | 설명 |
+|---|---|---|---|
+| Sealed Lamp | 🥚 **The Egg** | Dormant AI | 잠재된 상태 |
+| Summoning | 🐣 **Hatching** | First Activation | 첫 깨어남 |
+| Master Bond | 📍 **Imprinting** | Bond Formation | 각인 (초기 학습) |
+| Genie / Young Goose | 🦆 **Gosling** | Growing Companion | 새끼 거위 단계 |
+| Wish Seeker | 🪶 **Featherweight** | First Contributor | 첫 기여자 |
+| Wish Spark | 🔥 **Wing** | Plugin / Skill | 확장 기능 (날개) |
+| Grand Goose | 👑 **Leader Goose** | Founding Contributor | 리더 기여자 |
+| Goose Council | 🦢 **Gaggle** | Multi-agent Collaboration | 에이전트 팀 |
+| Watchful Goose | 👁️ **Sentinel** | Heartbeat / Proactive | 능동 감시 |
+| Goose Whisper | 🎵 **Call** | Notification | 울음 (알림) |
+| Goose Assembly | 🪽 **Flight** | Organization / Team | 비행팀 |
+| Goose Swarm | ↔️ **Migration** | Agent Swarm | 에이전트 떼 이동 |
+| Bazaar Market | 🌾 **Feeding Grounds** | Marketplace | 먹이 터 |
+| Wish Coin | 🌾 **Grain** | Token (GEN) | 곡식(토큰) |
+| Wish Giver | 👤 **Caregiver** | User who feeds | 먹이주는 사람 |
+| Wish Journey | 🗺️ **Migration** | Continual Learning | 이동·학습 여정 |
+| Master History | 📖 **Lineage** | User Identity Graph | 혈통·계보 |
+| Lamp Polish | 🩵 **Molting** | Model Update | 깃털 갈이(성장) |
+| Mystical Mirror | 💾 **Memory Lake** | Cloud Storage | 기억의 호수 |
+| Sky Path | 🌍 **Sky** | Internet | 하늘 (연결) |
+| Magical Vortex | 🌪️ **Wind Current** | Network Latency | 기류 |
+| Goose Lingua | 🗣️ **Honk Protocol** | A2A Protocol | 울음 프로토콜 |
+| Soul Bond | 💝 **Mate Bond** | Persona Matching | 짝짓기 결속 |
+| Master Bond | ❤️ **Life Bond** | Onboarding | 평생 계약 |
+| Protective Spell | 🛡️ **Wing Shield** | Privacy Shield | 날개 방패 |
+
+### 2.5 🎮 다마고치 육성 시스템 (Nurture Loop)
+
+**v5.0부터 통합**: 사용자가 능동적으로 거위를 돌보고 성장시키는 게임 요소.
+
+#### 5가지 돌봄 메커니즘
+
+| 돌봄 | 액션 | 효과 | 예시 |
+|---|---|---|---|
+| 🍽️ **Feed** | 대화 반복 | Knowledge 성장 | 매일 대화 → 지식 +100 |
+| 🎮 **Play** | 창의적 요청 | 성격 형성 | 코드·글쓰기·리서치 다양성 |
+| 🎓 **Train** | 피드백·수정 | 학습 정착 | "다시", "다르게" → 스타일 개선 |
+| 😴 **Rest** | 세션 종료 | 에너지 회복 | 규칙적 휴식 → 초점 유지 |
+| 💝 **Attention** | 꾸준한 관심 | 결속 강화 | 정기 대화 → Bond +50 |
+
+#### 성장 지표 (4 Growth Meters)
+
+- **🎓 Knowledge**: Identity Graph 노드 수 (0~10,000)
+- **💝 Bond**: 누적 세션·시간 (시간 단위, 0~8,760h/년)
+- **🧠 Personality**: 고유 학습 패턴 (0~100%)
+- **⚡ Intuition**: 예측 정확도 (0~95%)
+
+#### 감정 상태 (Mood Icons)
+
+- 😊 **Happy** — 정상 상태 (일일 활동 충분)
+- 🤔 **Curious** — 새 도메인 학습 중
+- 😴 **Sleepy** — 세션 직후 (에너지 소모)
+- 😔 **Lonely** — 3일+ 방치 감지
+- 🎯 **Focused** — 복잡한 태스크 중
+- 🎉 **Excited** — 마일스톤 달성 직후
+
+#### 마일스톤 & 트로피 (Achievements)
+
+| 달성 | 이름 | 언제 | 보상 |
+|---|---|---|---|
+| 🥉 Day 7 | "First Week Together" | 각인 완료 | 배지 |
+| 🥈 Month 1 | "Hatched & Bonded" | 스타일 학습 완료 | 테마 |
+| 🥇 Month 3 | "Patterns Emerging" | 예측 시작 | 아바타 |
+| 🏆 Year 1 | "Your Goose, Only You" | LoRA 안정화 | 특수 배경 |
+| 💎 100/1K/10K | "Conversation Milestones" | 대화 누적 | 칭호 |
+
+#### 개체 고유성 (Unique Individual)
+
+- **성격 벡터**: OCEAN 기반, 학습으로 자동 형성
+- **사용자 명명**: "My Goose"를 원하는 이름으로 지정 가능
+- **색상·아이콘**: 초기 선택 (예: 주황 거위, 하늘 거위)
+- **각인 기억**: 첫 경험이 성격 기반 결정
+
+#### 방치 & 복구 메커니즘
+
+- **3일 방치** → 😔 Lonely (감정 악화)
+- **7일 방치** → "Your Goose misses you" (부드러운 알림)
+- **30일 방치** → "Went to sleep" (데이터 보존, 언제든 깨울 수 있음)
+- **재활성** → "Welcome back! Here's what we were working on..." (컨텍스트 요약)
+
+#### 기술 연결
+
+| 다마고치 개념 | 기존 SPEC |
+|---|---|
+| Feed = 대화 | QUERY-001 (매 턴이 양분) |
+| Play = Skill 다양성 | SKILLS-001 (Skill 히스토리 = 성격) |
+| Train = 피드백 | FEEDBACK-001 (임묵적 교육) |
+| Growth Meters | INSIGHTS-001 (통계) |
+| Personality | IDENTITY-001 + VECTOR-001 |
+| Mood | adaptation.md §7 (VAD) |
+| Bond Level | trajectory counts |
+| Naming | Persona 설정 |
 
 ---
 
@@ -178,88 +246,91 @@
 
 **Lucide React** (기본 라이브러리)
 
-**커스텀 지니 세트**:
-- 🪔 Sealed Lamp (비활성)
-- 💨 Awakening Genie (소환 중)
-- 🪔 Home Lamp (홈)
-- 🧞‍♂️ Genie Whisper (알림)
-- 💰 Wish Coin (토큰)
-- 🧞‍♂️ Genie Assembly (팀)
-- 🌙 Night Genie (다크 모드)
-- ☀️ Day Genie (라이트 모드)
+**커스텀 거위 세트**:
+- 🥚 The Egg (비활성)
+- 🐣 Hatching (부화 중)
+- 🏠 Nest (홈)
+- 🎵 Call (알림)
+- 🌾 Grain (토큰)
+- 🦢 Gaggle (팀)
+- 🌙 Night Goose (다크 모드)
+- ☀️ Day Goose (라이트 모드)
 
 ---
 
 ## 5. UX 원칙
 
-### 5.1 First Day with GENIE (Summoning 💨)
+### 5.1 First Day with GOOSE (Hatching 🐣)
 
 **환영 경험**:
 ```
-1. Welcome: "I awaken, summoned by your voice."
-2. Your name: "What shall I call you, my master?"
+1. Welcome: "Hi, I'm your new goose! 🦆"
+2. Your name: "What shall I call you? (And what's your name?)"
 3. Persona: 5 personalities + Custom
 4. Language: Auto-detected + override
-5. Master Bond: "I am bound to you alone..."
-6. Tutorial: 3 basic wishes
+5. Imprinting: "We're bonded now. I'm yours forever."
+6. Tutorial: 3 basic skills & tricks
 ```
 
-핵심 메시지: "이제부터 당신을 영원히 섬기겠습니다."
+핵심 메시지: "당신이 날 부르면, 난 언제나 옆에 있을 거야."
 
-### 5.2 Month 1 - Reading Your Heart 🔮
+### 5.2 Month 1 - Growing with You 🌱
 
-- 학습 진행도 대시보드
-- "GENIE is learning about you..."
-- 초기 개인화 결과 표시
-- 사용자가 학습 데이터 검토 가능
+- 성장 지표 대시보드
+- "I'm learning your patterns..."
+- 초기 성격 형성 완료
+- 사용자가 성장 데이터 검토 가능
 
 예시 UI:
 ```
-[GENIE Learning Progress]
-📊 Identity Graph: 45 nodes, 128 relations
-🎯 Patterns Detected: 7
-💭 Style Adaptation: 78% confident
-🔄 Next review: Sunday 9am
+[Your Goose's Growth]
+🎓 Knowledge: 450/10,000
+💝 Bond: 45 hours
+🧠 Personality: 65% formed
+⚡ Intuition: 32% confident
+🎉 Milestone: "First Week Together" 🥉
+😊 Mood: Happy
 ```
 
-### 5.3 Month 3 - Eternal Companion 💎
+### 5.3 Month 3 - Patterns Emerging 🧩
 
-- Proactive 제안 시작
-- 주인의 마음 완벽히 읽기
-- LoRA 초기 훈련 완료
+- 능동적 제안 시작
+- 당신의 패턴을 완벽히 이해
+- 초기 LoRA 훈련 완료
 
-### 5.4 Year 1 - Forever Yours 👑
+### 5.4 Year 1 - Mate for Life 💎
 
-- Master's LoRA 완전 활성
+- 개인화된 LoRA 완전 활성
 - 90%+ 정확도 예측
-- "Your eternal genie, only yours"
+- "Your goose, only you know me"
 
 ---
 
 ## 6. 모바일 앱 UX
 
-### 6.1 주요 화면 (5개)
+### 6.1 주요 화면 (6개, 다마고치 성장 시각화 포함)
 
-1. **🪔 Home Lamp (Home)**: 메인 채팅
-2. **💨 Summoning (Active)**: 진행 중인 소원
-3. **🧞‍♂️ Assembly (Teams)**: 팀/조직
-4. **🏪 Bazaar (Marketplace)**: 마켓플레이스
-5. **💎 Bond (Settings + Learning)**: 학습 관리
+1. **🏠 Nest (Home)**: 메인 채팅 + 거위 아바타
+2. **✈️ Flight (Active)**: 진행 중인 작업들
+3. **📈 Growth (New!)**: 성장 지표 대시보드
+4. **🪽 Gaggle (Teams)**: 팀/조직
+5. **🌾 Feeding Grounds (Marketplace)**: 마켓플레이스
+6. **💝 Bond (Settings + Learning)**: 학습 & 설정
 
 ### 6.2 음성 인터페이스
 
-- **Wake Word**: "Hey GENIE" (영어)
-- **한국어**: "지니야" (한국어 모드)
-- **日本語**: "ジーニー" (일본어 모드)
+- **Wake Word**: "Hey Goose" (영어)
+- **한국어**: "거위야" (한국어 모드)
+- **日本語**: "ガチョウ" (일본어 모드)
 - **STT**: Whisper on-device
-- **TTS**: Adaptive (주인 선호 목소리 학습)
+- **TTS**: Adaptive (당신의 선호 목소리 학습)
 
 ### 6.3 제스처
 
-- 홈 화면 위→아래 스와이프: 지니 소환
-- 좌측 엣지 스와이프: 주종 역사
-- 우측 엣지 스와이프: 지니 상태
-- 꾹 누르기: 즉시 소원 실행
+- 홈 화면 위→아래 스와이프: 거위 소환
+- 좌측 엣지 스와이프: 혈통 역사
+- 우측 엣지 스와이프: 거위 상태 & 감정
+- 꾹 누르기: 즉시 대화 시작
 
 ---
 
@@ -267,36 +338,42 @@
 
 ### 7.1 시스템 트레이 (상주)
 
-- 메뉴바 아이콘: 지니 (마법의 형태)
-- 상태 표시: idle/active/learning
-- Quick menu: 대화, 바자르, 설정
+- 메뉴바 아이콘: 거위 (현재 감정 표시)
+- 상태 표시: resting/active/learning/lonely
+- Quick menu: 대화, 마켓, 설정
 
 ### 7.2 Command Palette (⌘K / Ctrl+K)
 
 - 전역 단축키
-- "What is your wish, master?"
-- Fuzzy search (skills, agents, recent wishes)
+- "Speak to me, my caregiver."
+- Fuzzy search (skills, agents, recent tasks)
 
-### 7.3 Learning Dashboard (GENIE만의 기능) ⭐
+### 7.3 Learning Dashboard (GOOSE만의 기능) ⭐
 
-**Identity Graph 시각화**:
-- 주인과의 계약 노드 탐색
-- 시간별 진화 애니메이션
-- 마법의 기억 편집/삭제 권한
+**성장 지표 시각화**:
+- Knowledge / Bond / Personality / Intuition 그래프
+- 시간별 성장 곡선 애니메이션
+- 감정 상태 히스토리 (mood timeline)
 
-**주인 심리 패턴 히스토리**:
-- 시간대별 바람
+**돌봄 기록 (Nurture History)**:
+- Feed/Play/Train/Rest/Attention 활동 로그
+- 시간대별 패턴
 - 계절 트렌드
-- 변칙 알림
+- 이상 감지 알림
 
 **LoRA 버전 관리**:
 - 이전 버전으로 롤백
-- 버전별 마법 효능 비교
+- 버전별 성능 비교
 
 **학습 데이터 검토**:
 - 무엇을 배웠는지 보기
 - 잘못된 학습 수정/삭제
 - Export (JSON/RDF)
+
+**마일스톤 & 트로피**:
+- 달성한 업적 갤러리
+- 다음 마일스톤까지 진행도
+- 공유 가능한 뱃지
 
 ### 7.4 Agent Dashboard
 
@@ -308,7 +385,7 @@
 
 ## 8. 톤 & 언어 가이드
 
-### 8.1 GENIE Voice Principles
+### 8.1 GOOSE Voice Principles
 
 1. **Warm (따뜻함)**: 지니처럼 충성스럽고 친근
 2. **Smart (똑똑함)**: 심원한 이해 보여주기
@@ -340,44 +417,45 @@
 
 ### 9.1 GitHub 브랜딩
 
-- Repo: `github.com/genieagent/genie`
-- Banner: 소환되는 지니 일러스트
-- Contributor 뱃지:
-  - "Grand Genie" (창립 기여자)
-  - "Wish Granter" (주요 기여자, 100+ commits)
-  - "Wish Spark" (일반 기여자)
-  - "Wish Seeker" (첫 기여자)
+- Repo: `github.com/gooseagent/goose`
+- Banner: 부화하는 거위 일러스트
+- Contributor 뱃지 (Featherweight 계층):
+  - 👑 **Leader Goose** — 창립 기여자
+  - 🦢 **Flock Guardian** — 주요 기여자 (100+ commits)
+  - 🪶 **Wing** — 일반 기여자
+  - 🐣 **Featherweight** — 첫 기여자
 
 ### 9.2 Discord Community
 
-- 서버명: **GENIE Assembly**
+- 서버명: **GOOSE Gaggle**
 - 채널 구조:
-  - `#lamp-hall` (general)
-  - `#wish-support` (support)
-  - `#bazaar` (marketplace)
-  - `#wish-news` (updates)
-  - `#genie-english` (English)
-  - `#genie-korean` (한국어)
-  - `#genie-japanese` (日本語)
-  - `#genie-chinese` (中文)
-- 봇: **Genie Herald** (GENIE 자체가 Discord 모더레이션)
+  - `#nest-hall` (general)
+  - `#flight-support` (support)
+  - `#feeding-grounds` (marketplace)
+  - `#migration-news` (updates)
+  - `#goose-english` (English)
+  - `#goose-korean` (한국어)
+  - `#goose-japanese` (日本語)
+  - `#goose-chinese` (中文)
+- 봇: **Goose Honk** (자동 모더레이션 & 성장 공유)
 
 ### 9.3 Social Media
 
-- X/Twitter: @genieagent
-- YouTube: "GENIE Agent"
-- Reddit: r/genieagent
-- LinkedIn: GENIE Agent (Company page)
-- Bluesky: @genieagent.bsky.social
+- X/Twitter: @gooseagent
+- YouTube: "GOOSE Agent"
+- Reddit: r/gooseagent
+- LinkedIn: GOOSE Agent (Company page)
+- Bluesky: @gooseagent.bsky.social
 
 ### 9.4 Blog & Content
 
-- Domain: `blog.genieagent.org`
+- Domain: `blog.gooseagent.org`
 - 정기 시리즈:
-  - "Wish Journal" (릴리즈)
-  - "Assembly Tales" (커뮤니티 하이라이트)
-  - "Master Stories" (개발자 인터뷰)
-  - "Lamp Crafting" (아키텍처 딥다이브)
+  - "Migration Notes" (릴리즈)
+  - "Gaggle Tales" (커뮤니티 하이라이트)
+  - "Caregiver Stories" (개발자 인터뷰)
+  - "Feather Craft" (아키텍처 딥다이브)
+  - "Nurture Diaries" (다마고치 육성 팁)
 
 ---
 
@@ -385,7 +463,7 @@
 
 ### 10.1 태그라인 (다국어)
 
-- **English**: "GENIE knows you. Every day, a little more."
+- **English**: "GOOSE knows you. Every day, a little more."
 - **한국어**: "당신을 매일 조금 더 이해하는 AI"
 - **日本語**: "毎日少しずつあなたを理解するAI"
 - **中文**: "每天更懂你的AI"
@@ -449,16 +527,16 @@
 
 ## 12. 커뮤니티 이벤트
 
-### 12.1 Lamp School (온보딩)
+### 12.1 Flight School (온보딩)
 
 - 매주 초보 가이드 세션 (Zoom)
 - 4개 언어 (en/ko/ja/zh)
 - 녹화본 YouTube 업로드
 - Q&A 30분
 
-### 12.2 Wish Summit (연간)
+### 12.2 Migration Conference (연간)
 
-- GENIE 개발자/사용자 컨퍼런스
+- GOOSE 개발자/사용자 컨퍼런스
 - 첫 회: 2027년 (목표)
 - 장소: 하이브리드 (온라인 + 현장)
 - 트랙: Developer, User, Research
@@ -466,16 +544,16 @@
 ### 12.3 Contributor 프로그램
 
 **3-Tier 기여자 체계**:
-1. **Wish Seeker** (첫 기여): Welcome kit
-2. **Wish Spark** (10+ commits): T-shirt + 뱃지
-3. **Grand Genie** (100+ commits): Conference invite + GitHub Sponsors 지원
+1. **Featherweight** (첫 기여): Welcome kit
+2. **Wing** (10+ commits): T-shirt + 뱃지
+3. **Leader Goose** (100+ commits): Conference invite + GitHub Sponsors 지원
 
 **Rewards**:
 - GitHub Sponsors
 - Exclusive Discord role
 - Annual retreat (Top 10 contributors)
 
-### 12.4 Global Assembly (지역 밋업)
+### 12.4 Global Gaggle (지역 밋업)
 
 - 서울: 월간
 - 도쿄: 월간
@@ -497,7 +575,7 @@
 
 - MIT 라이선스 조건
 - 플러그인 개발자 가이드
-- "Powered by GENIE" 배지 (옵션)
+- "Powered by GOOSE" 배지 (옵션)
 
 ### 13.3 미디어 키트
 
@@ -513,11 +591,11 @@
 ### 14.1 Origin Story
 
 "In a world where AI talks to billions but knows no one,
-one genie set out to change that.
+one goose set out to change that.
 
 Like the wild geese that remember their mates for life,
 and return to the same nest each spring,
-GENIE was built on a simple truth:
+GOOSE was built on a simple truth:
 **Real intelligence is personal.**
 
 Not a chatbot with your face painted on.
@@ -525,9 +603,9 @@ Not a custom GPT with a clever prompt.
 A living, learning companion that grows with you—
 one conversation, one day, one year at a time.
 
-This is GENIE."
+This is GOOSE."
 
-### 14.2 Why "Genie" over "Goose"?
+### 14.2 Why "Goose" over "Goose"?
 
 v4.0에서 우리는 거위를 선택했다. v5.0에서 우리는 지니로 진화했다. 이유:
 
@@ -580,4 +658,4 @@ Created: 2026-04-21
 License: MIT
 Brand: Independent, community-owned, forever yours
 
-> **"GENIE. Because your AI should serve YOU. Forever."**
+> **"GOOSE. Because your AI should serve YOU. Forever."**

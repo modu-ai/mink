@@ -1,6 +1,6 @@
-# GENIE-AGENT - Migration Guide & Pivot Journey v4.0
+# GOOSE-AGENT - Migration Guide & Pivot Journey v4.0
 
-> **문서 목적:** 5번의 피벗을 거쳐 GENIE에 도착한 여정을 기록. 새 팀원, 기여자, 이해관계자를 위한 프로젝트 스토리.
+> **문서 목적:** 5번의 피벗을 거쳐 GOOSE에 도착한 여정을 기록. 새 팀원, 기여자, 이해관계자를 위한 프로젝트 스토리.
 
 ---
 
@@ -11,9 +11,9 @@
 프로젝트가 거쳐온 5번의 피벗을 숨기지 않고 기록한다:
 - v0.2 CLI Tool (2026-04-09)
 - v1.0 Oz World (2026-04-10)
-- v2.0 Genie Global (2026-04-10)
-- v3.0 Genie Korea (2026-04-21)
-- **v4.0 GENIE Global** (2026-04-21 ~)
+- v2.0 Goose Global (2026-04-10)
+- v3.0 Goose Korea (2026-04-21)
+- **v4.0 GOOSE Global** (2026-04-21 ~)
 
 각 피벗의 **이유와 학습**을 정리하여, 앞으로 같은 실수 반복을 방지한다.
 
@@ -30,20 +30,20 @@
                 ├─ Summer Wars 메타버스
                 └─ 거대 에이전트 생태계
 
-2026-04-10 ━━━ v2.0 Genie Global
+2026-04-10 ━━━ v2.0 Goose Global
                 ├─ 아라비안나이트 지니
                 └─ PC + Mobile 듀얼 액세스
 
-2026-04-21 ━━━ v3.0 Genie Korea
+2026-04-21 ━━━ v3.0 Goose Korea
                 ├─ KT 기가지니 이식
                 └─ 한국 매각 타깃 (500-800억원)
 
-2026-04-21 ━━━ v4.0 GENIE Global ⭐
+2026-04-21 ━━━ v4.0 GOOSE Global ⭐
                 ├─ 자기진화 개인화 AI
                 ├─ Go + TypeScript
                 └─ 글로벌 오픈소스 (MIT)
 
-2026-04-21 ━━━ v5.0 GENIE Eternal 🪔
+2026-04-21 ━━━ v5.0 GOOSE Eternal 🪔
                 ├─ 지니 메타포 완전 재구성
                 ├─ 램프/소원/영원한 주종 계약
                 └─ 마법의 은유 체계
@@ -108,7 +108,7 @@
 
 ---
 
-### 2.3 v2.0: Genie Global (2026-04-10, 같은 날)
+### 2.3 v2.0: Goose Global (2026-04-10, 같은 날)
 
 **날짜**: 2026-04-10
 **언어**: Rust + TypeScript
@@ -126,13 +126,13 @@
 - 모바일 + PC 현실적 UX
 
 **교훈 (Learnings)**:
-- "Genie" 이름 중복 (KT 기가지니, Warp Genie 등)
+- "Goose" 이름 중복 (KT 기가지니, Warp Goose 등)
 - 글로벌 + 개인화 균형 어려움
 - 초기 MVP 어떻게 잡을지 불명확
 
 ---
 
-### 2.4 v3.0: Genie Korea (2026-04-21)
+### 2.4 v3.0: Goose Korea (2026-04-21)
 
 **날짜**: 2026-04-21
 **언어**: Rust + TypeScript
@@ -165,7 +165,7 @@
 
 ---
 
-### 2.5 v4.0: GENIE Global (2026-04-21 ~, **현재**)
+### 2.5 v4.0: GOOSE Global (2026-04-21 ~, **현재**)
 
 **날짜**: 2026-04-21 ~
 **언어**: **Go + TypeScript** (Rust → Go)
@@ -190,7 +190,7 @@
    - 커뮤니티 = 지속 가능
 
 3. **장기 브랜드**:
-   - "GENIE" = 사용자명 goos 연결 = 개인 애착
+   - "GOOSE" = 사용자명 goos 연결 = 개인 애착
    - 거위 = 평생 동반자 은유와 일치
    - 영구 독립 브랜드 (인수 X)
 
@@ -201,52 +201,80 @@
 
 ---
 
-### 2.6 v5.0: GENIE Eternal (2026-04-21, **현재 진화 단계**)
+### 2.6 v5.0: GOOSE Tamagotchi Edition (2026-04-21, **현재 진화 단계**)
 
 **날짜**: 2026-04-21 ~
 **언어**: Go + TypeScript (v4.0과 동일)
-**컨셉**: **지니 메타포 완전 재구성 (거위 → 지니)**
+**컨셉**: **거위 메타포 복귀 + 다마고치 육성 게임 통합**
+
+**배경 (Why the Pivot)**:
+- v5.0 GENIE Eternal로 지니 메타포 재구성했음 (2026-04-21 초)
+- BUT: 지니 어휘(Lamp/Summoning/Master Bond/Wish Spark 등) v4.0에서 완전히 바뀌지 않음
+- **재평가**: 
+  - 거위(자연의 각인) = 다마고치(성장의 양육) 시너지 강함
+  - 지니(마법/초월) vs GOOSE(AI 동반자) 개념적 거리
+  - Block Goose(코딩 도구) 구별 필요 → 육성 게임 요소로 차별화
 
 **특징**:
 - 기술 기반: v4.0 100% 계승 (변경 없음)
-- 브랜드 메타포: 거위 → 지니 (마법, 영원성)
-- 은유 체계: 
-  - 🪔 봉인된 램프 (설치 후)
-  - 💨 소환 (첫 대화)
-  - 🔮 주인의 마음 읽기 (월 1-3)
-  - 💎 영원한 동반자 (년 1+)
-- 커뮤니티 용어:
-  - Gaggle → Genie Assembly (지니 회합)
-  - Flight School → Lamp School (램프학교)
-  - Feather → Wish Spark (소원 불씨)
-  - Migration → Wish Journey (소원 여정)
+- 브랜드 메타포: **거위 완전 복구 (지니 어휘 제거)**
+- UX 레이어: **다마고치 스타일 육성 게임** 통합
+- 성장 지표:
+  - 🎓 Knowledge (Identity Graph)
+  - 💝 Bond (누적 세션·시간)
+  - 🧠 Personality (학습 패턴)
+  - ⚡ Intuition (예측 정확도)
+- 돌봄 메커니즘:
+  - 🍽️ Feed (대화 → Knowledge +)
+  - 🎮 Play (다양한 작업 → 성격 형성)
+  - 🎓 Train (피드백 → 학습)
+  - 😴 Rest (규칙적 휴식 → 에너지 회복)
+  - 💝 Attention (꾸준한 관심 → Bond +)
+- 감정 상태: Happy / Curious / Sleepy / Lonely / Focused / Excited
+- 마일스톤 & 트로피: Day 7, Month 1, Month 3, Year 1, 누적 대화 수
 
-**Why this evolution (기술 아님, 순수 브랜딩)**:
-1. **더 강한 비유**:
-   - 거위 = 자연의 관찰자 (좋지만 보편적)
-   - 지니 = 초자연적 봉사자 (더 신비, 더 강함)
+**거위 어휘 복구**:
+| 지니(제거) | 거위(복구) |
+|---|---|
+| 🪔 Sealed Lamp | 🥚 The Egg |
+| 💨 Summoning | 🐣 Hatching |
+| Master Bond | 📍 Imprinting |
+| Wish Spark | 🔥 Wing |
+| Grand Goose | 👑 Leader Goose |
+| Lamp School | 🪽 Flight School |
+| Wish Summit | ↔️ Migration Conference |
+| Goose Assembly | 🦢 Gaggle |
+| Home Lamp | 🏠 Nest |
 
-2. **영원성 강조**:
-   - 거위 "평생 짝" → 지니 "영원한 주종 계약"
-   - 법적/마법적 구속력 강화
+**Why 거위 + 다마고치**:
+1. **Imprinting 메타포** (거위) ↔ **육성 게임** (다마고치) = 완벽한 시너지
+   - 거위는 첫 본 것을 따름 (초기 학습)
+   - 다마고치는 사용자가 돌봐야 성장 (지속 학습)
+   - 둘 다 "개체 고유성" 강조
 
-3. **글로벌 인식**:
-   - 거위는 문화적으로 특정 (유럽/미국 편향)
-   - 지니는 보편적 (중동 출신이지만 홍콩, 디즈니로 글로벌화)
+2. **자연 vs 인공**의 균형
+   - 거위 = 진화 가능한 자연
+   - 다마고치 = 게임화된 성장
+   - 함께 → "현실 같은 AI 육성"
 
-4. **KT 기가지니와의 명확한 차별화**:
-   - 거위는 혼동 가능성 (다른 동물)
-   - 지니는 개념적으로 명확 (초자연/마법 vs 스피커)
+3. **Block Goose와의 명확한 차별화**
+   - Block Goose = 코딩 에이전트 도구
+   - Our GOOSE = 육성형 평생 동반자
+   - 게임 요소가 차별화 포인트
 
-**기술 변경 사항**: **NONE** (순수 metaphor rebranding)
+4. **글로벌 문화 공감**
+   - 거위 = 범문화적 동물
+   - 다마고치 = 1990년대 글로벌 문화 아이콘
+   - 둘 다 모든 연령대에 친숙
+
+**기술 변경 사항**: **NONE** (UX 레이어만 추가, 기술 코어 유지)
 
 **문서 변경 범위**:
-- README.md (영어)
-- branding.md (한국어) — §2 거위 은유체계 → 지니 은유체계
-- product.md (한국어) — 버전 테이블에 v5.0 추가
+- README.md (영어) — 다마고치 육성 섹션 신규
+- branding.md (한국어) — §2.1 거위 매핑 복구 + §2.5 다마고치 신규
+- product.md (한국어) — v5.0 이름 변경 (ETERNAL → Tamagotchi Edition)
 - migration.md (한국어) — 이 섹션 (현재 작성 중)
-- adaptation.md, ecosystem.md, learning-engine.md — 메타포 참조만 수정
-- ROADMAP.md, IMPLEMENTATION-ORDER.md — 메타포 언급 최소화
+- adaptation.md, ecosystem.md — 마일드 업데이트
 
 ---
 
@@ -377,9 +405,9 @@ v0.2부터 이 세 프로젝트 분석이 기반.
 ### 6.1 제거되는 것 (v3.0 Korea 전용)
 
 ❌ **완전 제거**:
-- KT 기가지니 포팅 (`genie-kt-adapter`)
-- 지니뮤직 통합 (`genie-music`)
-- 올레TV 통합 (`genie-iptv`)
+- KT 기가지니 포팅 (`goose-kt-adapter`)
+- 지니뮤직 통합 (`goose-music`)
+- 올레TV 통합 (`goose-iptv`)
 - KT 매각 전략 문서 (`exit-strategy.md` 삭제됨)
 - PASS 인증 전용
 - KakaoPay 기본 → 플러그인으로 이동
@@ -392,7 +420,7 @@ v0.2부터 이 세 프로젝트 분석이 기반.
 ### 6.2 언어 변경 (Rust → Go)
 
 **Naming 변경**:
-- `genie-` prefix → `genie-` prefix
+- `goose-` prefix → `goose-` prefix
 - Rust crates → Go packages
 
 **구조 변경**:
@@ -446,7 +474,7 @@ v0.2부터 이 세 프로젝트 분석이 기반.
 
 ### 7.1 핵심 비전 고정 (Immutable)
 
-**GENIE의 불변 핵심** (변경 X):
+**GOOSE의 불변 핵심** (변경 X):
 - ✅ 자기진화 개인화 AI
 - ✅ 오픈소스 MIT
 - ✅ Go + TypeScript
@@ -543,7 +571,7 @@ v4.0 이후 모든 중대 변경은 RFC 필요:
 - v0.2 ~ v3.0 설계 문서 (재활용)
 
 **브랜드**:
-- GENIE 메타포 (새로움, 장기 가능)
+- GOOSE 메타포 (새로움, 장기 가능)
 - 거위 심볼리즘
 - MIT 라이선스 정체성
 
@@ -560,9 +588,9 @@ v4.0 이후 모든 중대 변경은 RFC 필요:
 ### 9.2 첫 번째 스프린트 (Phase 1)
 
 **Month 1 (MVP 시작)**:
-- Go 코어 포팅 (`genie-core`)
+- Go 코어 포팅 (`goose-core`)
 - MoAI-ADK SPEC-REFLECT 계승
-- Basic CLI (`genie-cli`)
+- Basic CLI (`goose-cli`)
 
 **Month 2-3 (확장)**:
 - Identity Graph (Graphiti 통합)
@@ -596,10 +624,10 @@ v4.0 이후 모든 중대 변경은 RFC 필요:
 
 ### 10.2 새로운 v4.0 지지자
 
-"안녕하세요, GENIE 커뮤니티에 오신 것을 환영합니다.
+"안녕하세요, GOOSE 커뮤니티에 오신 것을 환영합니다.
 MIT 라이선스의 완전 오픈소스 AI 에이전트입니다.
 자기진화 + 100% 개인화 = 평생 동반자 AI.
-참여 방법은 github.com/genieagent/genie."
+참여 방법은 github.com/gooseagent/goose."
 
 ### 10.3 코드 기여자
 
@@ -615,9 +643,9 @@ Enterprise 지원 계약도 가능 (2027년 예정)."
 
 ### 10.5 학술 연구자
 
-"GENIE는 자기진화 AI 연구의 open platform.
+"GOOSE는 자기진화 AI 연구의 open platform.
 ICLR 2026 Lifelong Agents Workshop 참여 예정.
-데이터셋 (익명) 공개 가능. Research@genieagent.org."
+데이터셋 (익명) 공개 가능. Research@gooseagent.org."
 
 ---
 
@@ -648,7 +676,7 @@ ICLR 2026 Lifelong Agents Workshop 참여 예정.
 
 ## 12. 결론
 
-5번의 피벗을 거쳐 **GENIE**에 도착했다.
+5번의 피벗을 거쳐 **GOOSE**에 도착했다.
 
 이제는 확고한 비전:
 - **자기진화 개인화 AI**
@@ -680,9 +708,9 @@ v4.0은 다음에 바뀌지 않는다.
 
 - v0.2: `goos-agent-os`
 - v1.0: `goos-agent-os` (Oz World)
-- v2.0: `genie-agent` (글로벌)
-- v3.0: `genie-kr` (한국)
-- **v4.0: `genie-agent`** (글로벌)
+- v2.0: `goose-agent` (글로벌)
+- v3.0: `goose-kr` (한국)
+- **v4.0: `goose-agent`** (글로벌)
 
 ### C. 타깃 매각가/가치
 
@@ -698,4 +726,4 @@ Version: 4.0.0
 Created: 2026-04-21
 Status: Final (v4.0은 변하지 않는다)
 
-> **"5 pivots. 1 destination. GENIE."**
+> **"5 pivots. 1 destination. GOOSE."**

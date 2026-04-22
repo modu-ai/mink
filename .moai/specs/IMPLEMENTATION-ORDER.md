@@ -1,4 +1,4 @@
-# GENIE-AGENT 구현 순서 종합 보고서
+# GOOSE-AGENT 구현 순서 종합 보고서
 
 > **작성일**: 2026-04-21
 > **대상**: 30 SPEC (Phase 0~7 전체)
@@ -23,50 +23,50 @@
 ### Phase 0 — Agentic Core (5)
 | # | SPEC-ID | 우선 | 범위 | REQ | AC | 상태 |
 |---|---------|----|----|-----|----|----|
-| 01 | SPEC-GENIE-CORE-001 | P0 | S | 12 | 6 | v1.0 유지 |
-| 02 | SPEC-GENIE-CONFIG-001 | P0 | S | 14 | 8 | v1.0 유지 |
-| 03 | SPEC-GENIE-TRANSPORT-001 | P0 | M | 14 | 8 | v1.0 유지 |
-| 04 | **SPEC-GENIE-QUERY-001** ★ | P0 | L | 20 | 12 | v2.0 신규 |
-| 05 | **SPEC-GENIE-CONTEXT-001** | P0 | M | 16 | 10 | v2.0 신규 |
+| 01 | SPEC-GOOSE-CORE-001 | P0 | S | 12 | 6 | v1.0 유지 |
+| 02 | SPEC-GOOSE-CONFIG-001 | P0 | S | 14 | 8 | v1.0 유지 |
+| 03 | SPEC-GOOSE-TRANSPORT-001 | P0 | M | 14 | 8 | v1.0 유지 |
+| 04 | **SPEC-GOOSE-QUERY-001** ★ | P0 | L | 20 | 12 | v2.0 신규 |
+| 05 | **SPEC-GOOSE-CONTEXT-001** | P0 | M | 16 | 10 | v2.0 신규 |
 
 ### Phase 1 — Multi-LLM Infrastructure (5)
-| 06 | **SPEC-GENIE-CREDPOOL-001** ★ | P0 | L | 18 | 10 |
-| 07 | SPEC-GENIE-ROUTER-001 | P0 | M | 16 | 8 |
-| 08 | SPEC-GENIE-RATELIMIT-001 | P0 | S | 13 | 7 |
-| 09 | SPEC-GENIE-PROMPT-CACHE-001 | P1 | S | 13 | 8 |
-| 10 | **SPEC-GENIE-ADAPTER-001** ★ | P0 | L | 20 | 12 |
+| 06 | **SPEC-GOOSE-CREDPOOL-001** ★ | P0 | L | 18 | 10 |
+| 07 | SPEC-GOOSE-ROUTER-001 | P0 | M | 16 | 8 |
+| 08 | SPEC-GOOSE-RATELIMIT-001 | P0 | S | 13 | 7 |
+| 09 | SPEC-GOOSE-PROMPT-CACHE-001 | P1 | S | 13 | 8 |
+| 10 | **SPEC-GOOSE-ADAPTER-001** ★ | P0 | L | 20 | 12 |
 
 ### Phase 2 — 4 Primitives (5)
-| 11 | SPEC-GENIE-SKILLS-001 | P0 | L | 18 | 10 |
-| 12 | SPEC-GENIE-MCP-001 | P0 | L | 20 | 12 |
-| 13 | **SPEC-GENIE-HOOK-001** ★ | P0 | M | 20 | 10 |
-| 14 | SPEC-GENIE-SUBAGENT-001 | P0 | L | 20 | 12 |
-| 15 | SPEC-GENIE-PLUGIN-001 | P1 | M | 18 | 12 |
+| 11 | SPEC-GOOSE-SKILLS-001 | P0 | L | 18 | 10 |
+| 12 | SPEC-GOOSE-MCP-001 | P0 | L | 20 | 12 |
+| 13 | **SPEC-GOOSE-HOOK-001** ★ | P0 | M | 20 | 10 |
+| 14 | SPEC-GOOSE-SUBAGENT-001 | P0 | L | 20 | 12 |
+| 15 | SPEC-GOOSE-PLUGIN-001 | P1 | M | 18 | 12 |
 
 ### Phase 3 — Agentic Primitives (3)
-| 16 | SPEC-GENIE-TOOLS-001 | P0 | M | 20 | 9 |
-| 17 | SPEC-GENIE-COMMAND-001 | P1 | S | 19 | 13 |
-| 18 | SPEC-GENIE-CLI-001 | P0 | M | 25 | 16 |
+| 16 | SPEC-GOOSE-TOOLS-001 | P0 | M | 20 | 9 |
+| 17 | SPEC-GOOSE-COMMAND-001 | P1 | S | 19 | 13 |
+| 18 | SPEC-GOOSE-CLI-001 | P0 | M | 25 | 16 |
 
 ### Phase 4 — Self-Evolution (5)
-| 19 | SPEC-GENIE-TRAJECTORY-001 | P0 | S | 18 | 12 |
-| 20 | SPEC-GENIE-COMPRESSOR-001 | P0 | M | 18 | 13 |
-| 21 | **SPEC-GENIE-ERROR-CLASS-001** ★ | P0 | S | 24 | 18 |
-| 22 | **SPEC-GENIE-MEMORY-001** ★ | P0 | M | 20 | 16 |
-| 23 | SPEC-GENIE-INSIGHTS-001 | P1 | M | 19 | 19 |
+| 19 | SPEC-GOOSE-TRAJECTORY-001 | P0 | S | 18 | 12 |
+| 20 | SPEC-GOOSE-COMPRESSOR-001 | P0 | M | 18 | 13 |
+| 21 | **SPEC-GOOSE-ERROR-CLASS-001** ★ | P0 | S | 24 | 18 |
+| 22 | **SPEC-GOOSE-MEMORY-001** ★ | P0 | M | 20 | 16 |
+| 23 | SPEC-GOOSE-INSIGHTS-001 | P1 | M | 19 | 19 |
 
 ### Phase 5 — Promotion & Safety (3)
-| 24 | **SPEC-GENIE-REFLECT-001** ★ | P1 | L | 20 | 12 |
-| 25 | SPEC-GENIE-SAFETY-001 | P1 | M | 16 | 9 |
-| 26 | SPEC-GENIE-ROLLBACK-001 | P1 | S | 12 | 7 |
+| 24 | **SPEC-GOOSE-REFLECT-001** ★ | P1 | L | 20 | 12 |
+| 25 | SPEC-GOOSE-SAFETY-001 | P1 | M | 16 | 9 |
+| 26 | SPEC-GOOSE-ROLLBACK-001 | P1 | S | 12 | 7 |
 
 ### Phase 6 — Deep Personalization (3)
-| 27 | SPEC-GENIE-IDENTITY-001 | P2 | L | 18 | 12 |
-| 28 | SPEC-GENIE-VECTOR-001 | P2 | M | 14 | 8 |
-| 29 | SPEC-GENIE-LORA-001 | P2 | L | 20 | 12 |
+| 27 | SPEC-GOOSE-IDENTITY-001 | P2 | L | 18 | 12 |
+| 28 | SPEC-GOOSE-VECTOR-001 | P2 | M | 14 | 8 |
+| 29 | SPEC-GOOSE-LORA-001 | P2 | L | 20 | 12 |
 
 ### Phase 7 — Ecosystem (1)
-| 30 | SPEC-GENIE-A2A-001 | P2 | L | 20 | 12 |
+| 30 | SPEC-GOOSE-A2A-001 | P2 | L | 20 | 12 |
 
 **합계**: **563 REQ / 328 AC**. ★ = critical path.
 
@@ -169,7 +169,7 @@
            10. ADAPTER-001 ★   (06+07+08+09+21 모두 소비, QUERY-001의 LLMCall 구현)
 ```
 
-**완료 기준**: `genie ask "hello"` → Anthropic 또는 OpenAI 응답. 429 rate limit 시 auto rotation. 컨텍스트 초과 감지.
+**완료 기준**: `goose ask "hello"` → Anthropic 또는 OpenAI 응답. 429 rate limit 시 auto rotation. 컨텍스트 초과 감지.
 
 **병렬화**: 팀 2명 → ROUTER/RATELIMIT/ERROR-CLASS 3개 동시 진행 가능. 단일 개발자는 순차.
 
@@ -210,7 +210,7 @@
 ---
 
 ### Milestone 3: MVP 동작 (M3) — 2주
-**목표**: **사용자가 `genie` 실행 → TUI 대화 가능** (MVP Release 후보)
+**목표**: **사용자가 `goose` 실행 → TUI 대화 가능** (MVP Release 후보)
 
 **구현 경로**:
 ```
@@ -223,10 +223,10 @@
 
 **완료 기준**: 
 ```bash
-$ genie                    # TUI 대화 시작
-$ genie ask "fix bug in main.go"  # non-interactive
-$ genie session list              # session 관리
-$ genie tool list                 # tool 목록
+$ goose                    # TUI 대화 시작
+$ goose ask "fix bug in main.go"  # non-interactive
+$ goose session list              # session 관리
+$ goose tool list                 # tool 목록
 ```
 
 **중요 주의**: QUERY-001 v0.2.0의 `Dispatcher.ProcessUserInput` 호출 확장 필요 (COMMAND-001 연계).
@@ -293,7 +293,7 @@ $ genie tool list                 # tool 목록
                                                      │ 병렬
 28. VECTOR-001   (MEMORY 소비, 768-dim Qdrant)     ─┘
     │
-    └─→ 29. LORA-001 (VECTOR+SAFETY 소비, Go 인터페이스 + Rust genie-ml crate 위임)
+    └─→ 29. LORA-001 (VECTOR+SAFETY 소비, Go 인터페이스 + Rust goose-ml crate 위임)
                 │
                 └── A2A-001 병렬 가능 (M2 완료 시 언제든 착수)
                     (MCP+SUBAGENT 소비)
@@ -304,13 +304,13 @@ $ genie tool list                 # tool 목록
 - User LoRA: 매주 auto 재훈련 + 이전 버전 롤백
 - A2A: 외부 에이전트 Agent Card 디스커버리 + escrow 결제
 
-**중요 주의**: **LORA-001은 Go 인터페이스만 정의. 실제 Tensor/Gradient/ONNX/QLoRA 4-bit는 Rust `crates/genie-ml/`** (별도 `ROADMAP-RUST.md`). Go ↔ Rust gRPC 기본 (`unix:///tmp/genie-ml.sock`), CGO는 선택.
+**중요 주의**: **LORA-001은 Go 인터페이스만 정의. 실제 Tensor/Gradient/ONNX/QLoRA 4-bit는 Rust `crates/goose-ml/`** (별도 `ROADMAP-RUST.md`). Go ↔ Rust gRPC 기본 (`unix:///tmp/goose-ml.sock`), CGO는 선택.
 
 **병렬화**: IDENTITY ↔ VECTOR 완전 병렬. A2A는 M2 이후 언제든 별도 트랙. LORA는 최후 (Rust 의존).
 
 **리스크**:
 - Kuzu Go 바인딩 1.26+ 호환성 미확인
-- Rust genie-ml 별도 팀/일정 필요
+- Rust goose-ml 별도 팀/일정 필요
 - ONNX Runtime GenAI CGO 빌드 복잡도
 
 ---
@@ -415,7 +415,7 @@ Phase 간 계약이 일관되어야 컴파일 + 통합 테스트 성공:
 Rust LoRA crate는 별도 트랙. Go 팀 1명 + Rust 팀 1명 필요.
 
 ### 7.2 Release Milestone
-- **v0.1 Alpha** (M0+M1 완료, ~5주): genie ask 동작
+- **v0.1 Alpha** (M0+M1 완료, ~5주): goose ask 동작
 - **v0.2 Beta** (M0~M3 완료, ~11주): MVP TUI + 4 primitive
 - **v0.5 RC** (M0~M5 완료, ~17주): 자기진화 + Safety gate
 - **v1.0 Release** (M0~M6 완료, ~22주): Personalization + A2A
@@ -427,16 +427,16 @@ Rust LoRA crate는 별도 트랙. Go 팀 1명 + Rust 팀 1명 필요.
 
 ### 8.1 권장: Phase 0 CORE-001부터 TDD RED
 ```
-/moai run SPEC-GENIE-CORE-001
+/moai run SPEC-GOOSE-CORE-001
 ```
 - manager-tdd 서브에이전트가 AC-CORE-01~06 실패 테스트 작성
 - go.mod 초기화 (Go 버전 확정 필요: tech.md 1.26+ 명시, 실제 최신 확인)
-- cmd/genied + internal/core + internal/health 스켈레톤
+- cmd/goosed + internal/core + internal/health 스켈레톤
 
 ### 8.2 병행 준비 작업
 - **`internal/contracts/` 인터페이스 패키지** 선제 생성 (LLMCall, MemoryProvider, HookHandler, Executor, Compactor, Summarizer, PermissionMatcher, SafetyGate 순수 interface)
 - `.moai/project/security.md` 작성 (redact 규칙 거버넌스)
-- Rust genie-ml crate 별도 리포 초기화 (LORA-001 준비)
+- Rust goose-ml crate 별도 리포 초기화 (LORA-001 준비)
 - `proto/` 디렉토리 초기 스키마 (TRANSPORT-001 + CLI-001 확장 3개)
 
 ### 8.3 의사결정 필요 항목 (구현 진입 전 확정)
@@ -449,7 +449,7 @@ Rust LoRA crate는 별도 트랙. Go 팀 1명 + Rust 팀 1명 필요.
 | 5 | LoRA Base Model (Qwen3-0.6B vs Gemma-1B) | LORA-001 | M6 진입 전 |
 | 6 | LLM Stream 인터페이스 (`<-chan Chunk` 확정) | ADAPTER-001 | M1 진입 전 |
 | 7 | proto 생성물 commit 정책 | TRANSPORT-001 | CORE-001 직후 |
-| 8 | Rust genie-ml 배포 방식 (embedded vs 별도 바이너리) | LORA-001 | M6 진입 전 |
+| 8 | Rust goose-ml 배포 방식 (embedded vs 별도 바이너리) | LORA-001 | M6 진입 전 |
 
 ---
 
@@ -461,7 +461,7 @@ Rust LoRA crate는 별도 트랙. Go 팀 1명 + Rust 팀 1명 필요.
 | Anthropic OAuth PKCE 수동 구현 | ADAPTER-001, CREDPOOL-001 | anthropic-sdk-go 기능 확인 후 fallback HTTP client |
 | 토큰 카운팅 정확도 | CONTEXT-001, COMPRESSOR-001, RATELIMIT-001 | MVP는 `/4 + overhead` 근사, v0.5+ tiktoken-go 정밀화 |
 | QUERY-001 state machine 복잡도 | QUERY-001 | Claude Code `query.ts` 68KB 원문 라인-by-라인 포팅 |
-| Rust genie-ml 팀 공수 | LORA-001 | Go 인터페이스 먼저 + mock gRPC로 end-to-end → Rust 후속 |
+| Rust goose-ml 팀 공수 | LORA-001 | Go 인터페이스 먼저 + mock gRPC로 end-to-end → Rust 후속 |
 | AskUserQuestion 간접 호출 복잡도 | SAFETY-001, REFLECT-001 | HOOK-001의 Approval 이벤트 표준화 + 오케스트레이터 layer 문서화 |
 | 기존 MoAI-ADK-Go 호환성 | SUBAGENT-001, PLUGIN-001 | 초기 로드 테스트 + legacy adapter 도입 판단 |
 
@@ -498,11 +498,11 @@ Rust LoRA crate는 별도 트랙. Go 팀 1명 + Rust 팀 1명 필요.
 ```bash
 # (Go 버전 확정 후)
 cd /Users/goos/MoAI/AgentOS
-/moai run SPEC-GENIE-CORE-001
+/moai run SPEC-GOOSE-CORE-001
 ```
 
 ---
 
 **Version**: 1.0.0
 **License**: MIT (본 문서 포함)
-**다음 단계**: 사용자 최종 승인 → Go 버전 확정 → `/moai run SPEC-GENIE-CORE-001` TDD RED 진입
+**다음 단계**: 사용자 최종 승인 → Go 버전 확정 → `/moai run SPEC-GOOSE-CORE-001` TDD RED 진입

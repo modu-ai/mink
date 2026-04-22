@@ -1,4 +1,4 @@
-# GENIE-AGENT - Structure Document v4.0 GLOBAL EDITION
+# GOOSE-AGENT - Structure Document v4.0 GLOBAL EDITION
 
 **Version**: 4.0.0 GLOBAL EDITION  
 **Language**: Go + TypeScript (영문 기술 문서, 한국어 주석)  
@@ -34,7 +34,7 @@
 ## 1. 프로젝트 디렉토리 구조 (v4.0)
 
 ```
-genie-agent/
+goose-agent/
 ├── go.mod                      # Go module definition (go 1.26+)
 ├── go.sum                      # Dependency checksums
 ├── package.json                # TypeScript workspace root
@@ -51,22 +51,22 @@ genie-agent/
 ├── SECURITY.md                 # 보안 정책
 │
 ├── cmd/                        # ⭐ Go CLI 진입점 (MoAI 패턴)
-│   ├── genie/                  # 메인 CLI 클라이언트
+│   ├── goose/                  # 메인 CLI 클라이언트
 │   │   ├── main.go
 │   │   ├── version.go
 │   │   └── help.go
 │   │
-│   ├── genied/                 # 데몬 서버 (gRPC)
+│   ├── goosed/                 # 데몬 서버 (gRPC)
 │   │   ├── main.go
 │   │   ├── server.go
 │   │   └── signals.go
 │   │
-│   ├── genie-relay/            # E2EE 릴레이 서비스
+│   ├── goose-relay/            # E2EE 릴레이 서비스
 │   │   ├── main.go
 │   │   ├── relay.go
 │   │   └── crypto.go
 │   │
-│   └── genie-learner/          # 학습 엔진 실행기 (스케줄러)
+│   └── goose-learner/          # 학습 엔진 실행기 (스케줄러)
 │       ├── main.go
 │       ├── scheduler.go
 │       └── checkpoint.go
@@ -352,7 +352,7 @@ genie-agent/
 │       └── retry.go            # Retry 로직
 │
 ├── pkg/                        # Go Public API (export)
-│   ├── genie/                  # Main SDK
+│   ├── goose/                  # Main SDK
 │   │   ├── agent.go            # Agent SDK
 │   │   ├── tool.go             # Tool SDK
 │   │   ├── learning.go         # Learning SDK
@@ -371,37 +371,37 @@ genie-agent/
 │
 ├── packages/                   # ⭐ TypeScript Packages (7개)
 │   │
-│   ├── genie-cli/              # Terminal CLI (Ink v6)
+│   ├── goose-cli/              # Terminal CLI (Ink v6)
 │   │   ├── src/
 │   │   ├── package.json
 │   │   └── README.md
 │   │
-│   ├── genie-desktop/          # Desktop App (Tauri v2)
+│   ├── goose-desktop/          # Desktop App (Tauri v2)
 │   │   ├── src-tauri/          # Rust 바인딩
 │   │   ├── src/
 │   │   ├── package.json
 │   │   └── README.md
 │   │
-│   ├── genie-mobile/           # Mobile App (React Native)
+│   ├── goose-mobile/           # Mobile App (React Native)
 │   │   ├── ios/
 │   │   ├── android/
 │   │   ├── src/
 │   │   ├── package.json
 │   │   └── README.md
 │   │
-│   ├── genie-web/              # Web UI (Next.js 15)
+│   ├── goose-web/              # Web UI (Next.js 15)
 │   │   ├── app/                # App Router
 │   │   ├── components/
 │   │   ├── package.json
 │   │   └── README.md
 │   │
-│   ├── genie-developer-portal/ # Developer Portal (Nextra)
+│   ├── goose-developer-portal/ # Developer Portal (Nextra)
 │   │   ├── pages/              # 문서 페이지
 │   │   ├── public/
 │   │   ├── package.json
 │   │   └── README.md
 │   │
-│   ├── genie-sdk/              # TypeScript SDK
+│   ├── goose-sdk/              # TypeScript SDK
 │   │   ├── src/
 │   │   │   ├── agent/
 │   │   │   ├── tools/
@@ -409,7 +409,7 @@ genie-agent/
 │   │   ├── package.json
 │   │   └── README.md
 │   │
-│   └── genie-skills/           # Skill Loader
+│   └── goose-skills/           # Skill Loader
 │       ├── src/
 │       ├── package.json
 │       └── README.md
@@ -434,10 +434,10 @@ genie-agent/
 │   │   ├── moai-foundation-core/
 │   │   ├── moai-workflow-project/
 │   │   ├── moai-workflow-ddd/
-│   │   ├── genie-learning-engine/
-│   │   ├── genie-identity-graph/
-│   │   ├── genie-lora-trainer/
-│   │   ├── genie-agent-builder/
+│   │   ├── goose-learning-engine/
+│   │   ├── goose-identity-graph/
+│   │   ├── goose-lora-trainer/
+│   │   ├── goose-agent-builder/
 │   │   └── ... (더 많음)
 │   │
 │   ├── agents/                 # 27+ Agent Definitions
@@ -524,10 +524,10 @@ genie-agent/
 ```mermaid
 graph TB
     subgraph "cmd/ (Entry Points)"
-        genie["🖥️ genie<br/>CLI 클라이언트"]
-        genied["🖧 genied<br/>gRPC 서버"]
-        relay["🔗 genie-relay<br/>E2EE 릴레이"]
-        learner["🧠 genie-learner<br/>학습 스케줄러"]
+        goose["🖥️ goose<br/>CLI 클라이언트"]
+        goosed["🖧 goosed<br/>gRPC 서버"]
+        relay["🔗 goose-relay<br/>E2EE 릴레이"]
+        learner["🧠 goose-learner<br/>학습 스케줄러"]
     end
     
     subgraph "internal/core"
@@ -553,8 +553,8 @@ graph TB
         transport["transport<br/>gRPC/WS"]
     end
     
-    genie -->|gRPC| genied
-    genied -->|use| core
+    goose -->|gRPC| goosed
+    goosed -->|use| core
     core -->|use| agent
     agent -->|learn| engine
     engine -->|track| identity
@@ -566,7 +566,7 @@ graph TB
     agent -->|execute| tools
     agent -->|recall| memory
     identity -->|store| memory
-    genied -->|expose| world
+    goosed -->|expose| world
     world -->|transport| mcp
     mcp -->|protocol| transport
     
@@ -583,11 +583,11 @@ graph TB
 graph TD
     User["👤 사용자<br/>(User Input)"]
     
-    User -->|wish: '날씨 어때?'| GENIE["⭐ <b>GENIE</b><br/>Personal AI<br/>Claude Opus 4.7 / GPT-4o"]
+    User -->|wish: '날씨 어때?'| GOOSE["⭐ <b>GOOSE</b><br/>Personal AI<br/>Claude Opus 4.7 / GPT-4o"]
     
-    GENIE -->|delegate| PersonalAgents["Tier 1: Personal<br/>(개인용 에이전트)"]
-    GENIE -->|delegate| OrgAgents["Tier 2: Organization<br/>(조직용 에이전트)"]
-    GENIE -->|delegate| BazaarAgents["Tier 3: Bazaar<br/>(마켓 에이전트)"]
+    GOOSE -->|delegate| PersonalAgents["Tier 1: Personal<br/>(개인용 에이전트)"]
+    GOOSE -->|delegate| OrgAgents["Tier 2: Organization<br/>(조직용 에이전트)"]
+    GOOSE -->|delegate| BazaarAgents["Tier 3: Bazaar<br/>(마켓 에이전트)"]
     
     PersonalAgents -->|include| Secretary["Secretary<br/>일정, 이메일"]
     PersonalAgents -->|include| HealthTracker["Health Tracker<br/>운동, 식단"]
@@ -605,7 +605,7 @@ graph TD
     HealthTracker -->|spawn_worker| W2["Worker 2<br/>Gemma 7B<br/>로컬 실행"]
     DevAgent -->|spawn_worker| W3["Worker 3<br/>Claude Haiku<br/>비용 최적"]
     
-    style GENIE fill:#FFD700,stroke:#333,stroke-width:3px
+    style GOOSE fill:#FFD700,stroke:#333,stroke-width:3px
     style PersonalAgents fill:#87CEEB,stroke:#333
     style OrgAgents fill:#90EE90,stroke:#333
     style BazaarAgents fill:#FFB6C1,stroke:#333
@@ -693,8 +693,8 @@ graph TB
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant C as genie CLI
-    participant D as genied<br/>(gRPC)
+    participant C as goose CLI
+    participant D as goosed<br/>(gRPC)
     participant A as Agent
     participant L as Learning<br/>Engine
     participant LLM as LLM<br/>(Ollama/OpenAI)
@@ -769,14 +769,14 @@ type MemoryProvider interface {
 ```mermaid
 graph LR
     subgraph "TS Clients"
-        CLI["genie-cli<br/>(Ink)"]
-        WEB["genie-web<br/>(Next.js)"]
-        DESKTOP["genie-desktop<br/>(Tauri)"]
-        MOBILE["genie-mobile<br/>(RN)"]
+        CLI["goose-cli<br/>(Ink)"]
+        WEB["goose-web<br/>(Next.js)"]
+        DESKTOP["goose-desktop<br/>(Tauri)"]
+        MOBILE["goose-mobile<br/>(RN)"]
     end
     
     subgraph "gRPC Boundary"
-        GRPC["gRPC Server<br/>(genied)<br/>:5050"]
+        GRPC["gRPC Server<br/>(goosed)<br/>:5050"]
     end
     
     subgraph "Go Services"
@@ -814,7 +814,7 @@ graph LR
 
 ### 9.1 직접 재사용 (Copy-Paste)
 
-| MoAI | GENIE | 변경 |
+| MoAI | GOOSE | 변경 |
 |---|---|---|
 | `internal/evolution/observe/` | `internal/learning/engine/observer.go` | 컨텍스트 추가 |
 | `internal/research/patterns/` | `internal/learning/patterns/` | 확장 |
@@ -837,7 +837,7 @@ graph LR
 
 ## 10. Hermes Agent에서 가져오는 것
 
-| Hermes | GENIE | 위치 |
+| Hermes | GOOSE | 위치 |
 |---|---|---|
 | Tool auto-registry | Tool inventory | `internal/tools/registry.go` |
 | Memory abstraction | MemoryProvider | `internal/memory/provider.go` |
@@ -849,10 +849,10 @@ graph LR
 
 ## 11. Claude Code에서 가져오는 것
 
-| Claude Code | GENIE | 적용 |
+| Claude Code | GOOSE | 적용 |
 |---|---|---|
-| Ink v6 components | genie-cli | 터미널 UI |
-| React hooks | genie-web | 웹 UI |
+| Ink v6 components | goose-cli | 터미널 UI |
+| React hooks | goose-web | 웹 UI |
 | Zustand | 상태관리 | 모든 TS 패키지 |
 | Bridge/Transport | Transport interface | `internal/transport/` |
 | Tool + Permission | Tool registry | `internal/tools/` |
@@ -865,13 +865,13 @@ graph LR
 
 ```bash
 # 단일 바이너리
-go build -o genie ./cmd/genie/
-go build -o genied ./cmd/genied/
+go build -o goose ./cmd/goose/
+go build -o goosed ./cmd/goosed/
 
 # 크로스 컴파일 (8 platforms)
-GOOS=darwin GOARCH=arm64 go build -o genie-macos-arm64 ./cmd/genie/
-GOOS=linux GOARCH=amd64 go build -o genie-linux-amd64 ./cmd/genie/
-GOOS=windows GOARCH=amd64 go build -o genie-windows-amd64.exe ./cmd/genie/
+GOOS=darwin GOARCH=arm64 go build -o goose-macos-arm64 ./cmd/goose/
+GOOS=linux GOARCH=amd64 go build -o goose-linux-amd64 ./cmd/goose/
+GOOS=windows GOARCH=amd64 go build -o goose-windows-amd64.exe ./cmd/goose/
 ```
 
 ### 12.2 TypeScript 빌드
@@ -886,11 +886,11 @@ turbo build  # 7 packages 병렬
 FROM golang:1.26 AS builder
 WORKDIR /app
 COPY . .
-RUN go build -o genied ./cmd/genied/
+RUN go build -o goosed ./cmd/goosed/
 
 FROM alpine:3.20
-COPY --from=builder /app/genied /usr/local/bin/
-CMD ["genied"]
+COPY --from=builder /app/goosed /usr/local/bin/
+CMD ["goosed"]
 ```
 
 ---
@@ -909,7 +909,7 @@ CMD ["genied"]
 
 ```bash
 # 1. Clone
-git clone https://github.com/genie-ai/genie-agent.git
+git clone https://github.com/goose-ai/goose-agent.git
 
 # 2. Go deps
 go mod download && go mod tidy
@@ -921,13 +921,13 @@ pnpm install
 make build-go
 
 # 5. Start daemon
-./genied &
+./goosed &
 
 # 6. Test CLI
-./genie help
+./goose help
 
 # 7. Web
-pnpm --filter genie-web dev
+pnpm --filter goose-web dev
 ```
 
 ---

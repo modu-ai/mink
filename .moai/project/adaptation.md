@@ -1,12 +1,12 @@
-# GENIE-AGENT - User Adaptation Document v4.0
+# GOOSE-AGENT - User Adaptation Document v4.0
 
-> **문서 목적:** GENIE가 사용자를 어떻게 이해하고 적응하는지 (learning-engine.md가 내부 엔진이라면, 이 문서는 사용자 관점).
+> **문서 목적:** GOOSE가 사용자를 어떻게 이해하고 적응하는지 (learning-engine.md가 내부 엔진이라면, 이 문서는 사용자 관점).
 
 ---
 
 ## 1. 개요: 100% 개인화란 무엇인가
 
-GENIE는 사용할수록 사용자를 이해하는 AI.
+GOOSE는 사용할수록 사용자를 이해하는 AI.
 하지만 "이해"란 구체적으로 무엇인가?
 
 **8가지 차원의 사용자 적응**:
@@ -20,7 +20,7 @@ GENIE는 사용할수록 사용자를 이해하는 AI.
 7. **Energy Awareness** - 바쁨/여유
 8. **Group Dynamics** - 개인 vs 그룹 vs 가족
 
-각 차원은 GENIE의 응답과 행동에 직접 영향을 준다.
+각 차원은 GOOSE의 응답과 행동에 직접 영향을 준다.
 
 ---
 
@@ -36,7 +36,7 @@ GENIE는 사용할수록 사용자를 이해하는 AI.
 - 목표 (단기/장기)
 - 가족 구성 (optional)
 
-### 2.2 암묵적 Persona (GENIE 추론)
+### 2.2 암묵적 Persona (GOOSE 추론)
 
 사용자가 명시하지 않아도 감지:
 
@@ -95,8 +95,8 @@ GENIE는 사용할수록 사용자를 이해하는 AI.
 - Formal vs Casual (영어)
 
 **Automatic Mirroring**:
-- 사용자가 존댓말 → GENIE 존댓말
-- 사용자가 반말 → GENIE 해요체 (한 단계 공손)
+- 사용자가 존댓말 → GOOSE 존댓말
+- 사용자가 반말 → GOOSE 해요체 (한 단계 공손)
 - 사용자 명시적 변경 → 즉시 반영
 
 ### 3.2 Verbosity Preference
@@ -140,7 +140,7 @@ GENIE는 사용할수록 사용자를 이해하는 AI.
 
 ### 4.1 다국어 자동 감지
 
-GENIE는 4개 주요 언어 지원:
+GOOSE는 4개 주요 언어 지원:
 - English
 - 한국어
 - 日本語
@@ -158,7 +158,7 @@ GENIE는 4개 주요 언어 지원:
 ### 4.2 문화별 뉘앙스
 
 **한국**:
-- 나이 서열 존중 (사용자 나이 > GENIE 나이 가정)
+- 나이 서열 존중 (사용자 나이 > GOOSE 나이 가정)
 - 존댓말 기본
 - 가족 중시 (부모님 언급 시 정중)
 - 체면 고려
@@ -357,7 +357,7 @@ GENIE는 4개 주요 언어 지원:
 
 **Explicit**:
 - 사용자가 "오늘 피곤해" 같이 말함
-- GENIE가 주기적으로 "오늘 어떠세요?" 물음 (선택적)
+- GOOSE가 주기적으로 "오늘 어떠세요?" 물음 (선택적)
 
 ### 7.3 감정별 대응
 
@@ -419,7 +419,7 @@ GENIE는 4개 주요 언어 지원:
 
 ### 8.3 전환 감지
 
-사용자 에너지가 바뀌면 GENIE도 전환:
+사용자 에너지가 바뀌면 GOOSE도 전환:
 - 바쁨 → 여유: 이전 대화 요약, 심화 제안
 - 여유 → 바쁨: 즉시 핵심으로
 
@@ -439,11 +439,11 @@ GENIE는 4개 주요 언어 지원:
 **가족 구성원 감지**:
 - 음성 ID (voice biometric)
 - 접근 권한 분리
-- 각자 독립 GENIE 인스턴스
+- 각자 독립 GOOSE 인스턴스
 
 **예시 시나리오**:
 - 거실 기가지니 스피커 (한 가정)
-- 아빠, 엄마, 아이 각각 다른 GENIE
+- 아빠, 엄마, 아이 각각 다른 GOOSE
 - 공유 일정은 가족 공유
 - 사적 대화는 개인별 격리
 
@@ -460,7 +460,7 @@ GENIE는 4개 주요 언어 지원:
 - 역할별 권한
 
 **A2A 협업**:
-- 팀원 GENIE 간 통신
+- 팀원 GOOSE 간 통신
 - 태스크 분배
 - 진행 상황 공유
 
@@ -518,7 +518,7 @@ user:
 
 ## 11. 사용자 제어 (가장 중요!)
 
-GENIE가 사용자를 학습하지만, **사용자가 항상 통제권을 가진다**.
+GOOSE가 사용자를 학습하지만, **사용자가 항상 통제권을 가진다**.
 
 ### 11.1 Transparency (투명성)
 
@@ -539,7 +539,7 @@ GENIE가 사용자를 학습하지만, **사용자가 항상 통제권을 가진
 
 - 모든 개인 데이터 JSON export
 - GDPR 준수
-- 다른 GENIE 인스턴스로 이전 가능
+- 다른 GOOSE 인스턴스로 이전 가능
 - Human-readable 형식
 
 ### 11.4 Delete (삭제)
@@ -680,15 +680,15 @@ GENIE가 사용자를 학습하지만, **사용자가 항상 통제권을 가진
 
 ## 16. 결론
 
-GENIE의 8가지 적응 차원은 단순한 기능이 아니다.
+GOOSE의 8가지 적응 차원은 단순한 기능이 아니다.
 **사용자를 진정으로 이해하려는 시도**이다.
 
 하지만 이해는 통제가 아니다.
 사용자는 언제든 학습을 수정, 삭제, 거부할 수 있다.
 
-**"Understanding without control is a trap. GENIE gives you both understanding AND control."**
+**"Understanding without control is a trap. GOOSE gives you both understanding AND control."**
 
-시간이 갈수록 GENIE는:
+시간이 갈수록 GOOSE는:
 - 더 잘 이해한다
 - 더 잘 적응한다
 - 더 잘 예측한다
