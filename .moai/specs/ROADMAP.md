@@ -1,328 +1,371 @@
-# GOOSE-AGENT SPEC 로드맵 v2.0
+# GOOSE-AGENT SPEC 로드맵 v4.0
 
-> **프로젝트**: GOOSE-AGENT v4.0 GLOBAL EDITION
-> **재작성일**: 2026-04-21
-> **이전 버전**: v1.0 (22 SPEC, `/.moai/specs/ROADMAP.md` git history 참조, 폐기)
+> **프로젝트**: GOOSE-AGENT v6.0 Daily Companion Edition (Cross-Platform)
+> **작성일**: 2026-04-22
+> **이전**: v3.0 (38 SPEC, Daily Companion 추가), v2.0 (30 SPEC), v1.0 (22 SPEC)
 > **대화 언어**: 한국어 · **코드 식별자**: 영어
-> **개발 방법론**: TDD (quality.yaml: `development_mode: tdd`)
+> **개발 방법론**: TDD (`development_mode: tdd`)
 > **라이선스**: MIT
 > **상태**: 아키텍처 설계 완료, 구현 0%
 
 ---
 
-## 0. v2.0 재설계 근거
+## 0. v4.0 재설계 근거
 
-사용자 지시(2026-04-21):
+### 사용자 누적 지시 (2026-04-22)
 
-> "포지셔닝과 경쟁사는 OpenClaw, Hermes Agent와 동일하다. 우리는 사용자의 패턴과 사용자의 니즈를 학습하고 스스로 진화해서 사용자에게 최적화 진화를 스스로 할 수가 있어야 한다. 모든 llm을 api 또는 oauth로 연결이 가능하고, skills, mcp, agents, hooks 개념은 기존의 claude code map 내용과 전반적인 에이전틱 시스템과 프롬프트를 참고해서 재설계를 하자."
+**v3.0 (Daily Companion)**:
+> "매일 아침 운세·날씨·일정 브리핑, 매 끼니 이후 건강/약 안내, 저녁 자기전 안부+일기 메모, 감성적으로 함께 성장하는 반려AI"
 
-### v1.0 vs v2.0 핵심 변화
+**v4.0 추가 (Cross-Platform)**:
+> "CLI가 아닌 데스크탑 앱으로 모바일 앱으로 항상 함께 할 수 있도록. 기본 설치는 pc이지만 모바일 클라우드 연동으로 앱에서 pc를 제어 또는 지시 가능. hermes-agent, claude code sourmap 분석 자료로 장점 흡수해서 goose 재설계"
 
-| 축 | v1.0 (폐기) | **v2.0 (채택)** |
+### v3.0 → v4.0 변화
+
+| 축 | v3.0 | **v4.0** |
 |----|----|----|
-| 포지셔닝 | "100% 개인화 평생 동반자" | **OpenClaw/Hermes 동급 agentic coding/task tool + 자율 자기진화** |
-| 총 SPEC | 22 | **30** |
-| Phase | 7 (파운데이션 우선) | 7 (agentic core 우선) |
-| Phase 0 목표 | daemon + hello 응답 | **agentic loop 전체**(QueryEngine + Context + Transport) |
-| 학습엔진 | Phase 2~6 deferred | **Phase 4 first-class**(TRAJECTORY/COMPRESSOR/INSIGHTS/ERROR-CLASS/MEMORY) |
-| LLM | Ollama 1종 | **15+ provider + OAuth/API + Credential Pool** |
-| Skills/MCP/Agents/Hooks | Phase 5+ 일부 | **Phase 2 first-class 4 primitive** |
-| Memory | 단일 SQLite | **Pluggable Provider**(Builtin + 외부 1개) |
-| Error handling | 미정 | **ErrorClassifier 14-type + retry 전략** |
+| 총 SPEC | 38 | **43** (+5) |
+| Phase | 8 | **10** |
+| 기본 UI | CLI 중심 | **Desktop App (Tauri v2)** |
+| Mobile | 언급 없음 | **Mobile App (React Native) + PC 원격 제어** |
+| 원격 연동 | 없음 | **E2EE Bridge + Relay** |
+| 플랫폼 게이트웨이 | 없음 | **Telegram/Discord/Slack/KakaoTalk/WeChat/Webhook** |
+| Phase 6 | Personalization | **Cross-Platform Clients (신규)** |
+| Phase 8 | Ecosystem | **Personalization (기존 Phase 6에서 이동)** |
 
-### 참조 근거
+### Claude Code + Hermes 장점 흡수 (v4.0 신규)
 
-- `.moai/project/research/claude-core.md` — Claude Code agentic loop (QueryEngine + 5 Task 타입 + State 머신)
-- `.moai/project/research/claude-primitives.md` — 4 primitive (Skills/MCP/Agents/Hooks) + Plugin host
-- `.moai/project/research/hermes-llm.md` — Multi-LLM credential pool + Smart routing + Rate limit + Prompt caching + Context compressor
-- `.moai/project/research/hermes-learning.md` — Trajectory 수집→압축→Insights→Memory→Skill 자동생성 파이프라인
+| 원형 | 흡수 대상 | GOOSE 반영 SPEC |
+|------|----------|---------------|
+| Claude Code `bridge/` 33 파일 | PC↔Mobile 원격 세션 | **BRIDGE-001** 전체 포팅 |
+| Claude Code `remoteBridgeCore.ts` | REPL 원격 | BRIDGE-001 §SessionRunner |
+| Claude Code `jwtUtils.ts` + `trustedDevice.ts` | 인증·보안 | BRIDGE-001 §auth |
+| Claude Code `flushGate.ts` + `capacityWake.ts` | Backpressure + Wake | BRIDGE-001 §reliability |
+| Claude Code 146 UI 컴포넌트 | Desktop UX | **DESKTOP-001** |
+| Hermes `gateway/` 7개 플랫폼 | 메신저 봇 | **GATEWAY-001** |
+| Mullvad GotaTun (Rust) | WireGuard E2EE | **RELAY-001** (Rust crate 위임) |
 
 ---
 
 ## 1. 네이밍 규약
 
-- 형식: `SPEC-GOOSE-{DOMAIN}-{NNN}`
-- DOMAIN: `CORE CONFIG TRANSPORT QUERY CONTEXT CLI COMMAND TOOLS CREDPOOL ROUTER RATELIMIT PROMPT-CACHE COMPRESSOR ADAPTER SKILLS MCP SUBAGENT HOOK PLUGIN TRAJECTORY INSIGHTS MEMORY ERROR-CLASS REFLECT SAFETY ROLLBACK IDENTITY VECTOR LORA A2A BAZAAR GATEWAY PRIVACY`
-- NNN: Phase 내 1부터 시작. 동일 DOMAIN 재사용 시 002, 003
+형식: `SPEC-GOOSE-{DOMAIN}-{NNN}`
+
+DOMAIN 30개 (v2.0) + 8개 (v3.0 Daily Companion) + 5개 (v4.0 Cross-Platform) = **43개**.
+
+v4.0 신규 DOMAIN: `DESKTOP`, `MOBILE`, `BRIDGE`, `RELAY`, `GATEWAY`
+
+## 2. 우선순위 / 범위
+
+| P0 | blocker | P1 | 가치 핵심 | P2 | 차별화 |
+| S | ~500~1500 LoC | M | ~1500~4000 | L | ~4000~8000 |
 
 ---
 
-## 2. 우선순위 정의
-
-| 표기 | 의미 |
-|-----|------|
-| **P0** | 차단 경로(blocker) |
-| **P1** | 제품 가치 핵심, v1.0 이전 필수 |
-| **P2** | 차별화 강화, v1.0 이후 또는 병렬 |
-
-## 3. 범위 정의
-
-- **S (소)**: 단일 패키지, ~500~1500 LoC, 1주
-- **M (중)**: 2~3 패키지, ~1500~4000 LoC, 2~3주
-- **L (대)**: 3+ 패키지, ~4000~8000 LoC, 외부 의존성 통합
-
----
-
-## 4. 전체 SPEC 목록 (30건)
+## 3. 전체 SPEC 목록 (43건, 10 Phase)
 
 ### Phase 0 — Agentic Core (5 SPEC, P0)
-
-> 목표: async generator streaming query loop + context window + transport. Claude Code QueryEngine 구조 직접 이식.
-
-| # | SPEC-ID | 제목 | 우선 | 범위 | 의존성 | 근거 |
-|---|---------|-----|----|----|----|-----|
-| 01 | **SPEC-GOOSE-CORE-001** | goosed 데몬 부트스트랩 + graceful shutdown | P0 | S | — | claude-core §1 + 기존 SPEC 재활용 |
-| 02 | **SPEC-GOOSE-QUERY-001** | QueryEngine + queryLoop (async streaming, state machine) ★ | P0 | L | CORE-001 | claude-core §1-2 |
-| 03 | **SPEC-GOOSE-CONTEXT-001** | Context Window 관리 + compaction (autoCompact/reactive/snip) | P0 | M | QUERY-001 | claude-core §7 |
-| 04 | **SPEC-GOOSE-TRANSPORT-001** | gRPC 서버 + proto 스키마 | P0 | M | CORE-001 | 기존 SPEC 재활용 |
-| 05 | **SPEC-GOOSE-CONFIG-001** | 계층형 설정 로더 (project/user/runtime YAML) | P0 | S | CORE-001 | 기존 SPEC 재활용 |
+| # | SPEC-ID | 제목 | 우선 | 범위 |
+|---|---------|-----|----|----|
+| 01 | SPEC-GOOSE-CORE-001 | goosed 데몬 부트스트랩 | P0 | S |
+| 02 | **SPEC-GOOSE-QUERY-001** ★ | QueryEngine + queryLoop | P0 | L |
+| 03 | SPEC-GOOSE-CONTEXT-001 | Context Window + compaction | P0 | M |
+| 04 | SPEC-GOOSE-TRANSPORT-001 | gRPC 서버 + proto | P0 | M |
+| 05 | SPEC-GOOSE-CONFIG-001 | 계층형 설정 로더 | P0 | S |
 
 ### Phase 1 — Multi-LLM Infrastructure (5 SPEC, P0) ★
-
-> 목표: 모든 LLM을 API/OAuth로 연결. 15+ provider credential pool + smart routing + rate limit + prompt caching. Hermes credential_pool.py 원형 이식.
-
-| # | SPEC-ID | 제목 | 우선 | 범위 | 의존성 | 근거 |
-|---|---------|-----|----|----|----|-----|
-| 06 | **SPEC-GOOSE-CREDPOOL-001** | Credential Pool (OAuth/API, 4 strategy, rotation) ★ | P0 | L | CONFIG-001 | hermes-llm §1-3 |
-| 07 | **SPEC-GOOSE-ROUTER-001** | Smart Model Routing + Provider Registry | P0 | M | CREDPOOL-001 | hermes-llm §4 |
-| 08 | **SPEC-GOOSE-RATELIMIT-001** | Rate Limit Tracker (RPM/TPM/RPH/TPH 4 bucket) | P0 | S | CREDPOOL-001 | hermes-llm §5 |
-| 09 | **SPEC-GOOSE-PROMPT-CACHE-001** | Prompt Caching (system_and_3, 4 breakpoint, TTL) | P1 | S | ROUTER-001 | hermes-llm §6 |
-| 10 | **SPEC-GOOSE-ADAPTER-001** | 6 Provider 어댑터 (Anthropic/OpenAI/Google/xAI/DeepSeek/Ollama) | P0 | L | ROUTER-001 | hermes-llm §8 |
+| 06 | **SPEC-GOOSE-CREDPOOL-001** ★ | Credential Pool (OAuth/API) | P0 | L |
+| 07 | SPEC-GOOSE-ROUTER-001 | Smart Model Routing | P0 | M |
+| 08 | SPEC-GOOSE-RATELIMIT-001 | Rate Limit Tracker | P0 | S |
+| 09 | SPEC-GOOSE-PROMPT-CACHE-001 | Prompt Caching | P1 | S |
+| 10 | **SPEC-GOOSE-ADAPTER-001** ★ | 6 Provider 어댑터 | P0 | L |
 
 ### Phase 2 — 4 Primitives (5 SPEC, P0) ★
-
-> 목표: Skills/MCP/Agents/Hooks first-class 구현. Claude Code 4 primitive 직접 포팅.
-
-| # | SPEC-ID | 제목 | 우선 | 범위 | 의존성 | 근거 |
-|---|---------|-----|----|----|----|-----|
-| 11 | **SPEC-GOOSE-SKILLS-001** | Progressive Disclosure Skill System (L0-L3, YAML, 4 trigger) ★ | P0 | L | QUERY-001 | claude-primitives §2 |
-| 12 | **SPEC-GOOSE-MCP-001** | MCP Client/Server (stdio/WS/SSE, OAuth, deferred loading) ★ | P0 | L | TRANSPORT-001 | claude-primitives §3 |
-| 13 | **SPEC-GOOSE-SUBAGENT-001** | Sub-agent Runtime (fork/worktree/bg isolation, 3 memory scope) ★ | P0 | L | QUERY-001, SKILLS-001 | claude-primitives §4 |
-| 14 | **SPEC-GOOSE-HOOK-001** | Lifecycle Hook System (24 events + useCanUseTool 권한 플로우) ★ | P0 | M | QUERY-001 | claude-primitives §5 |
-| 15 | **SPEC-GOOSE-PLUGIN-001** | Plugin Host (manifest.json + MCPB + 4 primitive 패키징) | P1 | M | SKILLS-001, MCP-001, SUBAGENT-001, HOOK-001 | claude-primitives §6 |
+| 11 | SPEC-GOOSE-SKILLS-001 | Progressive Disclosure Skill | P0 | L |
+| 12 | SPEC-GOOSE-MCP-001 | MCP Client/Server | P0 | L |
+| 13 | **SPEC-GOOSE-HOOK-001** ★ | 24 Lifecycle Hooks + permission | P0 | M |
+| 14 | SPEC-GOOSE-SUBAGENT-001 | Sub-agent Runtime | P0 | L |
+| 15 | SPEC-GOOSE-PLUGIN-001 | Plugin Host | P1 | M |
 
 ### Phase 3 — Agentic Primitives (3 SPEC, P0)
-
-> 목표: Tool Registry + Slash Command + CLI. QueryEngine 소비자 계층.
-
-| # | SPEC-ID | 제목 | 우선 | 범위 | 의존성 | 근거 |
-|---|---------|-----|----|----|----|-----|
-| 16 | **SPEC-GOOSE-TOOLS-001** | Tool Registry + ToolSearch (deferred loading, inventory) | P0 | M | QUERY-001, MCP-001 | claude-primitives + Hermes model_tools.py |
-| 17 | **SPEC-GOOSE-COMMAND-001** | Slash Command System (/moai, /agency 등 custom) | P1 | S | QUERY-001 | Claude Code commands/ |
-| 18 | **SPEC-GOOSE-CLI-001** | goose CLI (cobra + Connect-gRPC, TUI) | P0 | M | TRANSPORT-001, COMMAND-001 | 기존 CLI-001 재작성 |
+| 16 | SPEC-GOOSE-TOOLS-001 | Tool Registry + ToolSearch | P0 | M |
+| 17 | SPEC-GOOSE-COMMAND-001 | Slash Command System | P1 | S |
+| 18 | SPEC-GOOSE-CLI-001 | goose CLI (개발·헤드리스용, 기본 아님) | P0 | M |
 
 ### Phase 4 — Self-Evolution (5 SPEC, P0) ★
-
-> 목표: 자율 학습 파이프라인. Trajectory→Compressor→Insights→ErrorClass→Memory. Hermes 학습 파이프라인 원형 이식.
-
-| # | SPEC-ID | 제목 | 우선 | 범위 | 의존성 | 근거 |
-|---|---------|-----|----|----|----|-----|
-| 19 | **SPEC-GOOSE-TRAJECTORY-001** | Trajectory 수집 + 익명화 (ShareGPT JSON-L) ★ | P0 | S | QUERY-001 | hermes-learning §2 |
-| 20 | **SPEC-GOOSE-COMPRESSOR-001** | Trajectory Compressor (protected head/tail + LLM summary) ★ | P0 | M | TRAJECTORY-001, ROUTER-001 | hermes-learning §3 |
-| 21 | **SPEC-GOOSE-INSIGHTS-001** | Insights 추출 (Pattern/Preference/Error/Opportunity) ★ | P1 | M | TRAJECTORY-001 | hermes-learning §4 |
-| 22 | **SPEC-GOOSE-ERROR-CLASS-001** | Error Classifier (14 FailoverReason, retry 전략) | P0 | S | ADAPTER-001 | hermes-learning §5 |
-| 23 | **SPEC-GOOSE-MEMORY-001** | Pluggable Memory Provider (Builtin + 외부 1개) ★ | P0 | M | CORE-001 | hermes-learning §6 |
+| 19 | SPEC-GOOSE-TRAJECTORY-001 | Trajectory 수집 | P0 | S |
+| 20 | SPEC-GOOSE-COMPRESSOR-001 | Trajectory Compressor | P0 | M |
+| 21 | SPEC-GOOSE-INSIGHTS-001 | Insights 추출 | P1 | M |
+| 22 | **SPEC-GOOSE-ERROR-CLASS-001** ★ | Error Classifier (14 FailoverReason) | P0 | S |
+| 23 | **SPEC-GOOSE-MEMORY-001** ★ | Pluggable Memory Provider | P0 | M |
 
 ### Phase 5 — Promotion & Safety (3 SPEC, P1) ★
+| 24 | **SPEC-GOOSE-REFLECT-001** ★ | 5-tier 승격 | P1 | L |
+| 25 | SPEC-GOOSE-SAFETY-001 | 5-layer Safety | P1 | M |
+| 26 | SPEC-GOOSE-ROLLBACK-001 | Regression Rollback | P1 | S |
 
-> 목표: MoAI SPEC-REFLECT-001 5단계 승격 + Safety 5-layer. 실제 사용자 상태 변경은 이 게이트 통과 필수.
+### Phase 6 — **Cross-Platform Clients (5 SPEC, P0) ★ v4.0 신규**
 
-| # | SPEC-ID | 제목 | 우선 | 범위 | 의존성 | 근거 |
-|---|---------|-----|----|----|----|-----|
-| 24 | **SPEC-GOOSE-REFLECT-001** | 5단계 승격 (Observation→Heuristic→Rule→HighConf→Graduated) ★ | P1 | L | INSIGHTS-001, MEMORY-001 | learning-engine §2 |
-| 25 | **SPEC-GOOSE-SAFETY-001** | FrozenGuard + RateLimiter + Approval + Canary + Contradiction | P1 | M | REFLECT-001 | learning-engine §2.3 |
-| 26 | **SPEC-GOOSE-ROLLBACK-001** | 성능 저하 자동 감지 + 롤백 (30일 쿨다운) | P1 | S | REFLECT-001, SAFETY-001 | constitution §15 |
+> 목표: CLI가 아닌 **Desktop App 기본 + Mobile 동반**. Claude Code bridge + Hermes gateway 흡수.
 
-### Phase 6 — Deep Personalization (3 SPEC, P2)
+| # | SPEC-ID | 제목 | 우선 | 범위 | 의존성 |
+|---|---------|-----|-----|-----|-------|
+| 27 | **SPEC-GOOSE-DESKTOP-001** ★ | Tauri v2 Desktop App (기본 UI) | P0 | L | TRANSPORT, QUERY |
+| 28 | **SPEC-GOOSE-BRIDGE-001** ★ | PC↔Mobile 원격 세션 (Claude Code bridge/ 33 파일 포팅) | P0 | L | TRANSPORT |
+| 29 | SPEC-GOOSE-RELAY-001 | E2EE Relay (Mullvad GotaTun 패턴, Rust crate) | P1 | L | BRIDGE |
+| 30 | **SPEC-GOOSE-MOBILE-001** ★ | React Native Mobile (iOS/Android, PC 원격 제어) | P0 | L | BRIDGE, RELAY |
+| 31 | SPEC-GOOSE-GATEWAY-001 | Multi-platform (Telegram/Discord/Slack/Matrix/KakaoTalk/WeChat/Webhook) | P2 | M | BRIDGE, MCP |
 
-> 목표: Identity Graph + Preference Vector + User LoRA. 사용자의 디지털 쌍둥이.
+### Phase 7 — **Daily Companion (8 SPEC, P0~P1) ★ v3.0 유지**
 
-| # | SPEC-ID | 제목 | 우선 | 범위 | 의존성 | 근거 |
-|---|---------|-----|----|----|----|-----|
-| 27 | **SPEC-GOOSE-IDENTITY-001** | Identity Graph POLE+O 스키마 + Kuzu 임베디드 | P2 | L | MEMORY-001, SAFETY-001 | learning-engine §3 |
-| 28 | **SPEC-GOOSE-VECTOR-001** | Preference Vector Space (768-dim, cosine) | P2 | M | MEMORY-001 | learning-engine §4 |
-| 29 | **SPEC-GOOSE-LORA-001** | User-specific QLoRA Trainer (ONNX Runtime GenAI) | P2 | L | VECTOR-001, SAFETY-001 | learning-engine §5 |
+> 목표: 양방향 반려. Morning/Meals×3/Evening 3회 리추얼로 감정적 유대 구축.
 
-### Phase 7 — Ecosystem (옵션, 4 SPEC, P2)
+| # | SPEC-ID | 제목 | 우선 | 범위 | 의존성 |
+|---|---------|-----|-----|-----|-------|
+| 32 | **SPEC-GOOSE-SCHEDULER-001** ★ | Proactive Cron Scheduler | P0 | M | HOOK, CORE |
+| 33 | SPEC-GOOSE-WEATHER-001 | 날씨 (OpenWeather + 기상청 KMA) | P1 | S | TOOLS |
+| 34 | SPEC-GOOSE-FORTUNE-001 | 개인화 운세 (사주·바이오리듬·LLM) | P1 | M | ADAPTER, IDENTITY |
+| 35 | **SPEC-GOOSE-CALENDAR-001** ★ | 일정 (Google/Apple/Outlook/Naver) | P0 | M | MCP |
+| 36 | **SPEC-GOOSE-BRIEFING-001** ★ | 아침 브리핑 오케스트레이션 | P0 | M | FORTUNE, WEATHER, CALENDAR, SCHEDULER |
+| 37 | SPEC-GOOSE-HEALTH-001 | 식사·복약 트래커 (한국 식약처 DUR) | P1 | M | SCHEDULER, MEMORY |
+| 38 | **SPEC-GOOSE-JOURNAL-001** ★ | 저녁 일기 + 감정 태깅 + 추억 호출 | P0 | M | MEMORY, INSIGHTS, SAFETY |
+| 39 | **SPEC-GOOSE-RITUAL-001** ★ | 3회 리추얼 통합 오케스트레이션 | P0 | L | BRIEFING, HEALTH, JOURNAL |
 
-> 목표: A2A · Marketplace · Multi-platform Gateway · Privacy. 상용화 레이어.
+### Phase 8 — Deep Personalization (3 SPEC, P2)
+> v3.0의 Phase 6에서 이동. Phase 6/7 후에 LoRA·Identity Graph 개인화.
 
-| # | SPEC-ID | 제목 | 우선 | 범위 | 의존성 | 근거 |
-|---|---------|-----|----|----|----|-----|
-| 30 | **SPEC-GOOSE-A2A-001** | Agent Communication Protocol (Hermes ACP + Google A2A v0.3) | P2 | L | MCP-001, SUBAGENT-001 | hermes-learning §9 + ecosystem §2.3 |
+| 40 | SPEC-GOOSE-IDENTITY-001 | Identity Graph (POLE+O, Kuzu) | P2 | L |
+| 41 | SPEC-GOOSE-VECTOR-001 | Preference Vector (768-dim) | P2 | M |
+| 42 | SPEC-GOOSE-LORA-001 | User QLoRA Trainer (Rust 위임) | P2 | L |
 
-> Phase 7의 나머지 3 SPEC(BAZAAR-001, GATEWAY-001, PRIVACY-001)은 별도 `ROADMAP-ECOSYSTEM.md`에서 관리. 본 로드맵에서는 A2A-001 하나만 최소 남김.
+### Phase 9 — Ecosystem (1 SPEC, P2)
+| 43 | SPEC-GOOSE-A2A-001 | Agent Communication Protocol | P2 | L |
+
+**합계**: **43 SPEC · 10 Phase · 총 약 720+ REQ / 420+ AC**
+
+★ = Critical Path
 
 ---
 
-## 5. Phase별 SPEC 개수 및 핵심 가치
-
-| Phase | 이름 | SPEC 수 | 핵심 가치 | 주요 산출물 |
-|-------|-----|--------|----------|-------------|
-| 0 | Agentic Core | 5 | async streaming query loop | QueryEngine + Context + Transport |
-| 1 | Multi-LLM Infrastructure | 5 | 모든 LLM 연결 (API/OAuth) | 15+ provider credential pool |
-| 2 | 4 Primitives | 5 | Skills/MCP/Agents/Hooks | plugin-loadable 4 primitive |
-| 3 | Agentic Primitives | 3 | Tool Registry + CLI | 사용자 인터페이스 |
-| 4 | Self-Evolution | 5 | 자율 학습 파이프라인 | Trajectory→Insights→Memory |
-| 5 | Promotion & Safety | 3 | 5-tier + safety gates | SPEC-REFLECT-001 계승 |
-| 6 | Deep Personalization | 3 | Identity + LoRA | 디지털 쌍둥이 |
-| 7 | Ecosystem (옵션) | 1 (+3 별도) | A2A | IDE 통합 |
-| **합계** | — | **30** | — | — |
-
----
-
-## 6. 의존성 그래프 (상위)
+## 4. 4-Layer ↔ Phase 매핑 (v4.0 완성)
 
 ```
-CORE-001 ─┬─ CONFIG-001 ─┬─ CREDPOOL-001 ─┬─ ROUTER-001 ─┬─ ADAPTER-001
-          │              │                 │              ├─ RATELIMIT-001
-          │              │                 │              └─ PROMPT-CACHE-001
-          │              │                 │                        │
-          ├─ TRANSPORT-001 ─ MCP-001 ─┬── TOOLS-001                  │
-          │                           └── SUBAGENT-001 ← SKILLS-001  │
-          │                                                          │
-          ├─ QUERY-001 ─┬─ CONTEXT-001                               │
-          │             ├─ SKILLS-001 ─── PLUGIN-001 ←──── HOOK-001  │
-          │             ├─ HOOK-001                                   │
-          │             └─ COMMAND-001 ─ CLI-001                      │
-          │                                                           │
-          └─ MEMORY-001 ─┬─ TRAJECTORY-001 ─ COMPRESSOR-001 ──────────┤
-                         ├─ INSIGHTS-001 ─ REFLECT-001 ─ SAFETY-001   │
-                         │                   │                        │
-                         │                   └─ ROLLBACK-001          │
-                         │                                             │
-                         └─ ERROR-CLASS-001 ←───────────────────────── ┘
-                                                      │
-                           IDENTITY-001 ─── VECTOR-001 ─── LORA-001
-                                                      │
-                                              A2A-001 ─┘
+┌────────────────────────────────────────────────────────┐
+│ Layer 4 💞 Emotional Bond   → JOURNAL(§38) + REFLECT   │
+│ Layer 3 📅 Daily Rituals    → Phase 7 (§32~39) ★v3.0   │
+│ Layer 2 🐣 Nurture Loop     → QUERY + INSIGHTS + TUI   │
+│ Layer 1 🧠 Agentic Core     → Phase 0~5 (26 SPEC)      │
+├────────────────────────────────────────────────────────┤
+│ 🖥️ Presentation              → Phase 6 ★v4.0 신규       │
+│   - Desktop App (기본)                                   │
+│   - Mobile App (동반)                                    │
+│   - Bridge + Relay (E2EE)                                │
+│   - Gateway (Telegram/KakaoTalk 등)                      │
+├────────────────────────────────────────────────────────┤
+│ 🧬 Advanced                  → Phase 8~9                 │
+│   - Identity Graph + LoRA + A2A                          │
+└────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 7. 실행 순서 권장
+## 5. Phase별 요약
 
-### MVP Milestone 1 — 동작하는 에이전트 (Phase 0+1+3 일부)
-- CORE-001 → CONFIG-001 → TRANSPORT-001 → QUERY-001 → CONTEXT-001
-- CREDPOOL-001 → ROUTER-001 → ADAPTER-001 (Anthropic + OpenAI 먼저)
-- TOOLS-001 → CLI-001
-- **동작 확인**: `goose ask "hello"` → Claude/GPT 경유 응답
-
-### MVP Milestone 2 — 4 Primitive 완성 (Phase 2)
-- SKILLS-001 → HOOK-001 → SUBAGENT-001 → MCP-001 → PLUGIN-001
-- **동작 확인**: 외부 MCP 서버 연결, 서브에이전트 fork, skill 로드
-
-### MVP Milestone 3 — 자기진화 코어 (Phase 4)
-- TRAJECTORY-001 → ERROR-CLASS-001 → MEMORY-001 → COMPRESSOR-001 → INSIGHTS-001
-- **동작 확인**: 주간 활동 리포트 생성, 에러 자동 분류/재시도
-
-### MVP Milestone 4 — Promotion (Phase 5)
-- REFLECT-001 → SAFETY-001 → ROLLBACK-001
-- **동작 확인**: 관찰→승격→승인→적용→(저하 시)롤백 cycle
-
-### v1.0 Release Milestone (Phase 6+7 일부)
-- RATELIMIT-001, PROMPT-CACHE-001, COMMAND-001 (미착수 P1)
-- IDENTITY-001 → VECTOR-001 → LORA-001 (로컬 개인화)
-- A2A-001 (IDE 통합)
+| Phase | 이름 | SPEC 수 | 핵심 가치 |
+|-------|-----|--------|----------|
+| 0 | Agentic Core | 5 | async streaming query loop |
+| 1 | Multi-LLM | 5 | 15+ provider OAuth/API |
+| 2 | 4 Primitives | 5 | Skills/MCP/Agents/Hooks |
+| 3 | Agentic Primitives | 3 | Tool Registry + CLI(개발용) |
+| 4 | Self-Evolution | 5 | Trajectory → Insights → Memory |
+| 5 | Promotion & Safety | 3 | 5-tier + 5-layer |
+| **6** | **🆕 Cross-Platform Clients** | **5** | **Desktop + Mobile + Bridge + Relay + Gateway** |
+| 7 | Daily Companion | 8 | 일상 리추얼 3회 |
+| 8 | Deep Personalization | 3 | Identity + Vector + LoRA |
+| 9 | Ecosystem | 1 | A2A |
+| **합계** | — | **43** | — |
 
 ---
 
-## 8. 기존 v1.0 SPEC 처리
+## 6. 주요 의존성 그래프 (v4.0 상위)
 
-`.moai/specs/` 하위 기존 6 SPEC 디렉토리 처리:
-
-| 기존 SPEC | 처리 방안 |
-|----------|---------|
-| `SPEC-GOOSE-CORE-001/` | **유지** — v2.0에서도 동일 역할. 필요 시 minor 수정 |
-| `SPEC-GOOSE-CONFIG-001/` | **유지** — v2.0에서도 동일 |
-| `SPEC-GOOSE-TRANSPORT-001/` | **유지** — v2.0에서도 동일 |
-| `SPEC-GOOSE-LLM-001/` | **폐기** — v2.0에서 CREDPOOL-001 + ROUTER-001 + ADAPTER-001으로 분할. 디렉토리는 보존하되 `DEPRECATED.md` 추가 |
-| `SPEC-GOOSE-AGENT-001/` | **폐기** — v2.0에서 QUERY-001 + SUBAGENT-001로 대체. `DEPRECATED.md` 추가 |
-| `SPEC-GOOSE-CLI-001/` | **재작성** — Phase 3으로 이동. cobra + Connect-gRPC + TUI로 확장 |
-
-폐기 SPEC에는 다음 노트를 추가:
-```markdown
-# DEPRECATED
-> 본 SPEC은 ROADMAP v2.0 재설계로 폐기됨.
-> 대체 SPEC: {SPEC-GOOSE-XXX-001}, {SPEC-GOOSE-YYY-001}
-> 이전 내용은 git history 참조.
+```
+[Phase 0] CORE ──┬─ CONFIG
+                 ├─ TRANSPORT ──────────────────────────────┐
+                 └─ QUERY ── CONTEXT                         │
+                                 │                           │
+[Phase 1] CREDPOOL ── ROUTER ── ADAPTER ────┐               │
+                         ├─ RATELIMIT         │               │
+                         └─ PROMPT-CACHE      │               │
+                                              │               │
+[Phase 2] SKILLS ── HOOK ── SUBAGENT ────────┼──── MCP ───────┤
+                                              │               │
+[Phase 3] TOOLS ── COMMAND ── CLI(개발)       │               │
+                                              │               │
+[Phase 4] MEMORY ── TRAJECTORY ── COMPRESSOR │               │
+                        ├─ INSIGHTS           │               │
+                        └─ ERROR-CLASS ←──────┘               │
+                                                              │
+[Phase 5] REFLECT ── SAFETY ── ROLLBACK                       │
+                                                              │
+[Phase 6 ★v4.0] ────────────────────────────────────────────▶│
+  DESKTOP (Tauri)  ◀─────── BRIDGE ◀──── RELAY (Rust)         │
+       │                      ▲                               │
+       └─ QR pairing          │                               │
+                              ▼                               │
+                      MOBILE (RN)                             │
+                              │                               │
+                      GATEWAY (Telegram/Discord/Kakao)        │
+                                                              │
+[Phase 7] SCHEDULER ──┬─ WEATHER                              │
+                      ├─ FORTUNE                              │
+                      ├─ CALENDAR ───┐                        │
+                      └─ HEALTH      │                        │
+                                     ▼                        │
+                             BRIEFING + JOURNAL ── RITUAL ←───┘
+                                                              
+[Phase 8] IDENTITY ── VECTOR ── LORA (Rust)
+                                                              
+[Phase 9] A2A-001
 ```
 
 ---
 
-## 9. 예상 구현 규모
+## 7. 실행 순서 권장 (Milestone)
 
-| Phase | 영역 | Go LoC | Python 원본 대비 |
-|-------|-----|--------|---------------|
-| 0 | Agentic Core | ~3,000 | Claude Code TS의 80% 재사용 |
-| 1 | Multi-LLM Infra | ~6,900 | Hermes Python 16,000 → 43% |
-| 2 | 4 Primitives | ~5,000~7,000 | Claude Code TS의 80% 재사용 |
-| 3 | Agentic Primitives | ~2,000 | 신규 |
-| 4 | Self-Evolution | ~4,000 | Hermes Python 3,500 → 114% |
-| 5 | Promotion & Safety | ~2,500 | MoAI SPEC-REFLECT-001 계승 |
-| 6 | Deep Personalization | ~5,000 | 신규 (Rust + Go) |
-| 7 | Ecosystem | ~2,000 | 신규 |
-| **합계** | — | **~30,000** | MoAI-ADK-Go 38,700 + Hermes 16,000 + Claude 수천 → 30K로 축약 |
+### M0 — Agentic Foundation (2주)
+CORE → CONFIG + TRANSPORT(병렬) → QUERY → CONTEXT
 
----
+### M1 — Multi-LLM (3주)
+CREDPOOL → [ROUTER+RATELIMIT+ERROR-CLASS] 병렬 → PROMPT-CACHE → ADAPTER
 
-## 10. OUT OF SCOPE (본 로드맵에서 제외)
+### M2 — 4 Primitives (4주)
+[SKILLS+HOOK+MCP] 병렬 → SUBAGENT → PLUGIN
 
-본 로드맵이 **다루지 않는** 항목. 별도 로드맵 또는 후속 분기에서 관리:
+### M3 — Developer CLI (1주) **← 기존 v3.0 MVP CLI에서 범위 축소**
+TOOLS → COMMAND → CLI-001 (개발/헤드리스 용도)
 
-- **Rust 크리티컬 레이어** (`goose-ml`, `goose-wasm`, `goose-crypto`, `goose-vector`): Go Phase 6 안정화 이후 `ROADMAP-RUST.md`
-- **TypeScript 클라이언트 패키지** (desktop/Tauri, mobile/RN, web/Next.js): CLI(Phase 3)를 제외한 나머지는 `ROADMAP-CLIENTS.md`
-- **생태계·결제·토큰 경제** (Bazaar, Stripe, x402, 구독 티어): `ROADMAP-ECOSYSTEM.md`
-- **Multi-platform Gateway** (Telegram/Discord/Slack/KakaoTalk/WeChat): 별도 로드맵
-- **Hypernetwork 즉시 개인화** (Sakana AI Doc-to-LoRA): LORA-001 안정화 이후 별도 SPEC
-- **Federated Learning / Secure Aggregation**: Phase 6+ P3 이후
-- **Agent Teams, 다언어 LSP 18개**: MoAI-ADK-Go 직접 link 가능 시점에 재평가
-- **한국 전용 기능** (KT, KakaoPay 등): 완전 제거 또는 옵션 플러그인
+### M4 — Self-Evolution (3주)
+[TRAJECTORY+MEMORY] 병렬 → COMPRESSOR → INSIGHTS
 
----
+### M5 — Safety (2주)
+REFLECT → SAFETY → ROLLBACK
 
-## 11. 오픈 질문 / 다음 결정 포인트
+### **M6 — Cross-Platform Clients (4주) ★ v4.0 신규**
+DESKTOP ↔ BRIDGE ── RELAY ── MOBILE 순차·병렬 → GATEWAY
+**→ v0.3 Public Beta 가능 시점 (Desktop+Mobile 동작)**
 
-1. **Go 버전 고정**: tech.md는 1.26+. 실제 최신 안정 버전 교차검증 후 go.mod 확정
-2. **Kuzu vs Neo4j** (IDENTITY-001): Kuzu 임베디드 우선, 클라우드 협업 요구 시 Neo4j 추가
-3. **LLM 기본값** (ROUTER-001): Phase 0에서 Ollama 기본. BYOK는 Anthropic/OpenAI
-4. **LoRA 베이스 모델** (LORA-001): Qwen3-0.6B vs Gemma-1B 라이선스·메모리
-5. **LLM Stream 인터페이스** (ADAPTER-001): `StreamReader` vs `<-chan Chunk`
-6. **proto 생성물 commit 정책**: repo에 commit vs CI 생성
-7. **TDD 엄격도**: quality.yaml TDD 설정됨. Phase 0부터 RED-first 강제, 85%+ 커버리지
-8. **Tokenizer 선택** (COMPRESSOR-001): Python Hermes는 Kimi tokenizer. Go는 tiktoken-go 또는 직접 구현
+### **M7 — Daily Companion (4주) ← v1.0 Release**
+SCHEDULER → [WEATHER+CALENDAR+HEALTH] 병렬 → FORTUNE → BRIEFING + JOURNAL → RITUAL
+**→ v1.0 Release: 일상 반려 AI 완성**
+
+### M8 — Deep Personalization (4주) ← v1.5 Release
+[IDENTITY+VECTOR] 병렬 → LORA (Rust 위임)
+
+### M9 — Ecosystem (옵션)
+A2A-001
+
+### 총 기간 (팀 2명, TDD)
+- M0~M7 v1.0 Release: **~23주** (~5.5개월)
+- M0~M8 v1.5: **~27주** (~6.3개월)
+- 팀 3명 병렬 최대: **~17주** (~4개월)
 
 ---
 
-## 12. 첫 번째 실행 SPEC
+## 8. 버전 Release 타임라인
 
-**Phase 0, 순번 01**: [`SPEC-GOOSE-CORE-001`](./SPEC-GOOSE-CORE-001/spec.md) — goosed 데몬 부트스트랩 (v1.0에서 유지).
-
-**권장 실행 순서**:
-```
-1. CORE-001 (유지) → RED→GREEN→REFACTOR
-2. CONFIG-001 (유지) + TRANSPORT-001 (유지) 병렬
-3. QUERY-001 (신규) ★ 핵심 agentic loop
-4. CONTEXT-001 (신규) + CREDPOOL-001 (신규) 병렬
-5. ROUTER-001 (신규) + ADAPTER-001 (신규, Anthropic부터)
-6. TOOLS-001 + CLI-001 (MVP Milestone 1 완성)
-7. Phase 2 4 primitive
-8. Phase 4 자기진화
-9. Phase 5 safety
-```
+| Release | Milestone 포함 | 기능 |
+|---------|-------------|-----|
+| v0.1 Alpha | M0~M1 | `goose ask "hello"` 동작 (CLI) |
+| v0.2 Beta | M0~M2 | 4 Primitive + MVP Skill 로드 |
+| v0.3 Beta | M0~M3 | 개발자 CLI 안정화 |
+| **v0.4 Public Beta** | **M0~M6** | **Desktop + Mobile + Bridge 첫 공개** |
+| v0.5 RC | M0~M6+M5 | Safety 게이트 + PR 품질 |
+| **v1.0 Release** | **M0~M7** | **일상 반려 AI 완성 (Daily Companion)** |
+| v1.5 | M0~M8 | 개인화 LoRA |
+| v2.0 | M0~M9 | A2A + Ecosystem |
 
 ---
 
-## 13. 핵심 설계 원칙 (5가지)
+## 9. 주요 설계 원칙 (v4.0 누적)
 
-1. **One QueryEngine per conversation** — 세션 생명주기 = engine 생명주기 (Claude Code)
-2. **Streaming mandatory** — buffering 금지, async channel (Claude Code)
-3. **Credential Pool first** — 모든 LLM은 pool 경유, OAuth 자동 갱신, exhausted rotation (Hermes)
-4. **4 Primitive first-class** — Skills/MCP/Agents/Hooks는 Phase 2 필수 (Claude Code)
-5. **Self-evolution with safety gates** — 모든 학습 결과는 5-tier 승격 + 5-layer safety 통과 필수 (MoAI SPEC-REFLECT-001)
+1. **One QueryEngine per conversation** (Claude Code)
+2. **Streaming mandatory** (async channel)
+3. **Credential Pool first** (모든 LLM은 pool 경유)
+4. **4 Primitive first-class** (Skills/MCP/Agents/Hooks)
+5. **Self-evolution with safety gates** (5-tier + 5-layer)
+6. **Proactive over Reactive** (GOOSE가 먼저 말 건다)
+7. **Bidirectional Care** (사용자⇄GOOSE 서로 돌봄)
+8. **Privacy-First Intimacy** (친밀함은 로컬 저장으로만)
+9. **Ritualized Presence** (매일 같은 시간에 나타나는 존재)
+10. **🆕 PC-First, Mobile-Companion** (PC가 메인, Mobile은 항상 함께)
+11. **🆕 E2EE Always** (PC↔Mobile 간 plaintext 접근 불가능)
+12. **🆕 Progressive Disclosure on UI** (Desktop 풀 UI → Mobile 핵심 기능 → CLI 헤드리스)
 
 ---
 
-**Version**: 2.0.0
-**License**: MIT (본 문서 포함)
-**Next action**: 본 ROADMAP 사용자 승인 → Phase 0 CORE-001 `DEPRECATED` 대상 업데이트 → 신규 SPEC(QUERY-001부터) 작성 착수
+## 10. 법적·윤리적 제약 (v4.0 업데이트)
+
+| SPEC | 제약 |
+|------|------|
+| FORTUNE-001 | 엔터테인먼트, opt-in OFF 기본, 의학·금융·복권 키워드 guard |
+| HEALTH-001 | 의료 기기 아님, 응급 시 119 자동 안내, 식약처 DUR severe interaction HARD block |
+| JOURNAL-001 | 로컬 only 기본, A2A 전송 HARD 금지, crisis keyword 시 1577-0199 |
+| CALENDAR-001 | OAuth 최소 권한, Cross-origin redirect 차단 |
+| SCHEDULER-001 | Quiet hours 23-06시 HARD floor |
+| RITUAL-001 | Guilt-free 언어, 스킵 자유 |
+| **BRIDGE-001** | **Trusted Device 관리, JWT 24h, session revoke** |
+| **RELAY-001** | **Plaintext 접근 절대 불가 (Noise Protocol 증명)** |
+| **MOBILE-001** | **Biometric lock, 로컬 캐시 암호화** |
+| **GATEWAY-001** | **OAuth minimum scope, 사용자 명시적 동의** |
+
+---
+
+## 11. OUT OF SCOPE
+
+- Rust ML crate (LoRA 구현 상세): `ROADMAP-RUST.md`
+- 클라우드 백업 구체 스킴: Phase 8+ 별도 SPEC
+- 기업 내 자체 Relay 호스팅 가이드: v1.5 이후
+- Agent Teams 병렬 실행: MoAI-ADK-Go 직접 link 시점에 재평가
+
+---
+
+## 12. 오픈 이슈 (v4.0 업데이트, 20건)
+
+### 기존 (v3.0)
+1. Go 버전 고정
+2. sqlite 드라이버 (modernc vs mattn)
+3. Tokenizer 라이브러리
+4. Graph DB (Kuzu vs Neo4j)
+5. LoRA Base Model
+6. LLM Stream 인터페이스
+7. proto commit 정책
+8. Rust goose-ml 배포
+9. 운세 문화 범위 (한국 vs 서양)
+10. 건강 DB 소스 (식약처 vs WHO)
+11. 캘린더 기본 프로바이더
+12. 일기 저장 위치 (로컬 SQLite vs 파일)
+13. 리추얼 음성 TTS
+
+### v4.0 신규
+14. **Tauri updater ed25519 키 배포**: CI 주입 vs 소스 임베드
+15. **Relay Go↔Rust FFI**: gRPC(기본) vs CGO(핫패스)
+16. **Porcupine 라이센스**: 상용 모듈 + GOOSE MIT 호환
+17. **Whisper 모델 배포**: 번들 150MB vs on-demand
+18. **카카오 알림톡 벤더**: Solapi vs 직접 계약
+19. **WeChat 중국 법인**: v0.1 스텁만 or 제외
+20. **HOOK-001 EventName 확장**: SCHEDULER가 5개 신규 요청 → HOOK-001 minor bump
+
+---
+
+## 13. 첫 번째 실행 SPEC
+
+**Phase 0, 순번 01**: `SPEC-GOOSE-CORE-001`
+
+v4.0 첫 Cross-Platform 진입: `SPEC-GOOSE-DESKTOP-001` (M6 시작)
+
+---
+
+**Version**: 4.0.0
+**License**: MIT (이 문서 포함)
+**Next action**: Phase 0 CORE-001 RED → M7 완료 시 v1.0 Daily Companion Release

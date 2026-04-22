@@ -1,425 +1,337 @@
-# GOOSE-AGENT 구현 순서 종합 보고서
+# GOOSE-AGENT 구현 순서 종합 보고서 v4.0
 
-> **작성일**: 2026-04-21
-> **대상**: 30 SPEC (Phase 0~7 전체)
-> **근거**: ROADMAP v2.0 + 6 Phase 작성 에이전트 종합 보고 + 의존성 그래프 분석
+> **작성일**: 2026-04-22 (v4.0 Cross-Platform + Daily Companion 통합)
+> **대상**: 43 SPEC (Phase 0~9 전체)
+> **근거**: ROADMAP v4.0 + 10 Phase 신규 작성 에이전트 보고 종합
 > **방법론**: TDD (RED→GREEN→REFACTOR)
-> **목적**: 의존성 그래프 기반 최적 구현 순서 + 병렬화 지점 + Milestone + 리스크 매핑
+> **목적**: 의존성 그래프 기반 최적 구현 순서 + 병렬화 지점 + Milestone
 
 ---
 
 ## 0. 요약
 
-- **전체**: 30 active SPEC, 총 **563 REQ / 328 AC**, 예상 **~30,000 Go LoC** (+ Rust LoRA crate 위임)
-- **Critical Path**: CORE → QUERY → CONTEXT → CREDPOOL → ADAPTER → HOOK → SUBAGENT → TOOLS → CLI → TRAJECTORY → MEMORY → INSIGHTS → REFLECT → SAFETY → LORA
-- **6 Milestone** 구분: M0 파운데이션 → M1 멀티LLM → M2 4 Primitive → M3 MVP 동작 → M4 자기진화 → M5 Safety → M6 개인화
-- **최대 병렬도**: M1 3개 + M2 3개 + M4 2~3개 + M6 2개 = 평균 2~3 SPEC 동시 진행
-- **총 기간 (팀 2명, TDD 엄격)**: **~5개월** (20~22주)
+- **전체**: 43 active SPEC, 약 **720+ REQ / 420+ AC**
+- **Go LoC**: ~35,000 + Rust LoRA/crypto crate 위임
+- **Critical Path**: CORE → QUERY → CREDPOOL → ADAPTER → HOOK → SUBAGENT → DESKTOP → BRIDGE → MOBILE → SCHEDULER → BRIEFING → JOURNAL → RITUAL
+- **10 Milestone**: M0(Core) → M1(LLM) → M2(Primitives) → M3(Dev CLI) → M4(Evolution) → M5(Safety) → **M6(Cross-Platform)** → **M7(Daily Companion)** → M8(Personalization) → M9(Ecosystem)
+- **v1.0 Release 기준**: M7 완료 시점 (일상 반려 AI 완성) ~23주
 
 ---
 
-## 1. 30 SPEC 전체 목록 + REQ/AC
+## 1. 43 SPEC 전체 목록
 
 ### Phase 0 — Agentic Core (5)
-| # | SPEC-ID | 우선 | 범위 | REQ | AC | 상태 |
-|---|---------|----|----|-----|----|----|
-| 01 | SPEC-GOOSE-CORE-001 | P0 | S | 12 | 6 | v1.0 유지 |
-| 02 | SPEC-GOOSE-CONFIG-001 | P0 | S | 14 | 8 | v1.0 유지 |
-| 03 | SPEC-GOOSE-TRANSPORT-001 | P0 | M | 14 | 8 | v1.0 유지 |
-| 04 | **SPEC-GOOSE-QUERY-001** ★ | P0 | L | 20 | 12 | v2.0 신규 |
-| 05 | **SPEC-GOOSE-CONTEXT-001** | P0 | M | 16 | 10 | v2.0 신규 |
+CORE · QUERY★ · CONTEXT · TRANSPORT · CONFIG
 
 ### Phase 1 — Multi-LLM Infrastructure (5)
-| 06 | **SPEC-GOOSE-CREDPOOL-001** ★ | P0 | L | 18 | 10 |
-| 07 | SPEC-GOOSE-ROUTER-001 | P0 | M | 16 | 8 |
-| 08 | SPEC-GOOSE-RATELIMIT-001 | P0 | S | 13 | 7 |
-| 09 | SPEC-GOOSE-PROMPT-CACHE-001 | P1 | S | 13 | 8 |
-| 10 | **SPEC-GOOSE-ADAPTER-001** ★ | P0 | L | 20 | 12 |
+CREDPOOL★ · ROUTER · RATELIMIT · PROMPT-CACHE · ADAPTER★
 
 ### Phase 2 — 4 Primitives (5)
-| 11 | SPEC-GOOSE-SKILLS-001 | P0 | L | 18 | 10 |
-| 12 | SPEC-GOOSE-MCP-001 | P0 | L | 20 | 12 |
-| 13 | **SPEC-GOOSE-HOOK-001** ★ | P0 | M | 20 | 10 |
-| 14 | SPEC-GOOSE-SUBAGENT-001 | P0 | L | 20 | 12 |
-| 15 | SPEC-GOOSE-PLUGIN-001 | P1 | M | 18 | 12 |
+SKILLS · MCP · HOOK★ · SUBAGENT · PLUGIN
 
 ### Phase 3 — Agentic Primitives (3)
-| 16 | SPEC-GOOSE-TOOLS-001 | P0 | M | 20 | 9 |
-| 17 | SPEC-GOOSE-COMMAND-001 | P1 | S | 19 | 13 |
-| 18 | SPEC-GOOSE-CLI-001 | P0 | M | 25 | 16 |
+TOOLS · COMMAND · CLI (개발자용)
 
 ### Phase 4 — Self-Evolution (5)
-| 19 | SPEC-GOOSE-TRAJECTORY-001 | P0 | S | 18 | 12 |
-| 20 | SPEC-GOOSE-COMPRESSOR-001 | P0 | M | 18 | 13 |
-| 21 | **SPEC-GOOSE-ERROR-CLASS-001** ★ | P0 | S | 24 | 18 |
-| 22 | **SPEC-GOOSE-MEMORY-001** ★ | P0 | M | 20 | 16 |
-| 23 | SPEC-GOOSE-INSIGHTS-001 | P1 | M | 19 | 19 |
+TRAJECTORY · COMPRESSOR · INSIGHTS · ERROR-CLASS★ · MEMORY★
 
 ### Phase 5 — Promotion & Safety (3)
-| 24 | **SPEC-GOOSE-REFLECT-001** ★ | P1 | L | 20 | 12 |
-| 25 | SPEC-GOOSE-SAFETY-001 | P1 | M | 16 | 9 |
-| 26 | SPEC-GOOSE-ROLLBACK-001 | P1 | S | 12 | 7 |
+REFLECT★ · SAFETY · ROLLBACK
 
-### Phase 6 — Deep Personalization (3)
-| 27 | SPEC-GOOSE-IDENTITY-001 | P2 | L | 18 | 12 |
-| 28 | SPEC-GOOSE-VECTOR-001 | P2 | M | 14 | 8 |
-| 29 | SPEC-GOOSE-LORA-001 | P2 | L | 20 | 12 |
+### **Phase 6 — Cross-Platform Clients (5) 🆕 v4.0**
+DESKTOP★ · BRIDGE★ · RELAY · MOBILE★ · GATEWAY
 
-### Phase 7 — Ecosystem (1)
-| 30 | SPEC-GOOSE-A2A-001 | P2 | L | 20 | 12 |
+### Phase 7 — Daily Companion (8)
+SCHEDULER★ · WEATHER · FORTUNE · CALENDAR★ · BRIEFING★ · HEALTH · JOURNAL★ · RITUAL★
 
-**합계**: **563 REQ / 328 AC**. ★ = critical path.
+### Phase 8 — Deep Personalization (3)
+IDENTITY · VECTOR · LORA
+
+### Phase 9 — Ecosystem (1)
+A2A
+
+★ = Critical Path (14건)
 
 ---
 
 ## 2. 상세 의존성 그래프 (Cross-Phase)
 
 ```
-                          ┌────────── CORE-001 ──────────┐
-                          │                              │
-                  CONFIG-001                      TRANSPORT-001
-                          │                              │
-                          │                              │
-            ┌─── CREDPOOL-001 ────┐                      │
-            │         │           │                      │
-      ROUTER-001  RATELIMIT-001   │                      │
-            │                     │                      │
-      PROMPT-CACHE-001            │                      │
-            └─────────┬───────────┘                      │
-                      │                                  │
-                 ADAPTER-001 ──────┬── ERROR-CLASS-001   │
-                      │            │                      │
-                      └──────→ QUERY-001 ←────────────────┤
-                                    │                     │
-                           ┌────────┼────────┬────────┐   │
-                           │        │        │        │   │
-                       CONTEXT-001  │        │        │   │
-                           │        │        │        │   │
-                        SKILLS-001  │        │        │   │
-                           │        │        │        │   │
-                        HOOK-001 ───┤        │        │   │
-                           │        │        │        │   │
-                      SUBAGENT-001  │        │        │   │
-                           │        │        │        │   │
-                           └──── MCP-001 ←───┴────────┴───┘
-                                    │
-                              PLUGIN-001
-                                    │
-                                    ├──→ TOOLS-001 ──→ COMMAND-001 ──→ CLI-001
-                                    │
-              TRAJECTORY-001 ←──────┤
-                    │                │
-             COMPRESSOR-001          │
-                    │                │
-                    ├── MEMORY-001 ──┤
-                    │                │
-             INSIGHTS-001            │
-                    │                │
-                REFLECT-001          │
-                    │                │
-             SAFETY-001              │
-                    │                │
-             ROLLBACK-001            │
-                    │                │
-                    ├── IDENTITY-001 │
-                    ├── VECTOR-001   │
-                    └── LORA-001     │
-                                     │
-                                  A2A-001
+[Phase 0 Foundation]
+CORE ─┬─ CONFIG ────────────────────────┐
+      │                                   │
+      ├─ TRANSPORT ───────────────────────┤
+      │                                   │
+      └─ QUERY ── CONTEXT                 │
+                    │                     │
+[Phase 1 Multi-LLM] │                     │
+                    │                     │
+   CREDPOOL ─┬─ ROUTER ─┬─ ADAPTER ◀─────┤
+             ├─ RATELIMIT│      │         │
+             └─ PROMPT-CACHE    │         │
+                                │         │
+[Phase 2 Primitives]            │         │
+   SKILLS ── HOOK ── SUBAGENT ─┼──── MCP ─┤
+                 │                         │
+[Phase 3 Primitives]                      │
+   TOOLS ── COMMAND ── CLI (개발용)        │
+                                           │
+[Phase 4 Self-Evolution]                  │
+   MEMORY ─┬─ TRAJECTORY ── COMPRESSOR   │
+           ├─ INSIGHTS                    │
+           └─ ERROR-CLASS ◀────────────────┘
+                        │
+[Phase 5 Safety]        │
+   REFLECT ── SAFETY ── ROLLBACK
+
+[Phase 6 ★v4.0 Cross-Platform]
+   DESKTOP (Tauri) ◀────── BRIDGE ◀───── RELAY (Rust)
+        │                    ▲            │
+        └─ QR pairing         │            │
+                              ▼            │
+                     MOBILE (RN) ──────────┘
+                              │
+                     GATEWAY (Telegram/Discord/KakaoTalk)
+
+[Phase 7 Daily Companion]
+   SCHEDULER ──┬─ WEATHER
+               ├─ FORTUNE (← IDENTITY, Phase 8)
+               ├─ CALENDAR
+               └─ HEALTH
+                    │
+                BRIEFING + JOURNAL ── RITUAL
+
+[Phase 8 Personalization]
+   IDENTITY ── VECTOR ── LORA (Rust 위임)
+
+[Phase 9]
+   A2A-001
 ```
 
 ---
 
 ## 3. 최적 구현 순서 (Milestone별)
 
-### Milestone 0: Agentic Foundation (M0) — 2주
-**목표**: 데몬 뜨고 단일 턴 LLM 호출 성공
-
-**순차 구현**:
+### M0 — Agentic Foundation (2주)
 ```
-01. CORE-001      (기존 v1.0, 최소 수정) ────┐
-02. CONFIG-001    (기존 v1.0) ────────────────┤  병렬 가능
-03. TRANSPORT-001 (기존 v1.0) ────────────────┘
-04. QUERY-001     (신규 ★ — 가장 복잡)
-05. CONTEXT-001   (QUERY의 Compactor 인터페이스 구현체)
+CORE → [CONFIG + TRANSPORT 병렬] → QUERY★ → CONTEXT
 ```
+**완료 기준**: Mock LLM으로 `<-chan SDKMessage` streaming 성공
 
-**완료 기준**: QueryEngine이 mock LLM으로 `<-chan SDKMessage` streaming 성공. AC-QUERY-01~10, AC-CONTEXT-01~08 모두 GREEN.
-
-**리스크**: QUERY-001의 state machine + continue sites 구현이 M0 전체 일정의 60% 차지.
-
----
-
-### Milestone 1: Multi-LLM + Error Handling (M1) — 3~4주
-**목표**: 실제 Anthropic/OpenAI/Ollama 호출 + 에러 분류/재시도
-
-**구현 경로** (병렬 가능 표시):
+### M1 — Multi-LLM + Error Handling (3주)
 ```
-06. CREDPOOL-001 (독립, 선행)
-    │
-    ├─→ 07. ROUTER-001         ─┐
-    ├─→ 08. RATELIMIT-001      │  [A그룹: 병렬 3개]
-    │                          │
-    └─→ 21. ERROR-CLASS-001 ───┘  ← ADAPTER 이전에 독립 진행 가능
-           │
-    07, 08 완료 후:
-           │
-           09. PROMPT-CACHE-001 (Anthropic 특화)
-                      │
-           10. ADAPTER-001 ★   (06+07+08+09+21 모두 소비, QUERY-001의 LLMCall 구현)
+CREDPOOL → [ROUTER + RATELIMIT + ERROR-CLASS 병렬 3개]
+        → PROMPT-CACHE → ADAPTER★ (Anthropic + OpenAI 먼저)
+```
+**완료 기준**: `goose ask "hello"` → 실제 Anthropic/OpenAI 응답
+
+### M2 — 4 Primitives (4주)
+```
+[SKILLS + HOOK + MCP 병렬 3개] → SUBAGENT → PLUGIN
+```
+**완료 기준**: 외부 MCP, Sub-agent fork, Skill 로드 동작
+
+### M3 — Developer CLI (1주) ← 범위 축소 (v3.0 대비)
+```
+TOOLS → COMMAND → CLI (개발·디버그·헤드리스 전용)
+```
+**완료 기준**: `goose ask --json --prompt "..."` 헤드리스 모드
+
+### M4 — Self-Evolution (3주)
+```
+[TRAJECTORY + MEMORY 병렬] → COMPRESSOR → INSIGHTS
 ```
 
-**완료 기준**: `goose ask "hello"` → Anthropic 또는 OpenAI 응답. 429 rate limit 시 auto rotation. 컨텍스트 초과 감지.
-
-**병렬화**: 팀 2명 → ROUTER/RATELIMIT/ERROR-CLASS 3개 동시 진행 가능. 단일 개발자는 순차.
-
-**리스크**: ADAPTER-001이 Phase 1의 통합점. OAuth PKCE(Anthropic)와 tool conversion(OpenAI-format → Anthropic schema)이 까다로움.
-
----
-
-### Milestone 2: 4 Primitives (M2) — 4주
-**목표**: Skills/MCP/Agents/Hooks 4 primitive 작동
-
-**구현 경로**:
+### M5 — Safety (2주)
 ```
-      SKILLS-001    HOOK-001    MCP-001
-      (QUERY 소비자) (QUERY 통합) (TRANSPORT만)
-          │            │            │
-          │            │            │  ← [B그룹: 3개 완전 병렬 가능]
-          │            │            │
-          └────────────┴────────────┘
-                       │
-                SUBAGENT-001 (SKILLS+HOOK 필요)
-                       │
-                 PLUGIN-001 (4 primitive 모두 필요, 마지막)
+REFLECT → SAFETY → ROLLBACK
 ```
 
-**완료 기준**: 
-- Skill 로드 및 fork 실행
-- MCP 외부 서버 연결 (Context7, Sequential-Thinking)
-- 24 hook 이벤트 발화 + PreToolUse permission gate
-- Sub-agent fork/worktree/background 3 isolation
-- Plugin manifest.json 로드
-
-**중요 주의**: **QUERY-001 v0.2.0 업데이트 필요**. SKILLS/HOOK이 QueryEngine의 `SubmitMessage`에 ProcessUserInput + HookDispatcher 훅 추가. Phase 2 완료 시점에 QUERY-001.md `HISTORY` 섹션에 `0.2.0` 추가 예정.
-
-**병렬화**: SKILLS/HOOK/MCP 3개는 완전 독립. 팀 3명이면 주 단위 압축 가능.
-
-**리스크**: `modelcontextprotocol/go-sdk`가 v0.x alpha — wrapper layer 필수. MoAI-ADK-Go 기존 26 agent 호환성 검증 필요.
-
----
-
-### Milestone 3: MVP 동작 (M3) — 2주
-**목표**: **사용자가 `goose` 실행 → TUI 대화 가능** (MVP Release 후보)
-
-**구현 경로**:
+### **M6 — Cross-Platform Clients (4주) 🆕 v0.4 Public Beta**
 ```
-16. TOOLS-001    (QUERY+MCP 소비, builtin 6개 + MCP 통합)
-     │
-17. COMMAND-001  (QUERY 소비, slash command)
-     │
-18. CLI-001      (v0.2.0 재작성: cobra + bubbletea TUI + Connect-gRPC)
+DESKTOP (Tauri v2) ─ 기본 UI 시작
+        │
+        └─ BRIDGE (Claude Code bridge/ 포팅)
+                  │
+                  ├─ RELAY (Rust crate) 병렬 가능
+                  │
+                  └─ MOBILE (React Native)
+                              │
+                              └─ GATEWAY (옵션, 후속)
 ```
-
-**완료 기준**: 
-```bash
-$ goose                    # TUI 대화 시작
-$ goose ask "fix bug in main.go"  # non-interactive
-$ goose session list              # session 관리
-$ goose tool list                 # tool 목록
-```
-
-**중요 주의**: QUERY-001 v0.2.0의 `Dispatcher.ProcessUserInput` 호출 확장 필요 (COMMAND-001 연계).
-
-**리스크**: TRANSPORT-001의 proto 확장 3개 (`AgentService/ChatStream`, `ToolService/List`, `ConfigService/*`) — CLI-001 범위 내 proto 추가로 문서화.
-
----
-
-### Milestone 4: Self-Evolution Core (M4) — 3주
-**목표**: 자율 학습 파이프라인 작동 (trajectory 수집 → 압축 → 통찰 → 메모리)
-
-**구현 경로**:
-```
-21. ERROR-CLASS-001 ✅ (M1에서 이미 완료)
-   │
-19. TRAJECTORY-001 (QUERY의 PostToolUse/SessionEnd hook 소비)    ─┐
-   │                                                              │
-22. MEMORY-001 (독립, Pluggable Provider)                          ├─ 병렬 가능
-   │                                                              │
-20. COMPRESSOR-001 (ROUTER의 Summarizer 필요)  ←──────────────────┘
-   │
-23. INSIGHTS-001 (TRAJECTORY + MEMORY 소비, 마지막)
-```
-
 **완료 기준**:
-- 매 세션 JSONL trajectory 저장 (success/failed 분리)
-- 15K+ token trajectory 자동 압축 (Gemini 3 Flash summarizer)
-- Weekly insight report: "가장 바쁜 요일 화요일, 최근 error rate 8% 증가"
-- Memory provider 인터페이스로 Honcho/Mem0 plug-in 가능
+- PC Desktop App 실행 → goosed daemon 자동 시작 → 메인 채팅 + 트레이 아이콘
+- Mobile App에서 QR 페어링 → PC와 원격 세션 수립
+- 아침 리추얼 푸시 알림 (Phase 7과 연계)
+- v0.4 Public Beta Release 가능
 
-**병렬화**: TRAJECTORY ↔ MEMORY 병렬. COMPRESSOR는 둘 다 소비하므로 후속.
-
-**리스크**: tokenizer 라이브러리(tiktoken-go vs 자체 구현) 결정. Pricing YAML 데이터 유지보수 주체 미정.
-
----
-
-### Milestone 5: Promotion & Safety (M5) — 2주
-**목표**: 학습 결과가 실제 사용자 상태를 변경하기 전 안전 게이트 통과
-
-**구현 경로 (순차 필수)**:
+### **M7 — Daily Companion (4주) 🏆 v1.0 Release**
 ```
-24. REFLECT-001  (INSIGHTS+MEMORY 소비, 5-tier 상태 머신)
-     │
-25. SAFETY-001   (REFLECT의 MarkGraduated 게이트, 5-layer)
-     │
-26. ROLLBACK-001 (REFLECT의 MarkRolledBack 호출자, regression 감지)
+SCHEDULER → [WEATHER + CALENDAR + HEALTH 병렬 3개]
+         → FORTUNE → BRIEFING + JOURNAL → RITUAL
 ```
-
 **완료 기준**:
-- Observation(1회) → Heuristic(3회) → Rule(5회+0.80) → HighConfidence(10회+0.95) → Graduated(사용자 승인 via Hook) state machine 작동
-- 5-layer safety (FrozenGuard/Canary/Contradiction/RateLimiter/HumanOversight) 통과 검증
-- 0.10 이상 score 하락 시 자동 rollback + 30일 쿨다운
+- 07:00 자동 아침 브리핑 (운세 + 날씨 + 일정)
+- 식사 후 건강/약 알림
+- 23:30 저녁 일기 자동 프롬프트
+- Mobile Push로 리추얼 알림
+- **v1.0 Release Milestone = 일상 반려 AI 완성**
 
-**리스크**: AskUserQuestion은 HOOK-001의 `HookEventApprovalRequest` 이벤트로만 간접 호출 (직접 호출 금지). 현 세션 orchestrator가 이 이벤트를 AskUserQuestion으로 변환해야 함.
+### M8 — Deep Personalization (4주) v1.5
+```
+[IDENTITY + VECTOR 병렬] → LORA (Rust 위임)
+```
+**완료 기준**: Weekly QLoRA 재훈련, 개체 고유성 확립
+
+### M9 — Ecosystem (옵션) v2.0
+A2A-001
 
 ---
 
-### Milestone 6: Deep Personalization + Ecosystem (M6) — 4~5주
-**목표**: Identity Graph + Preference Vector + User LoRA (사용자의 디지털 쌍둥이)
-
-**구현 경로**:
-```
-27. IDENTITY-001 (MEMORY+SAFETY 소비, POLE+O Kuzu) ─┐
-                                                     │ 병렬
-28. VECTOR-001   (MEMORY 소비, 768-dim Qdrant)     ─┘
-    │
-    └─→ 29. LORA-001 (VECTOR+SAFETY 소비, Go 인터페이스 + Rust goose-ml crate 위임)
-                │
-                └── A2A-001 병렬 가능 (M2 완료 시 언제든 착수)
-                    (MCP+SUBAGENT 소비)
-```
-
-**완료 기준**:
-- Identity Graph: 대화에서 엔티티 자동 추출 + 시간 추적
-- User LoRA: 매주 auto 재훈련 + 이전 버전 롤백
-- A2A: 외부 에이전트 Agent Card 디스커버리 + escrow 결제
-
-**중요 주의**: **LORA-001은 Go 인터페이스만 정의. 실제 Tensor/Gradient/ONNX/QLoRA 4-bit는 Rust `crates/goose-ml/`** (별도 `ROADMAP-RUST.md`). Go ↔ Rust gRPC 기본 (`unix:///tmp/goose-ml.sock`), CGO는 선택.
-
-**병렬화**: IDENTITY ↔ VECTOR 완전 병렬. A2A는 M2 이후 언제든 별도 트랙. LORA는 최후 (Rust 의존).
-
-**리스크**:
-- Kuzu Go 바인딩 1.26+ 호환성 미확인
-- Rust goose-ml 별도 팀/일정 필요
-- ONNX Runtime GenAI CGO 빌드 복잡도
-
----
-
-## 4. Critical Path 분석
+## 4. Critical Path 분석 (업데이트)
 
 ### 4.1 최단 경로 (순차 필수)
 ```
 CORE → CONFIG → TRANSPORT → QUERY → CONTEXT
 → CREDPOOL → ROUTER → ADAPTER
 → HOOK → SUBAGENT
-→ TOOLS → CLI                       [MVP Release 시점]
+→ TOOLS
+→ DESKTOP → BRIDGE → MOBILE          [v0.4 Public Beta]
 → TRAJECTORY → MEMORY → INSIGHTS
-→ REFLECT → SAFETY → ROLLBACK
-→ VECTOR → LORA                     [v1.0 Release 시점]
+→ REFLECT → SAFETY
+→ SCHEDULER → BRIEFING + JOURNAL → RITUAL [v1.0 Release]
+→ VECTOR → LORA                       [v1.5]
 ```
-총 **19 SPEC**. 나머지 11 SPEC(RATELIMIT, PROMPT-CACHE, ERROR-CLASS, SKILLS, MCP, PLUGIN, COMMAND, COMPRESSOR, IDENTITY, A2A, 3 DEPRECATED)은 critical path 외.
+총 **25 SPEC**. 나머지 18 SPEC은 critical path 외.
 
-### 4.2 병렬화 가능 지점
-| Milestone | 병렬 그룹 | 병렬 SPEC 수 | 절감 예상 |
-|-----------|---------|-------|--------|
-| M0 | CONFIG/TRANSPORT 병렬 | 2 | 30% |
-| M1 | ROUTER/RATELIMIT/ERROR-CLASS 병렬 | 3 | 40% |
-| M2 | SKILLS/HOOK/MCP 병렬 | 3 | 50% |
-| M4 | TRAJECTORY/MEMORY 병렬 | 2 | 30% |
-| M6 | IDENTITY/VECTOR 병렬 + A2A 별도 트랙 | 2+1 | 40% |
+### 4.2 병렬화 기회
 
-팀 2~3명 + 병렬화 최대 활용 시 **5개월 → 3.5개월** 단축 가능.
+| Milestone | 병렬 그룹 | 병렬 수 | 절감 |
+|-----------|---------|-------|------|
+| M0 | CONFIG/TRANSPORT | 2 | 30% |
+| M1 | ROUTER/RATELIMIT/ERROR-CLASS | 3 | 40% |
+| M2 | SKILLS/HOOK/MCP | 3 | 50% |
+| M4 | TRAJECTORY/MEMORY | 2 | 30% |
+| **M6** | **BRIDGE/RELAY → MOBILE** | 부분 | 25% |
+| **M7** | **WEATHER/CALENDAR/HEALTH** | 3 | 40% |
+| M8 | IDENTITY/VECTOR | 2 | 40% |
 
-### 4.3 Blocker SPEC (후속 대거 차단)
-1. **QUERY-001** — 19 후속 SPEC 직접 의존
-2. **MEMORY-001** — 6 후속 SPEC 직접 의존 (INSIGHTS/IDENTITY/VECTOR/LORA/REFLECT)
-3. **ADAPTER-001** — 4 후속 (QUERY 내부 + ERROR-CLASS + COMPRESSOR)
-4. **HOOK-001** — 3 후속 (SUBAGENT + PLUGIN + SAFETY 승인 플로우)
+팀 2~3명 병렬 시: **23주 → 17주 (~4개월)**로 압축 가능.
 
-→ 이 4개에 리소스 집중 권장.
+### 4.3 Blocker SPEC (후속 대거 의존)
+
+1. **QUERY-001** — 20+ 후속 SPEC 의존
+2. **MEMORY-001** — 8 후속 (INSIGHTS/IDENTITY/VECTOR/LORA/REFLECT/HEALTH/JOURNAL/RITUAL)
+3. **ADAPTER-001** — 5 후속
+4. **HOOK-001** — 5 후속 (SUBAGENT/PLUGIN/SAFETY/SCHEDULER/RITUAL)
+5. **🆕 BRIDGE-001** — Mobile + Gateway 차단
+6. **🆕 SCHEDULER-001** — Phase 7 전체 차단
+
+→ 6 blocker에 리소스 집중 권장.
 
 ---
 
-## 5. TDD 엄격도 적용 전략
+## 5. v4.0 신규 구현 고려사항
 
-모든 SPEC은 quality.yaml `development_mode: tdd` 기준:
+### 5.1 Desktop App 기본 UI 전환 (Phase 6 핵심)
 
-### 5.1 RED 단계 우선 작성
-각 SPEC의 AC(Given-When-Then)를 **실패 테스트**로 먼저 작성. 예:
-```go
-// TestQueryEngine_SubmitMessage_StreamsImmediately(t *testing.T)
-// TestCredPool_Select_RoundRobin(t *testing.T)  
-// TestSkillLoader_AllowlistDefaultDeny(t *testing.T)
-```
+**기존 v3.0**: CLI = MVP
+**v4.0**: Desktop App = MVP, CLI = 개발·헤드리스 보조
 
-### 5.2 GREEN 최소 구현
-테스트 통과 최소 코드만. 과도 추상화 금지.
+배포 대상:
+- macOS (Intel + Apple Silicon)
+- Linux (Ubuntu/Fedora/Arch)
+- Windows 10/11
 
-### 5.3 REFACTOR 후 Skill("simplify") 강제
-`run.md` Phase 2.10 — simplify skill 자동 실행 (MoAI 정책).
+Tauri v2 선택 이유:
+- React + Rust backend = 가벼움(~10MB) + 안전성
+- Native OS 통합 (tray, notification, keyboard shortcut)
+- Auto-update via Tauri updater
 
-### 5.4 Coverage 게이트
-Per-commit 85% minimum. Phase 4~6은 90%+ 권장 (복잡도 높음).
+CI 필요: GitHub Actions 5 플랫폼 매트릭스 빌드 + ed25519 서명
 
-### 5.5 Characterization Test (brownfield)
-MoAI-ADK-Go 상속 코드는 DDD 모드 추가 고려 (quality.yaml 임시 override). Phase 2 SUBAGENT-001이 해당 가능성 높음.
+### 5.2 Mobile Companion 페어링 (v4.0 핵심)
+
+**첫 사용 플로우**:
+1. PC Desktop App 실행 → QR 코드 표시
+2. Mobile App 스캔 → JWT 교환 → Trusted Device 등록
+3. Bridge 세션 수립 → E2EE (Noise Protocol via RELAY)
+4. 이후: Mobile은 Bridge 경유 PC 제어 가능
+
+**보안 계층**:
+- PC 로컬 저장 (일기/건강/Identity Graph)
+- JWT 24h 만료 + refresh token
+- Biometric lock (Mobile 로컬 캐시)
+- Post-quantum preshared key 옵션
+
+### 5.3 Phase 6 ↔ Phase 7 긴밀 결합
+
+Daily Rituals는 Desktop/Mobile UI 없이 체감 불가:
+- 🌅 Morning: Desktop 트레이 팝업 OR Mobile 푸시
+- 🍽️ Meals: Mobile 푸시 (외출 중에도 체감)
+- 🌙 Evening: Desktop 자연스러운 프롬프트
+
+→ **M6 완료 전 M7 시작 불가** (의존 관계 엄격).
+
+### 5.4 TDD 엄격도 (강화)
+
+Phase 6 Desktop/Mobile은 UI 포함:
+- Backend: Go unit test (단위당 85%+)
+- Frontend: Vitest/RTL (React), Detox (RN E2E)
+- Cross-platform E2E: Playwright (Desktop), Detox (Mobile)
+- Bridge: integration test (PC↔Mobile pairing scenarios)
 
 ---
 
-## 6. 인터페이스 계약 (Cross-Phase 공유 타입)
-
-Phase 간 계약이 일관되어야 컴파일 + 통합 테스트 성공:
+## 6. 인터페이스 계약 (v4.0 확장)
 
 | 인터페이스 | 정의 SPEC | 구현 SPEC |
 |----------|---------|---------|
 | `LLMCall` | QUERY-001 | ADAPTER-001 |
 | `Executor` (tool runner) | QUERY-001 | TOOLS-001 |
-| `Compactor` | CONTEXT-001 | COMPRESSOR-001 (offline) + 자체 (in-session) |
-| `Summarizer` | COMPRESSOR-001 | ADAPTER-001(어댑터 경유) |
-| `MemoryProvider` | MEMORY-001 | BuiltinProvider + Plugin |
-| `HookHandler` | HOOK-001 | QUERY-001 호출 + plugin 등록 |
-| `PermissionMatcher` | HOOK-001 | TOOLS-001 + SKILLS-001 |
-| `SafetyGate` | SAFETY-001 | REFLECT-001이 호출 |
-| `Restorer` | ROLLBACK-001 | LORA-001 (LoRA hot-swap) |
-| `SkillRegistry` | SKILLS-001 | COMMAND-001이 provider로 등록 |
-
-**권장**: M1 초반에 `internal/contracts/` 패키지 생성하여 순수 interface만 먼저 정의 (SPEC 구현 전). 각 SPEC은 이 contract를 implement. 순환 의존 방지.
+| `Compactor` | CONTEXT-001 | COMPRESSOR-001 |
+| `Summarizer` | COMPRESSOR-001 | ADAPTER(cheap) |
+| `MemoryProvider` | MEMORY-001 | Builtin + Plugin |
+| `HookHandler` | HOOK-001 | QUERY + SCHEDULER |
+| `SafetyGate` | SAFETY-001 | REFLECT 소비 |
+| **🆕 `BridgeSession`** | BRIDGE-001 | DESKTOP + MOBILE |
+| **🆕 `CryptoProvider`** | RELAY-001 | Rust goose-crypto |
+| **🆕 `RitualOrchestrator`** | RITUAL-001 | BRIEFING + HEALTH + JOURNAL |
+| **🆕 `ScheduledEvent`** | SCHEDULER-001 | HOOK-001 emit |
+| **🆕 `GatewayProvider`** | GATEWAY-001 | 7 플랫폼 구현 |
 
 ---
 
-## 7. 예상 공수 및 Release Milestone
+## 7. 예상 공수 및 Release
 
-### 7.1 인력별 일정 (TDD + Skill("simplify") 포함)
+### 7.1 인력별 일정 (TDD 엄격)
 
-| Milestone | 순차 기간 | 팀 2명 | 팀 3명 |
-|-----------|--------|--------|--------|
+| Milestone | 순차 | 팀 2명 | 팀 3명 |
+|-----------|------|--------|--------|
 | M0 Foundation | 3주 | 2주 | 1.5주 |
 | M1 Multi-LLM | 4주 | 3주 | 2주 |
-| M2 4 Primitive | 5주 | 4주 | 2.5주 |
-| M3 MVP CLI | 2주 | 2주 | 1.5주 |
+| M2 4 Primitives | 5주 | 4주 | 2.5주 |
+| M3 Dev CLI | 1.5주 | 1주 | 1주 |
 | M4 Self-Evolution | 4주 | 3주 | 2주 |
 | M5 Safety | 2주 | 2주 | 1.5주 |
-| M6 Personalization | 5주 | 4.5주 | 3주 |
-| **합계** | **25주** | **20.5주** | **14주** |
+| **M6 Cross-Platform** | **6주** | **4주** | **2.5주** |
+| **M7 Daily Companion** | **5주** | **4주** | **2.5주** |
+| M8 Personalization | 5주 | 4.5주 | 3주 |
+| **M0~M7 v1.0** | **30.5주** | **23주** | **15.5주** |
+| M0~M8 v1.5 | 35.5주 | 27.5주 | 18.5주 |
 
-Rust LoRA crate는 별도 트랙. Go 팀 1명 + Rust 팀 1명 필요.
+### 7.2 Release 타임라인
 
-### 7.2 Release Milestone
-- **v0.1 Alpha** (M0+M1 완료, ~5주): goose ask 동작
-- **v0.2 Beta** (M0~M3 완료, ~11주): MVP TUI + 4 primitive
-- **v0.5 RC** (M0~M5 완료, ~17주): 자기진화 + Safety gate
-- **v1.0 Release** (M0~M6 완료, ~22주): Personalization + A2A
-- **v1.5** (+ Rust LoRA 안정화, ~28주): Full polyglot 성능
+| Release | Milestone 포함 | 핵심 기능 |
+|---------|-------------|---------|
+| v0.1 Alpha | M0~M1 | goose ask CLI 동작 (헤드리스) |
+| v0.2 Beta | M0~M2 | 4 Primitive 완성 |
+| v0.3 Beta | M0~M3 | Developer CLI 안정화 |
+| **v0.4 Public Beta** | **M0~M6** | **Desktop + Mobile + Bridge** |
+| v0.5 RC | + M5 | Safety 게이트 + 품질 |
+| **v1.0 Release** | **M0~M7** | **일상 반려 AI 완성** ✨ |
+| v1.5 | + M8 | 개인화 LoRA |
+| v2.0 | + M9 | A2A + Ecosystem |
 
 ---
 
@@ -430,79 +342,72 @@ Rust LoRA crate는 별도 트랙. Go 팀 1명 + Rust 팀 1명 필요.
 /moai run SPEC-GOOSE-CORE-001
 ```
 - manager-tdd 서브에이전트가 AC-CORE-01~06 실패 테스트 작성
-- go.mod 초기화 (Go 버전 확정 필요: tech.md 1.26+ 명시, 실제 최신 확인)
+- Go 1.26+ 버전 확정 후 go.mod 초기화
 - cmd/goosed + internal/core + internal/health 스켈레톤
 
 ### 8.2 병행 준비 작업
-- **`internal/contracts/` 인터페이스 패키지** 선제 생성 (LLMCall, MemoryProvider, HookHandler, Executor, Compactor, Summarizer, PermissionMatcher, SafetyGate 순수 interface)
-- `.moai/project/security.md` 작성 (redact 규칙 거버넌스)
-- Rust goose-ml crate 별도 리포 초기화 (LORA-001 준비)
-- `proto/` 디렉토리 초기 스키마 (TRANSPORT-001 + CLI-001 확장 3개)
+- **`internal/contracts/` 인터페이스 패키지** 선제 생성 (14개 interface 순수 선언)
+- `.moai/project/security.md` 작성 (privacy 거버넌스)
+- Rust `crates/goose-ml/`, `crates/goose-crypto/` 별도 리포 초기화 준비
+- `proto/` 디렉토리 초기 스키마 + Connect-gRPC client/server proto
+- **🆕 `packages/goose-desktop/`, `packages/goose-mobile/` 스캐폴드 사전 배치 (Tauri create + RN init)**
+- **🆕 Tauri updater ed25519 키페어 생성 + CI secret 등록**
 
-### 8.3 의사결정 필요 항목 (구현 진입 전 확정)
-| # | 결정 항목 | 영향 SPEC | 시점 |
-|---|---------|---------|------|
-| 1 | Go 버전 고정 | 전체 | CORE-001 RED 직전 |
-| 2 | sqlite 드라이버 (modernc.org vs mattn) | MEMORY-001 | M4 진입 전 |
-| 3 | Tokenizer 라이브러리 | COMPRESSOR, RATELIMIT, CONTEXT | M1 진입 전 |
-| 4 | Graph DB (Kuzu 임베디드 vs Neo4j) | IDENTITY-001 | M6 진입 전 |
-| 5 | LoRA Base Model (Qwen3-0.6B vs Gemma-1B) | LORA-001 | M6 진입 전 |
-| 6 | LLM Stream 인터페이스 (`<-chan Chunk` 확정) | ADAPTER-001 | M1 진입 전 |
-| 7 | proto 생성물 commit 정책 | TRANSPORT-001 | CORE-001 직후 |
-| 8 | Rust goose-ml 배포 방식 (embedded vs 별도 바이너리) | LORA-001 | M6 진입 전 |
+### 8.3 의사결정 필요 항목 (구현 진입 전 확정, 20건)
 
----
-
-## 9. 주요 리스크 및 완화
-
-| 리스크 | 영향 SPEC | 완화 방안 |
-|------|---------|---------|
-| `modelcontextprotocol/go-sdk` v0.x alpha 불안정 | MCP-001 | Wrapper layer 필수, SDK 버전 pinning |
-| Anthropic OAuth PKCE 수동 구현 | ADAPTER-001, CREDPOOL-001 | anthropic-sdk-go 기능 확인 후 fallback HTTP client |
-| 토큰 카운팅 정확도 | CONTEXT-001, COMPRESSOR-001, RATELIMIT-001 | MVP는 `/4 + overhead` 근사, v0.5+ tiktoken-go 정밀화 |
-| QUERY-001 state machine 복잡도 | QUERY-001 | Claude Code `query.ts` 68KB 원문 라인-by-라인 포팅 |
-| Rust goose-ml 팀 공수 | LORA-001 | Go 인터페이스 먼저 + mock gRPC로 end-to-end → Rust 후속 |
-| AskUserQuestion 간접 호출 복잡도 | SAFETY-001, REFLECT-001 | HOOK-001의 Approval 이벤트 표준화 + 오케스트레이터 layer 문서화 |
-| 기존 MoAI-ADK-Go 호환성 | SUBAGENT-001, PLUGIN-001 | 초기 로드 테스트 + legacy adapter 도입 판단 |
+위 ROADMAP §12 참조. 주요 6건:
+1. Go 버전 고정
+2. Rust crate 배포 방식 (embedded vs 별도 바이너리)
+3. Tokenizer 선택
+4. Graph DB (Kuzu vs Neo4j)
+5. Tauri updater 키 관리
+6. 카카오 알림톡 벤더 (Solapi vs 직접 계약)
 
 ---
 
-## 10. 최종 권장 순서 요약
+## 9. v4.0 최종 권장 순서
 
 ```
-[M0 Foundation ─ 2주]
-    CORE ═══▶ CONFIG + TRANSPORT (병렬) ═══▶ QUERY ★ ═══▶ CONTEXT
+M0 Foundation (2주)
+  CORE → [CONFIG + TRANSPORT] 병렬 → QUERY★ → CONTEXT
 
-[M1 Multi-LLM ─ 3주]
-    CREDPOOL ═══▶ [ROUTER + RATELIMIT + ERROR-CLASS] (병렬 3개) ═══▶
-    PROMPT-CACHE ═══▶ ADAPTER ★
+M1 Multi-LLM (3주)
+  CREDPOOL → [ROUTER + RATELIMIT + ERROR-CLASS] 병렬 → PROMPT-CACHE → ADAPTER★
 
-[M2 4 Primitive ─ 4주]
-    [SKILLS + HOOK + MCP] (병렬 3개) ═══▶ SUBAGENT ═══▶ PLUGIN
+M2 4 Primitives (4주)
+  [SKILLS + HOOK + MCP] 병렬 → SUBAGENT → PLUGIN
 
-[M3 MVP CLI ─ 2주]  ← v0.2 Beta Release
-    TOOLS ═══▶ COMMAND ═══▶ CLI
+M3 Dev CLI (1주)
+  TOOLS → COMMAND → CLI
 
-[M4 Self-Evolution ─ 3주]
-    [TRAJECTORY + MEMORY] (병렬) ═══▶ COMPRESSOR ═══▶ INSIGHTS
+M4 Self-Evolution (3주)
+  [TRAJECTORY + MEMORY] 병렬 → COMPRESSOR → INSIGHTS
 
-[M5 Safety ─ 2주]  ← v0.5 RC Release
-    REFLECT ═══▶ SAFETY ═══▶ ROLLBACK
+M5 Safety (2주)
+  REFLECT → SAFETY → ROLLBACK
 
-[M6 Personalization ─ 4주]  ← v1.0 Release
-    [IDENTITY + VECTOR] (병렬) ═══▶ LORA (+ Rust 위임)
-    A2A (별도 트랙, M2 완료 시 언제든)
+M6 Cross-Platform (4주) ← v0.4 Public Beta
+  DESKTOP → BRIDGE → [RELAY + MOBILE] 부분병렬 → GATEWAY
+
+M7 Daily Companion (4주) ← v1.0 Release
+  SCHEDULER → [WEATHER + CALENDAR + HEALTH] 병렬
+           → FORTUNE → BRIEFING + JOURNAL → RITUAL
+
+M8 Personalization (4주) ← v1.5
+  [IDENTITY + VECTOR] 병렬 → LORA (Rust 위임)
+
+M9 Ecosystem (선택, v2.0)
+  A2A
 ```
 
-**첫 실행 커맨드**:
+**첫 실행 커맨드** (Go 버전 확정 후):
 ```bash
-# (Go 버전 확정 후)
 cd /Users/goos/MoAI/AgentOS
 /moai run SPEC-GOOSE-CORE-001
 ```
 
 ---
 
-**Version**: 1.0.0
+**Version**: 4.0.0
 **License**: MIT (본 문서 포함)
-**다음 단계**: 사용자 최종 승인 → Go 버전 확정 → `/moai run SPEC-GOOSE-CORE-001` TDD RED 진입
+**Next action**: 최종 승인 → Go 버전 확정 → `/moai run SPEC-GOOSE-CORE-001` TDD RED 진입
