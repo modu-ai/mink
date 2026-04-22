@@ -1,8 +1,8 @@
-# GOOSE-AGENT SPEC 로드맵 v4.0
+# GOOSE-AGENT SPEC 로드맵 v5.0
 
-> **프로젝트**: GOOSE-AGENT v6.0 Daily Companion Edition (Cross-Platform)
+> **프로젝트**: GOOSE-AGENT v6.0 Daily Companion Edition (Cross-Platform + Global Localization)
 > **작성일**: 2026-04-22
-> **이전**: v3.0 (38 SPEC, Daily Companion 추가), v2.0 (30 SPEC), v1.0 (22 SPEC)
+> **이전**: v4.0 (43 SPEC, Cross-Platform 추가), v3.0 (38 SPEC, Daily Companion), v2.0 (30 SPEC), v1.0 (22 SPEC)
 > **대화 언어**: 한국어 · **코드 식별자**: 영어
 > **개발 방법론**: TDD (`development_mode: tdd`)
 > **라이선스**: MIT
@@ -104,10 +104,11 @@ v4.0 신규 DOMAIN: `DESKTOP`, `MOBILE`, `BRIDGE`, `RELAY`, `GATEWAY`
 | 25 | SPEC-GOOSE-SAFETY-001 | 5-layer Safety | P1 | M |
 | 26 | SPEC-GOOSE-ROLLBACK-001 | Regression Rollback | P1 | S |
 
-### Phase 6 — **Cross-Platform Clients (5 SPEC, P0) ★ v4.0 신규**
+### Phase 6 — **Cross-Platform Clients + Global Localization (9 SPEC, P0~P2) ★ v5.0 확장**
 
-> 목표: CLI가 아닌 **Desktop App 기본 + Mobile 동반**. Claude Code bridge + Hermes gateway 흡수.
+> 목표: CLI가 아닌 **Desktop App 기본 + Mobile 동반** + **Hermes 수준 다국어(20+) + 국가별 Skill 자동 번들**.
 
+**6a. Cross-Platform (5 SPEC, v4.0)**
 | # | SPEC-ID | 제목 | 우선 | 범위 | 의존성 |
 |---|---------|-----|-----|-----|-------|
 | 27 | **SPEC-GOOSE-DESKTOP-001** ★ | Tauri v2 Desktop App (기본 UI) | P0 | L | TRANSPORT, QUERY |
@@ -116,32 +117,40 @@ v4.0 신규 DOMAIN: `DESKTOP`, `MOBILE`, `BRIDGE`, `RELAY`, `GATEWAY`
 | 30 | **SPEC-GOOSE-MOBILE-001** ★ | React Native Mobile (iOS/Android, PC 원격 제어) | P0 | L | BRIDGE, RELAY |
 | 31 | SPEC-GOOSE-GATEWAY-001 | Multi-platform (Telegram/Discord/Slack/Matrix/KakaoTalk/WeChat/Webhook) | P2 | M | BRIDGE, MCP |
 
+**6b. Localization (4 SPEC, v5.0 신규) ★**
+| # | SPEC-ID | 제목 | 우선 | 범위 | 의존성 |
+|---|---------|-----|-----|-----|-------|
+| 32 | **SPEC-GOOSE-LOCALE-001** ★ | 국가/언어/타임존/통화/문화권 감지 (OS locale + IP fallback) | P0 | S | CONFIG |
+| 33 | **SPEC-GOOSE-I18N-001** ★ | 20+ 언어 UI (go-i18n/v2 + i18next + ICU + RTL) | P0 | M | LOCALE |
+| 34 | SPEC-GOOSE-REGION-SKILLS-001 | 국가별 Skill 자동 활성화 (KR/JP/CN/US/EU/VN/IN/BR/DE/AR-region) | P1 | M | SKILLS, LOCALE |
+| 35 | **SPEC-GOOSE-ONBOARDING-001** ★ | 첫 설치 8단계 온보딩 (Welcome→Locale→Identity→Pattern→Interests→Ritual→LLM→Consent) | P0 | M | LOCALE, I18N, DESKTOP |
+
 ### Phase 7 — **Daily Companion (8 SPEC, P0~P1) ★ v3.0 유지**
 
 > 목표: 양방향 반려. Morning/Meals×3/Evening 3회 리추얼로 감정적 유대 구축.
 
 | # | SPEC-ID | 제목 | 우선 | 범위 | 의존성 |
 |---|---------|-----|-----|-----|-------|
-| 32 | **SPEC-GOOSE-SCHEDULER-001** ★ | Proactive Cron Scheduler | P0 | M | HOOK, CORE |
-| 33 | SPEC-GOOSE-WEATHER-001 | 날씨 (OpenWeather + 기상청 KMA) | P1 | S | TOOLS |
-| 34 | SPEC-GOOSE-FORTUNE-001 | 개인화 운세 (사주·바이오리듬·LLM) | P1 | M | ADAPTER, IDENTITY |
-| 35 | **SPEC-GOOSE-CALENDAR-001** ★ | 일정 (Google/Apple/Outlook/Naver) | P0 | M | MCP |
-| 36 | **SPEC-GOOSE-BRIEFING-001** ★ | 아침 브리핑 오케스트레이션 | P0 | M | FORTUNE, WEATHER, CALENDAR, SCHEDULER |
-| 37 | SPEC-GOOSE-HEALTH-001 | 식사·복약 트래커 (한국 식약처 DUR) | P1 | M | SCHEDULER, MEMORY |
-| 38 | **SPEC-GOOSE-JOURNAL-001** ★ | 저녁 일기 + 감정 태깅 + 추억 호출 | P0 | M | MEMORY, INSIGHTS, SAFETY |
-| 39 | **SPEC-GOOSE-RITUAL-001** ★ | 3회 리추얼 통합 오케스트레이션 | P0 | L | BRIEFING, HEALTH, JOURNAL |
+| 36 | **SPEC-GOOSE-SCHEDULER-001** ★ | Proactive Cron Scheduler | P0 | M | HOOK, CORE |
+| 37 | SPEC-GOOSE-WEATHER-001 | 날씨 (OpenWeather + 기상청 KMA + 국가별) | P1 | S | TOOLS, LOCALE |
+| 38 | SPEC-GOOSE-FORTUNE-001 | 개인화 운세 (사주·바이오리듬·LLM) | P1 | M | ADAPTER, IDENTITY, LOCALE |
+| 39 | **SPEC-GOOSE-CALENDAR-001** ★ | 일정 (Google/Apple/Outlook/Naver) | P0 | M | MCP |
+| 40 | **SPEC-GOOSE-BRIEFING-001** ★ | 아침 브리핑 오케스트레이션 (i18n 적용) | P0 | M | FORTUNE, WEATHER, CALENDAR, SCHEDULER, I18N |
+| 41 | SPEC-GOOSE-HEALTH-001 | 식사·복약 트래커 (국가별 약품 DB) | P1 | M | SCHEDULER, MEMORY, LOCALE |
+| 42 | **SPEC-GOOSE-JOURNAL-001** ★ | 저녁 일기 + 감정 태깅 + 추억 호출 | P0 | M | MEMORY, INSIGHTS, SAFETY, I18N |
+| 43 | **SPEC-GOOSE-RITUAL-001** ★ | 3회 리추얼 통합 오케스트레이션 | P0 | L | BRIEFING, HEALTH, JOURNAL |
 
 ### Phase 8 — Deep Personalization (3 SPEC, P2)
 > v3.0의 Phase 6에서 이동. Phase 6/7 후에 LoRA·Identity Graph 개인화.
 
-| 40 | SPEC-GOOSE-IDENTITY-001 | Identity Graph (POLE+O, Kuzu) | P2 | L |
-| 41 | SPEC-GOOSE-VECTOR-001 | Preference Vector (768-dim) | P2 | M |
-| 42 | SPEC-GOOSE-LORA-001 | User QLoRA Trainer (Rust 위임) | P2 | L |
+| 44 | SPEC-GOOSE-IDENTITY-001 | Identity Graph (POLE+O, Kuzu) | P2 | L |
+| 45 | SPEC-GOOSE-VECTOR-001 | Preference Vector (768-dim) | P2 | M |
+| 46 | SPEC-GOOSE-LORA-001 | User QLoRA Trainer (Rust 위임) | P2 | L |
 
 ### Phase 9 — Ecosystem (1 SPEC, P2)
-| 43 | SPEC-GOOSE-A2A-001 | Agent Communication Protocol | P2 | L |
+| 47 | SPEC-GOOSE-A2A-001 | Agent Communication Protocol | P2 | L |
 
-**합계**: **43 SPEC · 10 Phase · 총 약 720+ REQ / 420+ AC**
+**합계**: **47 SPEC · 10 Phase · 약 790+ REQ / 475+ AC**
 
 ★ = Critical Path
 
@@ -301,6 +310,8 @@ A2A-001
 10. **🆕 PC-First, Mobile-Companion** (PC가 메인, Mobile은 항상 함께)
 11. **🆕 E2EE Always** (PC↔Mobile 간 plaintext 접근 불가능)
 12. **🆕 Progressive Disclosure on UI** (Desktop 풀 UI → Mobile 핵심 기능 → CLI 헤드리스)
+13. **🆕 Global First, Local Second (v5.0)** — 설치 시 국가·언어 자동 감지, 20+ 언어 UI, 10개 국가 Skill 자동 번들, Hermes 수준 다국어
+14. **🆕 Cultural Adaptation** — 존댓말·敬語·정중 등 LLM 프롬프트에 자동 주입, 문화권별 etiquette
 
 ---
 
@@ -355,6 +366,15 @@ A2A-001
 18. **카카오 알림톡 벤더**: Solapi vs 직접 계약
 19. **WeChat 중국 법인**: v0.1 스텁만 or 제외
 20. **HOOK-001 EventName 확장**: SCHEDULER가 5개 신규 요청 → HOOK-001 minor bump
+
+### v5.0 신규 (Localization)
+21. **Tier 2 커뮤니티 번역 리뷰어 모집**: 12개 언어별 native reviewer 필요
+22. **MaxMind GeoLite2 DB 배포**: 앱 번들 vs on-demand 다운로드 (50MB+)
+23. **Windows PowerShell locale detection**: `chcp` vs `Get-Culture` 이중 경로
+24. **음력 공휴일 정확성**: 2050년까지 Lunar-Gregorian DB 정확성 검증
+25. **카스트·분쟁지역 민감 Skill**: 인도 카스트 중립성, 대만·홍콩 분리 여부
+26. **Ollama 모델 번들 전략**: Onboarding에서 자동 pull vs 수동 선택
+27. **재온보딩 권한**: 사용자가 나중에 locale 변경 시 full re-onboarding or minor update
 
 ---
 
