@@ -259,4 +259,3 @@ func TestAllStrategies_EmptyList_ReturnsError(t *testing.T) {
 		})
 	}
 }
-
