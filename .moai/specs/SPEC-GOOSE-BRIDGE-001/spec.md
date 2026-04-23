@@ -12,7 +12,17 @@ size: 대(L)
 lifecycle: spec-anchored
 ---
 
-# SPEC-GOOSE-BRIDGE-001 — PC↔Mobile 원격 세션 Bridge 프로토콜
+# SPEC-GOOSE-BRIDGE-001 — Daemon ↔ Web UI Local Bridge
+
+> **v0.2 Amendment (2026-04-24)**: SPEC-GOOSE-ARCH-REDESIGN-v0.2 에 따라 **스코프 축소**.
+> 제거: PC↔Mobile 원격 세션 Bridge, 외부망 릴레이, 모바일 디바이스 discovery.
+> 유지: **goosed daemon ↔ localhost Web UI bridge** (WebSocket/SSE, 단일 머신 내부 통신).
+> 비개발자용 Web UI 접근 전용. 외부 네트워크 노출 불가 (localhost:PORT 바인딩만).
+> 기존 본문은 원격 Bridge 맥락 참조용으로만 유지.
+
+---
+
+## 원본 타이틀: PC↔Mobile 원격 세션 Bridge 프로토콜 ★ 스코프 축소됨
 
 ## HISTORY
 

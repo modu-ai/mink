@@ -12,7 +12,17 @@ size: 중(M)
 lifecycle: spec-anchored
 ---
 
-# SPEC-GOOSE-ONBOARDING-001 — First-Install 8-Step Onboarding Flow (Desktop-hosted)
+# SPEC-GOOSE-ONBOARDING-001 — CLI + Web UI Install Wizard
+
+> **v0.2 Amendment (2026-04-24)**: SPEC-GOOSE-ARCH-REDESIGN-v0.2 에 따라 **스코프 축소**.
+> 제거: 이메일 가입/로그인 플로우, 모바일 디바이스 페어링 단계, Apple Native 초기 설정.
+> 유지: **`goose init` CLI 마법사** + **Web UI 설치·설정 마법사** (비개발자 대응).
+> 초기 설정 범위: `./.goose/` 생성 → persona/soul.md 입력 → provider key 저장 (OS keyring) → 첫 messenger 채널 활성화.
+> 기존 8-step 플로우는 재구성 필요.
+
+---
+
+## 원본 타이틀: First-Install 8-Step Onboarding Flow ★ 스코프 축소됨
 
 ## HISTORY
 

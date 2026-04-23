@@ -12,7 +12,17 @@ size: 중(M)
 lifecycle: spec-first
 ---
 
-# SPEC-GOOSE-AUTH-001 — Zero-Knowledge Email + Device Key Management ★ v6.1 신규
+# SPEC-GOOSE-AUTH-001 — Local Token-Based Authentication
+
+> **v0.2 Amendment (2026-04-24)**: SPEC-GOOSE-ARCH-REDESIGN-v0.2 에 따라 **스코프 축소**.
+> 제거: 이메일 가입 플로우, QR 페어링, 디바이스 키 교환 (multi-device sync 전제 폐기).
+> 유지: Web UI · CLI 용 **로컬 token 기반 auth** (localhost 접근 제어, API bearer token).
+> 관련 키 보관은 SPEC-GOOSE-CREDENTIAL-PROXY-001 + OS keyring 으로 이관.
+> 기존 본문은 v6.1 맥락 참조용으로만 유지; 실제 구현은 축소된 스코프만 반영한다.
+
+---
+
+## 원본 타이틀 (v6.1): Zero-Knowledge Email + Device Key Management ★ 스코프 축소됨
 
 > **상태**: 스켈레톤. M6 Week 2 진입 시 manager-spec이 완전 작성.
 

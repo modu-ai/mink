@@ -12,7 +12,17 @@ size: 중(M)
 lifecycle: spec-first
 ---
 
-# SPEC-GOOSE-NOTIFY-001 — Unified Push Notifications ★ v6.0 신규
+# SPEC-GOOSE-NOTIFY-001 — Messenger Gateway Notifications
+
+> **v0.2 Amendment (2026-04-24)**: SPEC-GOOSE-ARCH-REDESIGN-v0.2 에 따라 **스코프 축소**.
+> 제거: APNs (Apple Push Notification) 통합, FCM (Firebase Cloud Messaging) 통합, 네이티브 모바일 OS 푸시.
+> 유지: **Messenger gateway push** (Telegram Bot API · Web UI SSE · CLI stderr 알림).
+> 원격 알림은 각 messenger provider의 네이티브 채널을 활용.
+> 기존 본문은 v6.0 맥락 참조용으로만 유지.
+
+---
+
+## 원본 타이틀 (v6.0): Unified Push Notifications ★ 스코프 축소됨
 
 > **상태**: 스켈레톤. M6 Week 2 진입 시 manager-spec이 완전 작성.
 
