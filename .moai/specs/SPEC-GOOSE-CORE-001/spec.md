@@ -157,21 +157,45 @@ GOOSE-AGENT의 모든 후속 기능이 붙어야 할 **Go 데몬 프로세스 `g
 
 ---
 
-## 6. 기술 스택 (확정)
+## 6. 기술 스택 (확정, v0.2 재편 반영)
 
 > M0 구현 시 사용하는 의존성 목록. 후속 SPEC 작성자는 이 항목을 기준으로 삼을 것.
+> 본 섹션은 SPEC-GOOSE-ARCH-REDESIGN-v0.2 확정본과 정합된다 (`.moai/design/goose-runtime-architecture-v0.2.md`).
+
+### 6.1 모듈 & 바이너리
+
+| 항목 | 값 |
+|-----|------|
+| **Module path** | `github.com/modu-ai/goose` |
+| **Binaries** | `goosed` (daemon), `goose` (user CLI), `goose-proxy` (zero-knowledge credential proxy) |
+| **Storage 2원화** | `~/.goose/` (credentials only) + `./.goose/` (project workspace) |
+
+### 6.2 핵심 의존성
 
 | 구분 | 패키지 / 버전 | 근거 |
 |-----|-------------|------|
-| **Go 런타임** | `go 1.26` | 최신 안정 릴리스; 지시사항에서 명시적으로 지정 |
-| **SQLite 드라이버** | `modernc.org/sqlite` (CGO-free) | CGO 없이 순수 Go로 동작; 크로스컴파일 용이 |
-| **토크나이저** | `github.com/pkoukk/tiktoken-go` | tiktoken 호환 Go 구현; LLM 토큰 계산 (Phase 2+) |
-| **그래프 DB** | `github.com/kuzudb/go-kuzu` (임베디드) | 임베디드 그래프 DB; Phase 8 메모리 계층에서 활성화 |
-| **LLM 스트림** | `google.golang.org/grpc` (gRPC streaming) | TRANSPORT-001 설계와 일관; 양방향 스트리밍 |
-| **Rust CGO** | CGO-embedded staticlib (defer) | 실제 바인딩은 후속 SPEC으로 유예; tech.md §1.2 Rust 20% 할당 기반 |
+| **Go 런타임** | `go 1.26` | 최신 안정 릴리스 |
+| **SQLite 드라이버** | `modernc.org/sqlite` (CGO-free) | 순수 Go, 크로스컴파일 용이; 단일 `goose.db` WAL 모드 |
+| **DB Migration** | `golang-migrate` embedded | up/down SQL 파일 `go:embed` 번들 |
+| **토크나이저** | `github.com/pkoukk/tiktoken-go` | tiktoken 호환; LLM 토큰 계산 (Phase 2+) |
+| **그래프 DB** | `github.com/kuzudb/go-kuzu` (임베디드) | Phase 8 Semantic memory에서 활성화 |
+| **LLM 스트림** | `google.golang.org/grpc` (gRPC streaming) | TRANSPORT-001 설계와 일관 |
+| **Hybrid 검색 (신규)** | `qntx-labs/qmd` (Rust, CGO staticlib) | M1 편입; BM25 + vector + LLM rerank; markdown 의미 검색 |
+| **Rust CGO** | CGO-embedded staticlib | QMD · (후속) LoRA · crypto; 단일 바이너리 유지 |
+| **OS Keyring** | `github.com/zalando/go-keyring` | macOS Keychain / libsecret / Windows Cred Vault 추상 |
 
-> **Phase 0 (본 SPEC)** 에서는 `modernc.org/sqlite`, gRPC, tiktoken-go, go-kuzu를 `go.mod`에 추가하되,
-> 실제 사용은 GREEN 단계 또는 후속 SPEC에서 진행한다. CGO staticlib 바인딩은 완전히 유예.
+### 6.3 보안 스택 (M5 Safety 확장)
+
+| 계층 | 도구 / 기법 |
+|-----|-----------|
+| Tier 1 Storage partition | 파일시스템 분리 (`~/.goose/secrets/` vs `./.goose/**`) |
+| Tier 2 FS access matrix | `security.yaml` allowlist/denylist + blocked_always 목록 |
+| Tier 3 OS sandbox | macOS Seatbelt, Linux Landlock+Seccomp, Windows AppContainer |
+| Tier 4 Zero-knowledge proxy | OS keyring + `goose-proxy` transport injection |
+| Tier 5 Declared permission | Skill/MCP frontmatter `requires:` + first-call confirm |
+
+> **Phase 0 (본 SPEC)** 에서는 `modernc.org/sqlite`, gRPC, tiktoken-go를 `go.mod`에 추가하되,
+> 실제 사용은 후속 SPEC에서 진행한다. Kuzu는 Phase 8, QMD는 M1, Rust CGO staticlib 바인딩은 M5/M8로 유예.
 
 ---
 
@@ -181,7 +205,7 @@ GOOSE-AGENT의 모든 후속 기능이 붙어야 할 **Go 데몬 프로세스 `g
 
 ```
 / (repo root)
-├── go.mod                          # module github.com/gooseagent/goose (Go 1.22+)
+├── go.mod                          # module github.com/modu-ai/goose (Go 1.26+)
 ├── cmd/goosed/main.go              # 진입점: 15~30줄, argparse, build-time version
 ├── internal/core/
 │   ├── bootstrap.go                # bootstrap() → context, config, logger

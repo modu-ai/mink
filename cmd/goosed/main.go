@@ -9,9 +9,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/moai/goose/internal/config"
-	"github.com/moai/goose/internal/core"
-	"github.com/moai/goose/internal/health"
+	"github.com/modu-ai/goose/internal/config"
+	"github.com/modu-ai/goose/internal/core"
+	"github.com/modu-ai/goose/internal/health"
 	"go.uber.org/zap"
 )
 

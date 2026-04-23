@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/moai/goose/internal/core"
+	"github.com/modu-ai/goose/internal/core"
 	"go.uber.org/zap"
 )
 

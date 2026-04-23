@@ -24,9 +24,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/moai/goose/internal/config"
-	"github.com/moai/goose/internal/core"
-	"github.com/moai/goose/internal/health"
+	"github.com/modu-ai/goose/internal/config"
+	"github.com/modu-ai/goose/internal/core"
+	"github.com/modu-ai/goose/internal/health"
 )
 
 // TestBootstrap_SucceedsWithEmptyConfig는 AC-CORE-001을 검증한다.
@@ -350,7 +350,7 @@ func TestDraining_Returns503(t *testing.T) {
 func buildGoosed(t *testing.T) string {
 	t.Helper()
 	binPath := filepath.Join(t.TempDir(), "goosed")
-	cmd := exec.Command("go", "build", "-o", binPath, "github.com/moai/goose/cmd/goosed")
+	cmd := exec.Command("go", "build", "-o", binPath, "github.com/modu-ai/goose/cmd/goosed")
 	cmd.Env = os.Environ()
 	out, err := cmd.CombinedOutput()
 	if err != nil {

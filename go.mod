@@ -1,4 +1,4 @@
-module github.com/moai/goose
+module github.com/modu-ai/goose
 
 go 1.26
 
