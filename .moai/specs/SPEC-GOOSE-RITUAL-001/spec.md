@@ -14,6 +14,12 @@ lifecycle: spec-anchored
 
 # SPEC-GOOSE-RITUAL-001 — Daily Ritual Orchestrator (Morning + Meals×3 + Evening, Bond Level, Streaks, Mood-adaptive)
 
+> **v0.2 Amendment (2026-04-24)**: SPEC-GOOSE-ARCH-REDESIGN-v0.2 와 정합 확인.
+> 본 SPEC의 mood-adaptive 패턴은 v0.2 설계의 "Adaptive Ritual Engine" 개념과 일치한다.
+> 추가 확장 포인트: `if_weather` / `if_day_of_week` / `if_growth_stage` adaptive 규칙.
+> 실행 이력은 `./.goose/rituals/{id}/runs/` + `ritual_runs` DB 테이블에 기록.
+> 구현 시 `.moai/design/goose-runtime-architecture-v0.2.md` §9 참조.
+
 ## HISTORY
 
 | 버전 | 날짜 | 변경 사유 | 담당 |
