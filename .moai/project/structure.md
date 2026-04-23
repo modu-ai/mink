@@ -430,10 +430,28 @@ goose-agent/
 │   │   ├── language/           # 언어별 규칙 (18개)
 │   │   └── domain/             # 도메인 규칙
 │   │
-│   ├── skills/                 # 47+ Skill (Progressive Disclosure)
+│   ├── skills/                 # 51+ Skill (Progressive Disclosure)
+│   │   │
+│   │   ├── moai/                # MoAI 핵심 스킬
+│   │   │   ├── SKILL.md
+│   │   │   └── workflows/       # 워크플로우 실행
+│   │   │       ├── plan.md
+│   │   │       ├── run.md
+│   │   │       ├── sync.md
+│   │   │       ├── design.md    # 신규: 창작 생산
+│   │   │       └── db.md        # 신규: DB 메타 관리
+│   │   │
 │   │   ├── moai-foundation-core/
 │   │   ├── moai-workflow-project/
 │   │   ├── moai-workflow-ddd/
+│   │   ├── moai-domain-brand-design/       # 신규: 브랜드 비주얼 디자인
+│   │   ├── moai-domain-copywriting/        # 신규: 브랜드 카피
+│   │   ├── moai-domain-db-docs/            # 신규: DB 메타 파싱 (Prisma/Alembic/Rails)
+│   │   ├── moai-workflow-design-context/   # 신규: 디자인 브리프 로더
+│   │   ├── moai-workflow-design-import/    # 신규: Claude Design 번들 임포트
+│   │   ├── moai-workflow-gan-loop/         # 신규: Builder-Evaluator GAN 루프
+│   │   ├── moai-workflow-pencil-integration/ # 신규: Pencil .pen 파일 통합
+│   │   │
 │   │   ├── goose-learning-engine/
 │   │   ├── goose-identity-graph/
 │   │   ├── goose-lora-trainer/
@@ -452,9 +470,13 @@ goose-agent/
 │   │   ├── manager-docs/       # 이 프로젝트의 메모리
 │   │   └── ... (다른 에이전트)
 │   │
-│   ├── commands/               # 커스텀 CLI 명령
-│   │   ├── moai.md
-│   │   └── agency.md
+│   ├── commands/               # MoAI 슬래시 명령어
+│   │   ├── moai/
+│   │   │   ├── design.md        # 신규: /moai design — 디자인·카피 생산
+│   │   │   ├── db.md            # 신규: /moai db — DB 메타 관리
+│   │   │   └── ...
+│   │   └── agency/
+│   │       └── agency.md        # DEPRECATED: /agency → /moai design으로 redirect
 │   │
 │   └── settings.json           # Claude Code 설정
 │
@@ -463,18 +485,49 @@ goose-agent/
 │   │   ├── user.yaml
 │   │   ├── language.yaml
 │   │   ├── workflow.yaml
-│   │   └── quality.yaml
+│   │   ├── quality.yaml
+│   │   ├── design.yaml         # 신규: 디자인 생산 파이프라인 설정
+│   │   └── db.yaml             # 신규: DB 메타 관리 설정
 │   │
-│   ├── specs/                  # SPEC 문서 (EARS format)
-│   │   ├── SPEC-001/
-│   │   │   └── spec.md
-│   │   └── SPEC-LRN-001/       # 학습 엔진 SPEC
+│   ├── design/                 # 신규: 창작 생산 산출물
+│   │   ├── README.md           # 디자인 시스템 개요
+│   │   ├── research.md         # 사용자 리서치·경쟁사 분석
+│   │   ├── spec.md             # 디자인 스펙 문서
+│   │   ├── system.md           # 디자인 시스템 정의
+│   │   ├── tokens.json         # Design tokens (color, typography, spacing)
+│   │   ├── components.json     # 컴포넌트 스펙
+│   │   ├── wireframes/         # 와이어프레임 SVG
+│   │   └── screenshots/        # 프로토타입 스크린샷
 │   │
 │   ├── project/                # 프로젝트 문서
 │   │   ├── structure.md        # 이 파일
 │   │   ├── product.md
 │   │   ├── tech.md
+│   │   ├── brand/              # 브랜드 아이덴티티
+│   │   │   ├── brand-voice.md
+│   │   │   ├── target-audience.md
+│   │   │   └── visual-identity.md
+│   │   ├── db/                 # 신규: DB 메타 관리
+│   │   │   ├── README.md
+│   │   │   ├── schema.md       # 테이블·컬럼 정의
+│   │   │   ├── erd.mmd         # Entity-Relationship Diagram (Mermaid)
+│   │   │   ├── migrations.md   # 마이그레이션 이력
+│   │   │   ├── queries.md      # 최적화된 쿼리 패턴
+│   │   │   ├── rls-policies.md # Supabase RLS 정책
+│   │   │   └── seed-data.md    # 시드 데이터 스크립트
 │   │   └── README.md
+│   │
+│   ├── specs/                  # SPEC 문서 (EARS format)
+│   │   ├── SPEC-001/
+│   │   │   └── spec.md
+│   │   ├── SPEC-AGENCY-ABSORB-001/  # 신규: /agency → /moai design 흡수
+│   │   │   ├── spec.md
+│   │   │   ├── plan.md
+│   │   │   └── acceptance.md
+│   │   └── SPEC-DB-SYNC-RELOC-001/  # 신규: DB 메타 중앙화
+│   │       ├── spec.md
+│   │       ├── plan.md
+│   │       └── acceptance.md
 │   │
 │   └── evolution/              # 자기진화 진행 상황
 │       ├── learnings/          # LEARN-*.md

@@ -234,6 +234,39 @@ members = [
 
 ---
 
+## 3.6 Design 생산 스택 (신규: SPEC-AGENCY-ABSORB-001)
+
+| 기술 | 용도 | 상태 |
+|-----|------|------|
+| **Pencil MCP** | 디자인 파일 (.pen) 읽기/쓰기 | Active |
+| **Claude Design** | AI-생성 디자인 번들 임포트 (Path A) | Supported |
+| **moai-domain-brand-design** | 브랜드 토큰·컴포넌트 spec 생성 | Active |
+| **moai-domain-copywriting** | 브랜드 음성·톤·마케팅 카피 | Active |
+| **moai-workflow-gan-loop** | Builder-Evaluator 반복 개선 루프 | Active |
+| **moai-workflow-pencil-integration** | .pen 파일 로드·검증 | Active |
+| **Mermaid** | 아키텍처 다이어그램 | Embedded |
+
+**워크플로우**: manager-spec → (moai-domain-copywriting + moai-domain-brand-design) 병렬 → expert-frontend → evaluator-active (GAN Loop)
+
+---
+
+## 3.7 데이터베이스 메타 관리 스택 (신규: SPEC-DB-SYNC-RELOC-001)
+
+| 기술 | 용도 | 파서 |
+|-----|------|------|
+| **Prisma** | ORM + 마이그레이션 | `.prisma` 파일 파싱 |
+| **Alembic** | Python 마이그레이션 | `versions/*.py` 파싱 |
+| **Rails ActiveRecord** | Ruby 마이그레이션 | `migrate/*.rb` 파싱 |
+| **Supabase** | PostgreSQL + RLS 정책 | API 통합 |
+| **Mermaid ERD** | Entity-Relationship Diagram | 자동 생성 |
+| **moai-domain-db-docs** | 스키마·쿼리·정책 문서 생성 | `.md` 출력 |
+
+**산출물**: `.moai/project/db/` 디렉터리에 schema.md, migrations.md, erd.mmd, rls-policies.md, queries.md, seed-data.md 자동 생성
+
+**참조**: `/moai db` 명령어로 동기화
+
+---
+
 ## 4. TypeScript 기술 스택 (Client UI - 10%)
 
 ### 4.1 goose-cli (Terminal)
