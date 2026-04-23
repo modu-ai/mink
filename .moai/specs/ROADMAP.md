@@ -1,12 +1,29 @@
-# GOOSE-AGENT SPEC 로드맵 v6.2
+# GOOSE-AGENT SPEC 로드맵 v6.2 (★ v0.2 재편 amendment 적용)
 
-> **프로젝트**: GOOSE-AGENT v6.2 — Cross-Platform Daily Companion (3-Tier × 5-Channel)
-> **작성일**: 2026-04-22
-> **이전 버전**: v5.0 (47 SPEC, Global Localization) · v6.0 (48, App-First) · v6.1 (52, 3-Tier) · **v6.2 (58, +5-Channel)**
+> **⚠ v0.2 Amendment (2026-04-24)**
+> SPEC-GOOSE-ARCH-REDESIGN-v0.2 확정본에 따라 주요 변경 발생. 아래 본문은 v6.2 기준이며, **실제 구현 우선순위와 범위는 재편본을 따른다**.
+> 자세한 재편 내용: `.moai/design/goose-runtime-architecture-v0.2.md` + `.moai/specs/SPEC-GOOSE-ARCH-REDESIGN-v0.2/spec.md`
+>
+> **v0.2 주요 변화 요약**:
+> - **삭제** (5건): MOBILE-001, WIDGET-001, SYNC-001, CLOUD-001, DISCOVERY-001
+> - **축소** (4건): AUTH-001, NOTIFY-001, BRIDGE-001, ONBOARDING-001
+> - **신규** (9건): QMD-001, WEBUI-001, SELF-CRITIQUE-001, PAI-CONTEXT-001, PERMISSION-001, SECURITY-SANDBOX-001, CREDENTIAL-PROXY-001, FS-ACCESS-001, AUDIT-001
+> - **채널 변경**: v0.1 Alpha는 CLI/TUI + Telegram + Web UI 3종 (Email 제거, Mobile 제거, Apple Native 제거)
+> - **스토리지 2원화**: `~/.goose/` (secrets only) + `./.goose/` (workspace)
+> - **Module path**: `github.com/modu-ai/goose`
+> - **SPEC 총량**: 58 → 약 54 (-5 +9 = +4 순증)
+>
+> 기존 v6.2 본문은 **참조용**으로 보존되며, 새 Milestone 순서는 v0.2 문서의 §10을 기준으로 한다.
+
+---
+
+> **프로젝트**: GOOSE — Daily Companion AI (self-hosted, project-local workspace)
+> **작성일**: 2026-04-22 (v6.2) · 2026-04-24 (v0.2 amendment)
+> **이전 버전**: v5.0 (47 SPEC) · v6.0 (48) · v6.1 (52) · v6.2 (58) · **v0.2 (54, 재편본)**
 > **대화 언어**: 한국어 · **코드 식별자**: 영어
 > **개발 방법론**: TDD (`development_mode: tdd`)
 > **라이선스**: MIT
-> **상태**: 아키텍처 설계 완료, 구현 0%
+> **상태**: 아키텍처 재설계 완료 (v0.2), M0 CORE-001 구현 완료
 
 ---
 

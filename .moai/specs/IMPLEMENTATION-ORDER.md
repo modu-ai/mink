@@ -1,8 +1,27 @@
-# GOOSE-AGENT 구현 순서 종합 보고서 v6.2
+# GOOSE-AGENT 구현 순서 종합 보고서 v6.2 (★ v0.2 재편 amendment 적용)
 
-> **작성일**: 2026-04-22 (v6.2 3-Tier × 5-Channel 통합)
-> **대상**: 58 SPEC (Phase 0~9 전체) · v2.0+ 옵션 5건 별도
-> **근거**: ROADMAP v6.2 + 누적 세션 의사결정
+> **⚠ v0.2 Amendment (2026-04-24)**
+> SPEC-GOOSE-ARCH-REDESIGN-v0.2 에 따라 Milestone 재정렬. 아래 본문(v6.2)은 **참조용**이며, 실제 구현은 v0.2 Milestone 순서를 따른다.
+>
+> **v0.2 Milestone 순서 (최종)**:
+> - **M0 Foundation** ✅ CORE-001 완료
+> - **M1 Multi-LLM + QMD** CREDPOOL · ROUTER · ADAPTER · **QMD-001** · PROVIDER-FALLBACK
+> - **M2 4 Primitives** SKILLS · MCP · HOOK · SUBAGENT · **PERMISSION-001**
+> - **M3 Core Workflow** COMMAND · CLI · TUI · Plan-Run-Sync · **SELF-CRITIQUE-001**
+> - **M4 Self-Evolution** TRAJECTORY · COMPRESSOR · INSIGHTS · auto-skill 제안
+> - **M5 Safety (★ 대폭 확장)** SAFETY · ROLLBACK · **SECURITY-SANDBOX-001** · **CREDENTIAL-PROXY-001** · **FS-ACCESS-001** · **AUDIT-001**
+> - **M6 Channels (축소)** TELEGRAM-001 · **WEBUI-001** (MOBILE/WIDGET/SYNC/CLOUD/DISCOVERY/Email 제거)
+> - **M7 Daily Companion v1.0** RITUAL-001 · BRIEFING · JOURNAL · **PAI-CONTEXT-001** · GROWTH
+> - **M8 Deep Personalization** IDENTITY-001 · VECTOR · LORA · Kuzu 도입 · Affective
+> - **M9 Ecosystem v2.0** plugin marketplace · additional channels
+>
+> 자세한 근거: `.moai/design/goose-runtime-architecture-v0.2.md` §10 · `.moai/specs/SPEC-GOOSE-ARCH-REDESIGN-v0.2/spec.md`
+
+---
+
+> **작성일**: 2026-04-22 (v6.2) · 2026-04-24 (v0.2 amendment)
+> **대상**: v6.2 58 SPEC + v0.2 재편 (-5 +9) = 약 54 SPEC
+> **근거**: ROADMAP v6.2 → v0.2 amendment + 7-round 소크라테스식 인터뷰
 > **방법론**: TDD (RED→GREEN→REFACTOR)
 > **목적**: 의존성 그래프 기반 최적 구현 순서 + 병렬화 + Milestone
 
