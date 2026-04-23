@@ -14,6 +14,13 @@ lifecycle: spec-anchored
 
 # SPEC-GOOSE-CREDPOOL-001 — Credential Pool (OAuth/API 통합, 4 Strategy, Rotation)
 
+> **v0.2 Amendment (2026-04-24)**: SPEC-GOOSE-ARCH-REDESIGN-v0.2 Tier 4 통합 요구.
+> 본 SPEC이 관리하는 것은 **credential reference (keyring_id)** 이며, **raw secret value는 절대 agent 메모리에 로드하지 않는다**.
+> 실제 secret 조회 및 transport-layer injection은 SPEC-GOOSE-CREDENTIAL-PROXY-001 의 `goose-proxy` 프로세스가 담당.
+> CredentialPool은 (a) 어떤 credential을 다음에 쓸 것인가 (selection strategy), (b) 언제 OAuth refresh가 필요한가 (expiry 추적), (c) refresh 요청을 proxy에 위임하는 흐름을 관리한다.
+> OS keyring 백엔드: `github.com/zalando/go-keyring` (macOS Keychain / libsecret / Windows Credential Vault).
+> 구현 시 `.moai/design/goose-runtime-architecture-v0.2.md` §5 Tier 4 참조.
+
 ## HISTORY
 
 | 버전 | 날짜 | 변경 사유 | 담당 |

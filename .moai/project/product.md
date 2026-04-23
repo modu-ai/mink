@@ -1074,7 +1074,53 @@ Year 3:
 
 ---
 
-## 13. 마무리
+## 13. 개발 워크플로우: MoAI 명령어 통합
+
+GOOSE 개발은 **MoAI-ADK** 오케스트레이션 프레임워크를 기반으로 합니다. 아래 핵심 명령어는 설계부터 구현, 문서화까지 전 SPEC 생명주기를 관리합니다.
+
+### MoAI 핵심 워크플로우
+
+| 단계 | 명령어 | 목적 | 산출물 |
+|------|--------|------|--------|
+| **1. 설계** | `/moai plan "요구사항"` | EARS 형식 SPEC 생성 | `.moai/specs/SPEC-XXX/spec.md` |
+| **2. 구현** | `/moai run SPEC-XXX` | DDD/TDD 기반 구현 | 코드 + 테스트 |
+| **3. 창작** | `/moai design` | 디자인·카피 생산 (신규) | 와이어프레임·design tokens |
+| **4. DB 관리** | `/moai db` | 데이터베이스 메타 동기화 (신규) | 마이그레이션·ERD |
+| **5. 문서화** | `/moai sync SPEC-XXX` | 자동 문서 생성 | README·API 문서·아키텍처 다이어그램 |
+
+### 신규 명령어: `/moai design` (SPEC-AGENCY-ABSORB-001)
+
+**용도:** 브랜드 일관성을 유지하면서 웹 인터페이스 및 마케팅 자료를 생산합니다.
+
+```bash
+/moai design "GOOSE Daily Dashboard 디자인"
+```
+
+**워크플로우:**
+- Phase 1: 브랜드 컨텍스트 로드 (`.moai/project/brand/`) 
+- Phase 2: 카피 생성 (moai-domain-copywriting) + 디자인 토큰 생성 (moai-domain-brand-design) 병렬 실행
+- Phase 3: expert-frontend로 구현 시작
+- Phase 4: GAN Loop로 반복 개선 (evaluator-active 평가)
+
+**참조:** SPEC-AGENCY-ABSORB-001 (v2026-04-20), `/agency` 명령어는 자동으로 `/moai design`으로 redirect됩니다.
+
+### 신규 명령어: `/moai db` (SPEC-DB-SYNC-RELOC-001)
+
+**용도:** Prisma/Alembic/Rails 마이그레이션, RLS 정책, 쿼리 최적화를 중앙에서 관리합니다.
+
+```bash
+/moai db "사용자 신원 인증 테이블 추가"
+```
+
+**워크플로우:**
+- 스키마 버전 관리 (`.moai/project/db/schema.md`)
+- 마이그레이션 트래킹 (`.moai/project/db/migrations.md`)
+- ERD 자동 생성 (Mermaid)
+- Supabase RLS 정책 검증
+
+---
+
+## 14. 마무리
 
 **GOOSE는 단순한 AI 비서가 아니다.**
 
@@ -1088,7 +1134,7 @@ Year 3:
 
 ---
 
-## 14. 문서 정보
+## 15. 문서 정보
 
 **문서 버전:** 6.0.0 Daily Companion Edition  
 **코드명:** goose  

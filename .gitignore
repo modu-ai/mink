@@ -211,9 +211,7 @@ dist-ssr/
 .vercel/
 .netlify/
 .firebase/
-# ===========================================
-# GOOSE-AGENT Reference Assets (local only)
-# ===========================================
-# 분석·참조용 외부 코드베이스. .moai/project/research/ 에 요약본 존재.
+
+# User Custom Patterns (preserved by moai update)
 claude-code-source-map/
 hermes-agent-main/

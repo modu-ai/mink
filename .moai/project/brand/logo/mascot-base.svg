@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="GOOSE mascot — Adult stage, neutral expression (placeholder)">
+  <title>GOOSE Mascot (Adult, Neutral) — Placeholder</title>
+  <desc>Geometric placeholder for the GOOSE mascot. Final illustration to be produced per growth-stages-spec.md.</desc>
+  <!-- Body: rounded egg-shape in brand primary.500 -->
+  <path d="M50 88 C 24 88, 18 66, 20 48 C 22 28, 36 16, 50 16 C 64 16, 78 28, 80 48 C 82 66, 76 88, 50 88 Z" fill="#FFB800"/>
+  <!-- Wing hint: subtle arc in primary.700 -->
+  <path d="M58 52 C 66 54, 72 60, 70 70 C 66 66, 60 60, 58 52 Z" fill="#B37F00" opacity="0.35"/>
+  <!-- Beak: small triangle in accent.500 -->
+  <path d="M50 38 L 44 44 L 56 44 Z" fill="#E56B7C"/>
+  <!-- Left eye -->
+  <circle cx="42" cy="34" r="3.2" fill="#171513"/>
+  <circle cx="41" cy="33" r="1" fill="#FAF8F4"/>
+  <!-- Right eye -->
+  <circle cx="58" cy="34" r="3.2" fill="#171513"/>
+  <circle cx="57" cy="33" r="1" fill="#FAF8F4"/>
+  <!-- Legs: tiny stubs -->
+  <rect x="42" y="86" width="3" height="5" rx="1.2" fill="#B37F00"/>
+  <rect x="55" y="86" width="3" height="5" rx="1.2" fill="#B37F00"/>
+</svg>
