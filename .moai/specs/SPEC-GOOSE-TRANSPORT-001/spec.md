@@ -1,15 +1,16 @@
 ---
 id: SPEC-GOOSE-TRANSPORT-001
 version: 0.1.0
-status: Planned
-created: 2026-04-21
-updated: 2026-04-21
+status: planned
+created_at: 2026-04-21
+updated_at: 2026-04-21
 author: manager-spec
 priority: P0
 issue_number: null
 phase: 0
 size: 중(M)
 lifecycle: spec-anchored
+labels: []
 ---
 
 # SPEC-GOOSE-TRANSPORT-001 — gRPC 서버/proto 스키마 기본 계약

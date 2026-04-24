@@ -1,11 +1,12 @@
 ---
 spec_id: SPEC-GOOSE-QUERY-001
 version: 0.1.0
-status: Planned
-created: 2026-04-24
-updated: 2026-04-25
+status: planned
+created_at: 2026-04-24
+updated_at: 2026-04-25
 author: manager-spec
 methodology: TDD
+labels: []
 ---
 
 # SPEC-GOOSE-QUERY-001 — 수용 기준 (Acceptance Criteria)

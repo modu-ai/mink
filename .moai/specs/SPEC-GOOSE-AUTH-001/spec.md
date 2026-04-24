@@ -1,15 +1,16 @@
 ---
 id: SPEC-GOOSE-AUTH-001
 version: 0.1.0
-status: Planned (stub)
-created: 2026-04-22
-updated: 2026-04-22
+status: planned
+created_at: 2026-04-22
+updated_at: 2026-04-22
 author: session-decision
 priority: P0
 issue_number: null
 phase: 6
 size: 중(M)
 lifecycle: spec-first
+labels: []
 ---
 
 # SPEC-GOOSE-AUTH-001 — Local Token-Based Authentication

@@ -1,15 +1,16 @@
 ---
 id: SPEC-GOOSE-CLI-001
 version: 0.2.0
-status: Planned
-created: 2026-04-21
-updated: 2026-04-21
+status: planned
+created_at: 2026-04-21
+updated_at: 2026-04-21
 author: manager-spec
 priority: P0
 issue_number: null
 phase: 3
 size: 중(M)
 lifecycle: spec-anchored
+labels: []
 ---
 
 # SPEC-GOOSE-CLI-001 — goose CLI (cobra + Connect-gRPC + bubbletea TUI)

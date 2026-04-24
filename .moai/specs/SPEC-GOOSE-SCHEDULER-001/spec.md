@@ -1,15 +1,16 @@
 ---
 id: SPEC-GOOSE-SCHEDULER-001
 version: 0.1.0
-status: Planned
-created: 2026-04-22
-updated: 2026-04-22
+status: planned
+created_at: 2026-04-22
+updated_at: 2026-04-22
 author: manager-spec
 priority: P0
 issue_number: null
 phase: 7
 size: 중(M)
 lifecycle: spec-anchored
+labels: []
 ---
 
 # SPEC-GOOSE-SCHEDULER-001 — Proactive Ritual Scheduler (Cron-like, Timezone/Holiday-aware, User-pattern Learning)

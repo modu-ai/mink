@@ -3,8 +3,9 @@ spec_id: AGENCY-ABSORB-001
 document: plan
 version: 1.0.0
 status: completed
-created: 2026-04-20
-updated: 2026-04-24
+created_at: 2026-04-20
+updated_at: 2026-04-24
+labels: []
 ---
 
 # Implementation Plan — SPEC-AGENCY-ABSORB-001

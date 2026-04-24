@@ -1,9 +1,9 @@
 ---
 id: SPEC-GOOSE-QMD-001
 version: 0.2.0
-status: Planned
-created: 2026-04-24
-updated: 2026-04-24
+status: planned
+created_at: 2026-04-24
+updated_at: 2026-04-24
 author: manager-spec
 priority: P0
 issue_number: null
@@ -11,6 +11,7 @@ phase: 1
 milestone: M1
 size: 대(L)
 lifecycle: spec-anchored
+labels: []
 ---
 
 # SPEC-GOOSE-QMD-001 — QMD Embedded Hybrid Memory Search

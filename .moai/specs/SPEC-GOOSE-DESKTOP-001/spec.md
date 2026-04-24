@@ -1,15 +1,16 @@
 ---
 id: SPEC-GOOSE-DESKTOP-001
 version: 0.1.0
-status: Planned
-created: 2026-04-21
-updated: 2026-04-21
+status: planned
+created_at: 2026-04-21
+updated_at: 2026-04-21
 author: manager-spec
 priority: P0
 issue_number: null
 phase: 6
 size: 대(L)
 lifecycle: spec-anchored
+labels: []
 ---
 
 # SPEC-GOOSE-DESKTOP-001 — GOOSE Desktop App (기본 UI, Tauri v2)

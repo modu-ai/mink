@@ -1,12 +1,13 @@
 ---
 id: SPEC-GOOSE-QUERY-001
 version: 0.1.0
-status: Planned
-created: 2026-04-21
-updated: 2026-04-25
+status: planned
+created_at: 2026-04-21
+updated_at: 2026-04-25
 author: manager-spec
 priority: P0
 issue_number: 5
+labels: []
 ---
 
 # SPEC-GOOSE-QUERY-001 — Compact (Run 단계용)

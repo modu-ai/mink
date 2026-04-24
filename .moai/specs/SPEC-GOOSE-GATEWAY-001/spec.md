@@ -1,15 +1,16 @@
 ---
 id: SPEC-GOOSE-GATEWAY-001
 version: 0.2.0
-status: Planned (재정의)
-created: 2026-04-21
-updated: 2026-04-22
+status: planned
+created_at: 2026-04-21
+updated_at: 2026-04-22
 author: manager-spec
 priority: P1
 issue_number: null
 phase: 6
 size: 대(L)
 lifecycle: spec-anchored
+labels: []
 ---
 
 # SPEC-GOOSE-GATEWAY-001 — **Self-hosted Messenger Bridge (umbrella)** ★ v6.2 재정의

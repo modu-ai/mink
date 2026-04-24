@@ -1,15 +1,16 @@
 ---
 id: SPEC-GOOSE-ADAPTER-002
 version: 0.1.0
-status: Planned
-created: 2026-04-24
-updated: 2026-04-24
+status: planned
+created_at: 2026-04-24
+updated_at: 2026-04-24
 author: manager-spec
 priority: P1
 issue_number: null
 phase: 1
 size: 대(L)
 lifecycle: spec-anchored
+labels: []
 ---
 
 # SPEC-GOOSE-ADAPTER-002 — 9 OpenAI-compat Provider 어댑터 확장 (GLM/Groq/OpenRouter/Together/Fireworks/Cerebras/Mistral/Qwen/Kimi)

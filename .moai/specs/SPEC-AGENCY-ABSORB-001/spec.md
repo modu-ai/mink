@@ -4,13 +4,13 @@ version: 1.0.0
 title: /agency를 /moai design으로 흡수·통합
 status: completed
 lifecycle_level: spec-first
-created: 2026-04-20
-updated: 2026-04-24
+created_at: 2026-04-20
+updated_at: 2026-04-24
 completed: 2026-04-24
 author: GOOS행님
-priority: high
+priority: P1
 issue_number: null
-labels:
+labels: 
   - refactoring
   - skill-system
   - design-workflow

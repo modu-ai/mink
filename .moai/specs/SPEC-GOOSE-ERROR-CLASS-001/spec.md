@@ -1,15 +1,16 @@
 ---
 id: SPEC-GOOSE-ERROR-CLASS-001
 version: 0.1.0
-status: Planned
-created: 2026-04-21
-updated: 2026-04-21
+status: planned
+created_at: 2026-04-21
+updated_at: 2026-04-21
 author: manager-spec
 priority: P0
 issue_number: null
 phase: 4
 size: 소(S)
 lifecycle: spec-anchored
+labels: []
 ---
 
 # SPEC-GOOSE-ERROR-CLASS-001 — Error Classifier (14 FailoverReason, Retry 전략)
