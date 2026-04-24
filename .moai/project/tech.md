@@ -496,34 +496,41 @@ Rust 크리티컬 영역이 L4 (WASM), L7 (E2EE)을 강화:
 
 ---
 
-## 9. LLM Provider 생태계 (SPEC-GOOSE-ADAPTER-001)
+## 9. LLM Provider 생태계 (SPEC-GOOSE-ADAPTER-001, SPEC-GOOSE-ADAPTER-002)
 
-GOOSE는 `internal/llm/provider/` 하위에 복수 LLM provider 어댑터를 통합한다. 모두 공통 `Provider` 인터페이스를 구현하며 `ProviderRegistry`에 등록된다.
+GOOSE는 `internal/llm/provider/` 하위에 복수 LLM provider 어댑터를 통합한다. 모두 공통 `Provider` 인터페이스를 구현하며 `ProviderRegistry`에 등록된다. SPEC-001 (6 provider) + SPEC-002 (9 provider) 병합으로 총 **15 provider adapter-ready**.
 
-### 9.1 현재 지원 (6 provider)
+### 9.1 현재 지원 (15 provider adapter-ready)
+
+#### SPEC-001 (native / OAuth / SDK 기반 6종)
 
 | Provider | 지원 모델 | 특징 | 상태 |
 |----------|---------|------|------|
-| **Anthropic** | Claude 3.5 Sonnet, Opus 4.7 | OAuth PKCE, Adaptive Thinking, thinking mode | ✅ GREEN |
-| **OpenAI** | GPT-4o, GPT-4 Turbo, GPT-3.5-turbo, o1-preview | base_url 교체 가능, tool_calls aggregation | ✅ GREEN |
-| **xAI Grok** | Grok-2, Grok-3 | OpenAI-compatible 팩토리, vision 지원 | ✅ GREEN |
+| **Anthropic** | Claude Sonnet 4.6, Opus 4.7 | OAuth PKCE, Adaptive Thinking (effort), budget_tokens LEGACY | ✅ GREEN |
+| **OpenAI** | GPT-4o, GPT-4 Turbo, GPT-3.5-turbo, o1-preview | base_url 교체 가능, tool_calls aggregation, ExtraHeaders/ExtraRequestFields | ✅ GREEN |
+| **xAI Grok** | Grok-2, Grok-3 (vision) | OpenAI-compatible 팩토리 | ✅ GREEN |
 | **DeepSeek** | DeepSeek-Chat, DeepSeek-Reasoner (r1) | OpenAI-compatible, vision=false | ✅ GREEN |
-| **Google Gemini** | Gemini 2.0 Flash, Pro | genai SDK 기반, fake client 추상화 | ✅ GREEN |
-| **Ollama** | llama2, mistral, neural-chat, openchat | 로컬 모델, /api/chat JSON-L 스트리밍 | ✅ GREEN |
+| **Google Gemini** | Gemini 2.0 Flash, Pro | `google.golang.org/genai` SDK + fake client 추상화 | ✅ GREEN |
+| **Ollama** | llama2, mistral, neural-chat 등 | 로컬 모델, /api/chat JSON-L 스트리밍, 무인증 | ✅ GREEN |
 
-### 9.2 계획 중 (SPEC-GOOSE-ADAPTER-002, 9 provider)
+#### SPEC-002 (OpenAI-compat 기반 9종)
 
-**목표 완료**: 2026년 Q3
+| Provider | 지원 모델 | 특징 | 상태 |
+|----------|---------|------|------|
+| **Z.ai GLM** | glm-5, glm-4.7, glm-4.6, glm-4.5, glm-4.5-air | thinking mode (4 모델) + `api.z.ai` 공식 이관, ExtraRequestFields 활용 | ✅ GREEN |
+| **Groq** | Llama 3.3/4, DeepSeek R1 Distill, Mixtral 8x7B (free) | LPU 315 TPS, 무료 tier (30 RPM / 14.4K RPD) | ✅ GREEN |
+| **OpenRouter** | 300+ 모델 gateway (GPT-OSS, Qwen3-Coder, Nemotron 등) | 29 free model, `HTTP-Referer` / `X-Title` 랭킹 헤더 주입 | ✅ GREEN |
+| **Together AI** | Llama 3.3 70B Turbo, Qwen2.5, Mixtral 8x22B 등 173 모델 | Fine-tuning 지원, 55/101 공유모델 Fireworks보다 저렴 | ✅ GREEN |
+| **Fireworks AI** | Llama, DeepSeek R1, Qwen3-Coder 480B 등 209 모델 | 145 TPS, 50% cached+batch 할인 | ✅ GREEN |
+| **Cerebras** | Llama 3.3 70B, Llama 3.1 8B | Wafer-Scale Engine 1,000+ TPS (속도 1위) | ✅ GREEN |
+| **Mistral AI** | Mistral Nemo ($0.02/M 최저가), Small, Medium, Codestral 등 42 모델 | 오픈소스 친화, 자체 API | ✅ GREEN |
+| **Qwen (DashScope)** | qwen3-max, qwen3.6-max-preview, qwen3-coder-plus, qwen3-vl | Region: intl/cn/sg/hk (env + option 3단계), 1T MoE 2026-04 | ✅ GREEN |
+| **Kimi (Moonshot)** | kimi-k2.6 (1T MoE, 262K context), k2.5, moonshot-v1-128k | Region: intl/cn (env + option 3단계), OpenAI+Anthropic 양쪽 호환 | ✅ GREEN |
 
-- **Z.ai (Qwen)**: Alibaba 기반 멀티모달
-- **Groq**: 극저레이턴시 추론
-- **OpenRouter**: 프로바이더 무리 패싱
-- **Together AI**: open-source 모델 호스팅
-- **Fireworks**: AI 추론 플랫폼
-- **Cerebras**: 칩 최적화
-- **Mistral**: 오픈소스 모델
-- **Kimi (Moonshot)**: 한국 장문맥 지원 (128k tokens)
-- **Naver HyperCLOVA X**: 한국 프로바이더
+### 9.2 계획 중 (후속 SPEC 후보)
+
+- **Perplexity Sonar** — web search 내장 (tool cost $0.005/search) 별도 SPEC 예정
+- **MiniMax / Nous / Naver HyperCLOVA X / KT Mi:dm** — 수요 검증 후 등록
 
 ### 9.3 아키텍처 개요
 
@@ -614,14 +621,15 @@ type ProviderCapabilities struct {
 - safetensors (안전한 tensor 직렬화)
 - 로컬 GGUF 모델 지원 (Ollama 연동)
 
-### 9.7 글로벌 프로바이더 우선순위 (기존)
+### 9.7 글로벌 프로바이더 우선순위 (SPEC-002 반영)
 
 | 우선순위 | 프로바이더 | 상태 |
 |---------|----------|------|
 | **P0** | Anthropic, OpenAI, Google | ✅ ACTIVE |
 | **P1** | Ollama, xAI, DeepSeek | ✅ ACTIVE |
-| **P2** | Mistral, Groq, OpenRouter | 🔲 TODO |
-| **P3** | Naver HyperCLOVA X, KT Mi:dm | 🔲 TODO |
+| **P2** | Mistral, Groq, OpenRouter, Together, Fireworks, Cerebras | ✅ ACTIVE (SPEC-002) |
+| **P3** | Z.ai GLM, Qwen, Kimi | ✅ ACTIVE (SPEC-002) |
+| **P4** | Naver HyperCLOVA X, KT Mi:dm, Perplexity, MiniMax | 🔲 TODO (후속 SPEC) |
 
 ---
 

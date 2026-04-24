@@ -97,6 +97,18 @@ updated: 2026-04-24
 | AC-ADP2-017 | RegisterAllProviders 무에러 | GREEN |
 | AC-ADP2-018 | Provider 이름 중복 거부 | GREEN |
 
+## Phase 3: Sync (2026-04-24)
+
+- [x] CHANGELOG.md Unreleased 섹션에 SPEC-002 항목 추가 (9 provider + GLM endpoint 이관 + registry 15-way)
+- [x] .moai/project/tech.md §9: 6 provider → 15 provider 확장 + §9.7 우선순위 P2/P3 업그레이드 + §9.2 계획중 축소
+- [x] progress.md (이 파일): Phase 3 Sync 로그 추가
+- [x] spec.md + research.md 아티팩트 복원 (Plan 단계 누락분)
+- [x] 2건 commit 생성 (docs-spec, docs-sync)
+- [ ] push + PR + merge (다음 단계)
+
 ## 다음 단계
 
-- `/moai sync SPEC-GOOSE-ADAPTER-002` — PR 생성 및 문서 동기화
+- Push `feature/SPEC-GOOSE-ADAPTER-002` → `origin`
+- PR 생성 (base: main, ready)
+- squash merge --delete-branch --admin
+- SPEC-001 + SPEC-002 worktree 정리 (`moai worktree done`)

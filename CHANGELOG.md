@@ -168,6 +168,68 @@ SPEC-GOOSE-CREDPOOL-001 §3.1 rule 6/7에서 약속된 API:
 - **Consistency**: 0.86 (API contract 일관성, error handling 표준화)
 - **종합 점수**: 0.789 (PASS threshold 0.75)
 
+### Added — SPEC-GOOSE-ADAPTER-002 (9 OpenAI-compat Provider 확장)
+
+SPEC-001이 제공한 `openai` 어댑터 팩토리 및 `ExtraHeaders` / `ExtraRequestFields` 확장을 활용해 9종 신규 provider 추가. 단일 Provider 인터페이스 아래 총 **15 provider adapter-ready** 달성.
+
+#### Tier 1 — OpenAI-compat Simple Factory (6종)
+
+- `internal/llm/provider/groq/` — Groq LPU (315 TPS, 무료 tier, Llama 3.3/4 · DeepSeek R1 Distill · Mixtral 8x7B)
+- `internal/llm/provider/cerebras/` — Cerebras Wafer-Scale (1,000+ TPS, Llama 3.3 70B)
+- `internal/llm/provider/mistral/` — Mistral AI (Nemo $0.02/M 최저가, 42 모델)
+- `internal/llm/provider/together/` — Together AI (173 모델)
+- `internal/llm/provider/fireworks/` — Fireworks AI (209 모델, 145 TPS)
+- `internal/llm/provider/openrouter/` — OpenRouter gateway (300+ 모델, ExtraHeaders 활용한 `HTTP-Referer` / `X-Title` 랭킹 헤더 주입)
+
+#### Tier 2 — Region 선택 (2종)
+
+- `internal/llm/provider/qwen/` — Alibaba DashScope (4 region: `intl` / `cn` / `sg` / `hk`)
+  - `Options.Region` → `GOOSE_QWEN_REGION` env → `RegionIntl` 기본값 3단계 우선순위
+  - `ErrInvalidRegion`으로 사전 거부
+  - `qwen3-max`, `qwen3.6-max-preview`, `qwen3-coder-plus` 등 2026-04 최신
+- `internal/llm/provider/kimi/` — Moonshot AI (2 region: `intl` / `cn`)
+  - 동일 3단계 우선순위 (`GOOSE_KIMI_REGION`)
+  - Kimi K2.6 (1T MoE, 262K context, 98K max output)
+
+#### Tier 3 — GLM (Z.ai) with thinking mode (1종)
+
+- `internal/llm/provider/glm/adapter.go` + `thinking.go`
+  - `*openai.OpenAIAdapter` Go embedding + `Stream` / `Complete` override
+  - `ExtraRequestFields`에 `thinking:{type:enabled}` 주입 (SPEC-001 필드 활용)
+  - caller map 보호를 위한 deep-copy
+- 5 모델 alias 지원 — `glm-5` · `glm-4.7` · `glm-4.6` · `glm-4.5` · `glm-4.5-air`
+- Thinking 지원 4 모델 (air 제외)
+- **비지원 모델 요청 시 WARN log + 무시 (graceful degradation, REQ-ADP2-014)**
+
+#### Registry 업데이트
+
+- `internal/llm/router/registry.go` **`glm` 엔드포인트 이관**: `open.bigmodel.cn` → `api.z.ai/api/paas/v4`
+- DisplayName: "GLM (ZhipuAI)" → "Z.ai GLM"
+- `glm` suggested_models 갱신: `["glm-5", "glm-4.7", "glm-4.6", "glm-4.5", "glm-4.5-air"]`
+- 5 신규 metadata 등록: `groq` / `openrouter` / `together` / `fireworks` / `cerebras`
+- 4 기존 metadata-only → AdapterReady=true 전환: `glm` / `mistral` / `qwen` / `kimi`
+- `internal/llm/factory/registry_builder.go` **신규** — `RegisterAllProviders` helper (import cycle 방지)
+- `internal/llm/factory/registry_defaults.go` — SPEC-002 9개 provider 인스턴스 등록
+
+#### 테스트 커버리지
+
+- AC-ADP2-001~018 중 16 GREEN (-2 Optional/Infrastructure)
+- 패키지별 커버리지
+  - groq / cerebras / mistral / qwen / kimi: 100%
+  - openrouter: 90.9%
+  - glm: 83.8%
+  - together / fireworks: 75%
+  - factory: 77.0%
+  - router: 97.2% (회귀 없음)
+- `go test -race` 21 패키지 전부 PASS · `go vet` 0 warnings · `gofmt` clean
+
+#### 주요 설계 결정
+
+- **GLM embedding 패턴**: `*openai.OpenAIAdapter`를 embedding하고 `Stream`/`Complete`만 override — thinking 파라미터 주입을 최소 surface로 캡슐화
+- **Region 3단계 우선순위**: 명시 옵션 > 환경변수 > 기본값 — 동일 패턴을 Qwen/Kimi에 통일 적용
+- **OpenRouter ExtraHeaders 조건부**: 빈 값이면 nil map 유지 — 헤더 오염 방지
+- **registry_builder는 factory 패키지에 배치**: import cycle 회피 (SPEC-001 `registry_defaults.go` 패턴 계승)
+
 ---
 
 ## 관련 SPEC
