@@ -81,3 +81,29 @@ func TestNewDefaultRegistry_EmptyEnabled(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, reg.Names())
 }
+
+// TestNewDefaultRegistry_SPEC002Providers는 SPEC-002 9개 신규 provider가
+// DefaultRegistryOptions를 통해 인스턴스화 가능한지 검증한다 (AC-ADP2-017).
+func TestNewDefaultRegistry_SPEC002Providers(t *testing.T) {
+	t.Parallel()
+	spec002Providers := []string{
+		"glm", "groq", "openrouter", "together", "fireworks", "cerebras", "mistral", "qwen", "kimi",
+	}
+	opts := factory.DefaultRegistryOptions{
+		SecretStore:      provider.NewMemorySecretStore(map[string]string{}),
+		EnabledProviders: spec002Providers,
+	}
+
+	reg, err := factory.NewDefaultRegistry(opts)
+	require.NoError(t, err)
+	require.NotNil(t, reg)
+
+	names := reg.Names()
+	assert.Len(t, names, len(spec002Providers), "SPEC-002 9개 provider 전부 등록 기대")
+
+	for _, name := range spec002Providers {
+		p, ok := reg.Get(name)
+		require.True(t, ok, "provider %q가 등록되어야 함", name)
+		assert.Equal(t, name, p.Name(), "provider Name()이 등록 이름과 일치해야 함")
+	}
+}

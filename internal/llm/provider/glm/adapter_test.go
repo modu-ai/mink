@@ -166,6 +166,43 @@ func TestGLM_Stream_NonSupportedModel_NoThinkingInBody(t *testing.T) {
 	assert.False(t, hasThinking, "thinking 미지원 모델에는 thinking 필드가 없어야 함")
 }
 
+// TestGLM_Complete_InjectsThinking는 Complete도 thinking 파라미터를 주입하는지 검증한다.
+func TestGLM_Complete_InjectsThinking(t *testing.T) {
+	t.Parallel()
+	handler := &capturingHandler{sseBody: minimalSSEBody()}
+	srv := httptest.NewServer(handler)
+	defer srv.Close()
+
+	pool := testhelper.FakePool(t, []string{"cred-a"})
+	secretStore := provider.NewMemorySecretStore(map[string]string{"kr-cred-a": "sk-glm-test"})
+
+	adapter, err := glm.New(glm.Options{
+		Pool:        pool,
+		SecretStore: secretStore,
+		BaseURL:     srv.URL,
+		HTTPClient:  srv.Client(),
+	})
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	req := provider.CompletionRequest{
+		Route:    router.Route{Provider: "glm", Model: "glm-5"},
+		Messages: []message.Message{{Role: "user", Content: []message.ContentBlock{{Type: "text", Text: "Hello"}}}},
+		Thinking: &provider.ThinkingConfig{Enabled: true},
+	}
+	resp, err := adapter.Complete(ctx, req)
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+
+	require.NotNil(t, handler.capturedBody)
+	var bodyMap map[string]any
+	require.NoError(t, json.Unmarshal(handler.capturedBody, &bodyMap))
+
+	thinkingVal, ok := bodyMap["thinking"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "enabled", thinkingVal["type"])
+}
+
 // TestGLM_Stream_PreservesExistingExtraRequestFields는
 // 기존 ExtraRequestFields가 thinking 주입 후에도 보존됨을 검증한다.
 func TestGLM_Stream_PreservesExistingExtraRequestFields(t *testing.T) {
