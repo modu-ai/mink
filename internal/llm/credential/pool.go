@@ -232,3 +232,68 @@ func (p *CredentialPool) Size() (total, available int) {
 func (p *CredentialPool) Reload(ctx context.Context) error {
 	return p.load(ctx)
 }
+
+// MarkExhaustedAndRotate는 id에 해당하는 크레덴셜을 retryAfter 기간 동안 exhausted로
+// 표시하고, 다음 사용 가능한 크레덴셜을 선택하여 반환한다.
+//
+// 인자:
+//   - id: exhausted 처리할 크레덴셜 ID
+//   - statusCode: HTTP 응답 코드 (429, 402 등 — 현재 로깅용)
+//   - retryAfter: exhausted 쿨다운 기간
+//
+// 반환:
+//   - 다음 크레덴셜: 선택 성공 시 non-nil
+//   - ErrExhausted: 사용 가능한 크레덴셜이 없을 때
+//   - ErrNotFound: id에 해당하는 크레덴셜이 없을 때
+//
+// SPEC-GOOSE-ADAPTER-001 T-007 (CREDPOOL-001 §3.1 rule 6 선행 구현)
+// @MX:ANCHOR: [AUTO] MarkExhaustedAndRotate — 429/402 회전 핵심 메서드
+// @MX:REASON: Anthropic adapter의 429 rotation 경로에서 호출됨 (AC-ADAPTER-008)
+func (p *CredentialPool) MarkExhaustedAndRotate(ctx context.Context, id string, _ int, retryAfter time.Duration) (*PooledCredential, error) {
+	p.mu.Lock()
+
+	c, ok := p.creds[id]
+	if !ok {
+		p.mu.Unlock()
+		return nil, ErrNotFound
+	}
+
+	// exhausted 표시 및 리스 해제
+	c.Status = CredExhausted
+	c.exhaustedUntil = time.Now().Add(retryAfter)
+	c.leased = false
+
+	// id를 제외한 사용 가능한 크레덴셜 탐색
+	avail := p.available()
+	// id에 해당하는 크레덴셜은 이미 exhausted이므로 available()에서 제외됨
+
+	if len(avail) == 0 {
+		p.mu.Unlock()
+		return nil, ErrExhausted
+	}
+
+	next, err := p.strategy.Select(avail)
+	if err != nil {
+		p.mu.Unlock()
+		return nil, ErrExhausted
+	}
+
+	next.leased = true
+	next.UsageCount++
+	p.mu.Unlock()
+
+	// ctx 취소 확인
+	select {
+	case <-ctx.Done():
+		// 리스를 획득했으므로 반환
+		p.mu.Lock()
+		if nc, ok := p.creds[next.ID]; ok {
+			nc.leased = false
+		}
+		p.mu.Unlock()
+		return nil, ctx.Err()
+	default:
+	}
+
+	return next, nil
+}

@@ -496,15 +496,134 @@ Rust 크리티컬 영역이 L4 (WASM), L7 (E2EE)을 강화:
 
 ---
 
-## 9. LLM 프로바이더 지원 (유지)
+## 9. LLM Provider 생태계 (SPEC-GOOSE-ADAPTER-001)
 
-글로벌 프로바이더 (Go LLM Router 담당):
-- Anthropic Claude (P0)
-- OpenAI GPT (P0)
-- Google Gemini (P0)
-- Ollama local (P1)
-- xAI, OpenRouter, DeepSeek, Mistral (P1-P2)
-- Naver HyperCLOVA X, KT Mi:dm (P3)
+GOOSE는 `internal/llm/provider/` 하위에 복수 LLM provider 어댑터를 통합한다. 모두 공통 `Provider` 인터페이스를 구현하며 `ProviderRegistry`에 등록된다.
+
+### 9.1 현재 지원 (6 provider)
+
+| Provider | 지원 모델 | 특징 | 상태 |
+|----------|---------|------|------|
+| **Anthropic** | Claude 3.5 Sonnet, Opus 4.7 | OAuth PKCE, Adaptive Thinking, thinking mode | ✅ GREEN |
+| **OpenAI** | GPT-4o, GPT-4 Turbo, GPT-3.5-turbo, o1-preview | base_url 교체 가능, tool_calls aggregation | ✅ GREEN |
+| **xAI Grok** | Grok-2, Grok-3 | OpenAI-compatible 팩토리, vision 지원 | ✅ GREEN |
+| **DeepSeek** | DeepSeek-Chat, DeepSeek-Reasoner (r1) | OpenAI-compatible, vision=false | ✅ GREEN |
+| **Google Gemini** | Gemini 2.0 Flash, Pro | genai SDK 기반, fake client 추상화 | ✅ GREEN |
+| **Ollama** | llama2, mistral, neural-chat, openchat | 로컬 모델, /api/chat JSON-L 스트리밍 | ✅ GREEN |
+
+### 9.2 계획 중 (SPEC-GOOSE-ADAPTER-002, 9 provider)
+
+**목표 완료**: 2026년 Q3
+
+- **Z.ai (Qwen)**: Alibaba 기반 멀티모달
+- **Groq**: 극저레이턴시 추론
+- **OpenRouter**: 프로바이더 무리 패싱
+- **Together AI**: open-source 모델 호스팅
+- **Fireworks**: AI 추론 플랫폼
+- **Cerebras**: 칩 최적화
+- **Mistral**: 오픈소스 모델
+- **Kimi (Moonshot)**: 한국 장문맥 지원 (128k tokens)
+- **Naver HyperCLOVA X**: 한국 프로바이더
+
+### 9.3 아키텍처 개요
+
+**공통 인터페이스** (`internal/llm/provider/provider.go`):
+
+```go
+type Provider interface {
+    Complete(ctx context.Context, req *LLMCallReq) (*CompletionResponse, error)
+    Stream(ctx context.Context, req *LLMCallReq) (*StreamReader, error)
+    Capabilities() ProviderCapabilities
+}
+
+type ProviderCapabilities struct {
+    Vision           bool
+    FunctionCalling  bool
+    Streaming        bool
+    VisionModels     []string
+    MaxContextWindow int
+}
+```
+
+**Registry** (`internal/llm/provider/registry.go`):
+- 런타임 provider 라우팅
+- 모델명 → 프로바이더 매핑 (예: "claude-opus-4-7" → Anthropic)
+- Fallback model chain (5xx/network error 시 순차 재시도)
+
+### 9.4 공통 기능
+
+| 기능 | REQ | 구현 |
+|-----|-----|------|
+| **Streaming** | REQ-ADAPTER-013 | 60s heartbeat timeout watchdog |
+| **429 회전** | REQ-ADAPTER-008 | credential.MarkExhaustedAndRotate() |
+| **Fallback chain** | REQ-ADAPTER-009 | TryWithFallback() helper |
+| **Vision pre-check** | REQ-ADAPTER-017 | ErrCapabilityUnsupported 거절 |
+| **PII 로깅 방지** | REQ-ADAPTER-014 | 민감 정보 마스킹 |
+| **ExtraHeaders** | REQ-ADAPTER-016 | provider-specific 헤더 주입 |
+| **ExtraRequestFields** | REQ-ADAPTER-016 | body merge (provider 파라미터 pass-through) |
+
+### 9.5 각 어댑터 상세
+
+**Anthropic 어댑터** (`internal/llm/provider/anthropic/`):
+- OAuth PKCE refresh (Claude API credentials → session token)
+- Thinking mode 듀얼 경로:
+  - Claude 4.6 이하: fixed `budget_tokens` (LEGACY)
+  - Opus 4.7 Adaptive: `effort: xhigh` (동적 할당, REQ-OPUS-ADAPTIVE)
+- SSE streaming with `stream: true`
+- Tool schema 변환 (MoAI → Anthropic format)
+- MaxTokens clamping (모델별 최대값 준수)
+
+**OpenAI 어댑터** (`internal/llm/provider/openai/`):
+- 일반 OpenAI-compatible 팩토리 (기본값: api.openai.com)
+- GPT-4o, GPT-4 turbo, GPT-3.5-turbo, o1-preview 지원
+- base_url 교체 가능 (Azure, Fireworks, Anyscale 등)
+- tool_calls aggregation (중복 호출 병합)
+- 60s heartbeat timeout
+
+**xAI Grok 어댑터** (`internal/llm/provider/xai/`):
+- OpenAI 팩토리 래핑
+- BaseURL: api.x.ai 자동 설정
+- Grok-2, Grok-3 vision 지원
+
+**DeepSeek 어댑터** (`internal/llm/provider/deepseek/`):
+- OpenAI 팩토리 래핑
+- BaseURL: api.deepseek.com
+- DeepSeek-Chat, DeepSeek-Reasoner (r1) 지원
+- Vision=false capability 명시 (REQ-ADAPTER-017)
+
+**Google Gemini 어댑터** (`internal/llm/provider/google/`):
+- google.golang.org/genai SDK 기반
+- fake client 추상화 (테스트용 mock 지원)
+- Gemini 2.0 Flash, Pro 지원
+- 60s heartbeat timeout
+
+**Ollama 어댑터** (`internal/llm/provider/ollama/`):
+- 로컬 모델 지원
+- /api/chat JSON-L 스트리밍
+- llama2, mistral, neural-chat, openchat 등
+- 무인증 (localhost 기본값)
+- 모델 동적 발견 (LIST /api/tags)
+
+### 9.6 온디바이스 추론
+
+**Rust goose-ml** (ML/LoRA 훈련):
+- Candle (Huggingface) → 고속 추론
+- Burn (Rust ML) → GPU 지원
+- tch-rs (PyTorch binding)
+- ort (ONNX Runtime)
+- safetensors (안전한 tensor 직렬화)
+- 로컬 GGUF 모델 지원 (Ollama 연동)
+
+### 9.7 글로벌 프로바이더 우선순위 (기존)
+
+| 우선순위 | 프로바이더 | 상태 |
+|---------|----------|------|
+| **P0** | Anthropic, OpenAI, Google | ✅ ACTIVE |
+| **P1** | Ollama, xAI, DeepSeek | ✅ ACTIVE |
+| **P2** | Mistral, Groq, OpenRouter | 🔲 TODO |
+| **P3** | Naver HyperCLOVA X, KT Mi:dm | 🔲 TODO |
+
+---
 
 **온디바이스 추론**: Rust **goose-ml** (candle, ort)
 

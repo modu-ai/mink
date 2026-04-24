@@ -615,4 +615,39 @@ Select(strategy):
 
 ---
 
+## 10. Related Work
+
+### SPEC-GOOSE-ADAPTER-001 (2026-04-24 완료)
+
+**상태**: 11 commits, Phase 2.Z 완료 (Phase 3 sync 진행 중)
+
+**관계**: SPEC-GOOSE-ADAPTER-001은 §3.1 rule 6/7 에서 본 SPEC이 약속한 아래 두 API를 **선행 구현**하였다:
+
+1. **`MarkExhaustedAndRotate(ctx context.Context, id string, statusCode int, retryAfter string) error`**
+   - HTTP 429 (rate limit) 또는 402 (payment required) 응답 수신 시 호출
+   - 해당 credential을 명시적으로 고갈 표시하고, 다음 사용 대기 시간 설정
+   - `internal/llm/credential/pool.go` — 원자적 상태 전환 구현
+   - 본 SPEC 구현 시 해당 API의 의미 (§3.1 rule 6 exhausted status, cooldown duration 추적) 유지 보장
+
+2. **`AcquireLease(id string) *Lease` / `Lease.Release()`**
+   - 명시적 소프트 임대 생명주기 (`internal/llm/credential/lease.go`)
+   - 호출자가 credential 사용 중임을 표시 → lease counter 증가
+   - Lease.Release() 호출 시 풀로 반환 → lease counter 감소
+   - 본 SPEC의 §5.2 least-used strategy에서 lease counter를 기반으로 최소 사용 credential 선택
+   - 본 SPEC 구현 시 해당 API와의 계약 준수
+
+**SPEC-001 기여**:
+- `internal/llm/provider/anthropic/` — Anthropic OAuth token refresh (SPEC-CREDPOOL-001과 협동)
+- `internal/llm/provider/openai/` — OpenAI API key 관리 (SPEC-CREDPOOL-001과 협동)
+- `internal/llm/credential/` — MarkExhaustedAndRotate + AcquireLease 기본 인터페이스
+- Test coverage: provider 평균 81.1% (credential 87.5% 포함)
+
+**다음 단계 (SPEC-CREDPOOL-001 Run phase)**:
+- §5 Pool selection strategy (fill-first, round-robin, least-used, weighted-random) 완전 구현
+- §6 State machine (Available → Using (leased) → Exhausted-Cooldown → Refreshing → Available)
+- §7 OAuth auto-refresh (Anthropic PKCE refresh_token rotation)
+- §8 Persistent state (영속 JSON 읽기/쓰기)
+
+---
+
 **End of SPEC-GOOSE-CREDPOOL-001**
