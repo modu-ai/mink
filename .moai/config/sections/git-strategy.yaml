@@ -22,7 +22,7 @@ git_strategy:
             pre_commit: enforce
             pre_push: warn
         push_to_remote: false
-        workflow: github-flow
+        workflow: gitflow
     mode: manual
     personal:
         automation:
@@ -43,9 +43,11 @@ git_strategy:
             commit_msg: warn
             pre_commit: enforce
             pre_push: warn
+        default_base_branch: develop
         main_branch: main
         push_to_remote: true
-        workflow: github-flow
+        release_version_threshold: "0.1.0"
+        workflow: gitflow
     provider: github
     team:
         automation:
@@ -68,7 +70,9 @@ git_strategy:
             commit_msg: warn
             pre_commit: enforce
             pre_push: warn
+        default_base_branch: develop
         main_branch: main
         push_to_remote: true
+        release_version_threshold: "0.1.0"
         required_reviews: 1
-        workflow: github-flow
+        workflow: gitflow
