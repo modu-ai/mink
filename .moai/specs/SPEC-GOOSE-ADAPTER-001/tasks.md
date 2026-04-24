@@ -4,11 +4,12 @@
 - Harness: thorough
 - Mode: TDD (RED-GREEN-REFACTOR)
 - Session effort: xhigh (Opus 4.7 Adaptive Thinking)
-- Total tasks: 29
+- Total tasks: 29 (planned) · Phase 2.X/Y/Z 추가 증분으로 확장됨
 - Milestones: M0~M5
 - Drift guard baseline: 29 planned tasks
 - Author (Phase 1): manager-strategy
 - Approved by user: 2026-04-24
+- v1.0.0 (2026-04-25): spec.md audit fix 반영 — AC-013~017 신설에 따라 §"Acceptance Criteria → Task Mapping" 표 확장
 
 ## Milestones Overview
 
@@ -85,20 +86,57 @@
 
 ## Acceptance Criteria → Task Mapping
 
-| AC | Task(s) | Verification File |
-|----|---------|-------------------|
-| AC-ADAPTER-001 Anthropic streaming | T-017, T-021 | anthropic/stream_test.go, anthropic/adapter_test.go |
-| AC-ADAPTER-002 Anthropic tool_use | T-015, T-017, T-021 | anthropic/tools_test.go, anthropic/adapter_test.go |
-| AC-ADAPTER-003 OAuth auto-refresh | T-006, T-019, T-020, T-021 | anthropic/oauth_test.go |
-| AC-ADAPTER-004 OpenAI streaming | T-030, T-031 | openai/adapter_test.go |
-| AC-ADAPTER-005 xAI base_url | T-033 | xai/grok_test.go |
-| AC-ADAPTER-006 Google Gemini | T-040 | google/gemini_test.go |
-| AC-ADAPTER-007 Ollama localhost | T-050 | ollama/local_test.go |
-| AC-ADAPTER-008 429 rotation | T-007, T-021 | anthropic/adapter_test.go (rotation case) |
-| AC-ADAPTER-009 Fallback model chain | T-060 | fallback_test.go |
-| AC-ADAPTER-010 Context cancellation | T-017, T-021, T-031, T-040, T-050 | *_test.go (ctx timeout) |
-| AC-ADAPTER-011 Capability unsupported | T-034, T-061 | llm_call_test.go |
-| AC-ADAPTER-012 Thinking mode adaptive | T-014, T-021 | anthropic/thinking_test.go |
+### 기존 AC (M0-M5)
+
+| AC | 주 REQ | Task(s) | Verification File |
+|----|--------|---------|-------------------|
+| AC-ADAPTER-001 Anthropic streaming | REQ-001/004/006 | T-017, T-021 | anthropic/stream_test.go, anthropic/adapter_test.go |
+| AC-ADAPTER-002 Anthropic tool_use | REQ-011 | T-015, T-017, T-021 | anthropic/tools_test.go, anthropic/adapter_test.go |
+| AC-ADAPTER-003 OAuth auto-refresh | REQ-007/016 | T-006, T-019, T-020, T-021 | anthropic/oauth_test.go |
+| AC-ADAPTER-004 OpenAI streaming | REQ-001/004 | T-030, T-031 | openai/adapter_test.go |
+| AC-ADAPTER-005 xAI base_url | REQ-012 | T-033 | xai/grok_test.go |
+| AC-ADAPTER-006 Google Gemini | REQ-001/003 | T-040 | google/gemini_test.go |
+| AC-ADAPTER-007 Ollama localhost | REQ-001/003 | T-050 | ollama/local_test.go |
+| AC-ADAPTER-008 429 rotation (+ Phase 2.X `pool.Release(next)` fix) | REQ-005 | T-007, T-021 | anthropic/adapter_test.go (rotation case) |
+| AC-ADAPTER-009 Fallback model chain (production wired) | REQ-008 | T-060, T-063 | fallback_test.go, llm_call_test.go (NewLLMCall full-stack) |
+| AC-ADAPTER-010 Context cancellation | REQ-003 | T-017, T-021, T-031, T-040, T-050 | *_test.go (ctx timeout) |
+| AC-ADAPTER-011 Capability unsupported | REQ-017 | T-034, T-061 | llm_call_test.go |
+| AC-ADAPTER-012 Thinking mode adaptive + E2E streaming (Phase 2.X) | REQ-009/010 | T-014, T-021 + `TestAnthropic_ThinkingMode_EndToEnd` | anthropic/thinking_test.go, anthropic/adapter_test.go |
+
+### v1.0 신설 AC (plan-audit D1 gap 해소)
+
+| AC | 주 REQ | Task(s) / Phase | Verification File |
+|----|--------|-----------------|-------------------|
+| AC-ADAPTER-013 Heartbeat timeout watchdog | REQ-013 | Phase 2.Y: `constants.go` 신규 + 4 adapter `HeartbeatTimeout` Options + reader goroutine watchdog | anthropic/adapter_test.go (`TestAnthropic_HeartbeatTimeout_EmitsError`), openai/adapter_test.go (`TestOpenAI_HeartbeatTimeout_EmitsError`), ollama/local_test.go (`TestOllama_HeartbeatTimeout_EmitsError`), google/gemini_test.go (`TestGoogle_HeartbeatTimeout_EmitsError`) |
+| AC-ADAPTER-014 PII log 금지 (indirect) | REQ-014 | 코드 리뷰 + `zaptest` observed-logs 검증 (T-021/T-030/T-040/T-050 전반) | 각 adapter `_test.go`에 log allowlist assertion — evaluator Security 축에서 grep 검증 |
+| AC-ADAPTER-015 Disk write 제한 (indirect) | REQ-016 | T-006 (`FileSecretStore.CredentialFile` path traversal 방어) + Phase 2.X `oauth.go` pathSafe 정리 | provider/secret_test.go (path traversal 거부), anthropic/oauth_test.go (atomic write 검증) |
+| AC-ADAPTER-016 JSON mode (Deferred) | REQ-019 [Optional] | **DEFERRED to SPEC-GOOSE-ADAPTER-003** — 본 SPEC v1.0 합격 기준 외 | N/A (후속 SPEC에서 실구현) |
+| AC-ADAPTER-017 UserID forwarding (Deferred) | REQ-020 [Optional] | **DEFERRED to SPEC-GOOSE-ADAPTER-003** — 본 SPEC v1.0 합격 기준 외 | N/A (후속 SPEC에서 실구현) |
+
+### REQ → AC 역매핑 체크리스트 (v1.0 완전성)
+
+| REQ | 매핑된 AC | 상태 |
+|-----|----------|------|
+| REQ-ADAPTER-001 | AC-001/004/006/007 | 직접 검증 |
+| REQ-ADAPTER-002 | registry unit test (T-011) | 직접 검증 |
+| REQ-ADAPTER-003 | AC-006/007/010 | 직접 검증 |
+| REQ-ADAPTER-004 | AC-001/004 | 직접 검증 (tracker.Parse 호출) |
+| REQ-ADAPTER-005 | AC-008 | 직접 검증 |
+| REQ-ADAPTER-006 | AC-001 | 직접 검증 (NewLLMCall full-stack) |
+| REQ-ADAPTER-007 | AC-003 | 직접 검증 |
+| REQ-ADAPTER-008 | AC-009 | 직접 검증 (production wiring 포함) |
+| REQ-ADAPTER-009 | AC-012 E2E | 직접 검증 (Phase 2.X) |
+| REQ-ADAPTER-010 | AC-012 | 직접 검증 |
+| REQ-ADAPTER-011 | AC-002 | 직접 검증 |
+| REQ-ADAPTER-012 | AC-005 | 직접 검증 |
+| REQ-ADAPTER-013 | AC-013 (신설) | 직접 검증 (Phase 2.Y) |
+| REQ-ADAPTER-014 | AC-014 (신설, indirect) | indirect — log allowlist |
+| REQ-ADAPTER-015 | AC-001/002 간접 (plan 소비 검증) | 간접 |
+| REQ-ADAPTER-016 | AC-015 (신설, indirect) | indirect — filesystem scan |
+| REQ-ADAPTER-017 | AC-011 | 직접 검증 |
+| REQ-ADAPTER-018 | T-013 unit test | 직접 검증 |
+| REQ-ADAPTER-019 | AC-016 (Deferred) | **SPEC-003으로 연기** |
+| REQ-ADAPTER-020 | AC-017 (Deferred) | **SPEC-003으로 연기** |
 
 ## Dependencies & Risks (Reference)
 

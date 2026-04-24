@@ -1,16 +1,16 @@
 ---
 id: SPEC-GOOSE-ROUTER-001
-version: 0.1.0
-status: planned
+version: 1.0.0
+status: implemented
 created_at: 2026-04-21
-updated_at: 2026-04-21
+updated_at: 2026-04-25
 author: manager-spec
 priority: P0
 issue_number: null
 phase: 1
 size: 중(M)
 lifecycle: spec-anchored
-labels: []
+labels: [routing, llm, infrastructure, phase-1]
 ---
 
 # SPEC-GOOSE-ROUTER-001 — Smart Model Routing + Provider Registry
@@ -20,6 +20,7 @@ labels: []
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-21 | 초안 작성 (hermes-llm.md §4 + ROADMAP v2.0 Phase 1 기반) | manager-spec |
+| 1.0.0 | 2026-04-25 | 구현 완료 반영 (commit 103803b, 16/16 REQ + 8/8 AC, coverage 97.2%, race-clean). 감사 리포트 `ROUTER-001-audit.md` 결함 수정: frontmatter `labels` 추가, status `planned`→`implemented`, AC-009~014 추가(REQ-001/012/013/014/015/016 직접 매핑), AC-008 semantic clarification(New() 시점 fail-fast 허용), §6.2 AuthType `"none"` 추가, §3.2/§6.7 구현 드리프트(D-IMPL-1~7) 명시. | manager-spec |
 
 ---
 
@@ -89,6 +90,16 @@ GOOSE-AGENT의 **라우팅 결정 레이어**를 정의한다. Hermes Agent의 `
 - **Tool schema 변환**: ADAPTER-001 (provider별).
 - **Streaming delta 변환**: ADAPTER-001.
 - **Fallback model chain 실행**: QueryEngine(QUERY-001)의 `FallbackModels`와 연계. Router는 chain 자체를 결정하지 않고 primary/cheap 단일 결정만.
+
+### 3.3 Registry Co-ownership Note (SPEC-002 연계)
+
+본 SPEC이 정의한 `ProviderRegistry`(§6, registry.go)는 SPEC-GOOSE-ADAPTER-002에서 **adapter 구현 진행에 따라 공동 소유**된다. 구체적으로:
+
+- SPEC-ROUTER-001 정의: 메타데이터 스키마(`ProviderMeta`), DefaultRegistry 구조, Anthropic/OpenAI/Google/xAI/DeepSeek/Ollama 6개 provider의 `AdapterReady=true` 등록.
+- SPEC-ADAPTER-002 확장: OpenRouter, Nous, Mistral, Groq, Qwen, Kimi, GLM, MiniMax 등 추가 9개 provider의 `AdapterReady`를 `false → true`로 전환. 코드 주석 `// SPEC-002 M{N} 구현 완료`로 출처 표기.
+- Bonus metadata provider (`cohere`): SPEC-ADAPTER-002 M4에서 추가, ROUTER-001 research.md §3.2 metadata 목록에는 부재하나 "15+ providers" 요구(REQ-ROUTER-003)를 초과 달성하는 범위 내 허용.
+
+ROUTER-001의 **행동 계약(REQ/AC)은 DefaultRegistry 구성에 비의존적**이다 — Registry에 추가 provider가 등록되어도 Router 결정 로직은 그대로 유지되며, AC-008 등 "미등록 provider 거부" 계약도 영향받지 않는다.
 
 ---
 
@@ -177,8 +188,51 @@ GOOSE-AGENT의 **라우팅 결정 레이어**를 정의한다. Hermes Agent의 `
 
 **AC-ROUTER-008 — 미등록 provider 거부**
 - **Given** primary provider `"nonexistent_provider"`
-- **When** `Route`
-- **Then** `nil, ErrProviderNotRegistered{name:"nonexistent_provider"}`
+- **When** `New(cfg, registry, logger)` 또는 `Route(ctx, req)` 호출
+- **Then** `ErrProviderNotRegistered{name:"nonexistent_provider"}` 반환
+- **Note (구현 정책)**: 본 계약은 **fail-fast at `New()`** 또는 **deferred fail at `Route()`** 중 어느 구현을 채택하든 만족된다. 현재 구현(commit 103803b)은 `New()` 시점에서 primary/cheap provider를 registry 조회하여 즉시 거부(`router.go:L75`) — 더 조기에 오류를 드러내는 엄격한 정책. 기존에 문구가 `Route` 반환으로 좁게 해석될 수 있던 부분을 본 clarification으로 해소.
+
+**AC-ROUTER-009 — 상태 없음 / 동시성 안전성 (REQ-ROUTER-001 매핑)**
+- **Given** 단일 `Router` 인스턴스와 동일 `RoutingRequest` 입력
+- **When** 100개 goroutine이 동시에 `Route(ctx, req)` 호출
+- **Then** 모든 goroutine이 반환한 `Route` 값(특히 `Model`, `Provider`, `RoutingReason`, `Signature`)이 **완전히 동일**하며, `-race` 플래그로 테스트 실행 시 데이터 레이스 미검출
+- **REQ 매핑**: REQ-ROUTER-001
+- **테스트 방식**: table-driven concurrent test + `go test -race` 필수
+
+**AC-ROUTER-010 — Router는 네트워크 I/O를 수행하지 않음 (REQ-ROUTER-012 매핑)**
+- **Given** `Router` 패키지 소스 트리 전체
+- **When** 정적 import 분석
+- **Then** `net/http`, `net`, `golang.org/x/net`, provider SDK(HTTP 클라이언트) 등 네트워크 I/O 패키지가 import되지 **않음**; 또한 `Route()` 경로에서 파일시스템 쓰기도 없음
+- **REQ 매핑**: REQ-ROUTER-012
+- **테스트 방식**: 구조적 검증(import list assertion) 또는 코드 리뷰 체크리스트
+
+**AC-ROUTER-011 — 다중 라인 들여쓰기 코드는 복잡으로 분류 (REQ-ROUTER-013 매핑)**
+- **Given** 메시지 `"quick question\n    def foo():\n        return 1\n"` (문자/단어 threshold 이하, 펜스 코드 블록 없음, 2줄 이상 선행 공백을 가진 라인)
+- **When** `SimpleClassifier.Classify(msg)`
+- **Then** `ClassifierResult.IsSimple == false`, `Reasons`에 "has_code_block" 또는 indented-code 상당 사유 포함
+- **REQ 매핑**: REQ-ROUTER-013
+- **테스트 방식**: `classifier_test.go`의 indented-code 사례 (예: `TestClassifier_IndentedMultilineCode_ClassifiesComplex`)
+
+**AC-ROUTER-012 — Signature에 PII·시간·자격 불포함 (REQ-ROUTER-014 매핑)**
+- **Given** 동일 `RoutingRequest`로 1초 간격을 두고 두 번 `Route` 호출
+- **When** 각 반환된 `route1.Signature`, `route2.Signature` 비교
+- **Then** `route1.Signature == route2.Signature`; 또한 signature 문자열에 대해 regex로 타임스탬프 패턴(ISO-8601, Unix epoch 10/13자리), 이메일, API key prefix(`sk-`, `hf_` 등) 스캔 시 매치 없음
+- **REQ 매핑**: REQ-ROUTER-014
+- **테스트 방식**: signature_test.go의 timestamp/PII 스캔 테스트
+
+**AC-ROUTER-013 — Hook은 결정 후에만 호출 (REQ-ROUTER-015 매핑)**
+- **Given** `RoutingConfig.RoutingDecisionHooks = [hookA, hookB]` (각 hook이 호출 순서·인자를 기록)
+- **When** `Route(ctx, req)` 성공 반환
+- **Then** (a) 두 hook 모두 정확히 1회 호출, (b) 호출 시점이 Route 구성 **완료 후**(즉 hook이 받은 `*Route`의 `Signature` 필드가 이미 채워져 있음), (c) hook 호출 순서는 등록 순서와 일치
+- **REQ 매핑**: REQ-ROUTER-015
+- **Note**: 본 AC는 hook 관찰 계약을 검증하되, 포인터 전달로 인한 구조적 mutation 가능성은 코드 리뷰·문서 계약에 위임(§6.7 D-IMPL 항목 참조).
+
+**AC-ROUTER-014 — CustomClassifier 대체 가능 (REQ-ROUTER-016 매핑)**
+- **Given** `RoutingConfig.CustomClassifier = fakeCls`이고 `fakeCls.Classify(msg)`는 입력 무관하게 `{IsSimple: true, Reasons: ["custom_always_simple"]}` 반환
+- **When** 복잡 키워드 `"debug"`를 포함한 메시지로 `Route` 호출 (기본 classifier라면 complex로 판정했을 입력)
+- **Then** `route.Model == cheap.Model` (cheap 경로 채택), `route.ClassifierReasons == ["custom_always_simple"]`
+- **REQ 매핑**: REQ-ROUTER-016
+- **테스트 방식**: `router_test.go`의 `TestRouter_CustomClassifier_Overrides` 상당 테스트
 
 ---
 
@@ -196,6 +250,7 @@ internal/llm/router/
 ├── registry_test.go
 ├── config.go            # RoutingConfig + ForceMode enum
 ├── signature.go         # Signature canonical serialization
+├── signature_test.go    # signature reproducibility + PII/timestamp 스캔
 └── errors.go            # ErrProviderNotRegistered + ErrCheapRouteUndefined
 ```
 
@@ -303,7 +358,7 @@ type ProviderMeta struct {
     Name            string
     DisplayName     string
     DefaultBaseURL  string
-    AuthType        string // "oauth" | "api_key"
+    AuthType        string // "oauth" | "api_key" | "none" (e.g., local Ollama)
     SupportsStream  bool
     SupportsTools   bool
     SupportsVision  bool
@@ -423,6 +478,22 @@ Route(ctx, req):
 | Secured | REQ-ROUTER-014 signature에 PII/비밀값 미포함 |
 | Trackable | 모든 Route 결정에 zap 로그(`{provider, model, reason, signature_prefix}`), `RoutingDecisionHook`로 분석 SPEC(INSIGHTS-001) 연계 준비 |
 
+### 6.8 구현 드리프트 기록 (Audit 2026-04-25, commit 103803b)
+
+SPEC과 구현 간 **minor 드리프트** 목록. 모두 REQ/AC 행동 계약을 위배하지 않는 범위의 설계 선택이며, 향후 유지보수자의 혼란을 줄이기 위해 여기에 기록한다. 감사 리포트 출처: `.moai/reports/plan-audit/mass-20260425/ROUTER-001-audit.md` (Part B §B-5).
+
+| ID | 드리프트 지점 | 설명 | SPEC 측 방침 |
+|----|-------------|------|-----------|
+| D-IMPL-1 | `router.go:L181` `Args: def.Args` | `Route.Args`가 `RoutingConfig.Primary/CheapRoute.Args` map reference와 공유 — downstream consumer가 실수로 mutate할 경우 config가 오염될 여지. | `Route.Args`는 **read-only 계약**(GoDoc 주석 권장). 필요 시 defensive shallow-copy로 보강. REQ-ROUTER-004 직접 위배는 아님 — "Router가 input을 mutate하지 않음"을 다루므로. |
+| D-IMPL-2 | `router.go:L190–L194` `callHooks` | `*Route` 포인터로 hook에 전달 — Go 타입 시스템으로 observational 계약을 강제 불가. | REQ-ROUTER-015는 hook이 "observational only"임을 계약으로 명시. mutation 여부는 hook 작성자 책임. 향후 필요 시 defensive copy 또는 `RoutingDecisionHook func(req RoutingRequest, route Route)` (값 수신)로 계약 강화 가능. |
+| D-IMPL-3 | `router.go:L197–L204` `logDecision` signature_prefix | `route.Signature[:min(len, 12)]` 슬라이스로 관찰성 prefix 구성 — 의미 있는 파싱이 아니라 첫 12바이트. | cosmetic; `strings.SplitN(route.Signature, "|", 2)[0]` (모델 이름)으로 교체 시 가독성 향상. 비 계약 영역. |
+| D-IMPL-4 | `registry.go:L223–L344` `AdapterReady=true` 확장 | SPEC-002 M1~M5에서 9개 추가 provider를 `AdapterReady=true`로 승격. ROUTER-001 research.md §3.2는 metadata-only(`AdapterReady=false`)로 명시. | §3.3(본 SPEC) Registry Co-ownership Note로 정식화. REQ-ROUTER-003은 "15+ provider 메타데이터" 최소 조건만 요구하므로 확장은 허용. |
+| D-IMPL-5 | `registry.go:L183` `cohere` | research.md §3.2 metadata 목록에 없는 bonus provider. | §3.3 참조; "15+" 요구 초과 달성 범위 내 허용. |
+| D-IMPL-6 | (해결) `Router.cls` 필드명 | 감사 중 의심되었으나 SPEC §6.2와 구현 모두 `cls Classifier`로 일치 확인됨. | no action. |
+| D-IMPL-7 | AC-008 검출 시점 | SPEC AC-008의 문구가 `Route()` 반환으로 읽힐 수 있으나 구현은 `New()` 시점에 fail-fast. | §5 AC-ROUTER-008 Note로 clarification 완료 — `New()` 또는 `Route()` 어느 시점 검출이든 계약 만족. |
+
+**종합**: 위 7건 모두 행동 계약(REQ/AC) 위반 없음. D-IMPL-1/2는 **추가 안전 강화 기회**로 향후 SPEC 개정 시 contract tightening 후보. D-IMPL-4/5는 SPEC-002와의 registry co-ownership으로 설명됨(§3.3). D-IMPL-7은 본 개정으로 해소됨.
+
 ---
 
 ## 7. 의존성 (Dependencies)
@@ -473,6 +544,8 @@ Route(ctx, req):
 ### 9.3 부속 문서
 
 - `./research.md` — classifier heuristic 상세 케이스, provider registry 15+ 엔트리 스펙, 테스트 전략
+- `.moai/reports/plan-audit/mass-20260425/ROUTER-001-audit.md` — 독립 감사 리포트 (2026-04-24, 구현 정합률 100% 16/16 REQ · 8/8 AC, coverage 97.2%, race-clean)
+- `internal/llm/router/` (commit 103803b) — 현재 구현 트리 (router.go, classifier.go, registry.go, config.go, signature.go, errors.go + 4개 test 파일)
 
 ---
 

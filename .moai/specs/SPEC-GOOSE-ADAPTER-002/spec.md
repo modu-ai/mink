@@ -1,16 +1,16 @@
 ---
 id: SPEC-GOOSE-ADAPTER-002
-version: 0.1.0
-status: planned
+version: 1.0.0
+status: implemented
 created_at: 2026-04-24
-updated_at: 2026-04-24
+updated_at: 2026-04-25
 author: manager-spec
-priority: P1
+priority: high
 issue_number: null
 phase: 1
 size: 대(L)
 lifecycle: spec-anchored
-labels: []
+labels: [llm, adapter, provider, openai-compat, glm, groq, openrouter, mistral, qwen, kimi]
 ---
 
 # SPEC-GOOSE-ADAPTER-002 — 9 OpenAI-compat Provider 어댑터 확장 (GLM/Groq/OpenRouter/Together/Fireworks/Cerebras/Mistral/Qwen/Kimi)
@@ -20,6 +20,7 @@ labels: []
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-24 | 초안 작성 (SPEC-ADAPTER-001 재사용 + 9 provider 확장 + Z.ai GLM 공식 endpoint 이전) | manager-spec |
+| 1.0.0 | 2026-04-25 | ADAPTER-002 감사 리포트 결함 수정 — (1) frontmatter 스키마 정합화(priority/status/labels/version), (2) REQ-ADP2-007 thinking-capable 모델 리스트에 `glm-4.5` 추가하여 구현과 일관화(D6), (3) REQ-ADP2-020/021/022 (OpenRouter PreferredProviders / GLM budget_tokens / Kimi 장문 context INFO)를 §11 Open Items로 이관하고 `[PENDING v0.3]` 주석 부착(D2/D3/D4), (4) RegisterAllProviders 15-way 등록은 Phase C1 코드 수정으로 해결됨을 명시(D1). | manager-spec |
 
 ---
 
@@ -125,7 +126,7 @@ GOOSE의 LLM provider 생태계를 **6개에서 15개로 확장**한다. SPEC-GO
 
 ### 4.2 Event-Driven
 
-**REQ-ADP2-007 [Event-Driven]** — **When** `GLMAdapter.Stream(ctx, req)` is invoked with `req.Route.Model` matching a thinking-capable model (`glm-4.6`, `glm-4.7`, `glm-5`), and `req.Thinking.Enabled == true`, the adapter **shall** inject the request body key `"thinking": {"type": "enabled"}` before delegating to the embedded `openai.OpenAIAdapter`; for non-thinking models or `Thinking.Enabled == false`, **shall not** inject the parameter.
+**REQ-ADP2-007 [Event-Driven]** — **When** `GLMAdapter.Stream(ctx, req)` is invoked with `req.Route.Model` matching a thinking-capable model (`glm-4.5`, `glm-4.6`, `glm-4.7`, `glm-5`), and `req.Thinking.Enabled == true`, the adapter **shall** inject the request body key `"thinking": {"type": "enabled"}` before delegating to the embedded `openai.OpenAIAdapter`; for non-thinking models or `Thinking.Enabled == false`, **shall not** inject the parameter. (v1.0.0: `glm-4.5` 추가 — D6 감사 수정, 구현 `glm/thinking.go:L14-L19`와 일관화)
 
 **REQ-ADP2-008 [Event-Driven]** — **When** an OpenRouter adapter is initialized with `OpenRouterOptions{HTTPReferer: "...", XTitle: "..."}`, the adapter **shall** include `HTTP-Referer` and `X-Title` headers in every outgoing HTTP request; when these fields are empty, the headers **shall** be omitted.
 
@@ -157,11 +158,11 @@ GOOSE의 LLM provider 생태계를 **6개에서 15개로 확장**한다. SPEC-GO
 
 **REQ-ADP2-019 [Optional]** — **Where** `CompletionRequest.ResponseFormat == "json"` and the resolved provider's model supports JSON mode (Mistral, Qwen, GLM-4.6+), the adapter **shall** forward the `response_format: {type: "json_object"}` parameter by reusing SPEC-001's existing OpenAI-compat JSON mode logic.
 
-**REQ-ADP2-020 [Optional]** — **Where** `OpenRouterOptions.PreferredProviders` is a non-empty slice, the adapter **shall** include the `"provider": {"order": [...], "allow_fallbacks": true}` field in the request body to route to specific upstream providers.
+**REQ-ADP2-020 [Optional]** `[PENDING v0.3]` — **Where** `OpenRouterOptions.PreferredProviders` is a non-empty slice, the adapter **shall** include the `"provider": {"order": [...], "allow_fallbacks": true}` field in the request body to route to specific upstream providers. (v1.0.0: 미구현 — `openrouter/client.go`의 `Options` 구조체에 `PreferredProviders` 필드 부재. §11 Open Items OI-1 참조. D4 감사.)
 
-**REQ-ADP2-021 [Optional]** — **Where** `GLMOptions.ThinkingBudget` is explicitly set (int > 0), and the resolved model supports budget-based thinking, the adapter **shall** include `"thinking": {"type": "enabled", "budget_tokens": N}` instead of the default enabled-only form.
+**REQ-ADP2-021 [Optional]** `[PENDING v0.3]` — **Where** `GLMOptions.ThinkingBudget` is explicitly set (int > 0), and the resolved model supports budget-based thinking, the adapter **shall** include `"thinking": {"type": "enabled", "budget_tokens": N}` instead of the default enabled-only form. (v1.0.0: 미구현 — `glm/thinking.go:L40-L44` `BuildThinkingField`가 `cfg.BudgetTokens`를 읽지 않음. §11 Open Items OI-2 참조. D2 감사.)
 
-**REQ-ADP2-022 [Optional]** — **Where** Kimi is routing to a `moonshot-v1-128k`-class model with input messages exceeding 64K tokens, the adapter **shall** log an INFO-level advisory that a long-context model is in use; this is observational only.
+**REQ-ADP2-022 [Optional]** `[PENDING v0.3]` — **Where** Kimi is routing to a `moonshot-v1-128k`-class model with input messages exceeding 64K tokens, the adapter **shall** log an INFO-level advisory that a long-context model is in use; this is observational only. (v1.0.0: 미구현 — `kimi/client.go`에 token-count 추정 헬퍼 및 INFO 로그 부재. §11 Open Items OI-3 참조. D3 감사.)
 
 ---
 
@@ -227,10 +228,11 @@ GOOSE의 LLM provider 생태계를 **6개에서 15개로 확장**한다. SPEC-GO
 - **When** `qwen.New(...)` 호출
 - **Then** `ErrInvalidRegion{region:"foo"}` 반환(REQ-ADP2-018), provider 생성 실패
 
-**AC-ADP2-013 — Kimi 장문 context 경고**
+**AC-ADP2-013 — Kimi 장문 context 경고** `[PENDING v0.3]`
 - **Given** Kimi 어댑터, 모델 `moonshot-v1-128k`, 입력 메시지 token 합계 70K
 - **When** `LLMCall`
 - **Then** INFO 로그 1건 기록(REQ-ADP2-022), streaming 정상
+- **v1.0.0 상태**: 미구현. token 추정 로직 + INFO 로그는 §11 Open Items OI-3에서 후속 이터레이션에 배정. D3 감사.
 
 **AC-ADP2-014 — Kimi 지역 URL 선택**
 - **Given** `KimiOptions{Region:"cn"}`
@@ -669,6 +671,29 @@ research.md §6에 수록된 **10개 provider의 공식 문서 및 벤치마크 
 - Mistral: https://docs.mistral.ai/capabilities/completion/
 - Qwen: https://help.aliyun.com/zh/model-studio/developer-reference/compatibility-of-openai-with-dashscope
 - Kimi: https://platform.moonshot.ai/docs/intro, https://moonshot.ai/blog/kimi-k2-6
+
+---
+
+## 11. Open Items (v1.0.0 시점 미구현 REQ — 후속 이터레이션 배정)
+
+아래 항목은 v1.0.0 감사 결과 **SPEC-vs-Implementation 불일치**로 확인되었으며, `[PENDING v0.3]`로 마킹되어 후속 minor/point release에서 처리한다. 이들은 전부 REQ 분류상 **[Optional]** (Where-절)이며, 현재 구현은 해당 Where-절이 **성립하지 않도록 사용**되는 전제(즉, `PreferredProviders` 미입력, `ThinkingBudget=0`, 장문 context INFO 로그 미요구)에서 정상 동작한다. 따라서 기존 GREEN AC(001-012, 014-018)에는 영향이 없다.
+
+| OI ID | 대응 REQ | 대응 AC | 결함 | 구현 범위 | 우선순위 | 목표 버전 |
+|-------|---------|--------|------|---------|---------|---------|
+| OI-1 | REQ-ADP2-020 | (AC 없음 — Optional) | D4 (major). `openrouter.Options`에 `PreferredProviders []string` 필드 부재. `"provider": {"order":[...], "allow_fallbacks":true}` request-body 주입 미구현. | `openrouter/client.go:L22-L41` Options 구조체 확장 + `ExtraRequestFields` 주입 + `openrouter/client_test.go` 신규 테스트 1건. | Medium (저수요 feature) | v0.3 |
+| OI-2 | REQ-ADP2-021 | (AC 없음 — Optional) | D2 (critical, Optional). `glm/thinking.go:L40-L44` `BuildThinkingField`가 `cfg.BudgetTokens` 값을 읽지 않음. `budget_tokens: N` injection 미구현. `provider.ThinkingConfig.BudgetTokens` 필드(`provider.go:L40`)는 이미 존재. | `glm/thinking.go` `BuildThinkingField` 확장 + `glm/adapter_test.go` `BudgetTokens=4096` 케이스 추가. | High (CG Mode 비용 제어 영향) | v0.3 |
+| OI-3 | REQ-ADP2-022 | AC-ADP2-013 | D3 (critical, Optional). `kimi/client.go`에 token-count 추정 헬퍼 및 `moonshot-v1-128k` 대상 INFO 로그 부재. progress.md `N/A — Optional`이 SPEC amendment 없이 단독 이탈. | `kimi/advisory.go` 신규 (token 추정 + INFO 로그) + `kimi/client_test.go` AC-ADP2-013 대응 테스트. 또는 SPEC Exclusions로 영구 이관(대안). | Low (관측용, 기능 영향 없음) | v0.3 또는 Exclusions |
+
+### 처리 원칙
+
+- OI-1/2/3는 모두 `[Optional]` EARS 패턴이므로 v1.0.0 GREEN 판정에 영향 없음. 단 **SPEC-vs-구현 정합성** 차원에서 후속 처리 필요.
+- 후속 SPEC(SPEC-GOOSE-ADAPTER-003 또는 이후)에서 OI별 독립 AC로 재도입하고, 해당 REQ의 `[PENDING v0.3]` 주석을 제거한다.
+- 처리 완료 시 본 §11의 해당 행을 "CLOSED in SPEC-XXX" 로 마킹하고 유지한다(삭제하지 않음 — traceability).
+
+### 감사 참조
+
+- 근거: `/Users/goos/MoAI/AgentOS/.moai/reports/plan-audit/mass-20260425/ADAPTER-002-audit.md` D2, D3, D4 (Critical/Major)
+- D1(RegisterAllProviders 13→15)은 Phase C1 코드 수정으로 **해결됨** — 현 `registry_builder_test.go:L28` `assert.Len(t, names, 15)` + anthropic/google factory 포함. 본 §11 항목 아님.
 
 ---
 
