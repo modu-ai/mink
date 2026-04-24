@@ -1,16 +1,16 @@
 ---
 id: SPEC-GOOSE-ERROR-CLASS-001
-version: 0.1.0
+version: 0.1.1
 status: planned
 created_at: 2026-04-21
-updated_at: 2026-04-21
+updated_at: 2026-04-25
 author: manager-spec
 priority: P0
 issue_number: null
 phase: 4
 size: 소(S)
 lifecycle: spec-anchored
-labels: []
+labels: [error-handling, go, phase-4, evolve, classifier]
 ---
 
 # SPEC-GOOSE-ERROR-CLASS-001 — Error Classifier (14 FailoverReason, Retry 전략)
@@ -20,6 +20,7 @@ labels: []
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-21 | 초안 작성 (hermes-learning.md §5 + Hermes `error_classifier.py` 28KB 기반) | manager-spec |
+| 0.1.1 | 2026-04-25 | plan-audit 결함 수정: D2(6 REQ AC 신설, AC-019~024), D3(REQ-021 예외 목록을 Overloaded/ServerError 2종으로 축소해 defaults 표와 일관화), D5(REQ-018 supported provider 집합을 BuiltinProviderPatterns 실제 구현 범위와 일치: anthropic/openai로 축소) | manager-spec |
 
 ---
 
@@ -129,7 +130,7 @@ GOOSE-AGENT **자기진화 파이프라인의 보조 레이어**를 정의한다
 
 **REQ-ERRCLASS-017 [State-Driven]** — **While** the input `err` is nil, the classifier **shall** return `ClassifiedError{Reason: Unknown, Retryable: false, Message: "nil error"}` without executing the pipeline.
 
-**REQ-ERRCLASS-018 [State-Driven]** — **While** `meta.Provider` is in the set of supported providers (`anthropic`, `openai`, `google`, `xai`, `deepseek`, `ollama`), stage 1 (provider-specific) patterns **shall** be consulted; otherwise stage 1 is skipped.
+**REQ-ERRCLASS-018 [State-Driven]** — **While** `meta.Provider` matches a provider present in `BuiltinProviderPatterns` (initial scope: `anthropic`, `openai`) **or** in `ClassifierOptions.ExtraPatterns`, stage 1 (provider-specific) patterns **shall** be consulted; otherwise stage 1 is skipped and classification proceeds directly to stage 2. Additional providers (`google`, `xai`, `deepseek`, `ollama`, etc.) are onboarded via `ExtraPatterns` (REQ-ERRCLASS-023) without code change.
 
 ### 4.4 Unwanted Behavior (방지)
 
@@ -137,7 +138,7 @@ GOOSE-AGENT **자기진화 파이프라인의 보조 레이어**를 정의한다
 
 **REQ-ERRCLASS-020 [Unwanted]** — The classifier **shall not** modify `meta` (read-only input); the result **shall not** retain references to `meta.RawError`'s internal mutable fields beyond the function return.
 
-**REQ-ERRCLASS-021 [Unwanted]** — The classifier **shall not** set both `retryable=true` AND `should_fallback=true` simultaneously for the same `FailoverReason` unless the reason lookup table explicitly defines both (Billing, Overloaded, ServerError, ThinkingSignature) — the combination represents "try again but also prepare fallback".
+**REQ-ERRCLASS-021 [Unwanted]** — The classifier **shall not** set both `retryable=true` AND `should_fallback=true` simultaneously for any `FailoverReason` **other than** `Overloaded` and `ServerError`; these two reasons are the sole sanctioned exceptions where the combination represents "try again but also prepare fallback" (transient server-side issues with provider redundancy). `Billing`, `AuthPermanent`, `ThinkingSignature`, and `ModelNotFound` are non-retryable (`retryable=false` with `should_fallback=true`) and **shall not** coexist with `retryable=true`. The defaults table in §6.3 is the normative source of truth for all 14 reasons' flag profiles.
 
 **REQ-ERRCLASS-022 [Unwanted]** — **If** stage 2 (HTTP status) matches a status code but message content contradicts the default reason (e.g. 429 with message "actually OK"), the classifier **shall** still proceed to stage 4 (message regex) to override the reason; HTTP status is a hint, not final.
 
@@ -242,6 +243,36 @@ GOOSE-AGENT **자기진화 파이프라인의 보조 레이어**를 정의한다
 - **Given** `ClassifierOptions.OverrideFlags[Timeout] = {Retryable:false, ShouldFallback:true}` (회사 정책: timeout은 재시도 금지, 바로 fallback)
 - **When** `Classify(err=context.DeadlineExceeded)`
 - **Then** `Reason == Timeout`, `Retryable=false`, `ShouldFallback=true` (기본값 override됨)
+
+**AC-ERRCLASS-019 — RawError 보존 (REQ-004)**
+- **Given** `innerErr := errors.New("provider inner failure")`, `wrapped := fmt.Errorf("outer: %w", innerErr)`
+- **When** `classified := Classify(ctx, wrapped, meta)`
+- **Then** `classified.RawError` is non-nil **and** `errors.Unwrap(classified.RawError)` returns `innerErr` (identity match via `errors.Is(errors.Unwrap(classified.RawError), innerErr) == true`); 즉 원본 unwrapping chain이 손실되지 않는다. 임의 depth 3-level 체인에서도 가장 안쪽까지 `errors.Is`로 도달 가능해야 한다.
+
+**AC-ERRCLASS-020 — HTTP 403 permission → AuthPermanent (REQ-007)**
+- **Given** `meta.StatusCode=403`, `err=errors.New("permission denied: this API key does not have access to the requested resource")`
+- **When** `Classify(ctx, err, meta)`
+- **Then** `Reason == AuthPermanent`, `Retryable=false`, `ShouldRotateCredential=true`, `ShouldFallback=true`, `ShouldCompress=false`. 403 + 메시지에 `permission|forbidden|not.*allowed` 매칭 시 일시 auth(401)와 구분되어 영구 거부로 분류.
+
+**AC-ERRCLASS-021 — HTTP 500/502 → ServerError (REQ-013)**
+- **Given** 케이스 ①: `meta.StatusCode=500`, `err=errors.New("internal server error")`; 케이스 ②: `meta.StatusCode=502`, `err=errors.New("bad gateway")`
+- **When** 두 케이스 각각 `Classify`
+- **Then** 두 케이스 모두 `Reason == ServerError`, `Retryable=true`, `ShouldFallback=true`, `ShouldRotateCredential=false`, `ShouldCompress=false`. 503/529(Overloaded, AC-008/AC-009)와 명확히 구분되어 ServerError 버킷에 매핑됨을 파라미터화 테이블로 검증.
+
+**AC-ERRCLASS-022 — 미지원 provider에서 stage 1 skip (REQ-018)**
+- **Given** `meta.Provider="groq"` (BuiltinProviderPatterns에 없고 `ExtraPatterns` 비어 있음), `err=errors.New("thinking_signature looks suspicious")` (anthropic 특화 패턴 문자열이 메시지에 우연 포함), `meta.StatusCode=0`
+- **When** `Classify`
+- **Then** stage 1(provider-specific)은 건너뛰어진다 → 결과의 `MatchedBy`는 `"stage1_provider"`가 **아니어야** 한다. anthropic 특화 `ThinkingSignature`로 분류되지 않고 stage 2~5의 일반 경로에 따라 판정된다(여기서는 status 0 + 명시적 HTTP 불일치 → stage 4/5 혹은 `Unknown` fallback).
+
+**AC-ERRCLASS-023 — meta 불변성 (REQ-020)**
+- **Given** `meta := ErrorMeta{Provider:"openai", Model:"gpt-4", StatusCode:429, ApproxTokens:50_000, ContextLength:128_000, MessageCount:42, RawError: errors.New("rate limit")}`; `snapshot := meta` (값 복사)
+- **When** `_ = Classify(ctx, meta.RawError, meta)`
+- **Then** `meta` 필드별 값이 호출 전과 동일: `meta.Provider == snapshot.Provider && meta.Model == snapshot.Model && meta.StatusCode == snapshot.StatusCode && meta.ApproxTokens == snapshot.ApproxTokens && meta.ContextLength == snapshot.ContextLength && meta.MessageCount == snapshot.MessageCount`. 반환된 `ClassifiedError.RawError`는 `meta.RawError`와 같은 error를 참조할 수 있으나 `meta` 자체는 수정되지 않는다(deep-equal).
+
+**AC-ERRCLASS-024 — retryable+fallback 플래그 조합 불변식 (REQ-021)**
+- **Given** `AllFailoverReasons()`가 반환하는 14 reason 각각에 대해 `defaults[reason]` 또는 `Classify(...)` 결과의 기본 플래그 프로파일
+- **When** 각 reason의 `{Retryable, ShouldFallback}` 쌍을 조사
+- **Then** `Retryable==true && ShouldFallback==true`가 동시에 `true`인 reason 집합은 정확히 `{Overloaded, ServerError}`에 한정된다. 나머지 12 reason은 최소 둘 중 하나가 `false`이다(테이블 드리븐 테스트로 14 × 1 검증). `OverrideFlags`로 사용자 정책을 주입한 경우는 본 AC 검증 대상에서 제외된다(defaults 한정).
 
 ---
 

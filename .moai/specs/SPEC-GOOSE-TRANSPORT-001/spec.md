@@ -1,9 +1,9 @@
 ---
 id: SPEC-GOOSE-TRANSPORT-001
-version: 0.1.0
+version: 0.1.1
 status: planned
 created_at: 2026-04-21
-updated_at: 2026-04-21
+updated_at: 2026-04-25
 author: manager-spec
 priority: P0
 issue_number: null
@@ -20,6 +20,7 @@ labels: []
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-21 | 초안 작성 (ROADMAP Phase 0 row 03 + tech ADR-002) | manager-spec |
+| 0.1.1 | 2026-04-25 | 감사 리포트(mass-20260425/TRANSPORT-001-audit.md) 결함 수정: (a) §1 scope-clarity 문장 추가(D8), (b) §3.2 streaming BRIDGE-001 위임 명시(D8), (c) REQ-TR-001 vs REQ-TR-012 모순 일관화(D5), (d) REQ-TR-012/013 [Unwanted] 라벨 If/then 구조 수정(D6), (e) 고아 REQ 6건(REQ-TR-002/003/007/011/013/014)에 AC-TR-009~014 신설(D3), (f) AC-TR-002에 REQ-TR-015 추가(D4). REQ 번호 재배치 없음. | manager-spec |
 
 ---
 
@@ -34,6 +35,17 @@ labels: []
 - `goose.v1.DaemonService/Shutdown` 호출 (with auth token) → daemon이 graceful shutdown 개시
 
 본 SPEC은 **Agent/LLM/Tool RPC는 포함하지 않는다** (후속 SPEC). Daemon 수준 메타데이터와 lifecycle RPC만.
+
+### 1.1 Scope Clarity (v0.1.1 추가)
+
+본 SPEC의 이름은 "TRANSPORT-001"이지만, 실제 계약 범위는 **`goosed` daemon의 meta-RPC unary 3종(`Ping` / `GetInfo` / `Shutdown`)에 한정**된다. Transport 계층의 다른 측면은 각 후속 SPEC에서 정의된다:
+
+- **Streaming transport (WebSocket/SSE/HTTP 포함)** → `SPEC-GOOSE-BRIDGE-001` (localhost Web UI bridge).
+- **QUERY-001 `<-chan SDKMessage` stream 변환 계약** → BRIDGE-001에서 처리 (본 SPEC은 unary-only).
+- **Agent / LLM / Tool RPC 정의** → 각각 `SPEC-GOOSE-AGENT-001`, `SPEC-GOOSE-LLM-001`, `SPEC-GOOSE-TOOL-001`.
+- **TLS / mTLS / 고급 인증** → Phase 5+ 후속 SPEC.
+
+본 SPEC을 "transport 계층 전체 authoritative 문서"로 해석해서는 안 된다. 본 SPEC이 다루는 것은 daemon meta-RPC unary 계약의 기본 바닥판이다.
 
 ---
 
@@ -77,7 +89,7 @@ labels: []
 - TLS/mTLS 구성 (후속 SPEC, 아마 Phase 5+).
 - 실제 `AgentService`, `LLMService`, `ToolService` RPC 정의 — 각각 AGENT-001, LLM-001, TOOL-001.
 - gRPC-Web / Connect 변환 레이어 (CLI-001이 필요 시 별도 SPEC).
-- Streaming RPC 예시(Shutdown은 일회성 unary).
+- **Streaming transport는 본 SPEC의 범위가 아니며 `SPEC-GOOSE-BRIDGE-001`(localhost Web UI bridge)이 담당한다. 여기에는 server-streaming / client-streaming / bidi-streaming gRPC, WebSocket, SSE, HTTP long-polling, 그리고 QUERY-001의 `<-chan SDKMessage` stream 변환 계약이 모두 포함된다. 본 SPEC은 unary RPC(Ping / GetInfo / Shutdown) 3종만 정의한다.** (streaming is handled by BRIDGE-001)
 - client library 퍼블리싱(`pkg/`).
 - Observability: OpenTelemetry tracing interceptor — Phase 5+.
 - Rate limiting / quota interceptor.
@@ -118,13 +130,17 @@ labels: []
 
 **REQ-TR-011 [Unwanted]** — **If** `GOOSE_SHUTDOWN_TOKEN` is empty or unset, **then** the server **shall** register `Shutdown` RPC as disabled (returning `codes.Unimplemented`) — never accept shutdown via RPC in that mode.
 
-**REQ-TR-012 [Unwanted]** — The server **shall not** accept connections over plaintext HTTP/2 from non-loopback addresses; any connection attempt from a non-loopback peer while `GOOSE_GRPC_BIND=127.0.0.1` **shall** be rejected by the listener.
+**REQ-TR-012 [Unwanted]** — **If** `GOOSE_GRPC_BIND` is unset or set to `127.0.0.1` and a connection attempt originates from a non-loopback peer, **then** the listener **shall** reject the connection before it reaches any RPC handler. **Note (v0.1.1)**: When `GOOSE_GRPC_BIND` is explicitly set to a non-loopback interface (e.g., `0.0.0.0`), this REQ does not apply — that opt-in case is governed by REQ-TR-001 and is the operator's responsibility. This resolves the prior contradiction between REQ-TR-001 (explicit non-loopback opt-in permitted) and REQ-TR-012 v0.1.0 (which read as an absolute prohibition).
 
-**REQ-TR-013 [Unwanted]** — The server **shall not** register any RPC handler before the `RecoveryInterceptor` is attached to the interceptor chain (compile-time wiring).
+**REQ-TR-013 [Unwanted]** — **If** the interceptor chain is constructed at server initialization time **without** `RecoveryInterceptor` attached as the outermost unary interceptor, **then** the build **shall** fail at compile time (or server startup **shall** abort with `codes.FailedPrecondition`). In other words, no RPC handler may be registered before `RecoveryInterceptor` is in place.
 
 ### 4.5 Optional
 
 **REQ-TR-014 [Optional]** — **Where** `GOOSE_GRPC_MAX_RECV_MSG_BYTES` is set to a positive integer, the server **shall** apply that value as `grpc.MaxRecvMsgSize` instead of the default `4 MiB`.
+
+### 4.6 Health Check Service (v0.1.1 추가)
+
+**REQ-TR-015 [State-Driven]** — **While** the process state is `serving`, the server **shall** register the `grpc.health.v1.Health` service and return `Status=SERVING` when queried with `Check(HealthCheckRequest{Service: "goose.v1.DaemonService"})`. **While** the process state is `draining` or `stopped`, the same query **shall** return `Status=NOT_SERVING`. This REQ backs AC-TR-002 (health check contract), resolving the prior orphan-AC defect (audit D4).
 
 ---
 
@@ -135,10 +151,10 @@ labels: []
 - **When** 테스트 client가 `Ping(context.TODO(), &PingRequest{})` 호출
 - **Then** `resp.Version != ""`, `resp.UptimeMs > 0`, `resp.State == "serving"` 응답 수신 (에러 nil)
 
-**AC-TR-002 — Health Check**
-- **Given** gRPC server 기동 + `grpc.health.v1.Health` 서비스 등록
+**AC-TR-002 — Health Check (REQ-TR-015 커버)**
+- **Given** gRPC server 기동(process state=`serving`) + `grpc.health.v1.Health` 서비스 등록
 - **When** `Check(ctx, &HealthCheckRequest{Service: "goose.v1.DaemonService"})`
-- **Then** `Status == SERVING`
+- **Then** `Status == SERVING`. 추가로 process state를 `draining`으로 강제 전이한 뒤 동일 호출 시 `Status == NOT_SERVING`이 반환되어 REQ-TR-015의 state-conditioned 계약이 관찰 가능함을 확인.
 
 **AC-TR-003 — Shutdown 토큰 없이 거부**
 - **Given** `GOOSE_SHUTDOWN_TOKEN=secret`, client metadata에 `auth_token` 헤더 미포함
@@ -165,10 +181,40 @@ labels: []
 - **When** `grpcurl -plaintext localhost:17891 list`
 - **Then** `unknown service grpc.reflection.v1alpha.ServerReflection` 에러
 
-**AC-TR-008 — Non-loopback bind 거부**
-- **Given** `GOOSE_GRPC_BIND=0.0.0.0`은 유효(명시적 opt-in), 그러나 기본값 `127.0.0.1`인 상태
-- **When** 원격(또는 `localhost` 외) IP로 연결 시도
-- **Then** OS 레벨 connection refused 또는 timeout (본 AC는 기본 바인드가 루프백 전용임을 listener 수준에서 보장)
+**AC-TR-008 — Non-loopback bind 거부 (REQ-TR-012 커버)**
+- **Given** `GOOSE_GRPC_BIND` 미설정(기본값 `127.0.0.1`)인 상태로 daemon 기동 + CI 플랫폼(linux/amd64 단일)에서만 실행
+- **When** 동일 호스트의 non-loopback 인터페이스(예: docker bridge IP) 주소로 gRPC `Ping` 연결 시도
+- **Then** listener 수준에서 연결이 거부된다(해당 플랫폼에서 `ECONNREFUSED`). `GOOSE_GRPC_BIND=0.0.0.0`으로 명시적 opt-in한 별도 케이스는 동일 요청이 성공함을 대조로 확인.
+
+**AC-TR-009 — LoggingInterceptor 필드 기록 (REQ-TR-002 커버, v0.1.1 추가)**
+- **Given** zap logger가 test observer sink로 주입된 gRPC 서버 + 테스트 client
+- **When** (a) `Ping` 정상 호출 1회, (b) `Shutdown` 토큰 누락으로 실패 호출 1회 수행
+- **Then** 로그 observer에 정확히 2개의 entry가 기록되며, 각 entry는 `method`, `peer`, `status_code`, `duration_ms` 4개 필드를 모두 포함한다. (a) 케이스는 INFO 레벨 + `status_code="OK"`, (b) 케이스는 ERROR 레벨 + `status_code="Unauthenticated"`로 기록됨을 assertion.
+
+**AC-TR-010 — proto 패키지 및 Go 패키지 경로 (REQ-TR-003 커버, v0.1.1 추가)**
+- **Given** `buf generate` 결과로 생성된 `internal/transport/grpc/gen/goosev1/` 디렉토리
+- **When** 생성된 `.pb.go` 파일을 static 검사
+- **Then** (a) proto `package` 선언이 `goose.v1`이고, (b) `option go_package`가 `github.com/gooseagent/goose/internal/transport/grpc/gen/goosev1;goosev1`이며, (c) Go 패키지 `import` 경로가 동일한 경로에서 resolve된다. 컴파일 단계(테스트: `go vet ./internal/transport/grpc/gen/...`)에서 경로 불일치가 없어야 한다.
+
+**AC-TR-011 — GracefulStop 10s 준수 및 fallback (REQ-TR-007 커버, v0.1.1 추가)**
+- **Given** 테스트용 cleanup hook 2종 등록: (a) 200ms 내 완료되는 정상 hook, (b) 30s sleep하는 stuck hook (명시적 가짜 timeout 조건)
+- **When** (a) 정상 hook 시나리오: CORE-001 shutdown hook 발사 → `GracefulStop()` 경로 검증. (b) stuck hook 시나리오: shutdown hook 발사 → 10s 경과 후 `Stop()` fallback 경로 검증.
+- **Then** (a)는 wall clock 기준 10s 이내에 `GracefulStop` 리턴, WARN 로그 없음. (b)는 10s ± 500ms 시점에 `Stop()`이 호출되고 zap logger에 `"grpc server stop fallback after graceful timeout"` 류의 WARN 레벨 entry가 1개 기록.
+
+**AC-TR-012 — Shutdown 토큰 미설정 시 Unimplemented (REQ-TR-011 커버, v0.1.1 추가)**
+- **Given** `GOOSE_SHUTDOWN_TOKEN` 환경변수가 빈 문자열 또는 unset 상태로 daemon 기동
+- **When** 클라이언트가 `Shutdown(ctx, &ShutdownRequest{})`를 임의 metadata로 호출
+- **Then** `status.Code(err) == codes.Unimplemented`가 반환되고, daemon은 종료 동작 없이 계속 `serving` 상태를 유지한다. AC-TR-003(토큰 설정됨 + 헤더 누락 → `Unauthenticated`)과는 의도적으로 다른 코드 경로임을 확인.
+
+**AC-TR-013 — RecoveryInterceptor 체인 배치 검증 (REQ-TR-013 커버, v0.1.1 추가)**
+- **Given** `NewServer(cfg, logger, stateAccessor)`가 반환하는 `*grpc.Server` 초기화 설정
+- **When** 테이블 드리븐 테스트가 서버 초기화 시 등록된 `grpc.ServerOption` 슬라이스(특히 unary interceptor 체인)를 reflection/인터페이스 검사로 확인
+- **Then** `RecoveryInterceptor`가 chain의 outermost(인덱스 0)에 위치하며, 그 뒤로 `LoggingInterceptor` 순서로 등록되어 있음. 인터셉터가 누락되거나 순서가 뒤바뀌면 테스트 실패. 또는 서버 초기화가 `codes.FailedPrecondition`으로 abort함을 대체 assertion으로 허용.
+
+**AC-TR-014 — MaxRecvMsgSize 환경변수 override (REQ-TR-014 커버, v0.1.1 추가)**
+- **Given** `GOOSE_GRPC_MAX_RECV_MSG_BYTES=1024` 환경변수 설정 상태로 daemon 기동 (기본값 `4 MiB`를 1024 byte로 override)
+- **When** 클라이언트가 2048 byte 페이로드(예: `GetInfoRequest`를 패딩으로 확장한 테스트 variant)로 RPC 호출
+- **Then** `status.Code(err) == codes.ResourceExhausted` 반환, 메시지에 "received message larger than max" 문구 포함. 같은 테스트를 `GOOSE_GRPC_MAX_RECV_MSG_BYTES` 미설정 상태에서 수행하면 성공 응답이 반환되어 default 4MiB 동작과의 분기 확인.
 
 ---
 

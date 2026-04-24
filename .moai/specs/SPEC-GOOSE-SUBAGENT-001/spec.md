@@ -1,16 +1,16 @@
 ---
 id: SPEC-GOOSE-SUBAGENT-001
-version: 0.1.0
+version: 0.2.0
 status: planned
 created_at: 2026-04-21
-updated_at: 2026-04-21
+updated_at: 2026-04-25
 author: manager-spec
 priority: P0
 issue_number: null
 phase: 2
 size: 대(L)
 lifecycle: spec-anchored
-labels: []
+labels: [subagent, runtime, isolation, memory, phase-2]
 ---
 
 # SPEC-GOOSE-SUBAGENT-001 — Sub-agent Runtime (Fork / Worktree / Background Isolation + 3 Memory Scope)
@@ -20,6 +20,7 @@ labels: []
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-21 | 초안 작성 (claude-primitives §4 + QUERY-001/SKILLS-001/HOOK-001 합의 기반) | manager-spec |
+| 0.2.0 | 2026-04-25 | plan-auditor iter1 FAIL 결함 수정: D13(ResumeAgent 시그니처 통일) / D15(memory update REQ-SA-021 신설) / D17(PlanModeRequired REQ-SA-022 신설) / D18(goroutine lifecycle Unwanted REQ-SA-023 신설) / D7(REQ-SA-012 peer sub-agent 동시 쓰기 semantics 명확화) / D1(REQ-SA-004/012/015/018/019/020 AC 커버리지 AC-SA-013~018 신설) | manager-spec |
 
 ---
 
@@ -36,7 +37,7 @@ GOOSE-AGENT의 **Sub-agent 런타임**을 정의한다. Claude Code의 `runAgent
   - **Worktree**: git worktree 생성(`EnterWorktreeTool`) + CWD 격리 + `WorktreeCreate` hook 발동,
   - **Background**: 동일 프로세스에서 non-blocking goroutine + polling,
 - 3-scope memory: `~/.goose/agent-memory/{agentType}/`(user), `./.goose/agent-memory/{agentType}/`(project), `./.goose/agent-memory-local/{agentType}/`(local, gitignored),
-- `buildMemoryPrompt()`로 memdir.jsonl 항목을 system prompt에 삽입하여 모델이 memory를 쿼리·업데이트 가능,
+- `buildMemoryPrompt()`로 memdir.jsonl 항목을 system prompt에 삽입하여 모델이 memory를 쿼리할 수 있고, `memory.append` 내장 tool을 통해 새 entry를 업데이트할 수 있다(REQ-SA-021 참조),
 - `ResumeAgent(agentId string)`로 중단된 sub-agent를 재개(`resumable agents`).
 
 본 SPEC은 **부모-자식 permission bubbling**(HOOK-001의 `SwarmWorkerHandler`)과 **AsyncLocalStorage 대체로서 `context.Context`** 전파를 Go 이디엄으로 구현한다.
@@ -84,7 +85,7 @@ GOOSE-AGENT의 **Sub-agent 런타임**을 정의한다. Claude Code의 `runAgent
    - `local`: `{projectRoot}/.goose/agent-memory-local/{agentType}/` (gitignored).
 7. `buildMemoryPrompt(agentType, scopes []MemoryScope) string` — memdir.jsonl 읽고 system prompt 템플릿에 삽입.
 8. `Memdir` 파일 I/O — `memdir.jsonl` 읽기/쓰기 + `metadata.json` 관리.
-9. `ResumeAgent(agentId)` — 이전 세션의 transcript 복원 + 진행 재개.
+9. `ResumeAgent(ctx, agentID, opts...) (*Subagent, <-chan message.SDKMessage, error)` — 이전 세션의 transcript 복원 + 진행 재개. 시그니처는 §6.2를 정본(canonical)으로 하며 AC-SA-006도 동일하게 `(ctx, "researcher@sess-old-2")` 형태로 호출한다.
 10. Role profile override 병합: `AgentDefinition.Tools = ["*"]`(부모 상속) 또는 명시 목록; `AgentDefinition.Model = "inherit"` 또는 model alias; `AgentDefinition.MaxTurns`/`Effort`/`PermissionMode` override.
 11. HOOK-001 통합: `SubagentStart`/`SubagentStop`/`TeammateIdle` dispatch.
 12. `CoordinatorMode` 플래그 반영 (QUERY-001의 `CoordinatorMode` 설정자).
@@ -133,7 +134,10 @@ GOOSE-AGENT의 **Sub-agent 런타임**을 정의한다. Claude Code의 `runAgent
 
 **REQ-SA-011 [State-Driven]** — **While** a parent `QueryEngine` is in `CoordinatorMode == true`, spawned sub-agents **shall** inherit `CoordinatorMode == false` by default; explicit override via `def.CoordinatorMode = true` is allowed but logs a WARN (nested coordinator is rarely correct).
 
-**REQ-SA-012 [State-Driven]** — **While** an agent's `memdir.jsonl` is being written, concurrent reads **shall** see either the prior state or the new state — never a partial line; all writes **shall** use `os.O_APPEND | os.O_SYNC` with full-line atomic append.
+**REQ-SA-012 [State-Driven]** — **While** an agent's `memdir.jsonl` is being written, concurrent reads **shall** see either the prior state or the new state — never a partial line. Writes **shall** obey the following semantics:
+(a) **Single-writer within a process**: all writes **shall** use `os.O_APPEND | os.O_SYNC` with full-line atomic append (guaranteed torn-free for writes ≤ `PIPE_BUF` on POSIX);
+(b) **Peer sub-agents sharing the same scope directory (e.g., project scope)**: writers **shall** acquire an advisory file lock via `golang.org/x/sys/unix.Flock(fd, LOCK_EX)` (or equivalent `flock(2)` on darwin/linux) for the full write+fsync critical section; on Windows, `LockFileEx` **shall** be used. Locks **shall** be released before returning from `MemdirManager.Append`;
+(c) **NFS / network filesystems**: if the underlying filesystem does not support advisory locking, `MemdirManager.Append` **shall** return `ErrMemdirLockUnsupported` rather than silently risk corruption.
 
 **REQ-SA-013 [State-Driven]** — **While** `def.Tools == ["*"]`, the sub-agent **shall** inherit the parent's tool registry as-is; **while** `def.Tools` lists specific tool names, only those tools (plus the baseline `agent-critical` set: `read`, `task-update`) **shall** be exposed to the sub-agent's `QueryEngine`.
 
@@ -149,75 +153,130 @@ GOOSE-AGENT의 **Sub-agent 런타임**을 정의한다. Claude Code의 `runAgent
 
 **REQ-SA-018 [Unwanted]** — `LoadAgentsDir` **shall not** load agents whose name starts with `_` (reserved for internal namespaces) or contains characters outside `[a-zA-Z0-9-_]`; violations **shall** produce `ErrInvalidAgentName`.
 
+**REQ-SA-022 [Unwanted]** — **If** a sub-agent is spawned with `def.PermissionMode == "plan"` (indicated internally by `TeammateIdentity.PlanModeRequired == true`), **then** the spawner **shall not** execute any Write/Edit/Bash tool invocations until an explicit approval signal is received. The approval protocol is:
+(a) `PlanModeRequired` **shall** be set to `true` by the loader when `def.PermissionMode == "plan"`;
+(b) While `PlanModeRequired == true`, `TeammateCanUseTool` **shall** return `Decision{Behavior: AskParent}` for any write-class tool and **shall** allow read-class tools;
+(c) Approval arrives via a `PlanModeApprove(agentID)` API call from the parent (orchestrator) which sets `PlanModeRequired = false`;
+(d) If approval is not received within `PlanApprovalTimeout` (default 300 s, configurable), the sub-agent **shall** terminate with `Subagent.State == Failed` and reason `plan_mode_timeout`.
+
+**REQ-SA-023 [Unwanted]** — The spawner **shall not** leave background goroutines running after the parent `ctx.Done()` is signaled. Every goroutine spawned by `RunAgent`, `ResumeAgent`, or isolation helpers (fork / worktree / background) **shall** (a) select on `ctx.Done()` in its main loop, (b) release file handles / worktree locks / memdir locks before returning, (c) terminate within `GoroutineShutdownGrace` (default 100 ms) after `ctx.Done()`. Compliance **shall** be verified in CI via `go.uber.org/goleak` across all isolation modes.
+
 ### 4.5 Optional (선택적)
 
 **REQ-SA-019 [Optional]** — **Where** `def.Model == "inherit"`, the sub-agent's LLM call **shall** use the parent's resolved model; **where** `def.Model` is an explicit alias, it **shall** be passed to ROUTER-001 for resolution.
 
 **REQ-SA-020 [Optional]** — **Where** `def.MCPServers` is non-empty, `RunAgent` **shall** initialize MCP connections via MCP-001's `ConnectToServer` before spawning the `QueryEngine`; the resulting tools are merged into the sub-agent's tool registry with namespacing `mcp__{server}__{tool}`.
 
+**REQ-SA-021 [Optional]** — **Where** a sub-agent's system prompt contains memory entries injected by `buildMemoryPrompt` (i.e., at least one of `def.MemoryScopes` is non-empty), the spawner **shall** expose a built-in tool named `memory.append` to the sub-agent's `QueryEngine.cfg.Tools`. The tool **shall** (a) accept `{scope: "user"|"project"|"local", category, key, value}` JSON input, (b) validate `scope` is a member of the sub-agent's enabled scopes, (c) invoke `MemdirManager.Append(MemoryEntry{...})` under the concurrency semantics of REQ-SA-012, (d) return `{id, written_at}` on success or typed error on failure. The tool name `memory.append` **shall** be reserved and **shall not** collide with user-defined or MCP tools.
+
 ---
 
 ## 5. 수용 기준 (Acceptance Criteria)
 
-**AC-SA-001 — Fork isolation spawn**
+**AC-SA-001 — Fork isolation spawn** (Verifies: REQ-SA-001, REQ-SA-005)
 - **Given** parent `QueryEngine` 세션, `AgentDefinition{Name:"researcher", Isolation:"fork", Tools:["*"], Model:"inherit"}`, stub LLM
 - **When** `RunAgent(parentCtx, def, input)` 호출 후 output 채널 drain
 - **Then** 새 `QueryEngine` 생성, `TeammateIdentity{AgentId:"researcher@parentSession-1"}` 주입, 부모 tools 상속, `DispatchSubagentStart`/`SubagentStop` 호출 각 1회, 최종 `Subagent.State == Completed`
 
-**AC-SA-002 — Worktree isolation**
+**AC-SA-002 — Worktree isolation** (Verifies: REQ-SA-006)
 - **Given** git 초기화된 저장소, `def.Isolation == "worktree"`, 더미 agent
 - **When** `RunAgent`
 - **Then** `./.claude/worktrees/researcher-1/` 디렉토리 생성 + 새 branch 체크아웃, sub-agent의 `cfg.Cwd`가 해당 path, `DispatchWorktreeCreate`/`WorktreeRemove` 각 1회 호출, 완료 후 `git worktree list`에 잔존 없음
 
-**AC-SA-003 — Background isolation non-blocking**
+**AC-SA-003 — Background isolation non-blocking** (Verifies: REQ-SA-007)
 - **Given** `def.Isolation == "background"`, stub LLM이 응답 전 2초 지연
 - **When** `RunAgent` 호출 (본 호출은 즉시 반환), 호출자가 500ms 이내 다음 코드 실행
-- **Then** 호출자 로직이 LLM 응답 이전에 실행 완료, sub-agent는 background에서 진행, 2초 후 첫 메시지가 channel로 도착
+- **Then** 호출자 로직이 LLM 응답 이전에 실행 완료, sub-agent는 background에서 진행, 2초 후 첫 메시지가 channel로 도착, 그 이후 `DefaultBackgroundIdleThreshold`(5 s) 이상 메시지 없으면 `DispatchTeammateIdle` 1회 호출
 
-**AC-SA-004 — Memory 3-scope resolution order**
+**AC-SA-004 — Memory 3-scope resolution order** (Verifies: REQ-SA-003)
 - **Given** 3 scope에 동일 키 `user.preference`가 각기 다른 값으로 존재 (user="U", project="P", local="L")
 - **When** `buildMemoryPrompt("researcher", [local, project, user])`
-- **Then** 결과 system prompt에 `user.preference = "L"`만 포함 (nearest wins), 다른 고유 키는 union
+- **Then** 결과 system prompt에 `user.preference = "L"`만 포함 (REQ-SA-003 "nearest wins": local→project→user 우선순위), 각 scope에만 존재하는 고유 키는 모두 포함 (합집합 의미의 union)
 
-**AC-SA-005 — Transcript persistence**
+**AC-SA-005 — Transcript persistence** (Verifies: REQ-SA-002, REQ-SA-008)
 - **Given** 정상 완료한 sub-agent
 - **When** 완료 후 `~/.goose/agent-memory/researcher/transcript-{agentId}/` 조회
 - **Then** 해당 디렉토리 존재, `messages.jsonl` 파일에 모든 `SDKMessage`가 순서대로 기록됨
 
-**AC-SA-006 — ResumeAgent**
+**AC-SA-006 — ResumeAgent** (Verifies: REQ-SA-009)
 - **Given** 이전 세션에서 중단된 sub-agent `researcher@sess-old-2`, 해당 transcript 디스크 존재
-- **When** `ResumeAgent("researcher@sess-old-2")`
+- **When** `ResumeAgent(ctx, "researcher@sess-old-2")` (시그니처는 §6.2 정본: `ResumeAgent(ctx, agentID, opts...)`)
 - **Then** 새 `Subagent` 인스턴스 생성, 이전 transcript 로드, `input.Prompt == "[[RESUME]]"` 전달, 이전 `TeammateIdentity` 복원
 
-**AC-SA-007 — Permission bubbling**
+**AC-SA-007 — Permission bubbling** (Verifies: REQ-SA-010)
 - **Given** `def.PermissionMode == "bubble"`, 부모 engine의 `CanUseTool`이 `Deny{reason:"parent-policy"}` 반환하도록 설정
 - **When** sub-agent가 tool 호출 시도
 - **Then** `TeammateCanUseTool`이 부모 `CanUseTool`로 위임, 결과 `Deny{reason:"parent-policy"}` 반환, sub-agent는 synthetic ToolResult로 진행
 
-**AC-SA-008 — Coordinator mode nested warn**
+**AC-SA-008 — Coordinator mode nested warn** (Verifies: REQ-SA-011)
 - **Given** 부모가 `CoordinatorMode == true`, `def.CoordinatorMode == true`로 override
 - **When** `RunAgent`
 - **Then** zap WARN 로그 출력("nested coordinator mode is rarely correct"), sub-agent는 정상 spawn, `CoordinatorMode == true` 설정됨
 
-**AC-SA-009 — Cyclic spawn 방지**
+**AC-SA-009 — Cyclic spawn 방지** (Verifies: REQ-SA-014)
 - **Given** A → B → C → D → E → F 가 순차 spawn, `MaxSpawnDepth == 5`
 - **When** F가 G를 spawn 시도
 - **Then** `RunAgent`가 `ErrSpawnDepthExceeded` 반환, G는 생성되지 않음, 다른 spawn은 영향 없음
 
-**AC-SA-010 — `def.Tools` 명시 시 필터링**
+**AC-SA-010 — `def.Tools` 명시 시 필터링** (Verifies: REQ-SA-013)
 - **Given** 부모 tools 10개, `def.Tools = ["read", "search"]`
 - **When** 해당 sub-agent의 `QueryEngine` 초기화
 - **Then** sub-agent `QueryEngine.cfg.Tools`에 `read`, `search` + baseline(`task-update`) 만 포함. 다른 8개 tool은 접근 불가
 
-**AC-SA-011 — Background agent write denied by default**
-- **Given** `def.Isolation == "background"`, `def.PermissionMode == "bubble"`, write tool 호출 시도, 사전 allow 규칙 없음
+**AC-SA-011 — Background agent write denied by default** (Verifies: REQ-SA-016)
+- **Given** `def.Isolation == "background"`, `def.PermissionMode == "bubble"`, write tool 호출 시도, 사전 allow 규칙 없음 (allow rule 소스는 `settings.json` `subagent.permissions.allow`)
 - **When** `CanUseTool`
 - **Then** `Deny{reason: "background_agent_write_denied"}`, write 실제 실행 0회
 
-**AC-SA-012 — Memory directory permission enforcement**
+**AC-SA-012 — Memory directory permission enforcement** (Verifies: REQ-SA-017)
 - **Given** `~/.goose/agent-memory/researcher/` 디렉토리 생성 시
 - **When** `RunAgent`가 해당 scope에 memdir 준비
 - **Then** 생성된 디렉토리 권한은 `0700`, 파일 권한은 `0600` (테스트: `os.Stat().Mode().Perm()`)
+
+**AC-SA-013 — Agent frontmatter allowlist validation** (Verifies: REQ-SA-004)
+- **Given** `.claude/agents/evil.md` 파일의 frontmatter가 SKILLS-001 REQ-SK-001의 allowlist에 없는 속성(`exec_on_load: true`)을 포함
+- **When** `LoadAgentsDir(root)` 호출
+- **Then** 반환값에 `evil.md` 정의는 포함되지 않고, 누적 에러 리스트에 `ErrUnsafeAgentProperty{agent:"evil", key:"exec_on_load"}` 1건 포함. 허용된 frontmatter만 가진 다른 agent는 정상 로드
+
+**AC-SA-014 — Peer sub-agents concurrent memdir write** (Verifies: REQ-SA-012)
+- **Given** 동일 project scope 디렉토리(`./.goose/agent-memory/researcher/`)를 공유하는 peer sub-agent A, B가 동시에 `MemdirManager.Append`를 각 100회 호출
+- **When** 두 sub-agent가 병렬로 append 완료 후 `memdir.jsonl` 전체 재파싱
+- **Then** 200개 entry 모두 완전한 JSON line으로 파싱 성공(torn line 0), 각 entry는 REQ-SA-012(b)의 advisory lock(flock/LockFileEx)을 거쳐 기록됨이 race detector(`go test -race`) + 로그 검증으로 확인됨. lock 미지원 FS에서는 `ErrMemdirLockUnsupported` 반환 확인
+
+**AC-SA-015 — Orphan worktree cleanup on SessionEnd** (Verifies: REQ-SA-015)
+- **Given** worktree isolation으로 spawn된 sub-agent가 crash(SIGKILL)로 비정상 종료되어 `./.claude/worktrees/researcher-crash/` 디렉토리와 `goose/agent/researcher-crash` branch가 잔존
+- **When** HOOK-001의 `SessionEnd` dispatcher 발동
+- **Then** `git worktree list`에서 해당 경로 제거, 디스크 디렉토리 `os.RemoveAll` 확인(`os.Stat` → `fs.ErrNotExist`), 관련 branch 제거. cleanup은 idempotent(재호출 시 에러 없음)
+
+**AC-SA-016 — Invalid agent name rejection** (Verifies: REQ-SA-018)
+- **Given** `.claude/agents/` 내 `_hidden.md`, `foo bar.md`, `foo/bar.md`, `légal.md`(non-ASCII) 파일 존재, 그리고 정상 `valid-agent_1.md` 파일 존재
+- **When** `LoadAgentsDir(root)` 호출
+- **Then** 4개 무효 이름 각각에 대해 `ErrInvalidAgentName` 누적, 로드 결과에는 `valid-agent_1`만 포함
+
+**AC-SA-017 — Model inherit and explicit alias** (Verifies: REQ-SA-019)
+- **Given** 부모 resolved model = `anthropic/claude-opus-4-7`, 두 AgentDefinition: (1) `def.Model == "inherit"`, (2) `def.Model == "sonnet-fast"`(ROUTER-001 alias), ROUTER-001 stub이 `sonnet-fast` → `anthropic/claude-sonnet-4-5` 매핑
+- **When** 각각 `RunAgent` 호출 후 sub-agent `QueryEngine.cfg.Model` 조회
+- **Then** (1)은 `anthropic/claude-opus-4-7`(부모 그대로), (2)는 `anthropic/claude-sonnet-4-5`(alias 해석됨). 매핑 실패 시 `ErrUnknownModelAlias` 반환(negative case)
+
+**AC-SA-018 — MCP servers initialization and tool namespacing** (Verifies: REQ-SA-020)
+- **Given** `def.MCPServers == ["context7", "pencil"]`, MCP-001 stub이 각각 `{search, resolve}` / `{batch_get, batch_design}` tool 제공
+- **When** `RunAgent` 호출
+- **Then** (a) `ConnectToServer("context7")`, `ConnectToServer("pencil")`가 `QueryEngine` 생성 전에 호출됨, (b) sub-agent `QueryEngine.cfg.Tools`에 `mcp__context7__search`, `mcp__context7__resolve`, `mcp__pencil__batch_get`, `mcp__pencil__batch_design` 4개 tool이 병합됨, (c) 부모 또는 다른 sub-agent의 tool과 namespace 충돌 없음
+
+**AC-SA-019 — Memory append tool exposure** (Verifies: REQ-SA-021)
+- **Given** `def.MemoryScopes == [ScopeProject]`, sub-agent가 system prompt에 memdir 항목을 받아 spawn
+- **When** sub-agent가 `memory.append({scope:"project", category:"fact", key:"k1", value:"v1"})` 호출, 그리고 `memory.append({scope:"user", ...})` 호출(user scope는 미허용)
+- **Then** 첫 호출은 성공, `{id, written_at}` 반환, `memdir.jsonl`에 entry 1건 append(REQ-SA-012 semantics 준수). 두 번째 호출은 `ErrScopeNotEnabled{scope:"user"}` 반환
+
+**AC-SA-020 — Plan-mode approval wait** (Verifies: REQ-SA-022)
+- **Given** `def.PermissionMode == "plan"`으로 spawn된 sub-agent, `TeammateIdentity.PlanModeRequired == true` 확인
+- **When** sub-agent가 Write tool 호출 시도 → 호출자가 2초 뒤 `PlanModeApprove(agentID)` 호출 → sub-agent가 다시 Write tool 호출
+- **Then** 첫 번째 시도는 `Decision{Behavior: AskParent}`로 보류되어 실제 Write 0회, `PlanModeApprove` 이후 두 번째 시도는 정상 통과하여 Write 실행 1회. 별도 케이스로 300s 내 미승인 시 `Subagent.State == Failed`, `reason == "plan_mode_timeout"`
+
+**AC-SA-021 — Goroutine lifecycle on ctx cancel** (Verifies: REQ-SA-023)
+- **Given** 3개 sub-agent가 각기 fork / worktree / background isolation으로 동시 실행 중
+- **When** 공통 부모 `ctx` cancel
+- **Then** (a) 모든 sub-agent의 goroutine이 `GoroutineShutdownGrace`(100 ms) 내 종료, (b) `goleak.VerifyNone(t)` 통과(leak 0), (c) memdir / worktree lock이 모두 release(재획득 성공으로 검증)
 
 ---
 

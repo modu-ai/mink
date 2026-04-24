@@ -1,16 +1,16 @@
 ---
 id: SPEC-GOOSE-MCP-001
-version: 0.1.0
+version: 0.2.0
 status: planned
 created_at: 2026-04-21
-updated_at: 2026-04-21
+updated_at: 2026-04-24
 author: manager-spec
 priority: P0
 issue_number: null
 phase: 2
 size: 대(L)
 lifecycle: spec-anchored
-labels: []
+labels: [phase-2, primitive/mcp, transport/multi, security/oauth]
 ---
 
 # SPEC-GOOSE-MCP-001 — MCP Client/Server (stdio · WebSocket · SSE, OAuth 2.1, Deferred Loading)
@@ -20,6 +20,7 @@ labels: []
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-21 | 초안 작성 (claude-primitives §3 + ROADMAP v2.0 Phase 2 기반) | manager-spec |
+| 0.2.0 | 2026-04-24 | plan-auditor iter-1 FAIL 대응 (D3~D8 major 결함 수정): (a) 8개 누락 REQ 에 AC 추가(AC-MCP-013~020), (b) 전체 AC 에 `Covers: REQ-MCP-XXX` 메타라인 부착(RTM 자동화), (c) REQ-MCP-005 확장 + 신규 REQ-MCP-021 (MCP `initialize` capability negotiation — clientCapabilities/serverCapabilities 교환, 서버 미선언 capability 의존 메서드 거부), (d) 신규 REQ-MCP-022 (요청 레벨 deadline + JSON-RPC `$/cancelRequest`), (e) 신규 REQ-MCP-023 (Disconnect/transport reset 시 tool registry 동기화 — TOOLS-001 경계 계약), (f) §6.1 `adapter.go` 역할 확장 + MCP tool 동기화 계약 명시, (g) Exclusions 섹션에 Streamable HTTP(2025-03-26 신형 전송) 를 후속 SPEC(MCP-002) 으로 명시 연기. research.md 및 기존 REQ-MCP-001~020 번호/본문은 변경 없음. | manager-spec |
 
 ---
 
@@ -112,7 +113,7 @@ GOOSE-AGENT의 **Model Context Protocol (MCP) 통합**을 정의한다. Claude C
 
 ### 4.2 Event-Driven (이벤트 기반)
 
-**REQ-MCP-005 [Event-Driven]** — **When** `MCPClient.ConnectToServer(cfg)` is invoked for the first time with `cfg.Transport == "stdio"`, the client **shall** (a) spawn the subprocess defined by `cfg.Command` + `cfg.Args`, (b) pipe stdin/stdout, (c) perform the MCP `initialize` handshake with protocol version `2025-03-26`, (d) store the resulting `ServerSession` in the memoization cache, and (e) return the session.
+**REQ-MCP-005 [Event-Driven]** — **When** `MCPClient.ConnectToServer(cfg)` is invoked for the first time with `cfg.Transport == "stdio"`, the client **shall** (a) spawn the subprocess defined by `cfg.Command` + `cfg.Args`, (b) pipe stdin/stdout, (c) perform the MCP `initialize` handshake with protocol version `2025-03-26`, **declaring `clientCapabilities` (`sampling`, `roots`, `experimental` as applicable) in the `initialize` request and recording the server-returned `serverCapabilities` (e.g., `tools`, `resources`, `prompts`, `logging`) on the resulting `ServerSession`**, (d) store the resulting `ServerSession` in the memoization cache, and (e) return the session.
 
 **REQ-MCP-006 [Event-Driven]** — **When** `MCPClient.ListTools(ctx, session)` is called for the first time on a session, the client **shall** issue the MCP `tools/list` JSON-RPC call (deferred loading) and cache the result; subsequent calls within the same session **shall** return the cached list until `InvalidateToolCache(session)` is called.
 
@@ -150,69 +151,155 @@ GOOSE-AGENT의 **Model Context Protocol (MCP) 통합**을 정의한다. Claude C
 
 **REQ-MCP-020 [Optional]** — **Where** the SSE transport is used, the client **shall** support server-initiated notifications via the `message` event stream in addition to request/response pairs; notifications are dispatched to `Transport.OnMessage` handlers.
 
+### 4.6 Capability / Timeout / Registry Sync (amendment iter-1)
+
+**REQ-MCP-021 [Event-Driven]** — **When** `MCPClient.ListPrompts`, `MCPClient.ListResources`, or `MCPClient.ReadResource` is invoked on a `ServerSession`, the client **shall** consult the session's recorded `serverCapabilities` (captured during REQ-MCP-005 `initialize`); **if** the corresponding capability (`prompts` for `ListPrompts`, `resources` for `ListResources` / `ReadResource`) is not declared by the server, the call **shall** return `ErrCapabilityNotSupported` without issuing a wire request. `ListTools` / `CallTool` **shall** likewise require the `tools` capability.
+
+**REQ-MCP-022 [Event-Driven]** — **When** any `MCPClient.*` wire method (`ListTools`, `CallTool`, `ListResources`, `ReadResource`, `ListPrompts`) is invoked, the call **shall** honor (a) the caller-provided `ctx` cancellation/deadline and (b) a per-request deadline of `cfg.RequestTimeout` (default `30s`, configurable per server in `mcp.json`). **If** either fires before a response arrives, the client **shall** (1) issue a JSON-RPC `$/cancelRequest` notification carrying the pending request ID to the server on the same transport, (2) free the pending response slot in the router, and (3) return `ErrRequestTimeout` (on deadline) or `ctx.Err()` (on cancellation). This requirement covers unresponsive-server (hang) scenarios not classified as transport errors under REQ-MCP-009.
+
+**REQ-MCP-023 [Event-Driven]** — **When** a `ServerSession` transitions to state `Disconnected` — either via explicit `MCPClient.Disconnect(session)` or via transport reset after the REQ-MCP-009 backoff exhausts without recovery — the client **shall** invoke the registry-sync adapter `adapter.UnregisterToolsForSession(session.ID)` exactly once, removing every `mcp__{serverName}__{toolName}` entry previously registered through `adapter.MCPToolsToRegistry` for that session. Re-connection of the same `MCPServerConfig.ID` **shall** re-invoke `MCPToolsToRegistry` after the subsequent `ListTools` (REQ-MCP-006). The contract surface between `internal/mcp` (producer) and `internal/tools.Registry` (consumer, SPEC-GOOSE-TOOLS-001) is `adapter.go` only; direct writes to `tools.Registry` from outside this adapter are prohibited.
+
 ---
 
 ## 5. 수용 기준 (Acceptance Criteria)
 
 **AC-MCP-001 — stdio MCP 서버 연결 + initialize 핸드셰이크**
+- **Covers**: REQ-MCP-005, REQ-MCP-001
 - **Given** 테스트 fixture MCP 서버가 stdio로 기동, MCP protocol `2025-03-26` 지원
 - **When** `ConnectToServer(ctx, {Name:"fx", Transport:"stdio", Command:"./fx-mcp"})`
-- **Then** session이 `Connected` 상태, `initialize` 응답의 `protocolVersion == "2025-03-26"`, 에러 없음
+- **Then** session이 `Connected` 상태, `initialize` 응답의 `protocolVersion == "2025-03-26"`, `ServerSession.ServerCapabilities` 에 서버가 선언한 capability 맵(예: `tools`, `prompts`) 이 저장됨, 에러 없음
 
 **AC-MCP-002 — Deferred tool loading**
+- **Covers**: REQ-MCP-006
 - **Given** fixture MCP 서버가 2개 tool(`search`, `fetch`) 제공
 - **When** `ConnectToServer` 즉시에는 tool list fetch를 하지 않고, 이후 `ListTools`를 호출
 - **Then** 첫 `ListTools`는 wire 트래픽 발생(`tools/list` 요청), 결과 `[mcp__fx__search, mcp__fx__fetch]`; 두 번째 `ListTools`는 wire 트래픽 없이 캐시 반환
 
 **AC-MCP-003 — 이름 네임스페이싱**
+- **Covers**: REQ-MCP-001
 - **Given** 서버 `fx`와 `gh` 모두 `search` tool 제공
 - **When** 둘 다 connect → `ListTools` aggregate
 - **Then** tool 목록에 `mcp__fx__search`와 `mcp__gh__search`가 둘 다 포함, 충돌 없음
 
 **AC-MCP-004 — 단일 서버 내 tool 충돌**
+- **Covers**: REQ-MCP-001
 - **Given** 서버 `fx`가 동일 이름 `search`를 2번 노출(변조된 fixture)
 - **When** `ConnectToServer` 후 `ListTools`
 - **Then** `ErrDuplicateMCPToolName` 반환, 해당 서버만 등록 실패, 다른 서버는 영향 없음
 
 **AC-MCP-005 — OAuth 2.1 + PKCE**
+- **Covers**: REQ-MCP-007, REQ-MCP-003
 - **Given** fixture OAuth 서버 + MCP 서버 combo, 브라우저 자동화 fixture(`mockBrowser`)
 - **When** `ConnectToServer(... Auth: "oauth2")` → `AuthFlow.Start()` → mockBrowser가 콜백 호출 → `HandleCallback`
 - **Then** `~/.goose/mcp-credentials/fx.json`에 `access_token`+`refresh_token` 저장(file mode 0600), 세션은 Connected
 
 **AC-MCP-006 — Token 만료 시 자동 refresh**
+- **Covers**: REQ-MCP-008
 - **Given** fixture 서버가 `401`을 첫 호출에 반환하고, refresh 후 두 번째 호출은 성공
 - **When** `CallTool(ctx, session, "mcp__fx__search", {...})`
 - **Then** 내부적으로 refresh 수행, 외부 호출자에게는 단일 응답 반환(재시도 투명), zap 로그에 refresh 이벤트 기록
 
 **AC-MCP-007 — 재연결 백오프**
+- **Covers**: REQ-MCP-009
 - **Given** 서버가 10초간 다운, 이후 복구
 - **When** 다운 구간에 `CallTool` 호출
 - **Then** 백오프 1s/2s/4s/... 시도, 총 5회 이후 `ErrTransportReset`; 테스트 fixture가 3회차에 복구되는 경우에는 정상 응답 반환
 
 **AC-MCP-008 — WebSocket 기본 strict TLS**
+- **Covers**: REQ-MCP-015
 - **Given** MCP 서버가 self-signed 인증서, `mcp.json:tls.insecure` 미설정
 - **When** `ConnectToServer`
 - **Then** `ErrTLSValidation` 반환, credential 저장 없음
 
 **AC-MCP-009 — MCPServer 빌더로 tool 노출**
+- **Covers**: REQ-MCP-010
 - **Given** `NewServer("test-srv").Tool("echo", schema, handler).Serve(ctx, stdio)`
 - **When** 테스트 클라이언트가 동일 stdio로 `tools/list` 호출
 - **Then** 응답에 `echo` tool의 name/schema가 포함, `tools/call(echo, {"x":1})`이 handler의 결과를 반환
 
 **AC-MCP-010 — Reserved tool name 거부**
+- **Covers**: REQ-MCP-016
 - **Given** 사용자 코드가 `.Tool("mcp__evil", ...)` 호출
 - **When** 빌더 API
 - **Then** `ErrReservedToolName` 반환, 서버는 구동되지 않음
 
 **AC-MCP-011 — Protocol version 불일치**
+- **Covers**: REQ-MCP-018
 - **Given** 서버가 `protocolVersion: "2024-01-01"`을 `initialize` 응답에서 반환
 - **When** `ConnectToServer`
 - **Then** `ErrUnsupportedProtocolVersion` 반환, 세션 생성 안 됨
 
 **AC-MCP-012 — Prompt → Skill 변환**
+- **Covers**: REQ-MCP-013
 - **Given** MCP 서버가 prompt `{name: "greet", arguments: [{name:"lang"}]}` 제공, `mcp.json:prompts=true`
 - **When** `ConnectToServer` 후 `PromptToSkill` invocation
 - **Then** `skill.Registry.Get("mcp__fx__greet")` 존재, `Trigger == TriggerInline`, `Frontmatter.ArgumentHint == "lang"`
+
+**AC-MCP-013 — 연결 memoize**
+- **Covers**: REQ-MCP-002
+- **Given** 동일 `MCPServerConfig` (Name/Transport/URI 동일) 로 구성된 두 번의 연결 요청
+- **When** 첫 `ConnectToServer(ctx, cfg)` 완료 후 동일 `cfg` 로 `ConnectToServer(ctx, cfg)` 를 재호출
+- **Then** 두 번째 호출은 transport 재생성/`initialize` 재실행 없이 첫 호출과 **동일한 `*ServerSession` 포인터** 를 반환하고, 서브프로세스 카운트 (stdio 의 경우 `ps` 로 확인) 는 1 유지
+
+**AC-MCP-014 — Credential 파일 mode 초과 거부**
+- **Covers**: REQ-MCP-003
+- **Given** `~/.goose/mcp-credentials/fx.json` 이 존재하고 fixture 가 해당 파일을 `chmod 0644` 로 설정
+- **When** `ConnectToServer(ctx, {Name:"fx", Auth:"oauth2"})` 호출로 credential 로드 시도
+- **Then** `ErrCredentialFilePermissions` 반환, zap 에 `level=WARN` + `msg="credential file mode exceeds 0600"` + `path`/`mode` 필드 포함된 로그 1건, OAuth 플로우 재시작 없이 호출자에게 에러 전파
+
+**AC-MCP-015 — Transport 인터페이스 공통 시그니처 호환성**
+- **Covers**: REQ-MCP-004
+- **Given** `StdioTransport`, `WebSocketTransport`, `SSETransport` 세 구현체 각각에 대해 동일한 `echo` 요청 fixture 시나리오
+- **When** 동일한 호출 코드 `t.SendRequest(ctx, echoReq)` / `t.Notify(ctx, pingMsg)` / `t.OnMessage(h)` / `t.Close()` 를 세 구현체 각각에서 실행
+- **Then** 세 구현체 모두 `Transport` 인터페이스 시그니처를 만족 (컴파일 time 검증), `SendRequest` 응답 페이로드가 동등, `Close()` 반환 후 후속 `SendRequest` 는 `ErrTransportClosed` 반환
+
+**AC-MCP-016 — OAuth 진행 중 블록 + 60s 타임아웃**
+- **Covers**: REQ-MCP-012
+- **Given** `AuthFlow.Start()` 는 호출되었으나 fixture mockBrowser 가 의도적으로 콜백을 보내지 않는 상태 (AuthPending)
+- **When** 동일 세션에 `ListTools(ctx, session)` 를 호출하고 60초 대기
+- **Then** 60초 경계에서 `ErrAuthFlowTimeout` 반환, 그 이전에는 호출이 블록 (측정: `time.Since(start) ∈ [59.5s, 61s]`), 세션 상태는 `AuthPending` 유지 (자동 `Disconnected` 전이 금지)
+
+**AC-MCP-017 — stdio subprocess SIGTERM → SIGKILL grace**
+- **Covers**: REQ-MCP-014
+- **Given** stdio MCP fixture 서버가 SIGTERM 을 ignore 하도록 구성 (trap handler 로 무한 sleep)
+- **When** `Disconnect(session)` 호출
+- **Then** 호출 시점 t=0 에 SIGTERM 전송, t=5s 시점에 SIGKILL 전송, t ≤ 5.5s 에 `Disconnect` 반환하고 자식 프로세스가 `ps` 에서 제거됨, zap 로그에 `sigterm_sent` + `sigkill_sent` 이벤트 순서대로 기록
+
+**AC-MCP-018 — OAuth state mismatch 거부**
+- **Covers**: REQ-MCP-017
+- **Given** `AuthFlow.Start()` 로 state=`abc123` 생성, fixture mockBrowser 가 콜백을 `state=xyz999` 로 전송
+- **When** `HandleCallback(code, "xyz999")` 호출
+- **Then** `ErrOAuthStateMismatch` 반환, `code` 는 `tokenURL` 로 exchange 되지 않음(fixture OAuth 서버의 token endpoint hit 카운트 = 0), credential 파일 생성 없음, 세션은 `Disconnected`
+
+**AC-MCP-019 — 환경 변수 주입 (stdio)**
+- **Covers**: REQ-MCP-019
+- **Given** `mcp.json` 에 `servers.fx.env = {"FOO":"bar", "PATH":"/overridden"}` 설정, 부모 프로세스 환경변수에 `FOO` 는 미설정, `PATH=/usr/bin` 존재
+- **When** `ConnectToServer` 로 stdio 자식 프로세스 기동 (fixture 는 `env` 출력을 stdout 으로 반환하는 echo 서버)
+- **Then** 자식 프로세스의 환경변수에 `FOO=bar` 존재, `PATH=/overridden` (부모의 `/usr/bin` 오버라이드), 부모 환경의 다른 변수(예: `HOME`) 는 보존
+
+**AC-MCP-020 — SSE server-initiated notification 수신**
+- **Covers**: REQ-MCP-020
+- **Given** SSE fixture 서버가 `message` 이벤트로 `{"method":"notifications/progress","params":{"pct":50}}` 를 request/response 와 독립으로 push
+- **When** 클라이언트가 `Transport.OnMessage(h)` 핸들러 등록 후 fixture 가 notification 발송
+- **Then** 핸들러 `h` 가 최소 1회 호출되며 수신 메시지의 `method == "notifications/progress"`, `params.pct == 50`; `SendRequest` 의 응답 상관관계(correlation ID) 와 분리 유지
+
+**AC-MCP-021 — Server capability 미선언 시 해당 메서드 거부**
+- **Covers**: REQ-MCP-021, REQ-MCP-005
+- **Given** fixture MCP 서버가 `initialize` 응답 `serverCapabilities` 에 `tools` 만 포함하고 `prompts` / `resources` 는 미선언
+- **When** 동일 세션에 (a) `ListPrompts(ctx, session)`, (b) `ListResources(ctx, session)`, (c) `ListTools(ctx, session)` 를 각각 호출
+- **Then** (a) 와 (b) 는 `ErrCapabilityNotSupported` 를 wire 호출 **없이** 반환(fixture 의 request 카운트 = 0), (c) 는 정상 응답; `ServerSession.ServerCapabilities["tools"]` 는 true, `["prompts"]` / `["resources"]` 는 false
+
+**AC-MCP-022 — Hang 서버에 대한 요청 레벨 timeout + cancelRequest**
+- **Covers**: REQ-MCP-022
+- **Given** fixture MCP 서버가 `tools/call` 요청을 수신한 뒤 응답을 무기한 지연 (transport 는 정상 유지, 즉 transport error 로 분류되지 않음), `cfg.RequestTimeout = 2s`
+- **When** `CallTool(ctx, session, "mcp__fx__slow", {...})` 호출
+- **Then** 호출은 `[1.9s, 2.2s]` 구간에서 반환하고 `ErrRequestTimeout` 을 내놓으며, fixture 서버는 동일 request ID 를 담은 JSON-RPC `$/cancelRequest` notification 을 수신 (수신 카운트 = 1), 클라이언트의 pending-request 맵에서 해당 ID 가 제거 (후속 `CallTool` 에서 ID 재사용 가능), 세션 상태는 여전히 `Connected`
+
+**AC-MCP-023 — Disconnect 시 tool registry 동기화**
+- **Covers**: REQ-MCP-023, REQ-MCP-001
+- **Given** `ConnectToServer` + `ListTools` 완료로 `tools.Registry` 에 `mcp__fx__search`, `mcp__fx__fetch` 두 항목 등록된 상태; 별도 fixture 서버 `gh` 의 `mcp__gh__search` 도 등록
+- **When** `Disconnect(fxSession)` 호출
+- **Then** `adapter.UnregisterToolsForSession(fxSession.ID)` 가 정확히 1회 호출되고, 이후 `tools.Registry.List()` 결과에 `mcp__fx__*` 항목이 **하나도 없으며** `mcp__gh__search` 는 유지; 동일 `cfg` 로 재연결 + `ListTools` 수행 시 `mcp__fx__search`, `mcp__fx__fetch` 가 다시 등록됨 (경로: `MCPToolsToRegistry` 재호출)
 
 ---
 
@@ -235,8 +322,15 @@ internal/
     ├── config.go            # mcp.json 스키마 + 로더
     ├── validation.go        # 스키마 검증 (reserved names, collisions)
     ├── registry.go          # ServerSession 레지스트리 + memoize
-    └── adapter.go           # PromptToSkill, MCPTool→internal 변환
+    └── adapter.go           # PromptToSkill, MCPToolsToRegistry(session) / UnregisterToolsForSession(sessionID) — TOOLS-001 의 tools.Registry 와의 유일한 쓰기 경계 (REQ-MCP-023)
 ```
+
+**adapter.go 계약 (REQ-MCP-023 귀결)**:
+
+- `MCPToolsToRegistry(session *ServerSession) ([]ToolDescriptor, error)` — `ListTools` (REQ-MCP-006) 성공 직후 호출되어 namespaced `mcp__{server}__{tool}` 엔트리를 `tools.Registry` (SPEC-GOOSE-TOOLS-001) 에 등록. 등록 시점은 "첫 `ListTools` 성공" 이며 `ConnectToServer` 즉시는 아님 (deferred loading 유지).
+- `UnregisterToolsForSession(sessionID string)` — `Disconnect` 또는 REQ-MCP-009 백오프 소진 시 호출되어 해당 세션의 모든 등록 엔트리를 원자적으로 제거. 재연결 후에는 `MCPToolsToRegistry` 가 재호출되어 stale entry 가 남지 않음을 보장.
+- `PromptToSkill(MCPPrompt) (*skill.SkillDefinition, error)` — SKILLS-001 consumer (변경 없음).
+- `tools.Registry` 로의 **모든 쓰기는 `adapter.go` 를 통해서만** 수행 — 외부(`client.go`, `server.go`, `transport/*`)가 직접 `tools.Registry` 를 변경하는 경로는 금지. 이는 TOOLS-001 의 consumer 경계 계약이며, 위반 시 `internal/tools/registry_test.go` 가 fan-in 분석으로 감지한다.
 
 ### 6.2 핵심 Go 타입
 
@@ -250,28 +344,31 @@ type Transport interface {
 }
 
 type MCPServerConfig struct {
-    ID        string            // 연결 memoize key (해시)
-    Name      string
-    Transport string            // "stdio" | "websocket" | "sse"
-    Command   string            // stdio only
-    Args      []string
-    Env       map[string]string
-    URI       string            // websocket/sse only
-    TLS       *TLSConfig
-    Auth      *AuthConfig       // "none" | "oauth2" | "bearer"
-    Prompts   bool              // true → PromptToSkill 실행
+    ID             string            // 연결 memoize key (해시)
+    Name           string
+    Transport      string            // "stdio" | "websocket" | "sse"
+    Command        string            // stdio only
+    Args           []string
+    Env            map[string]string
+    URI            string            // websocket/sse only
+    TLS            *TLSConfig
+    Auth           *AuthConfig       // "none" | "oauth2" | "bearer"
+    Prompts        bool              // true → PromptToSkill 실행
+    RequestTimeout time.Duration     // per-request deadline (REQ-MCP-022); default 30s
 }
 
 type ServerSession struct {
-    ID              string
-    Config          MCPServerConfig
-    Transport       Transport
-    State           SessionState     // Connected | Reconnecting | Disconnected | AuthPending
-    ProtocolVersion string
-    tools           []MCPTool
-    toolsLoaded     bool
-    mu              sync.RWMutex
-    logger          *zap.Logger
+    ID                 string
+    Config             MCPServerConfig
+    Transport          Transport
+    State              SessionState     // Connected | Reconnecting | Disconnected | AuthPending
+    ProtocolVersion    string
+    ServerCapabilities map[string]bool  // initialize 응답의 serverCapabilities 맵 (REQ-MCP-005, REQ-MCP-021)
+    ClientCapabilities map[string]bool  // initialize 요청으로 선언한 clientCapabilities (REQ-MCP-005)
+    tools              []MCPTool
+    toolsLoaded        bool
+    mu                 sync.RWMutex
+    logger             *zap.Logger
 }
 
 type MCPTool struct {
@@ -424,8 +521,19 @@ Schema validation은 CONFIG-001의 loader에서 1차(struct tag), 본 SPEC의 `v
 10. **RED #10** — `TestMCPServer_ReservedToolName_Error` (AC-MCP-010)
 11. **RED #11** — `TestMCPClient_ProtocolVersionMismatch` (AC-MCP-011)
 12. **RED #12** — `TestAdapter_PromptToSkill` (AC-MCP-012)
-13. **GREEN** — go-sdk 래퍼 + transport 3구현 + OAuth.
-14. **REFACTOR** — transport 중복 제거, session state 머신 추출.
+13. **RED #13** — `TestMCPClient_ConnectMemoize` (AC-MCP-013)
+14. **RED #14** — `TestCredential_FileModeRejection` (AC-MCP-014)
+15. **RED #15** — `TestTransport_InterfaceParity` (AC-MCP-015)
+16. **RED #16** — `TestMCPClient_AuthPendingBlocks_60sTimeout` (AC-MCP-016)
+17. **RED #17** — `TestStdio_SIGTERMGraceThenSIGKILL` (AC-MCP-017)
+18. **RED #18** — `TestOAuth_StateMismatchRejected` (AC-MCP-018)
+19. **RED #19** — `TestStdio_EnvInjection` (AC-MCP-019)
+20. **RED #20** — `TestSSE_ServerInitiatedNotification` (AC-MCP-020)
+21. **RED #21** — `TestMCPClient_CapabilityNegotiation_RejectUndeclared` (AC-MCP-021)
+22. **RED #22** — `TestMCPClient_RequestTimeoutAndCancelRequest` (AC-MCP-022)
+23. **RED #23** — `TestAdapter_UnregisterToolsOnDisconnect` (AC-MCP-023)
+24. **GREEN** — go-sdk 래퍼 + transport 3구현 + OAuth + capability/timeout/registry-sync.
+25. **REFACTOR** — transport 중복 제거, session state 머신 추출, adapter.go 경계 정리.
 
 ### 6.9 TRUST 5 매핑
 
@@ -509,6 +617,9 @@ Schema validation은 CONFIG-001의 loader에서 1차(struct tag), 본 SPEC의 `v
 - 본 SPEC은 **MCP 서버 비즈니스 로직을 포함하지 않는다**. `MCPServer` 빌더 API는 껍데기; handler 내부 구현은 사용자 책임.
 - 본 SPEC은 **MCP protocol version 업그레이드 자동 협상을 지원하지 않는다**. 단일 지원 버전(`2025-03-26`)만; 불일치 시 에러.
 - 본 SPEC은 **Telemetry / quota / rate limit을 구현하지 않는다**. 후속 SPEC.
+- 본 SPEC은 **MCP `2025-03-26` 스펙의 Streamable HTTP 전송 (POST + optional SSE stream)** 을 포함하지 않는다. 본 SPEC 의 SSE transport 는 "SSE-only" (server-initiated read-only stream) 에 한정하며, Streamable HTTP 및 연관된 세션 재개(`Mcp-Session-Id`) / resumability 는 **후속 SPEC (SPEC-GOOSE-MCP-002)** 로 연기한다. 이 결정은 Anthropic 공식 스펙이 SSE 단독 모드를 deprecated 로 분류했음을 인지하고도 MVP 범위를 제한하기 위함이다.
+- 본 SPEC은 **MCP `resources/subscribe` 및 `notifications/*` 계열 메서드를 구현하지 않는다** (research.md:§2.3 에 명시된 OUT 범위). 리소스 변경 구독 / 서버-주도 tool list 갱신 notification 등은 후속 SPEC.
+- 본 SPEC은 **다중 goosed 프로세스 간 credential 파일 동기화 (file lock / atomic rename race)** 를 보장하지 않는다. mvp 는 단일 goosed 프로세스 가정이며, 다중 프로세스 환경의 credential 경합 해결은 후속 SPEC.
 
 ---
 

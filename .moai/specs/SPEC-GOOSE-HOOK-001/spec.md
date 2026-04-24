@@ -1,16 +1,16 @@
 ---
 id: SPEC-GOOSE-HOOK-001
-version: 0.1.0
+version: 0.2.0
 status: planned
 created_at: 2026-04-21
-updated_at: 2026-04-21
+updated_at: 2026-04-25
 author: manager-spec
 priority: P0
 issue_number: null
 phase: 2
 size: 중(M)
 lifecycle: spec-anchored
-labels: []
+labels: [hook, dispatcher, permission, phase-2, goose-agent]
 ---
 
 # SPEC-GOOSE-HOOK-001 — Lifecycle Hook System (24 Events + useCanUseTool 권한 플로우)
@@ -20,6 +20,7 @@ labels: []
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-21 | 초안 작성 (claude-primitives §5 + QUERY-001/SKILLS-001 합의 기반) | manager-spec |
+| 0.2.0 | 2026-04-25 | plan-auditor 2차 감사 반영 — D1 (critical) AC-HK-001 24개 일관화 (§5), D6 (critical) REQ-HK-006에 exit code 2 compatibility 조항 추가 (§4.2), D10 (critical) `DispatchPermissionDenied` 공식화 및 REQ-HK-009 확장 (§3.1 / §4.2 / §6.2), D4 (major) §5 AC 섹션 "Given/When/Then format" 명시적 선언, D8 (major) REQ-HK-021 shell hook subprocess isolation 신설 (§4.4), D9 (major) REQ-HK-022 4MiB payload cap 신설 (§4.4) + §6.5 stdin goroutine write 정합, frontmatter `labels` 채움 (MP-3) | manager-spec |
 
 ---
 
@@ -80,6 +81,7 @@ QUERY-001의 continue site(§6.3)에서 본 SPEC의 `Dispatch*` 함수들이 명
    - `DispatchSessionStart(ctx, input) SessionStartResult` — returns `initialUserMessage`, `watchPaths`, `additionalContext`.
    - `DispatchFileChanged(ctx, changed []string)` — SKILLS-001 consumer 호출.
    - `DispatchUserPromptSubmit`, `DispatchStop`, `DispatchSubagentStop`, `DispatchPermissionRequest` 등.
+   - `DispatchPermissionDenied(ctx, result PermissionResult)` — **EvPermissionDenied 이벤트의 공식 dispatcher**. `useCanUseTool` 플로우가 `Deny`로 귀결될 때 내부에서 자동 호출되며, 외부 관찰자(감사 로그 소비자, 텔레메트리 consumer, 후속 SUBAGENT-001 coordinator)가 이 이벤트에 핸들러를 등록할 수 있다. enum 상수 `EvPermissionDenied`(§6.2)와 dispatcher 간 1:1 대응을 보장한다.
 7. `useCanUseTool` permission flow:
    - `PermissionResult` 타입 (`Allow|Deny|Ask` + `decisionReason`),
    - 핸들러 분기: classifier → interactive / coordinator / swarmWorker,
@@ -120,13 +122,15 @@ QUERY-001의 continue site(§6.3)에서 본 SPEC의 `Dispatch*` 함수들이 명
 
 **REQ-HK-005 [Event-Driven]** — **When** `DispatchPreToolUse(ctx, input)` is invoked, the dispatcher **shall** (a) invoke all registered handlers matching `input.Tool.Name` in FIFO order, (b) stop invoking further handlers immediately upon the first handler returning `HookJSONOutput{Continue: false}`, (c) aggregate `permissionDecision` from that handler, and (d) return `PreToolUseResult{Blocked: true|false, PermissionDecision: ...}`.
 
-**REQ-HK-006 [Event-Driven]** — **When** a shell command hook is executed, the dispatcher **shall** (a) spawn the shell subprocess, (b) pipe `HookInput` as JSON to stdin, (c) wait up to `cfg.Timeout` (default 30s), (d) parse stdout as `HookJSONOutput` JSON, (e) treat non-zero exit code OR malformed JSON OR timeout as `handler_error` — log and continue to the next handler (no block on error).
+**REQ-HK-006 [Event-Driven]** — **When** a shell command hook is executed, the dispatcher **shall** (a) spawn the shell subprocess, (b) pipe `HookInput` as JSON to stdin, (c) wait up to `cfg.Timeout` (default 30s), (d) parse stdout as `HookJSONOutput` JSON if present, (e) treat **exit code 2** as a **blocking signal** equivalent to `HookJSONOutput{Continue: false}` (Claude Code hook convention compatibility) — the dispatcher **shall** capture stderr up to 4KiB and surface it as `PermissionDecision.Reason` (for `PreToolUse`) or as `AdditionalContext` (for other events), and **shall not** treat exit code 2 as `handler_error`, (f) treat non-zero exit codes **other than 2** OR malformed JSON on a zero-exit OR timeout as `handler_error` — log and continue to the next handler (no block on error), (g) a stdout JSON `{"continue": false}` on exit code 0 remains a valid blocking channel and takes precedence over exit code semantics when both are present.
+
+> Rationale: Existing MoAI-ADK hook scripts at `.claude/hooks/moai/*.py` (see research.md §3.2) follow the Claude Code convention of exiting with code 2 to signal "block with stderr shown to user". Without this mapping, those scripts would be misclassified as errors when executed through `InlineCommandHandler`, defeating the consumption-target goal stated in research.md.
 
 **REQ-HK-007 [Event-Driven]** — **When** `DispatchSessionStart(ctx, input)` is invoked, the dispatcher **shall** collect `initialUserMessage`, `watchPaths`, `additionalContext` from all handler outputs; multiple handlers' `watchPaths` **shall** be concatenated (dedup by absolute path), and `initialUserMessage` **shall** use the last non-empty value with a zap warn if multiple handlers set it.
 
 **REQ-HK-008 [Event-Driven]** — **When** `DispatchFileChanged(ctx, changed []string)` is invoked, the dispatcher **shall** (a) invoke all handlers registered for `FileChanged` matching any path in `changed`, (b) after the internal handlers complete, call the externally-registered `SkillsFileChangedConsumer` (SKILLS-001's `FileChangedConsumer`) with the same `changed` slice, (c) return the union of activated skill IDs.
 
-**REQ-HK-009 [Event-Driven]** — **When** `useCanUseTool(ctx, toolName, input, permCtx)` is called, the decision flow **shall** (a) run the YOLO classifier(auto-mode approval check), (b) if not auto-approved, dispatch `PermissionRequest` hooks, (c) if any hook returns `behavior: deny`, short-circuit with `PermissionResult{Behavior: Deny, DecisionReason: ...}`, (d) if no handler decides, route to `InteractiveHandler` (CLI-001) → `CoordinatorHandler` (SUBAGENT-001 coordinator mode) → `SwarmWorkerHandler` based on `permCtx.Role`.
+**REQ-HK-009 [Event-Driven]** — **When** `useCanUseTool(ctx, toolName, input, permCtx)` is called, the decision flow **shall** (a) run the YOLO classifier (auto-mode approval check), (b) if not auto-approved, dispatch `PermissionRequest` hooks, (c) if any hook returns `behavior: deny`, short-circuit with `PermissionResult{Behavior: Deny, DecisionReason: ...}` **and shall invoke `DispatchPermissionDenied(ctx, result)` before returning** so that `EvPermissionDenied` observers see the denial, (d) if the final decision resolved by any branch below is `Deny`, the dispatcher **shall** likewise invoke `DispatchPermissionDenied` exactly once per call, (e) if no handler decides, route to `InteractiveHandler` (CLI-001) → `CoordinatorHandler` (SUBAGENT-001 coordinator mode) → `SwarmWorkerHandler` based on `permCtx.Role`.
 
 **REQ-HK-010 [Event-Driven]** — **When** a hook returns `HookJSONOutput{Async: true, AsyncTimeout: N}`, the dispatcher **shall** spawn a goroutine to execute that handler with a deadline of `N` seconds (default 60s); the main dispatch **shall not** block on async handlers, and their output **shall** be logged but discarded unless the event is `PostToolUse` which appends `additionalContext`.
 
@@ -150,6 +154,10 @@ QUERY-001의 continue site(§6.3)에서 본 SPEC의 `Dispatch*` 함수들이 명
 
 **REQ-HK-018 [Unwanted]** — `ClearThenRegister` **shall not** fire any handlers during the swap; if new handlers rely on init-like side effects, they **shall** be idempotent — the registry provides no `OnLoad` hook.
 
+**REQ-HK-021 [Unwanted]** — **If** a shell command hook is about to be executed, **then** the dispatcher **shall not** start the subprocess without applying the following minimum isolation: (a) **environment scrub** — environment variable names matching the deny-list (case-insensitive regex `(?i)(token|secret|password|apikey|api_key)` plus explicit entries `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOSE_AUTH_*`) **shall not** be propagated to the child process; (b) **working directory pin** — the subprocess `Dir` **shall** default to the session workspace root (resolved from `HookInput.SessionID`), never the parent process's current CWD; (c) **resource limits** — where the host OS supports `syscall.Setrlimit` (Linux, macOS), the dispatcher **shall** apply `RLIMIT_AS=1GiB`, `RLIMIT_NOFILE=128`, and `RLIMIT_CPU=cfg.Timeout + 5s`; on platforms without rlimit support the dispatcher **shall** log a single WARN-level entry per session and proceed; (d) **FD hygiene** — parent-process file descriptors opened before `cmd.Start()` **shall** be marked close-on-exec (`O_CLOEXEC` / `syscall.CloseOnExec`) so that hook subprocesses cannot read them. These four guarantees are the minimum isolation contract; stronger sandboxing (seccomp, cgroups, WASM) is deferred to a separate SPEC (see §8 R6).
+
+**REQ-HK-022 [Unwanted]** — A `HookInput` instance whose JSON serialization exceeds **4 MiB** (4 × 1024 × 1024 bytes) **shall not** be written to a subprocess stdin; the dispatcher **shall** return `ErrHookPayloadTooLarge` before `cmd.Start()`, emit a WARN-level structured log entry including `{event, handler_id, payload_bytes}`, and proceed to the next handler. stdin writes **shall** be performed on a dedicated goroutine so that a slow-reading subprocess cannot deadlock the dispatcher; the goroutine **shall** be cancelled when the parent `context.Context` is done.
+
 ### 4.5 Optional (선택적)
 
 **REQ-HK-019 [Optional]** — **Where** `ENV GOOSE_HOOK_TRACE=1` is set, the dispatcher **shall** emit DEBUG-level trace logs including full `HookInput` + `HookOutput` JSON for every handler invocation.
@@ -160,10 +168,13 @@ QUERY-001의 continue site(§6.3)에서 본 SPEC의 `Dispatch*` 함수들이 명
 
 ## 5. 수용 기준 (Acceptance Criteria)
 
+> **Format declaration.** The acceptance criteria below are intentionally authored in **Given/When/Then (Gherkin-style) test-scenario format**, not in one of the five EARS patterns. The normative EARS requirements are in §4 (REQ-HK-001 ~ REQ-HK-022); the ACs in this section serve as their **executable verification scenarios**, each binding to one or more REQs and to a concrete test case in §6.9 TDD 진입 순서. Reviewers and the plan-auditor MUST evaluate EARS compliance against §4, not against §5. This choice is deliberate: Given/When/Then is the contractual binding to RED-phase tests and preserves traceability from REQ → AC → test fixture.
+
 **AC-HK-001 — 24개 HookEvent 상수 완전성**
 - **Given** `internal/hook/types.go`
 - **When** 테스트가 `HookEventNames()` 결과를 검사
-- **Then** 정확히 24개 문자열이 반환되고, 각각 claude-primitives.md §5.1의 24개 이벤트명과 1:1 매칭 (Setup, SessionStart, SubagentStart, UserPromptSubmit, PreToolUse, PostToolUse, PostToolUseFailure, CwdChanged, FileChanged, WorktreeCreate, WorktreeRemove, PermissionRequest, PermissionDenied, Notification, Elicitation, ElicitationResult, PreCompact, PostCompact, Stop, StopFailure, SubagentStop, TeammateIdle, TaskCreated, TaskCompleted, SessionEnd, ConfigChange, InstructionsLoaded — 28개에서 본 SPEC은 24 핵심만)
+- **Then** 정확히 **24개** 문자열이 반환되고, 그 집합이 §6.2 Go enum의 24개 상수 값과 **집합 동등(set-equal)** 이어야 한다. 구체적으로 반환 집합은 정확히 다음 24개여야 한다: `Setup`, `SessionStart`, `SubagentStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `CwdChanged`, `FileChanged`, `WorktreeCreate`, `WorktreeRemove`, `PermissionRequest`, `PermissionDenied`, `Notification`, `PreCompact`, `PostCompact`, `Stop`, `StopFailure`, `SubagentStop`, `TeammateIdle`, `TaskCreated`, `TaskCompleted`, `SessionEnd`, `ConfigChange`.
+- **And** claude-primitives.md §5.1에 등장하는 `Elicitation`, `ElicitationResult`, `InstructionsLoaded` 세 이벤트는 §3.2 OUT OF SCOPE / §8 R5 / Exclusions 규정에 따라 본 SPEC 범위에서 **명시적으로 제외**되며, `HookEventNames()` 반환 집합에 포함되어 있으면 테스트는 실패해야 한다.
 
 **AC-HK-002 — PreToolUse blocking**
 - **Given** 2개 핸들러 등록: H1은 `Continue: false + permissionDecision: {approve: false, reason: "unsafe"}`, H2는 호출되지 않아야 함
@@ -310,6 +321,12 @@ func (r *HookRegistry) Register(event HookEvent, matcher string, h HookHandler) 
 func (r *HookRegistry) ClearThenRegister(snapshot map[HookEvent][]HookBinding) error
 func (r *HookRegistry) Handlers(event HookEvent, input HookInput) []HookHandler
 
+// DispatchPermissionDenied는 EvPermissionDenied enum 상수와 1:1 대응한다.
+// useCanUseTool이 Deny로 귀결될 때 자동 호출된다 (REQ-HK-009 c/d절).
+// 외부 관찰자(감사 로그 소비자, 후속 SUBAGENT-001 coordinator, 텔레메트리 consumer)가
+// 이 이벤트에 핸들러를 등록할 수 있다. 중복 호출은 허용되지 않는다 — useCanUseTool 한 번당 최대 1회.
+func DispatchPermissionDenied(ctx context.Context, result PermissionResult) DispatchResult
+
 // Permission flow.
 type PermissionBehavior int
 const (
@@ -390,34 +407,25 @@ if res.Blocked {
 
 ### 6.5 Shell Command Hook 실행자 (exec fork)
 
-```go
-func (h *InlineCommandHandler) Handle(ctx context.Context, input HookInput) (HookJSONOutput, error) {
-    cctx, cancel := context.WithTimeout(ctx, h.Timeout)
-    defer cancel()
+본 절은 REQ-HK-006 (exit 2 compatibility), REQ-HK-021 (subprocess isolation), REQ-HK-022 (4 MiB payload cap)의 구조적 계약을 기술한다. 코드는 behavior 계약을 설명하는 pseudo-Go이며 구체 구현은 Run 단계(`internal/hook/handlers.go`)의 책임이다.
 
-    cmd := exec.CommandContext(cctx, h.Shell, "-c", h.Command)
-    stdin, _ := cmd.StdinPipe()
-    var stdout, stderr bytes.Buffer
-    cmd.Stdout = &stdout
-    cmd.Stderr = &stderr
+구조적 순서:
 
-    if err := cmd.Start(); err != nil { return HookJSONOutput{}, err }
+1. `cctx, cancel := context.WithTimeout(ctx, h.Timeout)` — 타임아웃 바인딩
+2. `inputJSON := json.Marshal(input)` — 직렬화 후 `len(inputJSON) > 4*1024*1024`이면 `ErrHookPayloadTooLarge` 즉시 반환 (REQ-HK-022)
+3. `cmd := exec.CommandContext(cctx, h.Shell, "-c", h.Command)` — 명령 준비
+4. **Env scrub (REQ-HK-021 a)**: `cmd.Env` 를 parent `os.Environ()` 에서 deny-list 필터링한 slice로 설정
+5. **CWD pin (REQ-HK-021 b)**: `cmd.Dir = workspaceRoot(input.SessionID)`
+6. **rlimit + CloseOnExec (REQ-HK-021 c/d)**: `cmd.SysProcAttr` 에 플랫폼별 rlimit 설정 (Linux/macOS) 및 `O_CLOEXEC` 마킹
+7. `stdin, _ := cmd.StdinPipe()` 후 `cmd.Start()`
+8. **stdin goroutine write (REQ-HK-022)**: 별도 goroutine에서 `stdin.Write(inputJSON); stdin.Close()` — 메인 goroutine이 `cmd.Wait()`에서 블록되더라도 slow-reading child로 인한 pipe 데드락 방지; goroutine은 `cctx.Done()`에서 취소
+9. `err := cmd.Wait()` 후 exit code 분기:
+   - `exitCode == 0` — stdout을 `HookJSONOutput`으로 파싱, malformed면 `handler_error`
+   - `exitCode == 2` — **blocking signal**로 승격: `stderr`(선두 4 KiB)을 `PermissionDecision.Reason` 또는 `AdditionalContext`로 복사한 `HookJSONOutput{Continue: ptrFalse, PermissionDecision: ...}` 합성 후 반환 (REQ-HK-006 e)
+   - 기타 non-zero exit — `handler_error`로 로그 후 빈 output 반환 (REQ-HK-006 f)
+10. 모든 경로에서 `{event, handler_id, exit_code, duration_ms, payload_bytes}` 구조적 로그 emit (REQ-HK-004)
 
-    inputJSON, _ := json.Marshal(input)
-    stdin.Write(inputJSON)
-    stdin.Close()
-
-    if err := cmd.Wait(); err != nil {
-        return HookJSONOutput{}, fmt.Errorf("hook exit %d: %s", cmd.ProcessState.ExitCode(), stderr.String())
-    }
-
-    var out HookJSONOutput
-    if err := json.Unmarshal(stdout.Bytes(), &out); err != nil {
-        return HookJSONOutput{}, fmt.Errorf("malformed hook output: %w", err)
-    }
-    return out, nil
-}
-```
+> 이전 버전 (v0.1.0)의 inline code block은 synchronous `stdin.Write` 로 pipe 데드락 리스크를 내포했다. v0.2.0부터 REQ-HK-022에 의해 별도 goroutine write가 규정된다 (research.md §4.2와도 정합).
 
 ### 6.6 Atomic ClearThenRegister
 
@@ -477,7 +485,7 @@ func (r *HookRegistry) ClearThenRegister(snapshot map[HookEvent][]HookBinding) e
 | **T**ested | 30+ unit test, 10 integration test (AC), race detector 필수 |
 | **R**eadable | types / registry / handlers / permission / dispatchers 5파일 분리, 24 event 상수 주석 |
 | **U**nified | `go fmt`, `golangci-lint`, 모든 Dispatch 함수 동일 시그니처 계약 |
-| **S**ecured | Shell hook no-sudo, 비-TTY 환경 default deny, malformed JSON fail-safe, deep copy input |
+| **S**ecured | Shell hook no-sudo, 비-TTY 환경 default deny, malformed JSON fail-safe, deep copy input, env scrub + CWD pin + rlimit + CloseOnExec (REQ-HK-021), 4 MiB payload cap (REQ-HK-022), exit code 2를 block 채널로 분기하여 기존 Claude Code hook 스크립트 호환 (REQ-HK-006) |
 | **T**rackable | 모든 dispatch에 `{event, handler_count, outcome, duration_ms}` 로그, `LogPermissionDecision` 기록 |
 
 ---
@@ -504,7 +512,7 @@ func (r *HookRegistry) ClearThenRegister(snapshot map[HookEvent][]HookBinding) e
 | # | 리스크 | 가능성 | 영향 | 완화 |
 |---|------|------|-----|------|
 | R1 | PreToolUse 핸들러가 블로킹으로 turn latency 급증 | 중 | 중 | 기본 timeout 30s, 통계적으로 PreToolUse 핸들러는 1~2개 예상. 로그로 duration 관측. |
-| R2 | Shell hook의 stdin/stdout deadlock (큰 payload) | 중 | 고 | payload cap 4MB. 초과 시 `ErrHookPayloadTooLarge` |
+| R2 | Shell hook의 stdin/stdout deadlock (큰 payload) | 중 | 고 | **REQ-HK-022로 승격** (4 MiB payload cap + `ErrHookPayloadTooLarge` + goroutine stdin write). 본 risk는 REQ로 흡수되어 v0.2.0에서 해소 예정. |
 | R3 | `ClearThenRegister` 중 외부가 handler 참조 유지 → use-after-clear | 낮 | 중 | `Handlers()`가 slice를 **반환할 때 복사** (방어적 copy) |
 | R4 | YOLO classifier 설정이 session 간 누수 | 중 | 중 | `PermissionQueueOps`의 state는 per-session, 세션 종료 시 `SessionEnd` hook에서 reset |
 | R5 | 24개 이벤트 수가 claude-primitives §5.1의 28+와 불일치 | 중 | 낮 | 본 SPEC은 **핵심 24개만 지원**, Elicitation/ElicitationResult/InstructionsLoaded 등은 추후 SPEC 또는 본 SPEC v0.2에서 확장 |

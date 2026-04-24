@@ -1,16 +1,16 @@
 ---
 id: SPEC-GOOSE-CONTEXT-001
-version: 0.1.0
+version: 0.1.1
 status: planned
 created_at: 2026-04-21
-updated_at: 2026-04-21
+updated_at: 2026-04-25
 author: manager-spec
 priority: P0
 issue_number: null
 phase: 0
 size: 중(M)
 lifecycle: spec-anchored
-labels: []
+labels: [area/runtime, type/feature, priority/p0-critical]
 ---
 
 # SPEC-GOOSE-CONTEXT-001 — Context Window 관리 및 Compaction 전략
@@ -20,6 +20,7 @@ labels: []
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-21 | 초안 작성 (claude-core §7 + QUERY-001 인터페이스 합의 기반) | manager-spec |
+| 0.1.1 | 2026-04-25 | plan-auditor iteration 1 결함 수정: (1) 고아 REQ 5건(CTX-007/011/013/015/016)에 대응하는 AC-CTX-011~015 신설, (2) State/CompactBoundary 타입 소속을 `loop.State`/`loop.CompactBoundary`로 통일 (§3.1/§6.2/§6.3), (3) AutoCompact/ReactiveCompact trigger 분리 REQ-CTX-017/018 추가, (4) REQ-CTX-013 라벨 [Unwanted]→[Ubiquitous] 정정, (5) frontmatter labels 보강 | manager-spec |
 
 ---
 
@@ -68,13 +69,13 @@ labels: []
 6. `currentDate` 주입 (UTC ISO 8601).
 7. `TokenCountWithEstimation(messages) int64`: characters/4 + tool_use/tool_result overhead 근사.
 8. `CalculateTokenWarningState(used, limit int64) WarningLevel`: Green (<60%), Yellow (60-80%), Orange (80-92%), Red (>92%).
-9. `Compactor` 인터페이스 구현체 `DefaultCompactor`:
-   - `ShouldCompact(s query.State) bool`
-   - `Compact(s query.State) (query.State, CompactBoundary, error)`
+9. `Compactor` 인터페이스 구현체 `DefaultCompactor` (QUERY-001 계약 준수; `loop.State`/`loop.CompactBoundary`는 `internal/query/loop/` 패키지 소유):
+   - `ShouldCompact(s loop.State) bool`
+   - `Compact(s loop.State) (loop.State, loop.CompactBoundary, error)`
    - 내부에서 `Strategy` 선택 (`AutoCompact` > `ReactiveCompact` > `Snip` 우선순위).
 10. `Snip` 전략 완전 구현 (protected head N=3, protected tail M=5, redacted_thinking 블록 절대 보존).
 11. `AutoCompact`, `ReactiveCompact`는 `Summarizer` 인터페이스 호출로 위임 (본 SPEC은 orchestration + fallback만 구현; Summarizer가 주입되지 않으면 `Snip`으로 fallback).
-12. `CompactBoundary` payload struct (turn, strategy, messages_before, messages_after, tokens_before, tokens_after, task_budget_preserved).
+12. `loop.CompactBoundary` payload struct 생성 (turn, strategy, messages_before, messages_after, tokens_before, tokens_after, task_budget_preserved). 정의는 QUERY-001 `internal/query/loop/` 소유이며, 본 SPEC은 consumer/producer. (Circular import 방지 및 Compactor 인터페이스 contract 일관성 확보.)
 13. Message `Normalize([]Message) []Message`: consecutive user 병합, signature strip.
 14. Context invalidation: `InvalidateUserContext()`, `InvalidateSystemContext()` — SubmitMessage 외부 이벤트(예: CLAUDE.md 수정 감지) 대응.
 
@@ -110,11 +111,15 @@ labels: []
 
 **REQ-CTX-007 [Event-Driven]** — **When** `Compactor.ShouldCompact(state)` is called, the function **shall** return `true` if and only if `TokenCountWithEstimation(state.Messages) / state.TokenLimit >= 0.80` OR `state.AutoCompactTracking.ReactiveTriggered == true` OR `len(state.Messages) > state.MaxMessageCount`.
 
-**REQ-CTX-008 [Event-Driven]** — **When** `Compactor.Compact(state)` is invoked, the compactor **shall** (a) select a strategy in the order `AutoCompact → ReactiveCompact → Snip`, (b) if the selected strategy requires `Summarizer` but `Summarizer == nil`, fall back to `Snip`, (c) produce a new `State` with mutated `Messages` and preserved `TaskBudget.Remaining`, (d) return a `CompactBoundary` struct containing before/after metrics.
+**REQ-CTX-008 [Event-Driven]** — **When** `Compactor.Compact(state)` is invoked, the compactor **shall** (a) select a strategy by evaluating trigger conditions in the priority order `ReactiveCompact` > `AutoCompact` > `Snip` (detailed trigger conditions for each strategy are specified in REQ-CTX-017 and REQ-CTX-018), (b) if the selected strategy requires `Summarizer` but `Summarizer == nil`, fall back to `Snip`, (c) produce a new `loop.State` with mutated `Messages` and preserved `TaskBudget.Remaining`, (d) return a `loop.CompactBoundary` struct containing before/after metrics.
 
 **REQ-CTX-009 [Event-Driven]** — **When** `Snip` executes, the strategy **shall** keep the first `ProtectedHead` messages (default 3) and the last `ProtectedTail` messages (default 5), drop messages in between, insert a single synthetic `<moai-snip-marker>` `Message` with `role:"system"` describing the number of dropped messages, and preserve every content block of type `redacted_thinking` from dropped messages by attaching them to the snip marker as auxiliary content.
 
 **REQ-CTX-010 [Event-Driven]** — **When** compaction completes, the new `State.TaskBudget.Remaining` **shall** equal the pre-compaction `State.TaskBudget.Remaining` (unchanged); compaction itself **shall not** debit task budget, only LLM-summary calls performed by `Summarizer` may (and those are accounted by ADAPTER-001 in the surrounding turn).
+
+**REQ-CTX-017 [Event-Driven]** — **When** `Compactor.Compact(state)` is invoked AND `state.AutoCompactTracking.ReactiveTriggered == true`, the compactor **shall** select the `ReactiveCompact` strategy in preference to `AutoCompact` and `Snip`, regardless of the current token usage ratio. The `ReactiveTriggered` flag is set by the QueryEngine (SPEC-GOOSE-QUERY-001) when a predicted next message would exceed the token limit; this REQ defines only the strategy selection consequence, not the flag-setting condition.
+
+**REQ-CTX-018 [Event-Driven]** — **When** `Compactor.Compact(state)` is invoked AND `state.AutoCompactTracking.ReactiveTriggered == false` AND `TokenCountWithEstimation(state.Messages) / state.TokenLimit >= 0.80`, the compactor **shall** select the `AutoCompact` strategy (provided `Summarizer != nil` and `HistorySnipOnly == false`); this is the primary preventive compaction path and represents AutoCompact's sole trigger condition.
 
 ### 4.3 State-Driven (상태 기반)
 
@@ -124,7 +129,7 @@ labels: []
 
 ### 4.4 Unwanted Behavior (방지)
 
-**REQ-CTX-013 [Unwanted]** — The `DefaultCompactor.Compact` **shall not** return a `State` whose `Messages` is empty; at minimum the `<moai-snip-marker>` plus `ProtectedTail` messages **shall** remain.
+**REQ-CTX-013 [Ubiquitous]** — The `DefaultCompactor.Compact` **shall** always return a `State` whose `Messages` length is greater than or equal to `ProtectedTail + 1` (the `<moai-snip-marker>` plus `ProtectedTail` messages at minimum); an empty or shorter `Messages` slice is prohibited under all conditions. (Ubiquitous prohibition: invariant post-condition without conditional trigger.)
 
 **REQ-CTX-014 [Unwanted]** — **If** `Summarizer.Summarize` returns an error, **then** `AutoCompact` or `ReactiveCompact` **shall** log the error and fall back to `Snip` without surfacing the error to the caller (compaction must always succeed in some form).
 
@@ -188,6 +193,31 @@ labels: []
 - **When** `GetUserContext` 재호출
 - **Then** 파일 IO가 다시 발생 (cache miss), 새 `UserContext` 반환, 이후 호출은 다시 캐시됨
 
+**AC-CTX-011 — ShouldCompact 80% 임계 경계 (covers REQ-CTX-007)**
+- **Given** `state.TokenLimit = 100_000`, `state.AutoCompactTracking.ReactiveTriggered = false`, `len(state.Messages) < state.MaxMessageCount`, `CalculateTokenWarningState` 가 Red 미만
+- **When** (a) `TokenCountWithEstimation(state.Messages) == 79_999`일 때 `ShouldCompact(state)`; (b) `TokenCountWithEstimation(state.Messages) == 80_000`일 때 `ShouldCompact(state)`; (c) `TokenCountWithEstimation(state.Messages) == 80_001`일 때 `ShouldCompact(state)`
+- **Then** (a) `false` 반환, (b) `true` 반환 (임계 정확히 80%), (c) `true` 반환. 3개 경계 케이스 모두 결정적으로 일치.
+
+**AC-CTX-012 — Red level 강제 compact (covers REQ-CTX-011)**
+- **Given** `state.TokenLimit = 100_000`, `TokenCountWithEstimation(state.Messages) == 92_500` (Red 구간, >92%), `state.AutoCompactTracking.ReactiveTriggered = false`, `len(state.Messages) < state.MaxMessageCount`
+- **When** `Compactor.ShouldCompact(state)`
+- **Then** `true` 반환. 동일 state에서 `TokenLimit`만 1_000_000으로 바꿔 동일 messages를 검사했을 때(이 경우 사용률 9.25%, Green) `false` 반환 → Red override가 token 사용률 < 80% 구간을 우회하지 않고 WarningLevel 계산 결과에 엄격히 연동됨을 검증.
+
+**AC-CTX-013 — Compact 결과 최소 길이 불변식 (covers REQ-CTX-013)**
+- **Given** `ProtectedHead = 3`, `ProtectedTail = 5`, `Summarizer = nil` (Snip 강제), `state.Messages` 가 단 2개 메시지만 포함 (ProtectedHead+Tail 합계 8보다 작은 경계 케이스)
+- **When** `Compactor.Compact(state)` 실행
+- **Then** 결과 `newState.Messages` 의 길이는 `ProtectedTail + 1 == 6` 이상이 유지되거나 (원본이 이미 6 미만이면) 원본 messages가 snip 없이 그대로 반환되고 `CompactBoundary.Strategy == "Snip"` 으로 기록되며 `MessagesBefore == MessagesAfter`. 어떠한 경우에도 `len(newState.Messages) == 0` 은 금지.
+
+**AC-CTX-014 — Git 부재 graceful path (covers REQ-CTX-015)**
+- **Given** 테스트 디렉터리가 Git 저장소가 아닌 tmpdir (no `.git` directory), fake git executor가 `exec.ErrNotFound` 또는 non-zero exit code 반환
+- **When** `GetSystemContext(ctx)` 호출
+- **Then** 반환된 `SystemContext.GitStatus == "(no git)"`, 에러 없이 `nil` error 반환, 세션은 계속 진행 가능. 2회차 호출 시에도 git 명령 재실행 없이 memoized `"(no git)"` 반환.
+
+**AC-CTX-015 — HISTORY_SNIP feature gate (covers REQ-CTX-016)**
+- **Given** `DefaultCompactor{Summarizer: stubSummarizer, HistorySnipOnly: true}` (해당 필드는 CONFIG-001이 `GOOSE_HISTORY_SNIP=1` env에서 로드한 값), state가 AutoCompact trigger 조건 충족 (token >=80%)
+- **When** `Compactor.Compact(state)` 실행
+- **Then** `CompactBoundary.Strategy == "Snip"`, `Summarizer.Summarize` 호출 횟수 = 0, ReactiveCompact/AutoCompact 미선택. `HistorySnipOnly = false` 로 바꾼 뒤 같은 state로 재호출 시 `CompactBoundary.Strategy == "AutoCompact"` 확인(대조군).
+
 ---
 
 ## 6. 기술적 접근 (Technical Approach)
@@ -196,6 +226,9 @@ labels: []
 
 ```
 internal/
+├── query/loop/                   # (SPEC-GOOSE-QUERY-001 소유; 참고용)
+│   ├── state.go                  # loop.State (QUERY-001 소유)
+│   └── boundary.go               # loop.CompactBoundary (QUERY-001 소유; 본 SPEC은 값만 생성)
 └── context/
     ├── system.go                 # GetSystemContext + memoize
     ├── user.go                   # GetUserContext + CLAUDE.md walk
@@ -206,10 +239,11 @@ internal/
     ├── strategy_auto.go          # AutoCompact orchestration
     ├── strategy_reactive.go      # ReactiveCompact orchestration
     ├── summarizer.go             # Summarizer interface (COMPRESSOR-001 impl)
-    ├── boundary.go               # CompactBoundary struct
     ├── normalize.go              # Message normalize helpers
     └── *_test.go
 ```
+
+> **참고**: `loop.CompactBoundary` struct 정의는 QUERY-001의 `internal/query/loop/boundary.go` 에 위치한다 (research.md §9 `loop.CompactBoundary` 결정 근거). 본 SPEC `internal/context/` 는 consumer/producer로서 import만 수행하며 struct 정의를 중복하지 않는다. 과거 0.1.0 초안이 `internal/context/boundary.go` 에서 `CompactBoundary`를 정의한 부분은 0.1.1에서 제거(QUERY-001 패키지 소유로 귀속).
 
 ### 6.2 핵심 타입 (Go 시그니처 제안)
 
@@ -295,10 +329,12 @@ type DefaultCompactor struct {
 }
 
 func (c *DefaultCompactor) ShouldCompact(s loop.State) bool
-func (c *DefaultCompactor) Compact(s loop.State) (loop.State, CompactBoundary, error)
+func (c *DefaultCompactor) Compact(s loop.State) (loop.State, loop.CompactBoundary, error)
 
 
-// internal/context/boundary.go
+// internal/query/loop/boundary.go  (소유: SPEC-GOOSE-QUERY-001)
+// 본 SPEC은 정의하지 않고 consumer/producer로 참여. 값만 생성하여 반환.
+package loop
 
 type CompactBoundary struct {
     Turn                int
@@ -317,13 +353,16 @@ type CompactBoundary struct {
 SPEC-GOOSE-QUERY-001 §6.2의 `QueryEngineConfig.Compactor`는 다음 메서드 셋을 요구:
 
 ```go
+// internal/query/config.go (QUERY-001 소유)
+package query
+
 type Compactor interface {
     ShouldCompact(s loop.State) bool
-    Compact(s loop.State) (loop.State, CompactBoundary, error)
+    Compact(s loop.State) (loop.State, loop.CompactBoundary, error)
 }
 ```
 
-`DefaultCompactor`가 이 인터페이스를 구현한다. 두 SPEC의 GREEN 단계 직전 **인터페이스 교차 검증 테스트**(`compactor_contract_test.go`)를 통해 서명 일치 보장.
+`context.DefaultCompactor`가 이 인터페이스를 구현한다. `loop.State` 와 `loop.CompactBoundary` 는 모두 `internal/query/loop/` 패키지 소유이며, 본 SPEC `internal/context/` 는 `loop` 패키지를 import하여 사용한다 (research.md §9 의존 방향: `context → query/loop ← query`, 단방향). 두 SPEC의 GREEN 단계 직전 **인터페이스 교차 검증 테스트**(`compactor_contract_test.go`)가 `var _ query.Compactor = (*context.DefaultCompactor)(nil)` assertion으로 서명 일치를 빌드타임 보장.
 
 ### 6.4 Token Estimation 알고리즘 (MVP)
 
@@ -373,9 +412,15 @@ tokens(message) =
 9. **RED #9**: `TestCompactor_NilSummarizer_FallsBackToSnip` — AC-CTX-008.
 10. **RED #10**: `TestCompactor_SummarizerError_FallsBackToSnip` — AC-CTX-009.
 11. **RED #11**: `TestInvalidateUserContext_ForcesRecompute` — AC-CTX-010.
-12. **RED #12**: `TestCompactor_RedLevel_OverridesThreshold` — REQ-CTX-011.
-13. **GREEN**: 최소 구현.
-14. **REFACTOR**: strategy 모듈 분리(snip/auto/reactive 각 파일), Summarizer 인터페이스 seam 정리.
+12. **RED #12**: `TestCompactor_ShouldCompact_80PercentBoundary` — AC-CTX-011 (REQ-CTX-007 커버).
+13. **RED #13**: `TestCompactor_RedLevel_OverridesThreshold` — AC-CTX-012 (REQ-CTX-011 커버).
+14. **RED #14**: `TestCompactor_MinimumMessagesInvariant` — AC-CTX-013 (REQ-CTX-013 커버).
+15. **RED #15**: `TestGetSystemContext_NoGit_Graceful` — AC-CTX-014 (REQ-CTX-015 커버).
+16. **RED #16**: `TestCompactor_HistorySnipOnly_PrefersSnip` — AC-CTX-015 (REQ-CTX-016 커버).
+17. **RED #17**: `TestCompactor_ReactiveTriggered_SelectsReactive` — REQ-CTX-017 trigger 분기.
+18. **RED #18**: `TestCompactor_Over80Percent_SelectsAutoCompact` — REQ-CTX-018 trigger 분기.
+19. **GREEN**: 최소 구현.
+20. **REFACTOR**: strategy 모듈 분리(snip/auto/reactive 각 파일), Summarizer 인터페이스 seam 정리.
 
 ### 6.7 TRUST 5 매핑
 
@@ -412,7 +457,7 @@ tokens(message) =
 | R2 | redacted_thinking 블록의 auxiliary content 포맷이 Anthropic API와 맞지 않아 다음 호출 실패 | 중 | 고 | Snip marker는 `role:"system"`으로 두고 redacted_thinking을 독립 content block으로 attach. ADAPTER-001과 integration test로 검증 |
 | R3 | CLAUDE.md walk가 심볼릭 링크 순환에 빠짐 | 낮 | 중 | OS filesystem이 root에서 자연 중단. 명시적 cycle detection 불필요 |
 | R4 | Git 명령 타임아웃(2초) 내에 끝나지 않는 대형 레포에서 session start 지연 | 낮 | 낮 | 타임아웃 시 `GitStatus="(no git)"`로 graceful (REQ-CTX-015) |
-| R5 | Summarizer가 task_budget을 소비하는데 본 SPEC이 "compaction은 예산 불변"이라 모순 | 중 | 중 | 해결: Summarizer 호출은 **외부 turn**으로 본다. 호출자(QueryEngine)가 turn 차감, 본 SPEC의 REQ-CTX-010은 "compaction 자체"는 예산 불변 (Summarizer가 소비한 토큰은 그 turn에 이미 계상됨) |
+| R5 | Summarizer가 task_budget을 소비하는데 본 SPEC이 "compaction은 예산 불변"이라 모순 | 중 | 중 | 해결: Summarizer 호출은 **외부 turn**으로 본다. 호출자(QueryEngine)가 turn 차감, 본 SPEC의 REQ-CTX-010은 "compaction 자체"는 예산 불변 (Summarizer가 소비한 토큰은 그 turn에 이미 계상됨). **Integration 검증 지점**: QUERY-001 integration test 중 `TestQueryEngine_CompactTurn_TaskBudgetAccounting` 에서 Compact 전후 `TaskBudget.Remaining` 가 Compact 자체로는 변동 없고 Summarizer turn에서만 차감됨을 assertion. 본 SPEC은 AC-CTX-007로 "compaction 자체" 불변만 검증, cross-SPEC turn 회계는 QUERY-001 AC-QUERY-011 소관. |
 | R6 | AutoCompact 후에도 token count가 여전히 80% 이상 → 무한 compact loop | 낮 | 고 | `ShouldCompact` 판단 시 "직전 compaction 이후 새 메시지 ≥1"을 요구 (QUERY-001 continue site가 보장) |
 | R7 | ProtectedTail이 tool_result로만 구성되어 context가 무의미 | 중 | 중 | Snip marker가 "직전 요약"을 synthetic message로 삽입하여 의미 복원. COMPRESSOR-001 도입 시 auto-summary로 대체 |
 
@@ -456,6 +501,8 @@ tokens(message) =
 - 본 SPEC은 **Cross-session context cache를 구현하지 않는다**. MEMORY-001.
 - 본 SPEC은 **redacted_thinking 블록의 내용을 해석·재생성하지 않는다**. opaque 보존만.
 - 본 SPEC은 **HISTORY_SNIP feature gate의 전역 설정 로드를 구현하지 않는다**. `DefaultCompactor.HistorySnipOnly` 필드로 받아서 사용만 하며, env 파싱은 CONFIG-001.
+- 본 SPEC은 **`loop.State` / `loop.CompactBoundary` struct를 정의하지 않는다**. 두 타입은 SPEC-GOOSE-QUERY-001의 `internal/query/loop/` 패키지 소유이며, 본 SPEC은 consumer(State 읽기)/producer(CompactBoundary 값 생성)로만 참여. struct 정의 중복 금지.
+- 본 SPEC은 **`state.AutoCompactTracking.ReactiveTriggered` flag를 직접 세팅하지 않는다**. 해당 flag의 세팅 조건 및 시점은 SPEC-GOOSE-QUERY-001의 responsibility. 본 SPEC은 REQ-CTX-017에서 "flag가 true일 때의 strategy 선택 결과"만 정의.
 
 ---
 

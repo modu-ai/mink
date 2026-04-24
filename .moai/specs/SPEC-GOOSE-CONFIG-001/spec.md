@@ -1,9 +1,9 @@
 ---
 id: SPEC-GOOSE-CONFIG-001
-version: 0.1.0
+version: 0.2.0
 status: planned
 created_at: 2026-04-21
-updated_at: 2026-04-21
+updated_at: 2026-04-25
 author: manager-spec
 priority: P0
 issue_number: null
@@ -20,6 +20,7 @@ labels: []
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-21 | 초안 작성 (ROADMAP Phase 0, CORE-001 확장) | manager-spec |
+| 0.2.0 | 2026-04-25 | 감사 결함 수정 (plan-audit mass-20260425). MP-2 FAIL 해소: REQ-CFG-011/012 Unwanted-EARS 재작성 (If/then). D18 critical 해소: §6.4 deep merge zero-value 버그 명시 + REQ-CFG-015 추가 + AC-CFG-009 추가. D15 major 해소: REQ-CFG-016 secret/CREDPOOL 연동 forward-reference 추가 + §3.2 OUT-OF-SCOPE 확장. D17 major 해소: AC-CFG-010 (int env overlay) + AC-CFG-011 (URL env overlay) + AC-CFG-012 (secret env overlay) 추가. D20 관련: §3.2 OUT-OF-SCOPE에 JSON Schema 미채택 명시. frontmatter `labels`, `created_at`는 Phase B에서 이미 수정됨 (검증만). | manager-spec |
 
 ---
 
@@ -77,8 +78,8 @@ tech.md §3.1이 `spf13/viper` 1.19+를 후보로 명시. 그러나 viper는:
 ### 3.2 OUT OF SCOPE
 
 - Hot reload / fsnotify 감시 (후속 SPEC).
-- Secret/credential 저장소 통합 (키체인, 1Password 등).
-- JSON Schema export 또는 SDK 생성.
+- Secret/credential 저장소 통합 (키체인, 1Password, OS keychain 등). 본 SPEC은 secret-typed 필드(`llm.providers.*.api_key`)를 env/YAML 평문으로만 다룬다. **단, REQ-CFG-016이 향후 `SPEC-GOOSE-CREDPOOL-XXX` (credential-pool SPEC)와의 연동 훅을 forward-reference로 제공한다.** 해당 SPEC이 ROADMAP 상위 Phase에서 채택되면, secret-typed 필드는 자동으로 credential-pool resolver 경유로 전환된다. 본 SPEC은 그 전환 시점까지 평문 경로를 유지할 뿐, credential pool 자체의 구현·저장 형식·암호화 방식에는 개입하지 않는다.
+- **JSON Schema export / 생성 / 런타임 검증 (명시적 미채택)**: 본 SPEC은 Config 스키마를 **Go 타입 (§6.3)**으로만 정의한다. JSON Schema 파일(`config.schema.json` 등)은 생성하지 않으며, `encoding/json` 기반 스키마 검증, IDE autocomplete용 schema export, OpenAPI 3.x 스키마 매핑도 수행하지 않는다. 이유: (1) 본 SPEC의 validation은 Go 수준의 `Config.Validate()` 메서드로 충분하고, (2) YAML-first 경로에서 JSON Schema는 중복 유지보수 부담이 되며, (3) 향후 필요 시 별도 SPEC(예: `SPEC-GOOSE-CONFIG-SCHEMA-XXX`)로 분리 가능하다.
 - CLI `goose config get/set` 하위명령 (CLI-001 범위).
 - 프로바이더별 세부 설정 검증 — 각 SPEC이 자기 필드 검증 위임 (LLM-001이 `providers[*]` 검증).
 - Windows 레지스트리 기반 설정.
@@ -116,15 +117,21 @@ tech.md §3.1이 `spf13/viper` 1.19+를 후보로 명시. 그러나 viper는:
 
 **REQ-CFG-010 [Unwanted]** — **If** a numeric field (e.g., `transport.grpc_port`) receives a string value in YAML, **then** `Load()` **shall** return a validation error naming the field path (`transport.grpc_port`) and the expected type.
 
-**REQ-CFG-011 [Unwanted]** — The loader **shall not** read from `$HOME` when `$GOOSE_HOME` is empty; it **shall** instead fall back to `$HOME/.goose` explicitly computed once per `Load()` call.
+**REQ-CFG-011 [Unwanted]** — **If** `$GOOSE_HOME` is empty or unset at the time `Load()` is invoked, **then** the loader **shall** resolve the user config directory to `$HOME/.goose` exactly once per `Load()` call and **shall not** dereference `$HOME` at any other location in the lookup chain.
 
-**REQ-CFG-012 [Unwanted]** — The loader **shall not** expand shell variables (`${FOO}`) inside YAML string values; literal strings are literal.
+**REQ-CFG-012 [Unwanted]** — **If** a YAML string value contains shell-variable syntax (e.g. `${FOO}`, `$BAR`), **then** the loader **shall** treat the entire value as a literal string and **shall not** perform shell-variable expansion, environment substitution, or command substitution on it.
 
 ### 4.5 Optional
 
 **REQ-CFG-013 [Optional]** — **Where** a caller supplies `LoadOptions.OverrideFiles []string`, the loader **shall** consume those paths instead of the default file lookup chain (test-only).
 
 **REQ-CFG-014 [Optional]** — **Where** environment variable `GOOSE_CONFIG_STRICT=true` is set, unknown top-level keys (REQ-CFG-008) **shall** instead cause load failure with an error listing all unknowns.
+
+### 4.6 Addenda (0.2.0 감사 수정)
+
+**REQ-CFG-015 [Ubiquitous]** — The deep-merge algorithm (§6.4) **shall** distinguish "field absent from overlay YAML" from "field present with Go zero-value (false/0/empty-string/empty-slice)". **When** an overlay explicitly declares a key with a zero-value, the loader **shall** treat that zero-value as the user's authoritative choice and **shall** override the lower-layer value; **when** an overlay omits the key entirely, the loader **shall** preserve the lower-layer value. This presence-aware semantic applies to all scalar and slice fields including `learning.enabled`, `log.level`, and `transport.grpc_port`.
+
+**REQ-CFG-016 [Optional]** — **Where** a credential-pool SPEC (e.g., a future `SPEC-GOOSE-CREDPOOL-XXX`) is adopted in a later ROADMAP phase, secret-typed fields (currently `llm.providers.*.api_key` per §6.2) **shall** be sourced from that credential-pool resolver in preference to env vars and YAML plaintext. Until such SPEC lands, this SPEC keeps secret fields in env/YAML as documented in §3.2 OUT OF SCOPE. No runtime behavior change is mandated by REQ-CFG-016 in Phase 0; this REQ exists as an explicit **forward-reference hook** so downstream SPECs can cite it.
 
 ---
 
@@ -169,6 +176,26 @@ tech.md §3.1이 `spf13/viper` 1.19+를 후보로 명시. 그러나 viper는:
 - **Given** env `GOOSE_LOG_LEVEL=error`, `GOOSE_LEARNING_ENABLED=false`
 - **When** `Load()`
 - **Then** `cfg.Log.Level=="error"`, `cfg.Learning.Enabled==false`.
+
+**AC-CFG-009 — Zero-value 명시 override (D18 회귀 방지)**
+- **Given** defaults `{learning.enabled: true}`, user YAML `learning:\n  enabled: false` (명시적 false 선언), env 미설정
+- **When** `Load()`
+- **Then** `cfg.Learning.Enabled == false`, `Source("learning.enabled")=="user"`. 추가 케이스: user YAML `learning:` 키 자체 부재 시 `cfg.Learning.Enabled == true` (default 유지). Satisfies: REQ-CFG-015.
+
+**AC-CFG-010 — Env overlay int 타입 (D17)**
+- **Given** user YAML `transport.grpc_port: 17891`, env `GOOSE_GRPC_PORT=9999`
+- **When** `Load()`
+- **Then** `cfg.Transport.GRPCPort == 9999`, `Source("transport.grpc_port")=="env"`. env 값이 정수 파싱 실패 시(`GOOSE_GRPC_PORT=abc`) WARN 로그와 함께 하위 레이어 값(`17891`) 유지, 최종 `Validate()` 단계에서 범위 검증은 별도 수행. Satisfies: REQ-CFG-006.
+
+**AC-CFG-011 — Env overlay URL 타입 (D17)**
+- **Given** defaults `llm.providers.ollama.host: "http://localhost:11434"`, env `OLLAMA_HOST=http://10.0.0.5:11434`
+- **When** `Load()`
+- **Then** `cfg.LLM.Providers["ollama"].Host == "http://10.0.0.5:11434"`, `Source("llm.providers.ollama.host")=="env"`. Satisfies: REQ-CFG-006.
+
+**AC-CFG-012 — Env overlay secret 타입 (D17)**
+- **Given** defaults `llm.providers.openai.api_key: ""`, env `OPENAI_API_KEY=sk-test-123`
+- **When** `Load()` → `cfg.Redacted()`
+- **Then** `cfg.LLM.Providers["openai"].APIKey == "sk-test-123"` (메모리상 원본 보존), `cfg.Redacted()` 문자열에 `sk-test-123`이 포함되지 않고 `sk-***` 또는 동등한 마스킹 문자열로 대체됨. Satisfies: REQ-CFG-006, §6.7 TRUST Secured.
 
 ---
 
@@ -236,12 +263,22 @@ type LLMConfig struct {
 
 ### 6.4 Deep Merge 알고리즘
 
-- 규칙 1: `map[string]any` nested — key-by-key recursive merge.
-- 규칙 2: scalar — overlay가 zero-value가 **아니면** override.
-- 규칙 3: slice — overlay가 비어있지 않으면 완전 대체 (append 없음).
-- 규칙 4: pointer/struct — 필드별 규칙 1~3 재귀 적용.
+**핵심 원칙**: "unset"과 "explicitly set to zero-value"를 구분한다. Go의 bool/int/string zero-value (false/0/"")는 사용자가 **명시적으로 선언한 값**일 수 있으므로, 단순한 zero-value 검사만으로는 override 여부를 판단할 수 없다.
 
-이 규칙은 Go 제네릭 없이 `reflect` 기반 15~20줄로 구현 가능. 단위 테스트 10개로 각 규칙 격리 검증.
+- **규칙 1 (map 재귀)**: `map[string]any` nested 구조는 key-by-key recursive merge. overlay의 key가 존재하면 그 key만 재귀 처리.
+- **규칙 2 (scalar presence-aware)**: scalar 필드는 **"overlay YAML에 key가 존재하는가"**로 override 여부를 판단한다. overlay가 zero-value인지 여부는 판단 기준이 **아니다**. 구현 접근:
+  - (a) 1차 파싱은 `yaml.Node` 또는 `map[string]any`로 수행하여 key presence를 보존.
+  - (b) presence가 확인된 key에 한해 overlay 값을 `*Config`의 대응 필드에 적용.
+  - (c) 선택적: struct 필드를 pointer-wrapped (`*bool`, `*int`, `*string`)로 설계하여 nil=unset, non-nil=set을 표현. 단, 본 SPEC은 (a)+(b) 경로를 권장한다.
+- **규칙 3 (slice)**: overlay YAML에 key가 존재하고 slice가 선언되면(빈 슬라이스 포함) 완전 대체 (append 없음). overlay key 부재 시 하위 레이어 유지.
+- **규칙 4 (pointer/struct)**: struct는 필드별 규칙 1~3 재귀 적용. nested struct 내부도 동일 presence-aware 원칙 적용.
+
+**명시적 반례 (필수 처리)**:
+- defaults: `learning.enabled = true`
+- user YAML: `learning:\n  enabled: false`
+- 결과: `cfg.Learning.Enabled == false` (user의 명시적 false가 override). zero-value 기반 단순 검사로는 이 케이스에서 user의 의도를 무시하게 되므로 금지.
+
+이 규칙은 `yaml.Node`의 `IsZero()`/`Kind != 0` 검사 또는 2단계 unmarshal (`map[string]any` 1차 → `Config` 적용)로 구현 가능. 단위 테스트는 각 규칙별 최소 2케이스(key 부재 / key 존재하며 zero-value)를 격리 검증한다.
 
 ### 6.5 Source Tracking
 
@@ -286,6 +323,7 @@ func (c *Config) Source(path string) Source
 | 후속 SPEC | SPEC-GOOSE-LLM-001 | `LLMConfig.Providers` 확장 + `Validate()` 구현 |
 | 후속 SPEC | SPEC-GOOSE-AGENT-001 | `LearningConfig` 플래그 소비 |
 | 후속 SPEC | SPEC-GOOSE-CLI-001 | `--config /path` 플래그가 `LoadOptions.OverrideFiles`에 주입 |
+| 후속 SPEC (forward-ref) | SPEC-GOOSE-CREDPOOL-XXX (미작성) | REQ-CFG-016 경유. 해당 SPEC 채택 시 secret-typed 필드(`llm.providers.*.api_key`)가 credential-pool resolver로 전환됨. 본 SPEC은 훅만 제공. |
 | 외부 | `gopkg.in/yaml.v3` | CORE-001에서 이미 채택 |
 | 외부 | `github.com/stretchr/testify` | 테스트 assertion |
 
@@ -328,7 +366,8 @@ func (c *Config) Source(path string) Source
 
 - 본 SPEC은 **hot reload / fsnotify 감시를 구현하지 않는다**. `Load()`는 1회성.
 - 본 SPEC은 **CLI `goose config get/set` 하위명령을 포함하지 않는다** (CLI-001).
-- 본 SPEC은 **secret manager / keychain 통합을 포함하지 않는다**. API key는 평문 YAML 또는 env.
+- 본 SPEC은 **secret manager / keychain 통합을 구현하지 않는다**. API key는 평문 YAML 또는 env. 단 REQ-CFG-016이 향후 credential-pool SPEC과의 연동 훅을 forward-reference로 제공한다 (본 SPEC은 훅 선언만 수행, 동작 전환은 해당 SPEC이 수행).
+- 본 SPEC은 **JSON Schema export / 검증 / 생성을 수행하지 않는다** (§3.2 참조). Config 스키마는 Go 타입으로만 정의된다.
 - 본 SPEC은 **JSON/TOML/HCL 형식을 지원하지 않는다**. YAML 전용.
 - 본 SPEC은 **remote config (Consul/etcd)를 지원하지 않는다**.
 - 본 SPEC은 **viper나 다른 설정 프레임워크를 도입하지 않는다**. 명시적 reject.
