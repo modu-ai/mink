@@ -146,3 +146,22 @@ evaluator-active "commit 후 권장" 2건 처리:
 - coverage: anthropic 77.0%, openai 78.7%, ollama 77.8%, deepseek/xai 100%, google 51.7%
 - goleak: PASS (reader goroutine 누수 없음)
 - 최종 8번째 commit SHA: db51dd7
+
+### Phase 2.Z SPEC-002 prerequisite extension (2026-04-24)
+
+- `openai.OpenAIOptions.ExtraHeaders map[string]string` 필드 추가
+  - provider-specific HTTP 헤더 주입 (OpenRouter HTTP-Referer/X-Title 등)
+  - New()에서 shallow clone — 호출자 post-mutation 방어
+- `provider.CompletionRequest.ExtraRequestFields map[string]any` 필드 추가
+  - provider-specific request body top-level 필드 (GLM thinking 파라미터 등)
+  - openai adapter doRequest: 표준 필드 직렬화 후 ExtraRequestFields merge (사용자 우선)
+- ExtraHeaders: doRequest에서 Authorization/Content-Type 설정 후 주입 (사용자 override 허용)
+- backward compatible: nil 시 기존 동작 그대로 (분기 없음)
+- 신규 테스트 3건:
+  - `TestOpenAI_ExtraHeaders_InjectedInRequest`
+  - `TestOpenAI_ExtraRequestFields_MergedInBody`
+  - `TestOpenAI_ExtraRequestFields_OverridesStandard`
+- go build / vet / fmt / test -race ALL PASS
+- openai coverage: 79.6%
+- SPEC-GOOSE-ADAPTER-002 의존 gap(R1) 해소
+- 10번째 commit SHA: cb9605f
