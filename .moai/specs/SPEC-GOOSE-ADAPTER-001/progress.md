@@ -165,3 +165,17 @@ evaluator-active "commit 후 권장" 2건 처리:
 - openai coverage: 79.6%
 - SPEC-GOOSE-ADAPTER-002 의존 gap(R1) 해소
 - 10번째 commit SHA: cb9605f
+
+### Phase 3 Sync (2026-04-24)
+
+- manager-docs: 문서 동기화 시작
+  - CHANGELOG.md 최초 생성 (Keep a Changelog 형식, Unreleased 섹션 작성)
+  - .moai/project/tech.md: §9 LLM Provider 섹션 대폭 확장
+    - 9.1 현재 지원 6 provider 테이블
+    - 9.2 계획 중 9 provider (SPEC-GOOSE-ADAPTER-002)
+    - 9.3~9.7 아키텍처, 각 어댑터 상세, 온디바이스 추론, 우선순위
+  - .moai/specs/SPEC-GOOSE-CREDPOOL-001/spec.md: §10 Related Work 섹션 추가
+    - SPEC-GOOSE-ADAPTER-001과의 관계 명시
+    - MarkExhaustedAndRotate + AcquireLease API 선행 구현 문서화
+    - SPEC-CREDPOOL-001 Run phase 다음 단계 예시
+- 다음: manager-git Phase 3 push + PR 생성
