@@ -1,7 +1,62 @@
 git_strategy:
+    # ──────────────────────────────────────────────────────────────
+    # Enhanced GitHub Flow (0.1.0 release 이전 유효)
+    #
+    # main  ──squash──  feature/SPEC-XXX   (일반 기능)
+    #       ──merge-commit──  release/vX.Y.Z   (버전 릴리스, tag)
+    #       ──squash──  hotfix/vX.Y.Z-slug   (긴급 수정)
+    #
+    # 5가지 Enhanced 개선:
+    # 1. Branch protection rule 강제 (main + release/*)
+    # 2. Label 체계 3축 (type / priority / area)
+    # 3. Merge strategy 명시 (feature=squash, release=merge-commit, hotfix=squash)
+    # 4. Release Drafter로 CHANGELOG 자동화
+    # 5. Hotfix 브랜치 명명 공식화 (hotfix/vX.Y.Z-slug)
+    # ──────────────────────────────────────────────────────────────
+
     github_username: ""
     gitlab:
         instance_url: ""
+    provider: github
+    mode: manual
+    release_version_threshold: "0.1.0"
+
+    branch_prefixes:
+        feature: feature/
+        release: release/
+        hotfix: hotfix/
+
+    merge_strategies:
+        feature: squash          # 단일 원자 commit, 히스토리 간결
+        release: merge-commit    # 릴리스 포인트 히스토리 보존
+        hotfix: squash           # 단일 commit, cherry-pick 용이
+
+    labels:
+        enabled: true
+        axes:
+            - type                 # bug / feature / docs / chore / refactor / test / perf / security
+            - priority             # p0-critical / p1-high / p2-medium / p3-low
+            - area                 # llm-provider / credential / router / cli / runtime / query / config / infra / docs / test
+
+    release_drafter:
+        enabled: true
+        config_path: .github/release-drafter.yml
+        workflow_path: .github/workflows/release-drafter.yml
+
+    branch_protection:
+        main:
+            enabled: true
+            require_pr: true
+            require_linear_history: true
+            allow_force_push: false
+            allow_deletions: false
+            admin_bypass: true       # personal repo 이므로 필요 시 admin override
+        release_pattern:
+            pattern: "release/*"
+            enabled: true
+            require_pr: true
+            admin_bypass: true
+
     manual:
         auto_checkpoint: disabled
         automation:
@@ -22,8 +77,8 @@ git_strategy:
             pre_commit: enforce
             pre_push: warn
         push_to_remote: false
-        workflow: gitflow
-    mode: manual
+        workflow: github-flow
+
     personal:
         automation:
             auto_branch: false
@@ -37,18 +92,17 @@ git_strategy:
         commit_style:
             format: conventional
             scope_required: false
+        default_base_branch: main
         environment: github
         github_integration: true
         hooks:
             commit_msg: warn
             pre_commit: enforce
             pre_push: warn
-        default_base_branch: develop
         main_branch: main
         push_to_remote: true
-        release_version_threshold: "0.1.0"
-        workflow: gitflow
-    provider: github
+        workflow: github-flow
+
     team:
         automation:
             auto_branch: true
@@ -63,6 +117,7 @@ git_strategy:
         commit_style:
             format: conventional
             scope_required: true
+        default_base_branch: main
         draft_pr: true
         environment: github
         github_integration: true
@@ -70,9 +125,7 @@ git_strategy:
             commit_msg: warn
             pre_commit: enforce
             pre_push: warn
-        default_base_branch: develop
         main_branch: main
         push_to_remote: true
-        release_version_threshold: "0.1.0"
         required_reviews: 1
-        workflow: gitflow
+        workflow: github-flow

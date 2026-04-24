@@ -1,0 +1,108 @@
+# Release Drafter 설정 — Enhanced GitHub Flow (0.1.0 이전)
+# 참조: https://github.com/release-drafter/release-drafter
+#
+# Label 기반 카테고리화 + semver version-resolver + 한국어 템플릿
+# PR/이슈의 type/* label로 자동 분류, priority/area는 tag 목록에 표시
+
+name-template: 'v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+
+categories:
+  - title: '🚀 Features'
+    labels:
+      - 'type/feature'
+  - title: '🐛 Bug Fixes'
+    labels:
+      - 'type/bug'
+  - title: '🔒 Security'
+    labels:
+      - 'type/security'
+  - title: '⚡ Performance'
+    labels:
+      - 'type/perf'
+  - title: '🔧 Refactor'
+    labels:
+      - 'type/refactor'
+  - title: '📝 Documentation'
+    labels:
+      - 'type/docs'
+  - title: '✅ Tests'
+    labels:
+      - 'type/test'
+  - title: '🧹 Chores & Maintenance'
+    labels:
+      - 'type/chore'
+
+change-template: '- $TITLE (#$NUMBER) @$AUTHOR'
+change-title-escapes: '\<*_&'
+
+version-resolver:
+  major:
+    labels:
+      - 'priority/p0-critical'
+  minor:
+    labels:
+      - 'type/feature'
+  patch:
+    labels:
+      - 'type/bug'
+      - 'type/security'
+      - 'type/perf'
+      - 'type/refactor'
+      - 'type/docs'
+      - 'type/test'
+      - 'type/chore'
+  default: patch
+
+exclude-labels:
+  - 'skip-changelog'
+  - 'duplicate'
+  - 'invalid'
+  - 'wontfix'
+
+autolabeler:
+  - label: 'type/docs'
+    files:
+      - '*.md'
+      - 'docs/**/*'
+      - '.moai/specs/**/*.md'
+  - label: 'type/test'
+    files:
+      - '**/*_test.go'
+      - '**/*.test.ts'
+      - '**/*.spec.ts'
+  - label: 'type/chore'
+    files:
+      - '.github/**/*'
+      - '.moai/config/**/*'
+      - '.claude/**/*'
+  - label: 'area/llm-provider'
+    files:
+      - 'internal/llm/provider/**/*'
+  - label: 'area/credential'
+    files:
+      - 'internal/llm/credential/**/*'
+  - label: 'area/router'
+    files:
+      - 'internal/llm/router/**/*'
+  - label: 'area/cli'
+    files:
+      - 'cmd/**/*'
+  - label: 'area/query'
+    files:
+      - 'internal/query/**/*'
+
+template: |
+  ## 🎯 이번 릴리스 하이라이트
+
+  _$NEXT_PATCH_VERSION release. 상세 변경점 아래 참조._
+
+  $CHANGES
+
+  ## 👥 기여자
+
+  $CONTRIBUTORS
+
+  ---
+
+  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
