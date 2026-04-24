@@ -1,6 +1,6 @@
 // Package factory의 registry_builder.go: 15 provider 일괄 등록 헬퍼.
 // import cycle 방지를 위해 provider 서브패키지와 분리된 factory 패키지에 위치한다.
-// SPEC-001 6종(openai/xai/deepseek/ollama) + SPEC-002 9종 provider를 ProviderRegistry에 등록한다.
+// SPEC-001 6종(anthropic/openai/google/xai/deepseek/ollama) + SPEC-002 9종 provider를 ProviderRegistry에 등록한다.
 // SPEC-GOOSE-ADAPTER-002 M5
 package factory
 
@@ -8,10 +8,12 @@ import (
 	"fmt"
 
 	"github.com/modu-ai/goose/internal/llm/provider"
+	anthropicprovider "github.com/modu-ai/goose/internal/llm/provider/anthropic"
 	"github.com/modu-ai/goose/internal/llm/provider/cerebras"
 	"github.com/modu-ai/goose/internal/llm/provider/deepseek"
 	"github.com/modu-ai/goose/internal/llm/provider/fireworks"
 	glmprovider "github.com/modu-ai/goose/internal/llm/provider/glm"
+	googleprovider "github.com/modu-ai/goose/internal/llm/provider/google"
 	"github.com/modu-ai/goose/internal/llm/provider/groq"
 	"github.com/modu-ai/goose/internal/llm/provider/kimi"
 	"github.com/modu-ai/goose/internal/llm/provider/mistral"
@@ -28,7 +30,7 @@ import (
 )
 
 // RegisterAllProviders는 15 provider 인스턴스를 생성하여 reg에 등록한다.
-// SPEC-001 6종(openai/xai/deepseek/ollama + anthropic/google은 별도 credential 필요)
+// SPEC-001 6종(anthropic/openai/google/xai/deepseek/ollama)
 // + SPEC-002 9종(glm/groq/openrouter/together/fireworks/cerebras/mistral/qwen/kimi).
 //
 // Ollama는 credential 없이 동작한다. 나머지 provider는 pool + secretStore가 필요하다.
@@ -47,7 +49,24 @@ func RegisterAllProviders(
 	type factoryFn func() (provider.Provider, error)
 
 	factories := []factoryFn{
-		// SPEC-001 providers
+		// SPEC-001 providers — anthropic (REQ-ADP2-005, AC-ADP2-016)
+		func() (provider.Provider, error) {
+			return anthropicprovider.New(anthropicprovider.AnthropicOptions{
+				Pool:        pool,
+				Tracker:     tracker,
+				SecretStore: secretStore,
+				Logger:      logger,
+			})
+		},
+		// SPEC-001 providers — google (REQ-ADP2-005, AC-ADP2-017)
+		func() (provider.Provider, error) {
+			return googleprovider.New(googleprovider.GoogleOptions{
+				Pool:        pool,
+				SecretStore: secretStore,
+				Tracker:     tracker,
+				Logger:      logger,
+			})
+		},
 		func() (provider.Provider, error) {
 			return openai.New(openai.OpenAIOptions{
 				Name:        "openai",

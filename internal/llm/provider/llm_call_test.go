@@ -2,6 +2,7 @@ package provider_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/modu-ai/goose/internal/llm/cache"
@@ -152,6 +153,94 @@ func TestNewLLMCall_VisionUnsupported_ReturnsError(t *testing.T) {
 	var capErr provider.ErrCapabilityUnsupported
 	assert.ErrorAs(t, err, &capErr)
 	assert.Equal(t, "vision", capErr.Feature)
+}
+
+// TestLLMCall_UsesFallbackChain_InProduction는 I3 결함 수정을 검증한다.
+// NewLLMCall이 반환하는 LLMCallFunc가 FallbackModels를 실제로 사용하는지 검증한다.
+// primary 실패 시 fallback model로 재시도해야 한다 (REQ-ADAPTER-008, AC-ADAPTER-009).
+func TestLLMCall_UsesFallbackChain_InProduction(t *testing.T) {
+	t.Parallel()
+
+	callCount := 0
+	// primaryModel 호출 시 에러, fallbackModel 호출 시 성공하는 provider
+	fakeProvider := &fallbackTrackingProvider{
+		name: "fake",
+		streamFn: func(req provider.CompletionRequest) (<-chan message.StreamEvent, error) {
+			callCount++
+			if req.Route.Model == "primary-model" {
+				return nil, fmt.Errorf("primary model internal server error")
+			}
+			// fallback model 호출 시 성공
+			ch := make(chan message.StreamEvent, 2)
+			ch <- message.StreamEvent{Type: message.TypeTextDelta, Delta: "fallback ok"}
+			ch <- message.StreamEvent{Type: message.TypeMessageStop}
+			close(ch)
+			return ch, nil
+		},
+	}
+
+	reg := provider.NewRegistry()
+	require.NoError(t, reg.Register(fakeProvider))
+
+	pool := makeTestPool(t, "cred-1")
+	tracker := ratelimit.NewTracker()
+	planner := &cache.BreakpointPlanner{}
+	logger, _ := zap.NewDevelopment()
+
+	fn := provider.NewLLMCall(
+		reg,
+		pool,
+		tracker,
+		planner,
+		cache.StrategyNone,
+		cache.TTLEphemeral,
+		nil,
+		logger,
+	)
+
+	req := query.LLMCallReq{
+		Route:          router.Route{Model: "primary-model", Provider: "fake"},
+		FallbackModels: []string{"fallback-model"},
+	}
+
+	ch, err := fn(context.Background(), req)
+	require.NoError(t, err, "fallback chain이 성공해야 함")
+
+	var events []message.StreamEvent
+	for evt := range ch {
+		events = append(events, evt)
+	}
+
+	// fallback을 통해 응답을 받아야 한다
+	assert.Equal(t, 2, callCount, "primary(1회) + fallback(1회) = 총 2회 호출")
+	textDeltas := llmCallFilterByType(events, message.TypeTextDelta)
+	require.Len(t, textDeltas, 1)
+	assert.Equal(t, "fallback ok", textDeltas[0].Delta)
+}
+
+// fallbackTrackingProvider는 호출 model을 추적하는 테스트용 Provider이다.
+type fallbackTrackingProvider struct {
+	name     string
+	streamFn func(req provider.CompletionRequest) (<-chan message.StreamEvent, error)
+}
+
+func (p *fallbackTrackingProvider) Name() string                        { return p.name }
+func (p *fallbackTrackingProvider) Capabilities() provider.Capabilities { return provider.Capabilities{} }
+func (p *fallbackTrackingProvider) Stream(_ context.Context, req provider.CompletionRequest) (<-chan message.StreamEvent, error) {
+	return p.streamFn(req)
+}
+func (p *fallbackTrackingProvider) Complete(_ context.Context, _ provider.CompletionRequest) (*provider.CompletionResponse, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func llmCallFilterByType(evts []message.StreamEvent, typ string) []message.StreamEvent {
+	var result []message.StreamEvent
+	for _, e := range evts {
+		if e.Type == typ {
+			result = append(result, e)
+		}
+	}
+	return result
 }
 
 // streamingStubProvider는 미리 정해진 이벤트를 방출하는 테스트용 Provider이다.

@@ -73,7 +73,9 @@ func NewLLMCall(
 			}
 		}
 
-		return p.Stream(ctx, compReq)
+		// fallback chain 호출 (REQ-ADAPTER-008, AC-ADAPTER-009).
+		// req.FallbackModels가 비어있으면 TryWithFallback은 primary만 호출한다.
+		return TryWithFallback(ctx, p, compReq)
 	}
 }
 

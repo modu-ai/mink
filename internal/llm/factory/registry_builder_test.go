@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestRegisterAllProviders_NoError는 AC-ADP2-017을 검증한다.
-// 유효한 입력 시 13개(SPEC-001 4종 + SPEC-002 9종) provider가 에러 없이 등록됨.
+// TestRegisterAllProviders_NoError는 AC-ADP2-016/017을 검증한다.
+// 유효한 입력 시 15개(SPEC-001 6종 + SPEC-002 9종) provider가 에러 없이 등록됨.
 func TestRegisterAllProviders_NoError(t *testing.T) {
 	t.Parallel()
 	reg := provider.NewRegistry()
@@ -24,8 +24,17 @@ func TestRegisterAllProviders_NoError(t *testing.T) {
 	require.NoError(t, err)
 
 	names := reg.Names()
-	// 13개 provider (anthropic/google은 별도 credential 필요, ollama 포함)
-	assert.Len(t, names, 13, "RegisterAllProviders: 13개 provider 등록 기대")
+	// 15개 provider (SPEC-001 6종: anthropic/openai/google/xai/deepseek/ollama + SPEC-002 9종)
+	assert.Len(t, names, 15, "RegisterAllProviders: 15개 provider 등록 기대")
+
+	// SPEC-001 6종 모두 등록 확인
+	spec001Providers := []string{
+		"anthropic", "google", "openai", "xai", "deepseek", "ollama",
+	}
+	for _, name := range spec001Providers {
+		_, ok := reg.Get(name)
+		assert.True(t, ok, "SPEC-001 provider %q가 등록되어야 함", name)
+	}
 
 	// SPEC-002 9종 모두 등록 확인
 	spec002Providers := []string{
@@ -35,6 +44,47 @@ func TestRegisterAllProviders_NoError(t *testing.T) {
 		_, ok := reg.Get(name)
 		assert.True(t, ok, "SPEC-002 provider %q가 등록되어야 함", name)
 	}
+}
+
+// TestRegisterAllProviders_IncludesAnthropicAndGoogle는 AC-ADP2-016/017을 직접 검증한다.
+// anthropic과 google이 RegisterAllProviders에 포함되는지 확인한다.
+func TestRegisterAllProviders_IncludesAnthropicAndGoogle(t *testing.T) {
+	t.Parallel()
+
+	t.Run("anthropic 등록", func(t *testing.T) {
+		t.Parallel()
+		reg := provider.NewRegistry()
+		pool := newFakePool(t)
+		tracker := ratelimit.NewTracker()
+		secretStore := provider.NewMemorySecretStore(map[string]string{})
+
+		require.NoError(t, factory.RegisterAllProviders(reg, pool, tracker, secretStore, nil))
+		_, ok := reg.Get("anthropic")
+		assert.True(t, ok, "anthropic provider가 등록되어야 함 (REQ-ADP2-005)")
+	})
+
+	t.Run("google 등록", func(t *testing.T) {
+		t.Parallel()
+		reg := provider.NewRegistry()
+		pool := newFakePool(t)
+		tracker := ratelimit.NewTracker()
+		secretStore := provider.NewMemorySecretStore(map[string]string{})
+
+		require.NoError(t, factory.RegisterAllProviders(reg, pool, tracker, secretStore, nil))
+		_, ok := reg.Get("google")
+		assert.True(t, ok, "google provider가 등록되어야 함 (REQ-ADP2-005)")
+	})
+
+	t.Run("총 15개 등록", func(t *testing.T) {
+		t.Parallel()
+		reg := provider.NewRegistry()
+		pool := newFakePool(t)
+		tracker := ratelimit.NewTracker()
+		secretStore := provider.NewMemorySecretStore(map[string]string{})
+
+		require.NoError(t, factory.RegisterAllProviders(reg, pool, tracker, secretStore, nil))
+		assert.Len(t, reg.Names(), 15, "SPEC-001 6종 + SPEC-002 9종 = 15개")
+	})
 }
 
 // TestRegisterAllProviders_UniqueNames는 등록된 provider 이름이 모두 고유한지 검증한다.

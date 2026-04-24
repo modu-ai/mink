@@ -11,7 +11,11 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	goleak.VerifyTestMain(m)
+	// genai SDK가 사용하는 go.opencensus.io 백그라운드 goroutine을 필터링한다.
+	// 이 goroutine은 패키지 init 시 시작되며 우리 코드와 무관하다.
+	goleak.VerifyTestMain(m,
+		goleak.IgnoreTopFunction("go.opencensus.io/stats/view.(*worker).start"),
+	)
 }
 
 // TestNewDefaultRegistry_AllProviders는 모든 provider가 인스턴스화되는지 검증한다.

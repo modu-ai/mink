@@ -90,6 +90,12 @@ func (p *CredentialPool) load(ctx context.Context) error {
 
 // available은 현재 선택 가능한 크레덴셜 목록을 반환한다.
 // 쓰기 락이 획득된 컨텍스트에서 호출되어야 한다 (쿨다운 만료 시 상태를 변경하기 때문).
+//
+// 선택 제외 조건:
+//   - leased: 이미 리스 중
+//   - CredExhausted + 쿨다운 미만료
+//   - ExpiresAt != zero && ExpiresAt <= now: OAuth 토큰 만료
+//     (REQ-CREDPOOL-001 (b): ExpiresAt.IsZero() == 영구 유효 API key)
 func (p *CredentialPool) available() []*PooledCredential {
 	now := time.Now()
 	result := make([]*PooledCredential, 0, len(p.creds))
@@ -109,6 +115,11 @@ func (p *CredentialPool) available() []*PooledCredential {
 			// 쿨다운 만료: 상태 복구 (쓰기 락 필요)
 			c.Status = CredOK
 		}
+		// OAuth 토큰 만료 필터: ExpiresAt이 설정됐고 현재 시각 이전이면 선택 불가
+		// ExpiresAt.IsZero()는 API key 등 영구 유효 크레덴셜을 나타냄 (REQ-CREDPOOL-001 b)
+		if !c.ExpiresAt.IsZero() && !now.Before(c.ExpiresAt) {
+			continue
+		}
 		result = append(result, c)
 	}
 	return result
@@ -116,6 +127,7 @@ func (p *CredentialPool) available() []*PooledCredential {
 
 // availableCount는 쓰기 잠금 없이 선택 가능한 크레덴셜 수를 반환한다.
 // 쿨다운 상태 복구를 수행하지 않으므로 Size() 읽기 락 컨텍스트에서 사용된다.
+// available()과 동일한 필터 조건을 적용한다 (ExpiresAt 포함).
 func (p *CredentialPool) availableCount() int {
 	now := time.Now()
 	count := 0
@@ -128,6 +140,10 @@ func (p *CredentialPool) availableCount() int {
 			continue
 		}
 		if c.Status == CredExhausted && now.Before(c.exhaustedUntil) {
+			continue
+		}
+		// OAuth 토큰 만료 필터: available()과 동일 조건 (REQ-CREDPOOL-001 b)
+		if !c.ExpiresAt.IsZero() && !now.Before(c.ExpiresAt) {
 			continue
 		}
 		count++

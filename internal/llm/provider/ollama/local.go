@@ -182,6 +182,12 @@ func (a *OllamaAdapter) Stream(ctx context.Context, req provider.CompletionReque
 		return nil, fmt.Errorf("ollama: HTTP 요청 실패: %w", err)
 	}
 
+	// rate limit 헤더 파싱 (REQ-ADAPTER-004). Ollama는 표준 rate-limit 헤더를 제공하지
+	// 않으나 tracker.Parse는 noop이므로 conformance 목적으로 호출한다.
+	if a.tracker != nil {
+		a.tracker.Parse("ollama", resp.Header, time.Now())
+	}
+
 	if resp.StatusCode != http.StatusOK {
 		rbody, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
