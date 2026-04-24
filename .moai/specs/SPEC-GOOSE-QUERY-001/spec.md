@@ -3,10 +3,10 @@ id: SPEC-GOOSE-QUERY-001
 version: 0.1.0
 status: Planned
 created: 2026-04-21
-updated: 2026-04-21
+updated: 2026-04-24
 author: manager-spec
 priority: P0
-issue_number: null
+issue_number: 5
 phase: 0
 size: 대(L)
 lifecycle: spec-anchored
