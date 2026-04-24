@@ -65,22 +65,30 @@ func NewDefaultRegistry(opts DefaultRegistryOptions) (*provider.ProviderRegistry
 				continue
 			}
 			pool := newEmptyPool()
-			p = xai.New(xai.Options{
+			a, err := xai.New(xai.Options{
 				Pool:        pool,
 				SecretStore: opts.SecretStore,
 				Logger:      opts.Logger,
 			})
+			if err != nil {
+				return nil, err
+			}
+			p = a
 
 		case "deepseek":
 			if opts.SecretStore == nil {
 				continue
 			}
 			pool := newEmptyPool()
-			p = deepseek.New(deepseek.Options{
+			a, err := deepseek.New(deepseek.Options{
 				Pool:        pool,
 				SecretStore: opts.SecretStore,
 				Logger:      opts.Logger,
 			})
+			if err != nil {
+				return nil, err
+			}
+			p = a
 
 		case "ollama":
 			// Ollama는 credential 없이 동작

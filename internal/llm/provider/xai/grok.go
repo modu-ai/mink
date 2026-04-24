@@ -4,12 +4,13 @@
 package xai
 
 import (
+	"net/http"
+
 	"github.com/modu-ai/goose/internal/llm/credential"
 	"github.com/modu-ai/goose/internal/llm/provider"
 	"github.com/modu-ai/goose/internal/llm/provider/openai"
 	"github.com/modu-ai/goose/internal/llm/ratelimit"
 	"go.uber.org/zap"
-	"net/http"
 )
 
 const (
@@ -36,13 +37,13 @@ type Options struct {
 // New는 xAI Grok용 OpenAIAdapter를 생성한다.
 // openai.New를 호출하며 BaseURL을 https://api.x.ai/v1로 설정한다.
 // AC-ADAPTER-005: xAI base_url 검증.
-func New(opts Options) *openai.OpenAIAdapter {
+func New(opts Options) (*openai.OpenAIAdapter, error) {
 	baseURL := opts.BaseURL
 	if baseURL == "" {
 		baseURL = xAIBaseURL
 	}
 
-	adapter, _ := openai.New(openai.OpenAIOptions{
+	return openai.New(openai.OpenAIOptions{
 		Name:        "xai",
 		BaseURL:     baseURL,
 		Pool:        opts.Pool,
@@ -58,5 +59,4 @@ func New(opts Options) *openai.OpenAIAdapter {
 		},
 		Logger: opts.Logger,
 	})
-	return adapter
 }

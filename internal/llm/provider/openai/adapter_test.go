@@ -306,6 +306,49 @@ func TestOpenAI_Complete(t *testing.T) {
 	assert.Equal(t, "Complete response", resp.Message.Content[0].Text)
 }
 
+// TestOpenAI_HeartbeatTimeout_EmitsError는 AC-013 heartbeat timeout을 검증한다.
+// SSE 연결이 열려있지만 데이터가 전송되지 않을 때 200ms 내에 error 이벤트를 방출해야 한다.
+func TestOpenAI_HeartbeatTimeout_EmitsError(t *testing.T) {
+	t.Parallel()
+
+	srv := testhelper.NewSilentSSEServer("")
+	defer srv.Close()
+
+	pool := testhelper.FakePool(t, []string{"cred-a"})
+	secretStore := provider.NewMemorySecretStore(map[string]string{"kr-cred-a": "sk-test-key"})
+
+	// HeartbeatTimeout: 200ms 주입
+	adapter, err := openai.New(openai.OpenAIOptions{
+		Name:             "openai",
+		BaseURL:          srv.URL,
+		Pool:             pool,
+		SecretStore:      secretStore,
+		HTTPClient:       srv.Client(),
+		HeartbeatTimeout: 200 * time.Millisecond,
+	})
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	req := provider.CompletionRequest{
+		Route:    router.Route{Provider: "openai", Model: "gpt-4o"},
+		Messages: []message.Message{{Role: "user", Content: []message.ContentBlock{{Type: "text", Text: "test"}}}},
+	}
+
+	start := time.Now()
+	ch, err := adapter.Stream(ctx, req)
+	require.NoError(t, err)
+
+	events := testhelper.DrainStream(ctx, ch, 0)
+	elapsed := time.Since(start)
+
+	assert.Less(t, elapsed, 2*time.Second, "heartbeat timeout 후 2초 내에 채널이 닫혀야 함")
+	require.NotEmpty(t, events, "최소 1개 이벤트가 있어야 함")
+
+	lastEvt := events[len(events)-1]
+	assert.Equal(t, message.TypeError, lastEvt.Type, "마지막 이벤트가 error여야 함")
+	assert.Contains(t, lastEvt.Error, "heartbeat", "에러 메시지에 'heartbeat'가 포함되어야 함")
+}
+
 // TestOpenAI_MissingPool는 Pool=nil 시 에러를 반환하는지 검증한다.
 func TestOpenAI_MissingPool(t *testing.T) {
 	t.Parallel()

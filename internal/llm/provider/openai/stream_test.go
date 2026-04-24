@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/modu-ai/goose/internal/message"
 	"github.com/stretchr/testify/assert"
@@ -40,7 +41,7 @@ func TestStream_TextOnly(t *testing.T) {
 	out := make(chan message.StreamEvent, 32)
 	ctx := context.Background()
 
-	go ParseAndConvert(ctx, body, out)
+	go ParseAndConvert(ctx, body, out, 60*time.Second)
 
 	var evts []message.StreamEvent
 	for e := range out {
@@ -80,7 +81,7 @@ func TestStream_ToolCall_Fragmented(t *testing.T) {
 	out := make(chan message.StreamEvent, 32)
 	ctx := context.Background()
 
-	go ParseAndConvert(ctx, body, out)
+	go ParseAndConvert(ctx, body, out, 60*time.Second)
 
 	var evts []message.StreamEvent
 	for e := range out {
@@ -129,7 +130,7 @@ func TestStream_Mixed(t *testing.T) {
 	out := make(chan message.StreamEvent, 32)
 	ctx := context.Background()
 
-	go ParseAndConvert(ctx, body, out)
+	go ParseAndConvert(ctx, body, out, 60*time.Second)
 
 	var evts []message.StreamEvent
 	for e := range out {
@@ -153,7 +154,7 @@ func TestStream_ContextCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	out := make(chan message.StreamEvent, 32)
-	go ParseAndConvert(ctx, io.NopCloser(pr), out)
+	go ParseAndConvert(ctx, io.NopCloser(pr), out, 60*time.Second)
 
 	// cancel 후 채널이 닫히는지 확인
 	cancel()
@@ -175,7 +176,7 @@ func TestStream_Empty(t *testing.T) {
 	out := make(chan message.StreamEvent, 32)
 	ctx := context.Background()
 
-	go ParseAndConvert(ctx, body, out)
+	go ParseAndConvert(ctx, body, out, 60*time.Second)
 
 	var evts []message.StreamEvent
 	for e := range out {

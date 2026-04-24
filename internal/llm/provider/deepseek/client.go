@@ -37,13 +37,13 @@ type Options struct {
 // New는 DeepSeek용 OpenAIAdapter를 생성한다.
 // openai.New를 호출하며 BaseURL을 https://api.deepseek.com/v1로 설정한다.
 // DeepSeek은 Vision을 지원하지 않으므로 Vision=false로 설정된다.
-func New(opts Options) *openai.OpenAIAdapter {
+func New(opts Options) (*openai.OpenAIAdapter, error) {
 	baseURL := opts.BaseURL
 	if baseURL == "" {
 		baseURL = deepSeekBaseURL
 	}
 
-	adapter, _ := openai.New(openai.OpenAIOptions{
+	return openai.New(openai.OpenAIOptions{
 		Name:        "deepseek",
 		BaseURL:     baseURL,
 		Pool:        opts.Pool,
@@ -59,5 +59,4 @@ func New(opts Options) *openai.OpenAIAdapter {
 		},
 		Logger: opts.Logger,
 	})
-	return adapter
 }

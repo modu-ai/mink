@@ -35,6 +35,9 @@ type OllamaOptions struct {
 	HTTPClient *http.Client
 	// Tracker는 rate limit tracker이다 (optional).
 	Tracker *ratelimit.Tracker
+	// HeartbeatTimeout은 streaming heartbeat 타임아웃이다 (REQ-ADAPTER-013).
+	// zero value이면 provider.DefaultStreamHeartbeatTimeout(60s)를 사용한다.
+	HeartbeatTimeout time.Duration
 	// Logger는 구조화 로거이다.
 	Logger *zap.Logger
 }
@@ -42,10 +45,11 @@ type OllamaOptions struct {
 // OllamaAdapter는 Ollama 로컬 LLM 어댑터이다.
 // Credential이 없으며 로컬 endpoint와 직접 통신한다.
 type OllamaAdapter struct {
-	endpoint   string
-	httpClient *http.Client
-	tracker    *ratelimit.Tracker
-	logger     *zap.Logger
+	endpoint         string
+	httpClient       *http.Client
+	tracker          *ratelimit.Tracker
+	heartbeatTimeout time.Duration
+	logger           *zap.Logger
 }
 
 // New는 OllamaAdapter를 생성한다.
@@ -60,11 +64,17 @@ func New(opts OllamaOptions) (*OllamaAdapter, error) {
 		httpClient = &http.Client{Timeout: requestTimeout}
 	}
 
+	hbTimeout := opts.HeartbeatTimeout
+	if hbTimeout <= 0 {
+		hbTimeout = provider.DefaultStreamHeartbeatTimeout
+	}
+
 	return &OllamaAdapter{
-		endpoint:   strings.TrimRight(endpoint, "/"),
-		httpClient: httpClient,
-		tracker:    opts.Tracker,
-		logger:     opts.Logger,
+		endpoint:         strings.TrimRight(endpoint, "/"),
+		httpClient:       httpClient,
+		tracker:          opts.Tracker,
+		heartbeatTimeout: hbTimeout,
+		logger:           opts.Logger,
 	}, nil
 }
 
@@ -181,15 +191,44 @@ func (a *OllamaAdapter) Stream(ctx context.Context, req provider.CompletionReque
 	out := make(chan message.StreamEvent, 8)
 	go func() {
 		defer close(out)
-		defer resp.Body.Close()
-		parseJSONL(ctx, resp.Body, out, a.logger)
+		parseJSONL(ctx, resp.Body, out, a.heartbeatTimeout, a.logger)
 	}()
 
 	return out, nil
 }
 
+// ollamaLine은 reader goroutine이 반환하는 라인 또는 에러이다.
+type ollamaLine struct {
+	line string
+	err  error
+}
+
 // parseJSONL는 Ollama JSON-L 스트림을 파싱하여 StreamEvent로 변환한다.
-func parseJSONL(ctx context.Context, body io.Reader, out chan<- message.StreamEvent, logger *zap.Logger) {
+// ctx 취소 또는 hbTimeout 초과 시 즉시 종료한다.
+//
+// @MX:WARN: [AUTO] reader goroutine + reslide-timer watchdog — goroutine 누수 위험
+// @MX:REASON: readerLoop goroutine은 body.Close() 호출로 정리된다.
+//
+//	hbTimeout 타임아웃 경로에서도 호출 측 defer body.Close()가 반드시 실행되어야 한다.
+func parseJSONL(ctx context.Context, body io.ReadCloser, out chan<- message.StreamEvent, hbTimeout time.Duration, logger *zap.Logger) {
+	defer body.Close()
+
+	// reader goroutine
+	lineCh := make(chan ollamaLine, 4)
+	go func() {
+		defer close(lineCh)
+		scanner := bufio.NewScanner(body)
+		for scanner.Scan() {
+			lineCh <- ollamaLine{line: scanner.Text()}
+		}
+		if err := scanner.Err(); err != nil && err != io.EOF {
+			lineCh <- ollamaLine{err: err}
+		}
+	}()
+
+	hb := time.NewTimer(hbTimeout)
+	defer hb.Stop()
+
 	send := func(evt message.StreamEvent) bool {
 		select {
 		case <-ctx.Done():
@@ -199,71 +238,90 @@ func parseJSONL(ctx context.Context, body io.Reader, out chan<- message.StreamEv
 		}
 	}
 
-	scanner := bufio.NewScanner(body)
-	for scanner.Scan() {
+	resetHB := func() {
+		if !hb.Stop() {
+			select {
+			case <-hb.C:
+			default:
+			}
+		}
+		hb.Reset(hbTimeout)
+	}
+
+	for {
 		select {
 		case <-ctx.Done():
 			return
-		default:
-		}
 
-		line := scanner.Text()
-		if line == "" {
-			continue
-		}
+		case <-hb.C:
+			send(message.StreamEvent{
+				Type:  message.TypeError,
+				Error: fmt.Sprintf("ollama: heartbeat timeout: no data for %s", hbTimeout),
+			})
+			return
 
-		var chunk ollamaStreamLine
-		if err := json.Unmarshal([]byte(line), &chunk); err != nil {
-			if logger != nil {
-				logger.Debug("ollama JSON-L 파싱 실패", zap.Error(err))
+		case r, ok := <-lineCh:
+			if !ok {
+				return
 			}
-			continue
-		}
+			resetHB()
 
-		// tool_calls 처리
-		if len(chunk.Message.ToolCalls) > 0 {
-			for _, tc := range chunk.Message.ToolCalls {
-				toolID := "tool-" + tc.Function.Name
-				if !send(message.StreamEvent{
-					Type:      message.TypeContentBlockStart,
-					BlockType: "tool_use",
-					ToolUseID: toolID,
-				}) {
-					return
+			if r.err != nil {
+				send(message.StreamEvent{Type: message.TypeError, Error: r.err.Error()})
+				return
+			}
+
+			line := r.line
+			if line == "" {
+				continue
+			}
+
+			var chunk ollamaStreamLine
+			if err := json.Unmarshal([]byte(line), &chunk); err != nil {
+				if logger != nil {
+					logger.Debug("ollama JSON-L 파싱 실패", zap.Error(err))
 				}
-				if len(tc.Function.Arguments) > 0 {
+				continue
+			}
+
+			// tool_calls 처리
+			if len(chunk.Message.ToolCalls) > 0 {
+				for _, tc := range chunk.Message.ToolCalls {
+					toolID := "tool-" + tc.Function.Name
 					if !send(message.StreamEvent{
-						Type:  message.TypeInputJSONDelta,
-						Delta: string(tc.Function.Arguments),
+						Type:      message.TypeContentBlockStart,
+						BlockType: "tool_use",
+						ToolUseID: toolID,
 					}) {
 						return
 					}
+					if len(tc.Function.Arguments) > 0 {
+						if !send(message.StreamEvent{
+							Type:  message.TypeInputJSONDelta,
+							Delta: string(tc.Function.Arguments),
+						}) {
+							return
+						}
+					}
+					if !send(message.StreamEvent{Type: message.TypeContentBlockStop}) {
+						return
+					}
 				}
-				if !send(message.StreamEvent{Type: message.TypeContentBlockStop}) {
+			} else if chunk.Message.Content != "" {
+				// 텍스트 delta
+				if !send(message.StreamEvent{
+					Type:  message.TypeTextDelta,
+					Delta: chunk.Message.Content,
+				}) {
 					return
 				}
 			}
-		} else if chunk.Message.Content != "" {
-			// 텍스트 delta
-			if !send(message.StreamEvent{
-				Type:  message.TypeTextDelta,
-				Delta: chunk.Message.Content,
-			}) {
+
+			// done=true 시 message_stop
+			if chunk.Done {
+				send(message.StreamEvent{Type: message.TypeMessageStop})
 				return
 			}
-		}
-
-		// done=true 시 message_stop
-		if chunk.Done {
-			send(message.StreamEvent{Type: message.TypeMessageStop})
-			return
-		}
-	}
-
-	if err := scanner.Err(); err != nil && err != io.EOF {
-		select {
-		case <-ctx.Done():
-		case out <- message.StreamEvent{Type: message.TypeError, Error: err.Error()}:
 		}
 	}
 }

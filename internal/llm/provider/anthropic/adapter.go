@@ -24,10 +24,8 @@ const (
 	defaultAPIEndpoint = "https://api.anthropic.com"
 	// anthropicVersion은 Anthropic API 버전이다.
 	anthropicVersion = "2023-06-01"
-	// streamTimeout은 스트리밍 heartbeat 타임아웃이다.
-	streamTimeout = 60 * time.Second
 	// requestTimeout은 non-streaming 요청 타임아웃이다.
-	requestTimeout = 30 * time.Second
+	requestTimeout = provider.DefaultNonStreamDataTimeout
 )
 
 // AnthropicOptions는 AnthropicAdapter 생성 옵션이다.
@@ -50,6 +48,9 @@ type AnthropicOptions struct {
 	APIEndpoint string
 	// HTTPClient는 HTTP 요청에 사용할 클라이언트이다.
 	HTTPClient *http.Client
+	// HeartbeatTimeout은 streaming heartbeat 타임아웃이다 (REQ-ADAPTER-013).
+	// zero value이면 provider.DefaultStreamHeartbeatTimeout(60s)를 사용한다.
+	HeartbeatTimeout time.Duration
 	// Logger는 구조화 로거이다.
 	Logger *zap.Logger
 }
@@ -57,16 +58,17 @@ type AnthropicOptions struct {
 // AnthropicAdapter는 Anthropic Claude API 어댑터이다.
 // provider.Provider 인터페이스를 구현한다.
 type AnthropicAdapter struct {
-	pool          *credential.CredentialPool
-	tracker       *ratelimit.Tracker
-	cachePlanner  *cache.BreakpointPlanner
-	cacheStrategy cache.CacheStrategy
-	cacheTTL      cache.TTL
-	secretStore   provider.SecretStore
-	refresher     *AnthropicRefresher
-	httpClient    *http.Client
-	apiEndpoint   string
-	logger        *zap.Logger
+	pool             *credential.CredentialPool
+	tracker          *ratelimit.Tracker
+	cachePlanner     *cache.BreakpointPlanner
+	cacheStrategy    cache.CacheStrategy
+	cacheTTL         cache.TTL
+	secretStore      provider.SecretStore
+	refresher        *AnthropicRefresher
+	httpClient       *http.Client
+	apiEndpoint      string
+	heartbeatTimeout time.Duration
+	logger           *zap.Logger
 }
 
 // New는 AnthropicAdapter를 생성한다.
@@ -85,17 +87,23 @@ func New(opts AnthropicOptions) (*AnthropicAdapter, error) {
 		httpClient = &http.Client{Timeout: requestTimeout}
 	}
 
+	hbTimeout := opts.HeartbeatTimeout
+	if hbTimeout <= 0 {
+		hbTimeout = provider.DefaultStreamHeartbeatTimeout
+	}
+
 	return &AnthropicAdapter{
-		pool:          opts.Pool,
-		tracker:       opts.Tracker,
-		cachePlanner:  opts.CachePlanner,
-		cacheStrategy: opts.CacheStrategy,
-		cacheTTL:      opts.CacheTTL,
-		secretStore:   opts.SecretStore,
-		refresher:     opts.Refresher,
-		httpClient:    httpClient,
-		apiEndpoint:   strings.TrimRight(endpoint, "/"),
-		logger:        opts.Logger,
+		pool:             opts.Pool,
+		tracker:          opts.Tracker,
+		cachePlanner:     opts.CachePlanner,
+		cacheStrategy:    opts.CacheStrategy,
+		cacheTTL:         opts.CacheTTL,
+		secretStore:      opts.SecretStore,
+		refresher:        opts.Refresher,
+		httpClient:       httpClient,
+		apiEndpoint:      strings.TrimRight(endpoint, "/"),
+		heartbeatTimeout: hbTimeout,
+		logger:           opts.Logger,
 	}, nil
 }
 
@@ -257,7 +265,7 @@ func (a *AnthropicAdapter) stream(ctx context.Context, req provider.CompletionRe
 				lease.Release()
 			}
 		}()
-		ParseAndConvert(ctx, resp.Body, out, a.logger)
+		ParseAndConvert(ctx, resp.Body, out, a.heartbeatTimeout, a.logger)
 	}()
 
 	return out, nil

@@ -383,6 +383,59 @@ var sseThinkingEvents = []string{
 	``,
 }
 
+// TestAnthropic_HeartbeatTimeout_EmitsError는 AC-013 heartbeat timeout을 검증한다.
+// SSE 연결이 열려있지만 데이터가 전송되지 않을 때 200ms 내에 error 이벤트를 방출해야 한다.
+func TestAnthropic_HeartbeatTimeout_EmitsError(t *testing.T) {
+	t.Parallel()
+
+	// 데이터 미전송 서버
+	server := testhelper.NewSilentSSEServer("")
+	defer server.Close()
+
+	dir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(dir, "kr-cred-1.json"), []byte(`{"access_token":"test-token-cred-1"}`), 0600)
+
+	pool := testhelper.FakePool(t, []string{"cred-1"})
+	secretStore := provider.NewFileSecretStore(dir)
+
+	// HeartbeatTimeout: 200ms 주입
+	adapter, err := anthropic.New(anthropic.AnthropicOptions{
+		Pool:             pool,
+		Tracker:          ratelimit.NewTracker(),
+		CachePlanner:     &cache.BreakpointPlanner{},
+		CacheStrategy:    cache.StrategyNone,
+		CacheTTL:         cache.TTLEphemeral,
+		SecretStore:      secretStore,
+		APIEndpoint:      server.URL,
+		HTTPClient:       server.Client(),
+		HeartbeatTimeout: 200 * time.Millisecond,
+	})
+	require.NoError(t, err)
+
+	req := provider.CompletionRequest{
+		Route:           router.Route{Model: "claude-opus-4-7", Provider: "anthropic"},
+		Messages:        []message.Message{{Role: "user", Content: []message.ContentBlock{{Type: "text", Text: "test"}}}},
+		MaxOutputTokens: 1024,
+	}
+
+	start := time.Now()
+	ctx := context.Background()
+	ch, err := adapter.Stream(ctx, req)
+	require.NoError(t, err)
+
+	events := testhelper.DrainStream(ctx, ch, 0)
+	elapsed := time.Since(start)
+
+	// 2초 내에 완료되어야 함 (200ms timeout + 여유)
+	assert.Less(t, elapsed, 2*time.Second, "heartbeat timeout 후 2초 내에 채널이 닫혀야 함")
+
+	// 마지막 이벤트가 error이어야 하며 "heartbeat" 포함
+	require.NotEmpty(t, events, "최소 1개 이벤트가 있어야 함")
+	lastEvt := events[len(events)-1]
+	assert.Equal(t, message.TypeError, lastEvt.Type, "마지막 이벤트가 error여야 함")
+	assert.Contains(t, lastEvt.Error, "heartbeat", "에러 메시지에 'heartbeat'가 포함되어야 함")
+}
+
 // TestAnthropic_ThinkingMode_EndToEnd는 AC-ADAPTER-012 e2e 시나리오를 커버한다.
 // (a) API 요청 payload에 thinking:{type:"enabled", effort:"high"} 포함 여부 검증
 // (b) SSE thinking_delta 이벤트가 StreamEvent로 변환되는지 검증

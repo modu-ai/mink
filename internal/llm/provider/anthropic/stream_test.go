@@ -87,7 +87,7 @@ func TestParseAndConvert_HappyPath(t *testing.T) {
 	out := make(chan message.StreamEvent, 16)
 	ctx := context.Background()
 
-	go anthropic.ParseAndConvert(ctx, body, out, logger)
+	go anthropic.ParseAndConvert(ctx, body, out, 60*time.Second, logger)
 
 	events := drainStream(t, ctx, out)
 
@@ -121,7 +121,7 @@ func TestParseAndConvert_ToolUse(t *testing.T) {
 	out := make(chan message.StreamEvent, 16)
 	ctx := context.Background()
 
-	go anthropic.ParseAndConvert(ctx, body, out, logger)
+	go anthropic.ParseAndConvert(ctx, body, out, 60*time.Second, logger)
 
 	events := drainStream(t, ctx, out)
 
@@ -161,7 +161,7 @@ func TestParseAndConvert_ContextCancel(t *testing.T) {
 	out := make(chan message.StreamEvent, 8)
 	ctx, cancel := context.WithCancel(context.Background())
 
-	go anthropic.ParseAndConvert(ctx, body, out, logger)
+	go anthropic.ParseAndConvert(ctx, body, out, 60*time.Second, logger)
 
 	// 즉시 취소
 	cancel()

@@ -36,12 +36,13 @@ func TestXAI_UsesCustomBaseURL(t *testing.T) {
 	pool := testhelper.FakePool(t, []string{"cred-a"})
 	secretStore := provider.NewMemorySecretStore(map[string]string{"kr-cred-a": "sk-xai-test"})
 
-	adapter := xai.New(xai.Options{
+	adapter, err := xai.New(xai.Options{
 		Pool:        pool,
 		SecretStore: secretStore,
 		BaseURL:     srv.URL, // httptest 서버 URL로 override
 		HTTPClient:  srv.Client(),
 	})
+	require.NoError(t, err)
 	require.NotNil(t, adapter)
 
 	// Name 검증
@@ -73,10 +74,11 @@ func TestXAI_DefaultBaseURL(t *testing.T) {
 	pool := testhelper.FakePool(t, []string{"cred-a"})
 	secretStore := provider.NewMemorySecretStore(map[string]string{"kr-cred-a": "sk-xai-test"})
 
-	adapter := xai.New(xai.Options{
+	adapter, err := xai.New(xai.Options{
 		Pool:        pool,
 		SecretStore: secretStore,
 	})
+	require.NoError(t, err)
 	require.NotNil(t, adapter)
 	assert.Equal(t, "xai", adapter.Name())
 }

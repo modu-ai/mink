@@ -28,10 +28,11 @@ func TestDeepSeek_Capabilities(t *testing.T) {
 	pool := testhelper.FakePool(t, []string{"cred-a"})
 	secretStore := provider.NewMemorySecretStore(map[string]string{"kr-cred-a": "sk-ds-test"})
 
-	adapter := deepseek.New(deepseek.Options{
+	adapter, err := deepseek.New(deepseek.Options{
 		Pool:        pool,
 		SecretStore: secretStore,
 	})
+	require.NoError(t, err)
 	require.NotNil(t, adapter)
 
 	assert.Equal(t, "deepseek", adapter.Name())
@@ -58,12 +59,13 @@ func TestDeepSeek_Stream_HappyPath(t *testing.T) {
 	pool := testhelper.FakePool(t, []string{"cred-a"})
 	secretStore := provider.NewMemorySecretStore(map[string]string{"kr-cred-a": "sk-ds-test"})
 
-	adapter := deepseek.New(deepseek.Options{
+	adapter, err := deepseek.New(deepseek.Options{
 		Pool:        pool,
 		SecretStore: secretStore,
 		BaseURL:     srv.URL,
 		HTTPClient:  srv.Client(),
 	})
+	require.NoError(t, err)
 	require.NotNil(t, adapter)
 
 	ctx := context.Background()

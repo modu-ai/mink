@@ -44,6 +44,9 @@ type OpenAIOptions struct {
 	HTTPClient *http.Client
 	// Capabilities는 이 어댑터의 기능 목록이다.
 	Capabilities provider.Capabilities
+	// HeartbeatTimeout은 streaming heartbeat 타임아웃이다 (REQ-ADAPTER-013).
+	// zero value이면 provider.DefaultStreamHeartbeatTimeout(60s)를 사용한다.
+	HeartbeatTimeout time.Duration
 	// Logger는 구조화 로거이다.
 	Logger *zap.Logger
 }
@@ -51,14 +54,15 @@ type OpenAIOptions struct {
 // OpenAIAdapter는 OpenAI API 호환 어댑터이다.
 // provider.Provider 인터페이스를 구현한다.
 type OpenAIAdapter struct {
-	pool         *credential.CredentialPool
-	tracker      *ratelimit.Tracker
-	secretStore  provider.SecretStore
-	httpClient   *http.Client
-	baseURL      string
-	providerName string
-	caps         provider.Capabilities
-	logger       *zap.Logger
+	pool             *credential.CredentialPool
+	tracker          *ratelimit.Tracker
+	secretStore      provider.SecretStore
+	httpClient       *http.Client
+	baseURL          string
+	providerName     string
+	caps             provider.Capabilities
+	heartbeatTimeout time.Duration
+	logger           *zap.Logger
 }
 
 // New는 OpenAIAdapter를 생성한다.
@@ -95,15 +99,21 @@ func New(opts OpenAIOptions) (*OpenAIAdapter, error) {
 		}
 	}
 
+	hbTimeout := opts.HeartbeatTimeout
+	if hbTimeout <= 0 {
+		hbTimeout = provider.DefaultStreamHeartbeatTimeout
+	}
+
 	return &OpenAIAdapter{
-		pool:         opts.Pool,
-		tracker:      opts.Tracker,
-		secretStore:  opts.SecretStore,
-		httpClient:   httpClient,
-		baseURL:      strings.TrimRight(baseURL, "/"),
-		providerName: name,
-		caps:         caps,
-		logger:       opts.Logger,
+		pool:             opts.Pool,
+		tracker:          opts.Tracker,
+		secretStore:      opts.SecretStore,
+		httpClient:       httpClient,
+		baseURL:          strings.TrimRight(baseURL, "/"),
+		providerName:     name,
+		caps:             caps,
+		heartbeatTimeout: hbTimeout,
+		logger:           opts.Logger,
 	}, nil
 }
 
@@ -244,7 +254,7 @@ func (a *OpenAIAdapter) stream(ctx context.Context, req provider.CompletionReque
 	// 9. SSE 스트림 변환 goroutine
 	out := make(chan message.StreamEvent, 8)
 	go func() {
-		ParseAndConvert(ctx, resp.Body, out)
+		ParseAndConvert(ctx, resp.Body, out, a.heartbeatTimeout)
 	}()
 
 	return out, nil

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/modu-ai/goose/internal/llm/provider"
 	"github.com/modu-ai/goose/internal/llm/provider/google"
@@ -253,6 +254,78 @@ func TestGoogle_Complete(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, resp.Message.Content, 1)
 	assert.Equal(t, "Complete response", resp.Message.Content[0].Text)
+}
+
+// blockingGeminiStream는 heartbeat timeout 테스트용 스트림이다.
+// Next()를 호출하면 ctx가 취소될 때까지 블록한다.
+type blockingGeminiStream struct {
+	ctx context.Context
+}
+
+func (s *blockingGeminiStream) Next() (*google.GeminiChunk, error) {
+	select {
+	case <-s.ctx.Done():
+		return nil, s.ctx.Err()
+	}
+}
+
+func (s *blockingGeminiStream) Close() {}
+
+// blockingGeminiClient는 heartbeat timeout 테스트용 클라이언트이다.
+// GenerateStream이 blockingGeminiStream을 반환한다.
+type blockingGeminiClient struct {
+	ctx context.Context
+}
+
+func (c *blockingGeminiClient) GenerateStream(ctx context.Context, _ google.GeminiRequest) (google.GeminiStream, error) {
+	return &blockingGeminiStream{ctx: ctx}, nil
+}
+
+// TestGoogle_HeartbeatTimeout_EmitsError는 AC-013 heartbeat timeout을 검증한다.
+// Next()가 데이터를 반환하지 않을 때 200ms 내에 error 이벤트를 방출해야 한다.
+func TestGoogle_HeartbeatTimeout_EmitsError(t *testing.T) {
+	t.Parallel()
+
+	// 외부 ctx (테스트 전체 타임아웃 — stream ctx와 별개)
+	testCtx := context.Background()
+
+	// blockingGeminiClient가 stream ctx를 전달받으므로 외부 ctx를 감싸서 주입
+	client := &blockingGeminiClient{ctx: testCtx}
+
+	// HeartbeatTimeout: 200ms 주입
+	adapter, err := google.New(google.GoogleOptions{
+		ClientFactory: func(_ string) google.GeminiClientIface {
+			return client
+		},
+		HeartbeatTimeout: 200 * time.Millisecond,
+	})
+	require.NoError(t, err)
+
+	req := provider.CompletionRequest{
+		Route:    router.Route{Provider: "google", Model: "gemini-2.0-flash"},
+		Messages: []message.Message{{Role: "user", Content: []message.ContentBlock{{Type: "text", Text: "test"}}}},
+	}
+
+	// stream ctx — heartbeat 타임아웃이 이 ctx와 별개로 동작해야 함
+	streamCtx, cancel := context.WithTimeout(testCtx, 5*time.Second)
+	defer cancel()
+
+	start := time.Now()
+	ch, err := adapter.Stream(streamCtx, req)
+	require.NoError(t, err)
+
+	var events []message.StreamEvent
+	for e := range ch {
+		events = append(events, e)
+	}
+	elapsed := time.Since(start)
+
+	assert.Less(t, elapsed, 2*time.Second, "heartbeat timeout 후 2초 내에 채널이 닫혀야 함")
+	require.NotEmpty(t, events, "최소 1개 이벤트가 있어야 함")
+
+	lastEvt := events[len(events)-1]
+	assert.Equal(t, message.TypeError, lastEvt.Type, "마지막 이벤트가 error여야 함")
+	assert.Contains(t, lastEvt.Error, "heartbeat", "에러 메시지에 'heartbeat'가 포함되어야 함")
 }
 
 func filterByType(evts []message.StreamEvent, typ string) []message.StreamEvent {

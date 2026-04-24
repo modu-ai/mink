@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/modu-ai/goose/internal/message"
 	"go.uber.org/zap"
@@ -50,56 +52,109 @@ type anthropicEventData struct {
 	} `json:"error"`
 }
 
+// readResult는 reader goroutine이 반환하는 라인 또는 에러이다.
+type readResult struct {
+	line string
+	err  error
+}
+
 // ParseAndConvert는 Anthropic SSE 스트림을 파싱하여 StreamEvent로 변환한다.
 // goroutine 소유권: 호출자가 spawn, 이 함수에서 defer close(out)으로 닫는다.
-// ctx 취소 시 즉시 종료한다.
+// ctx 취소 또는 hbTimeout 초과 시 즉시 종료한다.
+//
+// @MX:WARN: [AUTO] reader goroutine + reslide-timer watchdog — goroutine 누수 위험
+// @MX:REASON: readerLoop goroutine은 body.Close() 호출로 정리된다.
+//
+//	hbTimeout 타임아웃 경로에서도 defer body.Close()가 반드시 실행되어야 한다.
 //
 // 10종 이벤트 → StreamEvent 변환 (spec §6.5 테이블)
-func ParseAndConvert(ctx context.Context, body io.ReadCloser, out chan<- message.StreamEvent, logger *zap.Logger) {
+func ParseAndConvert(ctx context.Context, body io.ReadCloser, out chan<- message.StreamEvent, hbTimeout time.Duration, logger *zap.Logger) {
 	defer close(out)
 	defer body.Close()
 
-	scanner := bufio.NewScanner(body)
+	// reader goroutine: body를 라인 단위로 읽어 lineCh에 전달한다.
+	// body.Close() 호출 시 scanner.Scan()이 에러를 반환하여 goroutine이 종료된다.
+	lineCh := make(chan readResult, 4)
+	go func() {
+		defer close(lineCh)
+		scanner := bufio.NewScanner(body)
+		for scanner.Scan() {
+			lineCh <- readResult{line: scanner.Text()}
+		}
+		if err := scanner.Err(); err != nil && err != io.EOF {
+			lineCh <- readResult{err: err}
+		}
+	}()
+
+	hb := time.NewTimer(hbTimeout)
+	defer hb.Stop()
+
 	var currentEvent sseEvent
 
-	for scanner.Scan() {
-		// ctx 취소 확인
+	emit := func(evt message.StreamEvent) bool {
 		select {
 		case <-ctx.Done():
-			return
-		default:
-		}
-
-		line := scanner.Text()
-
-		switch {
-		case strings.HasPrefix(line, "event: "):
-			currentEvent.eventType = strings.TrimPrefix(line, "event: ")
-
-		case strings.HasPrefix(line, "data: "):
-			currentEvent.data = strings.TrimPrefix(line, "data: ")
-
-		case line == "":
-			// 빈 라인 = 이벤트 종료
-			if currentEvent.data != "" {
-				evt := convertEvent(currentEvent, logger)
-				if evt != nil {
-					select {
-					case <-ctx.Done():
-						return
-					case out <- *evt:
-					}
-				}
-			}
-			currentEvent = sseEvent{}
+			return false
+		case out <- evt:
+			return true
 		}
 	}
 
-	// 스캐너 에러 처리
-	if err := scanner.Err(); err != nil && err != io.EOF {
+	resetHB := func() {
+		if !hb.Stop() {
+			select {
+			case <-hb.C:
+			default:
+			}
+		}
+		hb.Reset(hbTimeout)
+	}
+
+	for {
 		select {
 		case <-ctx.Done():
-		case out <- message.StreamEvent{Type: message.TypeError, Error: err.Error()}:
+			return
+
+		case <-hb.C:
+			emit(message.StreamEvent{
+				Type:  message.TypeError,
+				Error: fmt.Sprintf("anthropic: heartbeat timeout: no data for %s", hbTimeout),
+			})
+			return
+
+		case r, ok := <-lineCh:
+			if !ok {
+				// reader goroutine이 종료됨 = 스트림 끝
+				return
+			}
+			resetHB()
+
+			if r.err != nil {
+				emit(message.StreamEvent{Type: message.TypeError, Error: r.err.Error()})
+				return
+			}
+
+			line := r.line
+
+			switch {
+			case strings.HasPrefix(line, "event: "):
+				currentEvent.eventType = strings.TrimPrefix(line, "event: ")
+
+			case strings.HasPrefix(line, "data: "):
+				currentEvent.data = strings.TrimPrefix(line, "data: ")
+
+			case line == "":
+				// 빈 라인 = 이벤트 종료
+				if currentEvent.data != "" {
+					evt := convertEvent(currentEvent, logger)
+					if evt != nil {
+						if !emit(*evt) {
+							return
+						}
+					}
+				}
+				currentEvent = sseEvent{}
+			}
 		}
 	}
 }

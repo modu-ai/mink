@@ -113,3 +113,36 @@
 - Fix 3: anthropic/oauth.go — `pathSafe` dead code 삭제, `readRawCred`/`storeRotatedRefreshToken`이 `fss.CredentialFile()`을 통해 path traversal 방어 로직 재사용. `provider/secret.go`에 `CredentialFile` exported wrapper 추가.
 - Fix 4 (bonus): anthropic/thinking.go — `AnthropicThinkingParam.Type` 필드에 `json:"type"` 태그 추가 (API payload 직렬화 버그 수정). `adapter_test.go`에 `TestAnthropic_ThinkingMode_EndToEnd` e2e 테스트 추가 (AC-012 payload + SSE thinking_delta 변환 검증).
 - 검증: gofmt -l 빈 출력, go build 0 errors, go vet 0 warnings, go test -race 전 패키지 PASS, anthropic 커버리지 76.2% 유지
+
+### Phase 2.Y follow-up checkpoint (2026-04-24)
+
+evaluator-active "commit 후 권장" 2건 처리:
+
+**Fix 1: REQ-ADAPTER-013 heartbeat timeout 실구현**
+- `internal/llm/provider/constants.go` 신규: `DefaultStreamHeartbeatTimeout=60s`, `DefaultNonStreamDataTimeout=30s`
+- anthropic/adapter.go: `streamTimeout` 중복 상수 제거, `HeartbeatTimeout` Options 필드 추가
+- openai/adapter.go: `HeartbeatTimeout` Options 필드 추가
+- ollama/local.go: `HeartbeatTimeout` Options 필드 추가
+- google/gemini.go: `HeartbeatTimeout` Options 필드 추가
+- 4개 streaming 함수(ParseAndConvert×2, parseJSONL, consumeStream)에 reader goroutine + reslide-timer watchdog 삽입
+- testhelper: `NewSilentSSEServer`, `NewSilentJSONLServer` helper 추가
+- 4개 heartbeat timeout 테스트 추가 (200ms 주입, 2초 내 완료 검증):
+  - `TestAnthropic_HeartbeatTimeout_EmitsError`
+  - `TestOpenAI_HeartbeatTimeout_EmitsError`
+  - `TestOllama_HeartbeatTimeout_EmitsError`
+  - `TestGoogle_HeartbeatTimeout_EmitsError`
+
+**Fix 2: xAI / DeepSeek New() 에러 전파 시그니처**
+- `xai/grok.go`: `func New(...) (*openai.OpenAIAdapter, error)` (bubble up openai.New 에러)
+- `deepseek/client.go`: 동일 시그니처 변경
+- `factory/registry_defaults.go`: xai.New / deepseek.New 호출부 에러 핸들링 추가
+- `xai/grok_test.go`, `deepseek/client_test.go`: 호출부 `err` 체크 추가
+
+**검증 결과:**
+- gofmt -l: 빈 출력
+- go build ./...: 0 errors
+- go vet ./internal/llm/...: 0 warnings
+- go test -race 전 패키지 ALL PASS (anthropic 13s, openai/ollama/google/xai/deepseek/factory 각 1~4s)
+- coverage: anthropic 77.0%, openai 78.7%, ollama 77.8%, deepseek/xai 100%, google 51.7%
+- goleak: PASS (reader goroutine 누수 없음)
+- 최종 8번째 commit SHA: (커밋 후 갱신)
