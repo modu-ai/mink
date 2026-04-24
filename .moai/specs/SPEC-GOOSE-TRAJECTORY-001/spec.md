@@ -1,16 +1,16 @@
 ---
 id: SPEC-GOOSE-TRAJECTORY-001
-version: 0.1.0
+version: 0.1.1
 status: planned
 created_at: 2026-04-21
-updated_at: 2026-04-21
+updated_at: 2026-04-25
 author: manager-spec
 priority: P0
 issue_number: null
 phase: 4
 size: 소(S)
 lifecycle: spec-anchored
-labels: []
+labels: ["phase-4", "learning", "trajectory", "privacy", "sharegpt"]
 ---
 
 # SPEC-GOOSE-TRAJECTORY-001 — Trajectory 수집 + 익명화 (ShareGPT JSON-L)
@@ -20,6 +20,7 @@ labels: []
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-21 | 초안 작성 (hermes-learning.md §1-2 + ROADMAP v2.0 Phase 4 기반) | manager-spec |
+| 0.1.1 | 2026-04-25 | TRAJECTORY-001-audit iter1 FAIL 결함 수정: (1) labels 필드 채움 [MP-3/D2], (2) REQ-013/015/016 [Unwanted]→[Ubiquitous] 재라벨 (ubiquitous-negative 패턴) [MP-2/D3], (3) REQ-003 보안 AC-013 신설 [D4], (4) REQ-013 1ms 지연 AC-014 신설 [D5], (5) REQ-014 panic recovery AC-015 신설 [D6], (6) REQ-009 시간대를 UTC로 통일 [D12]. REQ 번호 불변, research.md 불변. | manager-spec |
 
 ---
 
@@ -113,7 +114,7 @@ GOOSE-AGENT **자기진화 파이프라인의 Layer 1**을 정의한다. QueryEn
 
 **REQ-TRAJECTORY-008 [Event-Driven]** — **When** the UTC date rolls over (detected at write time), the `Writer` **shall** close the previous day's file handle and open the new day's file (natural rotation).
 
-**REQ-TRAJECTORY-009 [Event-Driven]** — **When** the `Retention.Sweep()` scheduler fires (daily at 03:00 local time by default), files older than `retention_days` (default 90) **shall** be deleted.
+**REQ-TRAJECTORY-009 [Event-Driven]** — **When** the `Retention.Sweep()` scheduler fires (daily at 03:00 **UTC** by default, aligned with REQ-005/REQ-008 date-boundary policy), files older than `retention_days` (default 90, UTC calendar day precision) **shall** be deleted. (v0.1.1: 기존 "local time" → UTC 통일하여 REQ-005/008과 시간대 일관성 확보, midnight-boundary race 제거.)
 
 **REQ-TRAJECTORY-010 [Event-Driven]** — **When** the disk write fails (ENOSPC, EACCES, EIO), the `Writer` **shall** log a structured zap warning with `{session_id, path, error}` and **shall not** propagate the error to the QueryEngine goroutine.
 
@@ -123,15 +124,17 @@ GOOSE-AGENT **자기진화 파이프라인의 Layer 1**을 정의한다. QueryEn
 
 **REQ-TRAJECTORY-012 [State-Driven]** — **While** a session buffer exceeds `in_memory_turn_cap` (default 1000 turns) without terminating, the `TrajectoryCollector` **shall** spill the oldest half to disk as a partial `.jsonl` fragment tagged `{partial: true}` to bound memory usage.
 
-### 4.4 Unwanted Behavior (방지)
+### 4.4 Unwanted Behavior / Ubiquitous Negative Invariants (방지)
 
-**REQ-TRAJECTORY-013 [Unwanted]** — The `TrajectoryCollector` **shall not** block the QueryEngine goroutine for more than 1ms per event dispatch; all I/O **shall** occur on the collector's dedicated worker goroutine.
+> 재라벨 주석 (v0.1.1): REQ-013/015/016은 "shall not ..." 형태의 상시 불변 조건으로 실제 EARS 분류는 **Ubiquitous (negative framing)**. REQ 번호 불변 정책 때문에 §4.4 섹션 번호는 유지하되 라벨만 정정. 엄밀한 [Unwanted] (If/then) 패턴은 REQ-014 한 건.
+
+**REQ-TRAJECTORY-013 [Ubiquitous]** — The `TrajectoryCollector` **shall not** block the QueryEngine goroutine for more than 1ms per event dispatch; all I/O **shall** occur on the collector's dedicated worker goroutine. (Ubiquitous negative invariant — 상시 성립해야 하는 비차단 계약.)
 
 **REQ-TRAJECTORY-014 [Unwanted]** — **If** a Redact rule throws during application (malformed input, panic in regex), the `Redactor` chain **shall** catch the panic, replace the entry's value with the literal string `"<REDACT_FAILED>"`, and log a zap error — **shall not** terminate the collector.
 
-**REQ-TRAJECTORY-015 [Unwanted]** — The `Writer` **shall not** interleave bytes from two different sessions within the same `.jsonl` record; each trajectory's serialized bytes **shall** be written with a single `write()` syscall (or retry on partial write).
+**REQ-TRAJECTORY-015 [Ubiquitous]** — The `Writer` **shall not** interleave bytes from two different sessions within the same `.jsonl` record; each trajectory's serialized bytes **shall** be written with a single `write()` syscall (or retry on partial write). (Ubiquitous negative invariant — 상시 성립해야 하는 직렬성 계약.)
 
-**REQ-TRAJECTORY-016 [Unwanted]** — The `Redactor` **shall not** mutate `TrajectoryEntry` values that originated from `{"from": "system"}` messages (preserving system prompts unchanged for reproducibility), **unless** the rule is explicitly tagged `applies_to_system: true`.
+**REQ-TRAJECTORY-016 [Ubiquitous]** — The `Redactor` **shall not** mutate `TrajectoryEntry` values that originated from `{"from": "system"}` messages (preserving system prompts unchanged for reproducibility), **unless** the rule is explicitly tagged `applies_to_system: true`. (Ubiquitous conditional negative — 상시 성립, 예외 플래그 시에만 해제.)
 
 ### 4.5 Optional (선택적)
 
@@ -204,6 +207,21 @@ GOOSE-AGENT **자기진화 파이프라인의 Layer 1**을 정의한다. QueryEn
 - **Given** 10개 QueryEngine 인스턴스가 병렬로 각 10턴씩 종료
 - **When** 모든 flush 완료 후 `2026-04-21.jsonl` 파싱
 - **Then** 10개 JSON-L 라인 각각이 valid JSON, 라인 간 바이트 혼재 없음(각 라인이 독립적으로 `json.Unmarshal` 성공)
+
+**AC-TRAJECTORY-013 — 파일 시스템 권한 강제 (REQ-003 / 보안)**  _(신설 v0.1.1, 감사 D4)_
+- **Given** 임시 `GOOSE_HOME` 하에 `${GOOSE_HOME}/trajectories/` 디렉토리가 아직 존재하지 않는 상태
+- **When** `Writer.WriteTrajectory()`가 성공 궤적 1건을 최초 기록
+- **Then** `os.Stat()` 결과: (a) 생성된 `success/2026-04-25.jsonl` 파일 모드가 `0600` (umask 영향 배제 위해 `0077` umask에서 검증), (b) 부모 디렉토리 `trajectories/` 및 `success/`가 `0700`, (c) 실행 유저(UID) 소유, (d) symlink가 아닌 regular file. 동일 검증을 `failed/` 경로에 대해 별도 반복하여 두 경로 모두 0600/0700 보장.
+
+**AC-TRAJECTORY-014 — QueryEngine 경로 1ms 이하 비차단 (REQ-013 / 성능)**  _(신설 v0.1.1, 감사 D5)_
+- **Given** `TrajectoryCollector`가 기동된 상태, buffered channel 용량은 기본값
+- **When** 동일 세션에서 `Collector.OnTurn()`을 연속 1000회 호출 (호출측은 QueryEngine 시뮬레이터 goroutine), `time.Now()` 델타를 호출당 측정
+- **Then** (a) `OnTurn` 호출 지연의 **median < 1ms**, **p99 < 5ms**, **max < 10ms** (M1 Mac 기준, CI 환경에서는 3배 허용 오차); (b) 1000회 전 구간에서 QueryEngine 시뮬레이터 goroutine이 blocked된 누적 시간 < 50ms; (c) 모든 I/O가 전용 worker goroutine에서 일어났음을 `pprof` goroutine profile 또는 호출 stack 추적으로 검증.
+
+**AC-TRAJECTORY-015 — Redact 규칙 panic 격리 (REQ-014 / 신뢰성)**  _(신설 v0.1.1, 감사 D6)_
+- **Given** 사용자 정의 redact 규칙으로 `{Name: "panicker", Pattern: nil, Apply: func() { panic("deliberate") }}` 형태의 의도적 panic-producing rule을 주입하고, 일반 텍스트 entry 3개를 준비
+- **When** `Redactor.Chain.Apply()`가 각 entry에 대해 호출됨
+- **Then** (a) panic이 chain 경계 밖으로 전파되지 않고 `recover()`로 포획됨, (b) 해당 entry의 `Value`는 literal 문자열 `"<REDACT_FAILED>"`로 치환됨, (c) zap error 로그 1건 레벨 `error`, message에 rule name `"panicker"` 포함, (d) `Collector`의 worker goroutine은 종료되지 않고 이후 정상 entry를 계속 처리, (e) 건강한 다른 두 entry는 영향 없이 정상 redact 및 기록.
 
 ---
 
