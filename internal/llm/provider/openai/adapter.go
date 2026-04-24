@@ -47,6 +47,10 @@ type OpenAIOptions struct {
 	// HeartbeatTimeout은 streaming heartbeat 타임아웃이다 (REQ-ADAPTER-013).
 	// zero value이면 provider.DefaultStreamHeartbeatTimeout(60s)를 사용한다.
 	HeartbeatTimeout time.Duration
+	// ExtraHeaders는 HTTP 요청에 추가할 provider-specific 헤더이다.
+	// 예: OpenRouter의 HTTP-Referer, X-Title (ranking 반영용).
+	// zero value(nil)이면 기본 헤더만 사용.
+	ExtraHeaders map[string]string
 	// Logger는 구조화 로거이다.
 	Logger *zap.Logger
 }
@@ -62,6 +66,7 @@ type OpenAIAdapter struct {
 	providerName     string
 	caps             provider.Capabilities
 	heartbeatTimeout time.Duration
+	extraHeaders     map[string]string
 	logger           *zap.Logger
 }
 
@@ -104,6 +109,15 @@ func New(opts OpenAIOptions) (*OpenAIAdapter, error) {
 		hbTimeout = provider.DefaultStreamHeartbeatTimeout
 	}
 
+	// ExtraHeaders shallow clone: 호출자가 이후 원본 map을 mutate해도 어댑터에 영향 없음
+	var extraHeaders map[string]string
+	if len(opts.ExtraHeaders) > 0 {
+		extraHeaders = make(map[string]string, len(opts.ExtraHeaders))
+		for k, v := range opts.ExtraHeaders {
+			extraHeaders[k] = v
+		}
+	}
+
 	return &OpenAIAdapter{
 		pool:             opts.Pool,
 		tracker:          opts.Tracker,
@@ -113,6 +127,7 @@ func New(opts OpenAIOptions) (*OpenAIAdapter, error) {
 		providerName:     name,
 		caps:             caps,
 		heartbeatTimeout: hbTimeout,
+		extraHeaders:     extraHeaders,
 		logger:           opts.Logger,
 	}, nil
 }
@@ -214,7 +229,7 @@ func (a *OpenAIAdapter) stream(ctx context.Context, req provider.CompletionReque
 	}
 
 	// 6. HTTP 요청
-	resp, err := a.doRequest(ctx, token, apiReq)
+	resp, err := a.doRequest(ctx, token, apiReq, req.ExtraRequestFields)
 	if err != nil {
 		return nil, err
 	}
@@ -294,22 +309,48 @@ func (a *OpenAIAdapter) Complete(ctx context.Context, req provider.CompletionReq
 }
 
 // doRequest는 OpenAI API에 HTTP 요청을 수행한다.
-func (a *OpenAIAdapter) doRequest(ctx context.Context, token string, apiReq openAIRequest) (*http.Response, error) {
-	body, err := json.Marshal(apiReq)
+// extraFields가 non-nil이면 표준 필드 위에 merge하며, 충돌 시 사용자 값이 우선된다.
+func (a *OpenAIAdapter) doRequest(ctx context.Context, token string, apiReq openAIRequest, extraFields map[string]any) (*http.Response, error) {
+	var body []byte
+	var err error
+
+	if len(extraFields) > 0 {
+		// 1단계: 표준 필드 map으로 직렬화
+		stdBytes, merr := json.Marshal(apiReq)
+		if merr != nil {
+			return nil, fmt.Errorf("%s: 요청 직렬화 실패: %w", a.providerName, merr)
+		}
+		var bodyMap map[string]any
+		if merr = json.Unmarshal(stdBytes, &bodyMap); merr != nil {
+			return nil, fmt.Errorf("%s: 요청 역직렬화 실패: %w", a.providerName, merr)
+		}
+		// 2단계: ExtraRequestFields merge — 사용자 값이 표준 필드 덮어쓰기(override)
+		for k, v := range extraFields {
+			bodyMap[k] = v
+		}
+		body, err = json.Marshal(bodyMap)
+	} else {
+		body, err = json.Marshal(apiReq)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("%s: 요청 직렬화 실패: %w", a.providerName, err)
 	}
 
 	url := a.baseURL + "/chat/completions"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("%s: HTTP 요청 생성 실패: %w", a.providerName, err)
 	}
 
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+token)
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := a.httpClient.Do(req)
+	// ExtraHeaders 주입: Authorization/Content-Type 설정 후 적용 (사용자 override 허용)
+	for k, v := range a.extraHeaders {
+		httpReq.Header.Set(k, v)
+	}
+
+	resp, err := a.httpClient.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("%s: HTTP 요청 실패: %w", a.providerName, err)
 	}

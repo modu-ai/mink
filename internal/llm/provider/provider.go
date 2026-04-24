@@ -86,6 +86,14 @@ type CompletionRequest struct {
 	FallbackModels []string
 	// Metadata는 요청 메타데이터이다.
 	Metadata RequestMetadata
+	// ExtraRequestFields는 provider-specific 최상위 request body 필드이다.
+	// nil이면 기존 동작 유지(backward compatible).
+	// 예: GLM thinking 파라미터 {"thinking": map[string]any{"type": "enabled"}}.
+	// OpenAI-compat 어댑터는 chat/completions JSON 조립 시 이 map을 merge하며,
+	// 표준 필드와 충돌 시 사용자 값이 우선된다.
+	//
+	// @MX:NOTE: openai/adapter.go doRequest에서 body map에 merge — 사용자 값 우선(override)
+	ExtraRequestFields map[string]any
 }
 
 // CompletionResponse는 LLM 완성 응답이다.

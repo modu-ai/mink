@@ -2,6 +2,7 @@ package openai_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -379,4 +380,175 @@ func filterByType(evts []message.StreamEvent, typ string) []message.StreamEvent 
 		}
 	}
 	return result
+}
+
+// capturingHandler는 수신된 HTTP 요청을 캡처하는 핸들러이다.
+type capturingHandler struct {
+	capturedReq  *http.Request
+	capturedBody []byte
+	sseBody      string
+}
+
+func (h *capturingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.capturedReq = r
+	body, _ := io.ReadAll(r.Body)
+	h.capturedBody = body
+	w.Header().Set("Content-Type", "text/event-stream")
+	fmt.Fprint(w, h.sseBody)
+}
+
+// minimalSSEBody는 최소한의 유효한 SSE 응답 바디이다.
+func minimalSSEBody() string {
+	return makeOpenAISSEBody([]string{
+		`data: {"id":"chatcmpl-x","choices":[{"index":0,"delta":{"content":"ok"},"finish_reason":null}]}`,
+		``,
+		`data: [DONE]`,
+		``,
+	})
+}
+
+// TestOpenAI_ExtraHeaders_InjectedInRequest는 OpenAIOptions.ExtraHeaders가
+// HTTP 요청 헤더에 주입되는지 검증한다 (SPEC-GOOSE-ADAPTER-002 prerequisite).
+func TestOpenAI_ExtraHeaders_InjectedInRequest(t *testing.T) {
+	t.Parallel()
+
+	handler := &capturingHandler{sseBody: minimalSSEBody()}
+	srv := httptest.NewServer(handler)
+	defer srv.Close()
+
+	pool := testhelper.FakePool(t, []string{"cred-a"})
+	secretStore := provider.NewMemorySecretStore(map[string]string{"kr-cred-a": "sk-test-key"})
+
+	adapter, err := openai.New(openai.OpenAIOptions{
+		Name:        "openai",
+		BaseURL:     srv.URL,
+		Pool:        pool,
+		SecretStore: secretStore,
+		HTTPClient:  srv.Client(),
+		ExtraHeaders: map[string]string{
+			"HTTP-Referer": "https://example.com",
+			"X-Title":      "test",
+		},
+	})
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	req := provider.CompletionRequest{
+		Route:    router.Route{Provider: "openai", Model: "gpt-4o"},
+		Messages: []message.Message{{Role: "user", Content: []message.ContentBlock{{Type: "text", Text: "hello"}}}},
+	}
+
+	ch, err := adapter.Stream(ctx, req)
+	require.NoError(t, err)
+	testhelper.DrainStream(ctx, ch, 0)
+
+	require.NotNil(t, handler.capturedReq, "서버가 요청을 수신해야 함")
+	assert.Equal(t, "https://example.com", handler.capturedReq.Header.Get("HTTP-Referer"),
+		"HTTP-Referer 헤더가 주입되어야 함")
+	assert.Equal(t, "test", handler.capturedReq.Header.Get("X-Title"),
+		"X-Title 헤더가 주입되어야 함")
+	// Authorization 헤더는 ExtraHeaders로 덮어쓰이지 않아야 함
+	assert.Contains(t, handler.capturedReq.Header.Get("Authorization"), "Bearer ",
+		"Authorization 헤더가 여전히 설정되어 있어야 함")
+}
+
+// TestOpenAI_ExtraRequestFields_MergedInBody는 CompletionRequest.ExtraRequestFields가
+// request body JSON에 merge되는지 검증한다 (SPEC-GOOSE-ADAPTER-002 prerequisite).
+func TestOpenAI_ExtraRequestFields_MergedInBody(t *testing.T) {
+	t.Parallel()
+
+	handler := &capturingHandler{sseBody: minimalSSEBody()}
+	srv := httptest.NewServer(handler)
+	defer srv.Close()
+
+	pool := testhelper.FakePool(t, []string{"cred-a"})
+	secretStore := provider.NewMemorySecretStore(map[string]string{"kr-cred-a": "sk-test-key"})
+
+	adapter, err := openai.New(openai.OpenAIOptions{
+		Name:        "openai",
+		BaseURL:     srv.URL,
+		Pool:        pool,
+		SecretStore: secretStore,
+		HTTPClient:  srv.Client(),
+	})
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	req := provider.CompletionRequest{
+		Route:    router.Route{Provider: "openai", Model: "gpt-4o"},
+		Messages: []message.Message{{Role: "user", Content: []message.ContentBlock{{Type: "text", Text: "hello"}}}},
+		ExtraRequestFields: map[string]any{
+			"thinking":     map[string]any{"type": "enabled"},
+			"custom_param": float64(42),
+		},
+	}
+
+	ch, err := adapter.Stream(ctx, req)
+	require.NoError(t, err)
+	testhelper.DrainStream(ctx, ch, 0)
+
+	require.NotNil(t, handler.capturedBody, "서버가 요청 바디를 수신해야 함")
+
+	var bodyMap map[string]any
+	require.NoError(t, json.Unmarshal(handler.capturedBody, &bodyMap))
+
+	// ExtraRequestFields가 merge되어 있어야 함
+	thinking, ok := bodyMap["thinking"].(map[string]any)
+	require.True(t, ok, "thinking 필드가 map이어야 함")
+	assert.Equal(t, "enabled", thinking["type"], "thinking.type == 'enabled'이어야 함")
+	assert.Equal(t, float64(42), bodyMap["custom_param"], "custom_param == 42이어야 함")
+
+	// 표준 필드도 존재해야 함
+	assert.Equal(t, "gpt-4o", bodyMap["model"], "model 표준 필드가 존재해야 함")
+	assert.NotNil(t, bodyMap["messages"], "messages 표준 필드가 존재해야 함")
+	streamVal, _ := bodyMap["stream"].(bool)
+	assert.True(t, streamVal, "stream 표준 필드가 true이어야 함")
+}
+
+// TestOpenAI_ExtraRequestFields_OverridesStandard는 ExtraRequestFields가 표준 필드를
+// 덮어쓰는지 검증한다 (사용자 값 우선 정책).
+// 설계 근거: 사용자가 ExtraRequestFields로 temperature를 명시한 경우 해당 값이 우선해야
+// provider-specific 파라미터 조정 시 표준 필드 재설정 없이 단독 제어 가능하다.
+func TestOpenAI_ExtraRequestFields_OverridesStandard(t *testing.T) {
+	t.Parallel()
+
+	handler := &capturingHandler{sseBody: minimalSSEBody()}
+	srv := httptest.NewServer(handler)
+	defer srv.Close()
+
+	pool := testhelper.FakePool(t, []string{"cred-a"})
+	secretStore := provider.NewMemorySecretStore(map[string]string{"kr-cred-a": "sk-test-key"})
+
+	adapter, err := openai.New(openai.OpenAIOptions{
+		Name:        "openai",
+		BaseURL:     srv.URL,
+		Pool:        pool,
+		SecretStore: secretStore,
+		HTTPClient:  srv.Client(),
+	})
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	req := provider.CompletionRequest{
+		Route:       router.Route{Provider: "openai", Model: "gpt-4o"},
+		Messages:    []message.Message{{Role: "user", Content: []message.ContentBlock{{Type: "text", Text: "hello"}}}},
+		Temperature: 0.5,
+		// ExtraRequestFields의 temperature가 표준 필드(0.5)를 덮어써야 함
+		ExtraRequestFields: map[string]any{
+			"temperature": 0.9,
+		},
+	}
+
+	ch, err := adapter.Stream(ctx, req)
+	require.NoError(t, err)
+	testhelper.DrainStream(ctx, ch, 0)
+
+	require.NotNil(t, handler.capturedBody)
+
+	var bodyMap map[string]any
+	require.NoError(t, json.Unmarshal(handler.capturedBody, &bodyMap))
+
+	// 사용자 ExtraRequestFields 값(0.9)이 표준 필드(0.5)를 덮어써야 함
+	assert.Equal(t, 0.9, bodyMap["temperature"],
+		"ExtraRequestFields.temperature(0.9)가 표준 Temperature(0.5)를 override해야 함")
 }
