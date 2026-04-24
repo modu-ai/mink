@@ -22,21 +22,33 @@ func TestRegistry_DefaultRegistry_HasAtLeastFifteenProviders(t *testing.T) {
 	}
 }
 
-// TestRegistry_DefaultRegistry_AdapterReadyProviders는 Phase 1 adapter-ready provider가
-// 정확히 6종인지 검증한다. REQ-ROUTER-003.
+// TestRegistry_DefaultRegistry_AdapterReadyProviders는 SPEC-002 완료 후 adapter-ready provider가
+// 정확히 15종인지 검증한다. REQ-ROUTER-003, REQ-ADP2-005, AC-ADP2-016.
 func TestRegistry_DefaultRegistry_AdapterReadyProviders(t *testing.T) {
 	t.Parallel()
 
 	reg := router.DefaultRegistry()
 	providers := reg.List()
 
+	// SPEC-002 완료 후 15 provider 전부 AdapterReady=true
 	expectedAdapterReady := map[string]bool{
+		// SPEC-001 6종
 		"anthropic": false,
 		"openai":    false,
 		"google":    false,
 		"xai":       false,
 		"deepseek":  false,
 		"ollama":    false,
+		// SPEC-002 9종
+		"glm":        false,
+		"groq":       false,
+		"openrouter": false,
+		"together":   false,
+		"fireworks":  false,
+		"cerebras":   false,
+		"mistral":    false,
+		"qwen":       false,
+		"kimi":       false,
 	}
 
 	adapterReadyCount := 0
@@ -49,8 +61,8 @@ func TestRegistry_DefaultRegistry_AdapterReadyProviders(t *testing.T) {
 		}
 	}
 
-	if adapterReadyCount != 6 {
-		t.Errorf("AdapterReady provider 수=%d, want 6", adapterReadyCount)
+	if adapterReadyCount != 15 {
+		t.Errorf("AdapterReady provider 수=%d, want 15 (SPEC-002 완료 후)", adapterReadyCount)
 	}
 
 	for name, found := range expectedAdapterReady {
@@ -237,10 +249,12 @@ func TestRegistry_DefaultRegistry_SpecificProviders(t *testing.T) {
 	reg := router.DefaultRegistry()
 
 	requiredProviders := []string{
-		// Phase 1 adapter-ready (6종)
+		// SPEC-001 adapter-ready (6종)
 		"anthropic", "openai", "google", "xai", "deepseek", "ollama",
-		// metadata-only (9종 이상)
-		"openrouter", "nous", "mistral", "groq", "qwen", "kimi", "glm", "minimax", "cohere",
+		// SPEC-001 metadata-only (항상 존재)
+		"nous", "minimax", "cohere",
+		// SPEC-002 신규/업데이트 (9종)
+		"glm", "groq", "openrouter", "together", "fireworks", "cerebras", "mistral", "qwen", "kimi",
 	}
 
 	for _, name := range requiredProviders {
@@ -254,15 +268,16 @@ func TestRegistry_DefaultRegistry_SpecificProviders(t *testing.T) {
 	}
 }
 
-// TestRegistry_MetadataOnly_NotAdapterReady는 metadata-only provider들이
-// AdapterReady=false인지 검증한다.
+// TestRegistry_MetadataOnly_NotAdapterReady는 SPEC-002 미구현 provider들이
+// AdapterReady=false인지 검증한다 (nous, minimax, cohere은 본 SPEC 대상 외).
 func TestRegistry_MetadataOnly_NotAdapterReady(t *testing.T) {
 	t.Parallel()
 
 	reg := router.DefaultRegistry()
 
+	// SPEC-002 범위 외: nous, minimax, cohere만 metadata-only 유지
 	metadataOnlyProviders := []string{
-		"openrouter", "nous", "mistral", "groq", "qwen", "kimi", "glm", "minimax", "cohere",
+		"nous", "minimax", "cohere",
 	}
 
 	for _, name := range metadataOnlyProviders {
@@ -274,6 +289,47 @@ func TestRegistry_MetadataOnly_NotAdapterReady(t *testing.T) {
 			}
 			if p.AdapterReady {
 				t.Errorf("metadata-only provider %q: AdapterReady=true, want false", name)
+			}
+		})
+	}
+}
+
+// TestRegistry_DefaultRegistry_GLMEndpointUpdated는 AC-ADP2-016을 검증한다.
+// GLM endpoint가 api.z.ai/api/paas/v4로 업데이트되었는지 확인.
+func TestRegistry_DefaultRegistry_GLMEndpointUpdated(t *testing.T) {
+	t.Parallel()
+
+	reg := router.DefaultRegistry()
+	glm, found := reg.Get("glm")
+	if !found {
+		t.Fatal("glm provider가 등록되지 않음")
+	}
+
+	const expectedURL = "https://api.z.ai/api/paas/v4"
+	if glm.DefaultBaseURL != expectedURL {
+		t.Errorf("GLM BaseURL=%q, want %q (REQ-ADP2-022: Z.ai endpoint 이전)", glm.DefaultBaseURL, expectedURL)
+	}
+	if !glm.AdapterReady {
+		t.Error("GLM AdapterReady=false, want true (SPEC-002 완료)")
+	}
+}
+
+// TestRegistry_DefaultRegistry_NewProviders는 SPEC-002 신규 provider들이 등록되었는지 검증한다.
+func TestRegistry_DefaultRegistry_NewProviders(t *testing.T) {
+	t.Parallel()
+
+	reg := router.DefaultRegistry()
+
+	newProviders := []string{"together", "fireworks", "cerebras"}
+	for _, name := range newProviders {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			p, found := reg.Get(name)
+			if !found {
+				t.Fatalf("SPEC-002 신규 provider %q가 등록되지 않음", name)
+			}
+			if !p.AdapterReady {
+				t.Errorf("provider %q: AdapterReady=false, want true", name)
 			}
 		})
 	}
