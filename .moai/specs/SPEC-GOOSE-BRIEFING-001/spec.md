@@ -1,16 +1,16 @@
 ---
 id: SPEC-GOOSE-BRIEFING-001
-version: 0.1.0
-status: planned
+version: 0.1.1
+status: draft
 created_at: 2026-04-22
-updated_at: 2026-04-22
+updated_at: 2026-04-25
 author: manager-spec
-priority: P0
+priority: critical
 issue_number: null
 phase: 7
 size: 중(M)
 lifecycle: spec-anchored
-labels: []
+labels: [ritual, llm, tts, orchestration, briefing, scheduler-consumer]
 ---
 
 # SPEC-GOOSE-BRIEFING-001 — Morning Briefing Orchestrator (Fortune + Weather + Calendar, LLM Narrative, TTS Optional)
@@ -20,6 +20,7 @@ labels: []
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-22 | 초안 작성 (Phase 7 #35, FORTUNE/WEATHER/CALENDAR/SCHEDULER 통합) | manager-spec |
+| 0.1.1 | 2026-04-25 | plan-auditor 감사(mass-20260425/BRIEFING-001) 반영: frontmatter 정규화(labels/status/priority), §5 EARS 형식 선언 + 각 AC에 EARS 문장 및 REQ 참조, 미커버 REQ(002/003/004/010/014/015/017/018) AC 신설(특히 PII 보안 REQ-014, 텔레메트리 REQ-015), REQ-007 JSON 스키마/REQ-013 길이 상한/REQ-018 mood 임계치/AC-011 임박 표현 정량화, D12(언어 vs 번역) 해소 | manager-spec |
 
 ---
 
@@ -66,8 +67,8 @@ GOOSE v6.0 Daily Companion의 **아침 루틴 통합 SPEC**. SCHEDULER-001이 `M
 
 ### 2.3 범위 경계
 
-- **IN**: `BriefingOrchestrator`, 3개 소스 병렬 fetch, NarrativeGenerator, style 적용, TTS (optional), SCHEDULER HOOK consumer, 저장된 브리핑 history, skip/replay control.
-- **OUT**: 각 소스 본체 구현 (FORTUNE/WEATHER/CALENDAR), STT (음성 입력), email/SMS 발송, Smart Display 연동 (별도 Gateway), 그래픽 차트 생성, 다국어 자동 번역 (언어는 config 고정).
+- **IN**: `BriefingOrchestrator`, 3개 소스 병렬 fetch, NarrativeGenerator, style 적용(`briefing.style.language` 는 LLM 생성 시 대상 언어 힌트로 전달됨 — 단일 언어 생성), TTS (optional), SCHEDULER HOOK consumer, 저장된 브리핑 history, skip/replay control.
+- **OUT**: 각 소스 본체 구현 (FORTUNE/WEATHER/CALENDAR), STT (음성 입력), email/SMS 발송, Smart Display 연동 (별도 Gateway), 그래픽 차트 생성, **사후 번역**(이미 생성된 narrative를 다른 언어로 재생성/번역하는 기능 — 한 요청당 하나의 언어만 LLM 호출로 생성; `language` 설정 변경은 다음 브리핑부터 반영).
 
 ---
 
@@ -149,7 +150,7 @@ GOOSE v6.0 Daily Companion의 **아침 루틴 통합 SPEC**. SCHEDULER-001이 `M
 
 **REQ-BRIEF-006 [Event-Driven]** — **When** all 3 sources fail, `Generate` **shall** return `*MorningBriefing{Narrative: "죄송해요, 오늘 아침 정보를 가져오지 못했어요. 잠시 후 다시 시도해주세요.", FallbackUsed: true}` instead of returning an error; this prevents cascading failure.
 
-**REQ-BRIEF-007 [Event-Driven]** — **When** `NarrativeGenerator.Build(sections, style)` is invoked, the LLM **shall** be given: (a) structured JSON of fetched sections, (b) style hints (length, tone, emoji level, language), (c) user context (recent mood from INSIGHTS-001, occupation from IDENTITY-001); response **shall** be structured JSON with `{greeting, main, closing, full_text}` fields.
+**REQ-BRIEF-007 [Event-Driven]** — **When** `NarrativeGenerator.Build(sections, style)` is invoked, the LLM **shall** be given: (a) structured JSON of fetched sections, (b) style hints (length, tone, emoji level, language), (c) user context (recent mood from INSIGHTS-001, occupation from IDENTITY-001); response **shall** be structured JSON conforming to the following schema — `greeting: string(required, 5..60 chars)`, `main: string(required, 30..900 chars)`, `closing: string(required, 5..60 chars)`, `full_text: string(required, 30..1000 chars)`. 필드 누락·타입 불일치·길이 범위 이탈 시 schema validation 실패로 간주하여 REQ-BRIEF-008 fallback을 트리거한다.
 
 **REQ-BRIEF-008 [Event-Driven]** — **When** LLM call fails or response fails schema validation, the orchestrator **shall** fall back to a template-based flat narrative: `"안녕하세요, [name]님. 오늘 [weather_summary]. 일정은 [calendar_summary]. 좋은 하루 되세요."` — `FallbackUsed=true`.
 
@@ -165,7 +166,7 @@ GOOSE v6.0 Daily Companion의 **아침 루틴 통합 SPEC**. SCHEDULER-001이 `M
 
 ### 4.4 Unwanted
 
-**REQ-BRIEF-013 [Unwanted]** — The orchestrator **shall not** generate a briefing longer than 1000 characters total regardless of style setting; this prevents runaway LLM output.
+**REQ-BRIEF-013 [Unwanted]** — The orchestrator **shall not** generate a briefing `full_text` longer than 1000 characters (UTF-8 rune count) regardless of style setting or source (LLM 생성·fallback template 렌더링 모두 해당); 1000자 초과 시 998자에서 truncate 하고 말미에 `"…"`(U+2026) 를 부착한다. 본 상한은 REQ-BRIEF-008 fallback template 결과에도 동일하게 적용된다.
 
 **REQ-BRIEF-014 [Unwanted]** — The orchestrator **shall not** use personal information (예: 사용자 본명, 주소, 전화번호) in the narrative unless `userID` has the corresponding attribute in IDENTITY-001 AND `attribute.visibility == "briefing_ok"`.
 
@@ -177,7 +178,7 @@ GOOSE v6.0 Daily Companion의 **아침 루틴 통합 SPEC**. SCHEDULER-001이 `M
 
 **REQ-BRIEF-017 [Optional]** — **Where** `config.briefing.adaptive_timing == true`, the orchestrator **shall** use INSIGHTS-001's last 7-day wake time to dynamically adjust the SCHEDULER's morning time; proposed time **shall** be sent to SCHEDULER via its update API, not modified directly by this SPEC.
 
-**REQ-BRIEF-018 [Optional]** — **Where** recent 3-day mood trend shows negative valence, the LLM prompt **shall** include "사용자가 힘든 시기를 보내고 있으니, 따뜻하고 지지적인 톤으로" and the briefing closing **shall** end with an explicit supportive sentence.
+**REQ-BRIEF-018 [Optional]** — **Where** INSIGHTS-001 가 제공하는 최근 3일 mood valence 의 산술 평균이 `-1.0 ~ +1.0` 척도에서 `<= -0.3` 인 경우(또는 해당 3일 중 2일 이상의 mood 분류가 `"negative"` 인 경우), the LLM prompt **shall** include the directive "사용자가 힘든 시기를 보내고 있으니, 따뜻하고 지지적인 톤으로" and the briefing closing **shall** end with an explicit supportive sentence (최소 1개의 지지 표현 — 예: "힘들 땐 쉬어가도 괜찮아요", "언제든 이야기해 주세요").
 
 **REQ-BRIEF-019 [Optional]** — **Where** an "emergency" weather alert is active (heavy rain, heat wave, 미세먼지 "매우 나쁨"), the briefing **shall** prepend a warning section before the narrative, rendered with distinctive formatting (prefix: "⚠️ 오늘 주의사항:").
 
@@ -187,60 +188,172 @@ GOOSE v6.0 Daily Companion의 **아침 루틴 통합 SPEC**. SCHEDULER-001이 `M
 
 ## 5. 수용 기준
 
-**AC-BRIEF-001 — HOOK 등록**
+### 5.0 형식 선언 (Format Declaration)
+
+본 섹션은 두 단계로 구성된다:
+
+- **5.1 EARS-form Acceptance Criteria**: 각 AC는 5가지 EARS 패턴(Ubiquitous / Event-Driven / State-Driven / Unwanted / Optional) 중 하나로 표현된 검증 가능한 단일 문장이며, 커버하는 REQ-BRIEF-NNN 을 명시한다.
+- **5.2 Test Scenarios (Given/When/Then)**: 각 AC 를 실행·검증하기 위한 구체 시나리오. G/W/T 는 테스트 번들이며 EARS AC 자체는 아니다.
+
+모든 AC 는 바이너리 검증 가능하도록 정량 기준·구체 어서션으로 기술한다.
+
+### 5.1 EARS-form Acceptance Criteria
+
+**AC-BRIEF-001** [Ubiquitous] — covers REQ-BRIEF-001
+`goosed` 부트스트랩 이후, `briefing.Orchestrator` 인스턴스 **shall** `hook.Registry.Handlers(EvMorningBriefingTime, _)` 반환값에 포함되어 있어야 한다.
+
+**AC-BRIEF-002** [Unwanted] — covers REQ-BRIEF-005
+**When** 3개 소스 중 일부가 타임아웃 또는 에러로 실패한 경우, `Generate` 는 전체 에러를 반환하지 **shall not** 하며, 실패한 섹션을 `sections` 맵에서 누락한 부분 브리핑을 생산해야 한다.
+
+**AC-BRIEF-003** [Event-Driven] — covers REQ-BRIEF-006
+**When** 3개 소스가 모두 실패하는 경우, `Generate` 는 `err==nil` 과 `FallbackUsed==true` 를 갖고, `Narrative` 가 고정 문자열 `"죄송해요, 오늘 아침 정보를 가져오지 못했어요. 잠시 후 다시 시도해주세요."` 를 포함하는 `*MorningBriefing` 을 **shall** 반환한다.
+
+**AC-BRIEF-004** [Event-Driven] — covers REQ-BRIEF-007
+**When** 3개 소스 정상 응답 + LLM이 schema-valid JSON 을 반환하는 경우, `briefing.NarrativeStructure.{Greeting, Main, Closing}` 세 필드가 모두 비어있지 않아야 하며 각 필드 길이가 REQ-BRIEF-007 스키마 범위를 만족해야 **shall**.
+
+**AC-BRIEF-005** [Event-Driven] — covers REQ-BRIEF-008
+**When** LLM 호출이 실패(HTTP 4xx/5xx 또는 timeout)하거나 응답이 REQ-BRIEF-007 스키마 검증에 실패한 경우, 오케스트레이터 **shall** 템플릿 기반 flat narrative 로 fallback 하고 `FallbackUsed==true` 로 표시한다.
+
+**AC-BRIEF-006** [State-Driven] — covers REQ-BRIEF-009
+**While** `config.briefing.tts.enabled==false` 인 상태에서 `Deliver` 가 호출되면, 어떤 TTS provider 메서드도 호출되지 **shall not** 하며 `briefing.AudioURL==""` 이어야 한다.
+
+**AC-BRIEF-007** [Unwanted] — covers REQ-BRIEF-016
+TTS 가 활성이고 `config.briefing.tts.cloud_opt_in==false` 인 조건에서, 오케스트레이터 **shall not** 클라우드 TTS provider(Google Cloud TTS / Amazon Polly) 를 호출한다. 이 조건에서는 로컬 provider(`PiperProvider` 또는 `EspeakProvider`) 만 호출되어야 한다.
+
+**AC-BRIEF-008** [State-Driven] — covers REQ-BRIEF-011
+**While** 동일 `(userID, local-date, TZ)` 의 브리핑이 MEMORY-001 에 `is_read==false` 로 존재하는 동안, 새로운 `MorningBriefingTime` 이벤트는 generation 을 스킵하고 `LLM` 호출은 0회여야 **shall**.
+
+**AC-BRIEF-009** [Unwanted] — covers REQ-BRIEF-013
+LLM 이 1000자 초과 narrative 를 반환하더라도, 최종 `briefing.Narrative` 의 UTF-8 rune count 는 1000 을 초과하지 **shall not** 하며, 초과분은 998자에서 truncate 하고 `"…"` 가 부착되어야 한다.
+
+**AC-BRIEF-010** [Event-Driven] — covers REQ-BRIEF-019
+**When** WEATHER 섹션의 `AirQuality.Level` 이 `"very_unhealthy"` 또는 `"hazardous"` 인 경우, `briefing.Narrative` 는 `"⚠️ 오늘 주의사항:"` 으로 시작하고 `"미세먼지"` 키워드를 포함해야 **shall**.
+
+**AC-BRIEF-011** [Event-Driven] — covers REQ-BRIEF-020
+**When** 브리핑 시간 기준으로 120분(2시간) 이내 시작하는 CALENDAR 이벤트가 존재하는 경우, `briefing.Narrative` 는 regex `(곧\s*\d{1,2}시(\s*\d{1,2}분)?에|\d{1,3}분\s*뒤|\d{1,2}시\s*\d{1,2}분에)` 중 최소 1개와 매칭되는 임박 표현을 포함해야 **shall**.
+
+**AC-BRIEF-012** [Ubiquitous] — covers REQ-BRIEF-002
+모든 생성된 `MorningBriefing` 인스턴스는 `UserID != ""`, `Date` 가 local midnight 기준 `time.Time`, `TriggeredBy ∈ {"scheduler", "manual"}`, `Sections` 가 non-nil map, `CreatedAt` 가 UTC `time.Time` 인 필드 전부를 **shall** 포함한다.
+
+**AC-BRIEF-013** [Ubiquitous] — covers REQ-BRIEF-003
+매 브리핑 생성 시, 오케스트레이터는 zap 로거 INFO 레벨로 `{user_id, sections_fetched, sections_failed, llm_latency_ms, tts_used, total_latency_ms}` 6개 필드를 **shall** 모두 포함하는 구조화 로그를 정확히 1건 emit 한다.
+
+**AC-BRIEF-014** [Event-Driven] — covers REQ-BRIEF-004
+**When** `HandleMorningBriefingTime(ctx, event)` 가 HOOK-001 에 의해 호출되는 경우, 오케스트레이터 **shall** (a) event 로부터 userID 추출 → (b) `Generate` 호출 → (c) `Deliver` 호출 → (d) MEMORY-001 `briefing:{userID}:{YYYYMMDD}:{TZ}` 키로 persist 의 4단계를 이 순서대로 실행한다.
+
+**AC-BRIEF-015** [State-Driven] — covers REQ-BRIEF-010
+**While** `config.briefing.enabled==false` 인 상태에서, (a) HOOK consumer 등록은 스킵되어야 하며, (b) 어떤 경로로든 `MorningBriefingTime` 이벤트가 도달해도 generation 은 실행되지 **shall not** 한다.
+
+**AC-BRIEF-016** [Unwanted] — covers REQ-BRIEF-014  *(security-critical)*
+오케스트레이터는 IDENTITY-001 의 attribute 중 `visibility != "briefing_ok"` 인 어떤 개인정보(본명·주소·전화번호 등)도 LLM 프롬프트, narrative, 로그, TTS 입력에 포함하지 **shall not** 한다. `visibility == "never"` 인 필드는 가시 문자열에서 완전히 제외되어야 한다.
+
+**AC-BRIEF-017** [Unwanted] — covers REQ-BRIEF-015  *(security-critical)*
+LLM 호출 경로(ADAPTER-001) 이외의 어떤 외부 서비스(analytics, telemetry, error reporter 등) 로도 프롬프트 내용·narrative·user context 가 전송되지 **shall not** 한다. 브리핑 경로에서 발생하는 아웃바운드 네트워크 요청은 ADAPTER-001 에 의해 구성된 LLM 엔드포인트 및 (opt-in 시) cloud TTS 엔드포인트만 허용된다.
+
+**AC-BRIEF-018** [Optional] — covers REQ-BRIEF-017
+**Where** `config.briefing.adaptive_timing==true` 이고 INSIGHTS-001 이 최근 7일 wake time 통계를 제공하는 경우, 오케스트레이터 **shall** SCHEDULER-001 의 공개 업데이트 API 를 호출하여 제안된 시간을 전달한다. 오케스트레이터는 SCHEDULER 의 내부 상태를 직접 변경하지 **shall not**.
+
+**AC-BRIEF-019** [Optional] — covers REQ-BRIEF-018
+**Where** INSIGHTS-001 의 최근 3일 mood valence 평균이 `<= -0.3` 인 경우(REQ-BRIEF-018 정의), LLM 프롬프트에는 `"사용자가 힘든 시기를 보내고 있으니, 따뜻하고 지지적인 톤으로"` 문구가 **shall** 포함되고 `briefing.NarrativeStructure.Closing` 에는 최소 1개의 지지 표현(예: `"힘들"`, `"괜찮"`, `"함께"`, `"이야기"` 중 하나 이상의 substring) 이 포함되어야 한다.
+
+### 5.2 Test Scenarios (Given/When/Then)
+
+각 시나리오는 위 5.1 AC 중 하나 이상을 검증한다. 본 G/W/T 블록은 EARS AC 가 아닌 실행 가능한 테스트 번들이다.
+
+**TS-001 — HOOK 등록** (verifies AC-BRIEF-001)
 - **Given** `goosed` bootstrap
 - **When** `briefing.NewOrchestrator(deps).Register(hookRegistry)`
 - **Then** `hookRegistry.Handlers(EvMorningBriefingTime, _)` 반환에 본 orchestrator 포함.
 
-**AC-BRIEF-002 — 3-way 병렬 fetch + 부분 실패**
+**TS-002 — 3-way 병렬 fetch + 부분 실패** (verifies AC-BRIEF-002)
 - **Given** weather mock 성공, calendar mock 성공, fortune mock이 `ErrBirthDateMissing` 반환
 - **When** `Generate(ctx, "u1", defaultOpts)`
 - **Then** `err==nil`, `briefing.Sections.Weather != nil`, `briefing.Sections.Calendar != nil`, `briefing.Sections.Fortune == nil`, 로그에 "fortune section skipped" WARN.
 
-**AC-BRIEF-003 — 전체 실패 → fallback narrative**
+**TS-003 — 전체 실패 → fallback narrative** (verifies AC-BRIEF-003)
 - **Given** 3개 소스 mock 모두 error
 - **When** `Generate`
 - **Then** `err==nil`, `briefing.FallbackUsed==true`, `briefing.Narrative` 에 "정보를 가져오지 못했어요" 포함.
 
-**AC-BRIEF-004 — LLM narrative 생성 (scheme 일치)**
-- **Given** 3개 소스 정상 응답 + LLM mock이 valid JSON 반환
+**TS-004 — LLM narrative 생성 (스키마 일치)** (verifies AC-BRIEF-004)
+- **Given** 3개 소스 정상 응답 + LLM mock이 REQ-BRIEF-007 스키마를 만족하는 JSON 반환
 - **When** `Generate`
-- **Then** `briefing.Narrative` 비어있지 않음, `narrative_structure` 에 greeting/main/closing 3 필드 모두 채워짐.
+- **Then** `briefing.Narrative` 비어있지 않음, `narrative_structure` 의 greeting/main/closing 3 필드 모두 채워지고 각각 REQ-007 길이 범위 내.
 
-**AC-BRIEF-005 — LLM 실패 시 template fallback**
+**TS-005 — LLM 실패 시 template fallback** (verifies AC-BRIEF-005)
 - **Given** LLM mock이 400 에러, 3개 소스 정상
 - **When** `Generate`
 - **Then** `briefing.FallbackUsed==true`, `briefing.Narrative` 에 `weather_summary` / `calendar_summary` 치환 결과 포함.
 
-**AC-BRIEF-006 — TTS 비활성 기본값**
+**TS-006 — TTS 비활성 기본값** (verifies AC-BRIEF-006)
 - **Given** `config.briefing.tts.enabled=false` (default)
 - **When** `Deliver(briefing)`
 - **Then** `briefing.AudioURL==""`, TTS provider mock 호출 0회.
 
-**AC-BRIEF-007 — 로컬 TTS만 default**
+**TS-007 — 로컬 TTS만 default** (verifies AC-BRIEF-007)
 - **Given** `config.briefing.tts.enabled=true, tts.cloud_opt_in=false`
 - **When** `Deliver`
 - **Then** `PiperProvider` 또는 `EspeakProvider` 호출, Google/Polly mock 호출 0회.
 
-**AC-BRIEF-008 — 중복 브리핑 억제**
+**TS-008 — 중복 브리핑 억제** (verifies AC-BRIEF-008)
 - **Given** 오늘 07:30 브리핑 이미 생성됨 (`is_read=false`), 07:45 SCHEDULER가 재트리거 (restart 등)
 - **When** `HandleMorningBriefingTime(ctx, event)`
 - **Then** LLM mock 호출 0회, 로그에 "briefing already pending" INFO.
 
-**AC-BRIEF-009 — 최대 길이 cap**
+**TS-009 — 최대 길이 cap** (verifies AC-BRIEF-009)
 - **Given** LLM mock이 3000자 narrative 반환 (악의적/버그)
 - **When** `Generate(style.length="long")`
-- **Then** `len(briefing.Narrative) <= 1000`, 초과분 truncate + "..." 부착.
+- **Then** `utf8.RuneCountInString(briefing.Narrative) <= 1000`, 998자에서 truncate 후 `"…"` 부착 확인.
 
-**AC-BRIEF-010 — 공기질 경보 prepend**
+**TS-010 — 공기질 경보 prepend** (verifies AC-BRIEF-010)
 - **Given** WEATHER mock이 `AirQuality.Level="very_unhealthy"`, PM2.5=90
 - **When** `Generate`
 - **Then** `briefing.Narrative` 가 "⚠️ 오늘 주의사항:" 으로 시작, "미세먼지" 키워드 포함.
 
-**AC-BRIEF-011 — 임박 일정 강조**
+**TS-011 — 임박 일정 강조** (verifies AC-BRIEF-011)
 - **Given** 07:30 브리핑, 08:45 회의 있음 (75분 후)
 - **When** `Generate`
-- **Then** narrative 본문에 "곧 8시 45분에" 또는 "75분 뒤" 같은 임박 표현 포함.
+- **Then** narrative 본문에 `(곧\s*\d{1,2}시(\s*\d{1,2}분)?에|\d{1,3}분\s*뒤|\d{1,2}시\s*\d{1,2}분에)` 중 최소 1개 regex 매칭.
+
+**TS-012 — MorningBriefing DTO 필드 presence** (verifies AC-BRIEF-012)
+- **Given** 정상 경로로 `Generate(ctx, "u1", defaultOpts)` 호출
+- **When** 반환된 `*MorningBriefing` 검사
+- **Then** `UserID != ""`, `Date` non-zero, `TriggeredBy` 가 `"scheduler"` 또는 `"manual"`, `Sections` non-nil, `CreatedAt` non-zero UTC 확인.
+
+**TS-013 — zap INFO 로그 6필드** (verifies AC-BRIEF-013)
+- **Given** observer core 를 attach 한 zap logger 와 정상 경로 mock
+- **When** `Generate` 1회 실행
+- **Then** observer 에 `level==INFO` 로그가 정확히 1건 존재하고 필드 `user_id, sections_fetched, sections_failed, llm_latency_ms, tts_used, total_latency_ms` 6개 모두 존재.
+
+**TS-014 — HandleMorningBriefingTime 호출 순서** (verifies AC-BRIEF-014)
+- **Given** Generate/Deliver/memory mock 순서 기록용 spy
+- **When** HOOK 이 `HandleMorningBriefingTime(ctx, event{userID:"u1"})` 호출
+- **Then** spy 기록이 `[userID추출, Generate, Deliver, memory.Save("briefing:u1:20260425:Asia/Seoul", _)]` 순서로 정확히 일치.
+
+**TS-015 — config.briefing.enabled=false no-op** (verifies AC-BRIEF-015)
+- **Given** `config.briefing.enabled=false` 인 초기화
+- **When** (a) `Register(hookRegistry)` 호출 → (b) `MorningBriefingTime` 이벤트를 직접 injection
+- **Then** (a) `hookRegistry.Handlers(EvMorningBriefingTime, _)` 에 orchestrator 미포함, (b) Generate mock/LLM mock 모두 호출 0회.
+
+**TS-016 — PII visibility 필터 (security)** (verifies AC-BRIEF-016)
+- **Given** IDENTITY-001 에 `name:{value:"김구스", visibility:"briefing_ok"}`, `phone:{value:"010-1234-5678", visibility:"never"}`, `address:{value:"서울 강남구 ...", visibility:"fortune_only"}` 설정
+- **When** `Generate` 정상 경로 실행 (LLM mock 은 프롬프트를 파일로 캡처)
+- **Then** 캡처된 LLM 프롬프트·`briefing.Narrative`·로그·TTS 입력 어디에도 `"010-1234-5678"`, `"강남구"` substring 미존재. `"김구스"` 는 포함 허용.
+
+**TS-017 — 외부 telemetry 차단 (security)** (verifies AC-BRIEF-017)
+- **Given** 테스트 HTTP round-tripper 가 모든 아웃바운드 요청을 기록하고, ADAPTER-001 mock 만 allowlist 에 등록
+- **When** `Generate` + `Deliver`(tts.enabled=false) 정상 경로 1회 실행
+- **Then** 기록된 아웃바운드 호출의 host 는 ADAPTER-001 mock endpoint 하나뿐. 분석/모니터링/에러 리포트 도메인으로의 요청 0건.
+
+**TS-018 — adaptive_timing SCHEDULER API 호출** (verifies AC-BRIEF-018)
+- **Given** `config.briefing.adaptive_timing=true`, INSIGHTS-001 mock 이 "최근 7일 wake time 평균 06:45" 반환, SCHEDULER mock 이 `UpdateMorningTime(t)` 스파이
+- **When** `Generate` 종료 직후의 adaptive 로직 실행
+- **Then** SCHEDULER mock 의 `UpdateMorningTime` 이 정확히 1회, 합리적인 값(예: 06:45 ± 15분) 으로 호출. SCHEDULER 내부 상태 직접 변경 호출 0건.
+
+**TS-019 — mood 낮을 때 지지 톤** (verifies AC-BRIEF-019)
+- **Given** INSIGHTS-001 mock 이 최근 3일 mood valence `[-0.4, -0.5, -0.2]` (평균 -0.367) 반환, LLM mock 은 받은 프롬프트를 캡처하고 지지 표현을 포함한 유효 JSON 반환
+- **When** `Generate` 실행
+- **Then** 캡처된 LLM 프롬프트에 `"사용자가 힘든 시기를 보내고 있으니, 따뜻하고 지지적인 톤으로"` substring 포함, `briefing.NarrativeStructure.Closing` 에 `"힘들"|"괜찮"|"함께"|"이야기"` 중 최소 1개 substring 포함.
 
 ---
 
@@ -406,18 +519,26 @@ MEMORY-001 `facts` 테이블:
 
 ### 6.9 TDD 진입
 
-1. RED: `TestOrchestrator_RegistersHook` — AC-BRIEF-001
-2. RED: `TestParallelFetch_PartialFailure` — AC-BRIEF-002
-3. RED: `TestAllSourcesFail_FallbackNarrative` — AC-BRIEF-003
-4. RED: `TestLLMNarrative_StructuredOutput` — AC-BRIEF-004
-5. RED: `TestLLMFailure_TemplateFallback` — AC-BRIEF-005
-6. RED: `TestTTS_DisabledByDefault` — AC-BRIEF-006
-7. RED: `TestTTS_LocalProviderDefault` — AC-BRIEF-007
-8. RED: `TestDuplicate_SkipsGeneration` — AC-BRIEF-008
-9. RED: `TestMaxLength_1000Cap` — AC-BRIEF-009
-10. RED: `TestAirQualityAlert_PrependWarning` — AC-BRIEF-010
-11. RED: `TestUpcomingEvent_UrgencyEmphasis` — AC-BRIEF-011
-12. GREEN → REFACTOR
+1. RED: `TestOrchestrator_RegistersHook` — AC-BRIEF-001 (TS-001)
+2. RED: `TestParallelFetch_PartialFailure` — AC-BRIEF-002 (TS-002)
+3. RED: `TestAllSourcesFail_FallbackNarrative` — AC-BRIEF-003 (TS-003)
+4. RED: `TestLLMNarrative_StructuredOutput` — AC-BRIEF-004 (TS-004)
+5. RED: `TestLLMFailure_TemplateFallback` — AC-BRIEF-005 (TS-005)
+6. RED: `TestTTS_DisabledByDefault` — AC-BRIEF-006 (TS-006)
+7. RED: `TestTTS_LocalProviderDefault` — AC-BRIEF-007 (TS-007)
+8. RED: `TestDuplicate_SkipsGeneration` — AC-BRIEF-008 (TS-008)
+9. RED: `TestMaxLength_1000Cap` — AC-BRIEF-009 (TS-009)
+10. RED: `TestAirQualityAlert_PrependWarning` — AC-BRIEF-010 (TS-010)
+11. RED: `TestUpcomingEvent_UrgencyEmphasis` — AC-BRIEF-011 (TS-011)
+12. RED: `TestMorningBriefing_DTOFieldsPresence` — AC-BRIEF-012 (TS-012)
+13. RED: `TestZapLog_SixRequiredFields` — AC-BRIEF-013 (TS-013)
+14. RED: `TestHandleMorningBriefingTime_CallSequence` — AC-BRIEF-014 (TS-014)
+15. RED: `TestBriefingDisabled_NoOp` — AC-BRIEF-015 (TS-015)
+16. RED: `TestPII_VisibilityFilter` — AC-BRIEF-016 (TS-016, security)
+17. RED: `TestNoExternalTelemetry` — AC-BRIEF-017 (TS-017, security)
+18. RED: `TestAdaptiveTiming_SchedulerAPI` — AC-BRIEF-018 (TS-018)
+19. RED: `TestMoodNegative_SupportiveTone` — AC-BRIEF-019 (TS-019)
+20. GREEN → REFACTOR
 
 ### 6.10 TRUST 5 매핑
 

