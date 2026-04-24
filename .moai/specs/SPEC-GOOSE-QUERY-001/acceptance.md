@@ -3,14 +3,14 @@ spec_id: SPEC-GOOSE-QUERY-001
 version: 0.1.0
 status: Planned
 created: 2026-04-24
-updated: 2026-04-24
+updated: 2026-04-25
 author: manager-spec
 methodology: TDD
 ---
 
 # SPEC-GOOSE-QUERY-001 — 수용 기준 (Acceptance Criteria)
 
-> **본 문서의 역할**: `spec.md §5` 의 AC-QUERY-001 ~ 012 를 **테스트 실행 단위**로 확장한다. 각 AC 는 Given/When/Then, 매핑 REQ, 예상 Go 테스트 시그니처, 스텁 요구사항, edge case 를 포함한다.
+> **본 문서의 역할**: `spec.md §5` 의 AC-QUERY-001 ~ 016 를 **테스트 실행 단위**로 확장한다. 각 AC 는 Given/When/Then, 매핑 REQ, 예상 Go 테스트 시그니처, 스텁 요구사항, edge case 를 포함한다.
 > **경로 규약**: 테스트 파일은 `internal/query/...`, `internal/query/loop/...`, `internal/message/...`, `internal/permissions/...` 하위. integration 대상은 build tag `integration`.
 
 ---
@@ -20,7 +20,7 @@ methodology: TDD
 - **매핑 REQ**: REQ-QUERY-002 (streaming mandatory), REQ-QUERY-005 (SubmitMessage 즉시 반환), REQ-QUERY-011 (turnCount 증가 및 정상 종료)
 - **Given**: `QueryEngine` 이 `StubLLMCall` 로 설정되고, stub 이 `StreamEvent{delta:"ok"}` 1개 + `message_stop` 1개로 종료하는 단일 assistant 응답을 반환.
 - **When**: 테스트가 `SubmitMessage(ctx, "hi")` 를 호출하고 반환 채널을 `for msg := range out` 로 drain.
-- **Then**: 관찰 순서는 `user_ack` → `stream_request_start` → `stream_event{delta:"ok"}` → `message{role:"assistant"}` → `terminal{success:true}`. 채널 close 됨. `engine.state.TurnCount == 1`.
+- **Then**: 관찰 순서는 `user_ack` → `stream_request_start` → `stream_event{delta:"ok"}` → `message{role:"assistant"}` → `terminal{success:true}`. 채널 close 됨. `engine.state.TurnCount == 1` (spec.md §6.3 turnCount 증분 모델 경로 A: tool 없는 assistant terminal 완료 시 1 증분).
 - **테스트 파일 / 시그니처**:
   - `internal/query/engine_test.go` → `func TestQueryEngine_SubmitMessage_StreamsImmediately(t *testing.T)` (build tag `integration`)
 - **스텁 요구사항**:
@@ -38,7 +38,7 @@ methodology: TDD
 - **매핑 REQ**: REQ-QUERY-006 (CanUseTool Allow 경로), REQ-QUERY-011 (turn 증가), REQ-QUERY-003 (continue site `after_tool_results`)
 - **Given**: stub LLM 의 첫 응답이 `tool_use{name:"echo", input:{"x":1}}` 블록 포함, 두 번째 응답은 `stop`. `StubCanUseTool` 이 항상 `Allow`. `StubExecutor.Run("echo", {"x":1})` → `ToolResult{content:{"x":1}}`.
 - **When**: `SubmitMessage(ctx, "call echo")` 호출 후 drain.
-- **Then**: 순서 `tool_use` → `permission_check{allow}` → `tool_result{content:{"x":1}}` → 두 번째 `assistant message` → `terminal{success:true}`. `engine.state.TurnCount == 2` (tool round-trip 1 iteration = 2 turn 증가 규약 — spec.md AC-QUERY-002 원문 준수).
+- **Then**: 순서 `tool_use` → `permission_check{allow}` → `tool_result{content:{"x":1}}` → 두 번째 `assistant message` → `terminal{success:true}`. `engine.state.TurnCount == 2` (spec.md §6.3 turnCount 증분 모델: 경로 B 1회 tool roundtrip 완료 후 `after_tool_results` 에서 +1, 이어진 경로 A assistant terminal 완료 후 +1, 합 2). `permission_check{allow}` 는 `SDKMsgPermissionCheck` 타입으로 spec.md §6.2 enum 에 정의되어 있으며 REQ-QUERY-006 Allow 분기에서 yield 된다.
 - **테스트 파일 / 시그니처**:
   - `internal/query/loop/loop_test.go` → `func TestQueryLoop_ToolCallAllow_FullRoundtrip(t *testing.T)` (build tag `integration`)
 - **스텁 요구사항**:
@@ -56,7 +56,7 @@ methodology: TDD
 - **매핑 REQ**: REQ-QUERY-006 (Deny 경로), REQ-QUERY-014 경계 (terminal 유발 금지)
 - **Given**: stub LLM 이 `tool_use{name:"rm_rf"}` 를 반환, `StubCanUseTool` 이 `Decision{Behavior:Deny, Reason:"destructive"}` 반환, 이어지는 LLM 응답은 `stop`.
 - **When**: `SubmitMessage(ctx, "please delete everything")`.
-- **Then**: `StubExecutor.Run` 은 호출되지 않는다. 다음 LLM call payload 의 messages[] 에 `ToolResult{is_error:true, content:"denied: destructive"}` 포함. 최종 `terminal{success:true}` (대화 계속 진행).
+- **Then**: 채널 순서에 `permission_check{tool_use_id, behavior:"deny", reason:"destructive"}` SDKMessage 가 yield 된 후, `StubExecutor.Run` 은 호출되지 않는다. 다음 LLM call payload 의 messages[] 에 `ToolResult{is_error:true, content:"denied: destructive"}` 포함. 최종 `terminal{success:true}` (대화 계속 진행).
 - **테스트 파일 / 시그니처**:
   - `internal/query/loop/loop_test.go` → `func TestQueryLoop_PermissionDeny_SynthesizesErrorResult(t *testing.T)` (integration)
 - **스텁 요구사항**:
@@ -105,9 +105,9 @@ methodology: TDD
 ## AC-QUERY-006 — task_budget 소진 → budget_exceeded terminal
 
 - **매핑 REQ**: REQ-QUERY-011 (budget terminal)
-- **Given**: `QueryEngineConfig.TaskBudget = TaskBudget{Total:100, Remaining:100}`. stub LLM 이 매 turn `usage.total = 60` 소비.
+- **Given**: `QueryEngineConfig.TaskBudget = TaskBudget{Total:50, Remaining:50}`. stub LLM 이 1턴차에 `usage.total = 60` 소비 (총 예산 초과 소비 유발).
 - **When**: `SubmitMessage(ctx, "burn budget")` drain.
-- **Then**: 1턴 완료 후 `Remaining == 40`. 2턴 시작 시점 iteration gate 에서 `Remaining - 60 < 0` 감지 → `terminal{success:false, error:"budget_exceeded"}`.
+- **Then**: 1턴 완료 시점에 `Remaining == -10` (음수) 으로 차감된 후, 2턴차 iteration 시작 시 REQ-QUERY-011 의 `remaining <= 0` gate 가 발동하여 `terminal{success:false, error:"budget_exceeded"}`.
 - **테스트 파일 / 시그니처**:
   - `internal/query/loop/loop_test.go` → `func TestQueryLoop_BudgetExhausted(t *testing.T)` (integration)
 - **스텁 요구사항**:
@@ -227,26 +227,120 @@ methodology: TDD
 
 ---
 
+## AC-QUERY-013 — Ask permission suspend / resume
+
+- **매핑 REQ**: REQ-QUERY-013 (permission 대기 중 iteration suspend), REQ-QUERY-006 (Ask 분기)
+- **Given**: `QueryEngine` 이 `StubLLMCall` 로 설정되고, stub 의 첫 응답이 `tool_use{name:"deleteFile", input:{"path":"/tmp/x"}}` 블록을 포함. `StubCanUseTool` 이 `Decision{Behavior:Ask, Reason:"destructive op"}` 반환. `StubLLMCall` 에 payload recorder 활성 (호출 건수 + payload 기록). 테스트는 별도 goroutine 에서 `engine.ResolvePermission(toolUseID, Allow)` 를 호출할 수 있도록 wiring.
+- **When**: 메인 goroutine 이 `SubmitMessage(ctx, "del file")` 을 호출하여 채널 drain 시작. `permission_request{tool_use_id, tool_name:"deleteFile", input:{"path":"/tmp/x"}}` `SDKMessage` 수신 후, 별도 goroutine 에서 50ms 후 `engine.ResolvePermission(toolUseID, Allow)` 호출. 이후 계속 drain.
+- **Then**:
+  - (a) resolve 호출 전까지 payload recorder 의 LLM call 건수는 1건으로 고정 (loop 가 추가 LLM 호출을 시도하지 않음 확증).
+  - (b) `StubExecutor.Run("deleteFile", ...)` 는 resolve 후에만 호출됨 (resolve 전 호출 시 `t.Fatal`).
+  - (c) resolve 후 loop 재개 → tool 실행 → `tool_result` 합성 → 두 번째 LLM call 수행.
+  - (d) 두 번째 LLM call payload 의 messages[] 마지막 user 블록에 `tool_result{tool_use_id, content:...}` 포함.
+  - (e) 최종 `terminal{success:true}`.
+- **테스트 파일 / 시그니처**:
+  - `internal/query/loop/loop_test.go` → `func TestQueryLoop_AskPermission_SuspendResume(t *testing.T)` (build tag `integration`)
+- **스텁 요구사항**:
+  - `StubCanUseTool` Ask 분기 (reason 포함)
+  - `StubLLMCall` payload recorder + call counter
+  - `StubExecutor` fail-on-early-call guard (resolve 전 `Run` 호출 시 `t.Fatal`)
+- **Edge case 보강**:
+  - `ResolvePermission(toolUseID, Deny)` 로 해결 시 `ToolResult{is_error:true, content:"denied: destructive op"}` 합성 → 대화 계속 진행 → 최종 success. 서브테스트 `t.Run("resolve_deny", ...)`.
+  - resolve 이전에 `ctx` cancel → abort terminal 우선, tool 실행 0회. 서브테스트 `t.Run("cancel_while_pending", ...)`.
+  - 동일 turn 에 Ask permission 2건 대기 → inbox 에 순차 delivery (FIFO). 서브테스트 `t.Run("multiple_asks_fifo", ...)`.
+
+---
+
+## AC-QUERY-014 — SubmitMessage 10ms 마감
+
+- **매핑 REQ**: REQ-QUERY-016 (SubmitMessage 10ms 상시 불변식), REQ-QUERY-002 (streaming)
+- **Given**: `StubLLMCall` 이 goroutine 내부에서 `time.Sleep(100*time.Millisecond)` 로 connection dial 을 시뮬레이션. `QueryEngine.New(cfg)` 으로 엔진 생성 완료된 상태 (초기화 비용 배제).
+- **When**: 테스트가 아래 루프를 N=1000 회 반복:
+  ```go
+  t0 := time.Now()
+  ch, err := engine.SubmitMessage(ctx, "hi")
+  t1 := time.Now()
+  samples = append(samples, t1.Sub(t0))
+  // drain ch in background; let it settle before next iteration
+  ```
+- **Then**:
+  - 모든 반복에서 `t1 - t0 ≤ 10ms` (strict ceiling).
+  - p99(`samples`) ≤ 10ms, p50 ≤ 1ms 보장.
+  - stub 의 100ms 지연이 끝나면 채널이 정상적으로 메시지를 수신하여 `terminal{success:true}` 로 종료 (SubmitMessage 반환과 실제 LLM 호출이 goroutine 으로 분리되어 있음을 확증).
+- **테스트 파일 / 시그니처**:
+  - `internal/query/engine_test.go` → `func TestQueryEngine_SubmitMessage_Returns10ms(t *testing.T)` (build tag `integration`)
+- **스텁 요구사항**:
+  - `StubLLMCall` 에 `initialDelay time.Duration` 옵션 (goroutine 내 sleep)
+  - 성능 측정 헬퍼: `percentile(samples, 0.99)`
+- **Edge case 보강**:
+  - `StubLLMCall` 이 즉시 에러 반환하는 경우에도 SubmitMessage 자체는 10ms 이내 반환 (에러는 terminal 메시지로 전달). 서브테스트 `t.Run("fast_error", ...)`.
+  - N=1000 중 1% 이내의 OS scheduling jitter 는 허용 가능하지만 p99 ≤ 10ms 엄수. 실패 시 CI 재시도 금지 (성능 회귀 명시적 신호).
+
+---
+
+## AC-QUERY-015 — PostSamplingHooks FIFO chain
+
+- **매핑 REQ**: REQ-QUERY-018 (Optional hook middleware, FIFO)
+- **Given**: `QueryEngineConfig.PostSamplingHooks = []MessageHook{h1, h2}` 로 등록:
+  - `h1`: 입력 `Message.content` 말미에 `" [h1]"` 를 append 하여 반환
+  - `h2`: 입력 `Message.content` 말미에 `" [h2]"` 를 append 하여 반환
+  스텁 LLM 이 `Message{role:"assistant", content:"ok"}` yield.
+- **When**: `SubmitMessage(ctx, "hi")` 호출 후 drain. 다음 LLM call (turn 2) 을 유도하기 위해 첫 응답 뒤 tool_use 없이 stub 이 두 번째 user 입력 시뮬레이션 또는 `engine.state.Messages` 직접 inspection (test-only getter 사용).
+- **Then**:
+  - 내부 `State.Messages` 에 저장된 assistant message 의 content 가 `"ok [h1] [h2]"` (FIFO 순서 적용).
+  - `h1`, `h2` 를 바꿔 `[]MessageHook{h2, h1}` 로 등록하면 결과가 `"ok [h2] [h1]"` 로 변함 (순서 민감성 검증).
+- **테스트 파일 / 시그니처**:
+  - `internal/query/loop/loop_test.go` → `func TestQueryLoop_PostSamplingHooks_FifoChain(t *testing.T)` (build tag `integration`, 2개 서브테스트: `fifo_h1_then_h2`, `fifo_h2_then_h1`)
+- **스텁 요구사항**:
+  - test-only `engine.State() State` getter (build tag `testing`) 또는 `StubLLMCall` payload recorder 로 후속 call 의 messages[] 확인
+  - 두 개의 순수 함수형 hook (`h1`, `h2`)
+- **Edge case 보강**:
+  - `PostSamplingHooks` 가 nil 또는 빈 slice 일 때 content 변형 0 (네거티브).
+  - hook 이 원본 Message 를 mutate 하지 않고 새 Message 를 반환하는 경우에도 체인 결과 동일.
+  - hook 중 하나가 에러 반환 시 loop 가 `StopFailureHooks` 경유 terminal 로 전이할지 여부는 본 AC 범위 밖 (HOOK-001 에서 정의).
+
+---
+
+## AC-QUERY-016 — TeammateIdentity 주입 (system header + SDKMessage metadata)
+
+- **매핑 REQ**: REQ-QUERY-020 (TeammateIdentity injection, 2경로)
+- **Given**: `QueryEngineConfig.TeammateIdentity = &TeammateIdentity{AgentID:"spec-ga-01", TeamName:"alpha"}` 구성. `StubLLMCall` 에 payload recorder 활성. 스텁이 assistant text 1회 + stop 으로 응답.
+- **When**: `SubmitMessage(ctx, "hi")` 호출 후 채널 drain.
+- **Then**:
+  - (a) payload recorder 가 기록한 첫 outbound LLM call 의 system 파트에 구조화 헤더 `{"agent_id":"spec-ga-01","team_name":"alpha"}` 포함 (JSON 파싱 또는 규약된 문자열 포맷 검증).
+  - (b) drain 된 모든 `SDKMessage` 의 `meta` 필드(또는 동등 metadata 경로) 에 `{agent_id:"spec-ga-01", team_name:"alpha"}` 포함 (user_ack, stream_request_start, stream_event, message, terminal 전부).
+- **테스트 파일 / 시그니처**:
+  - `internal/query/engine_test.go` → `func TestQueryEngine_TeammateIdentity_InjectedEverywhere(t *testing.T)` (build tag `integration`)
+- **스텁 요구사항**:
+  - `StubLLMCall` payload recorder
+  - `SDKMessage` 의 metadata 접근자 (`Meta() map[string]any` 또는 payload struct 내 명시 필드)
+- **Edge case 보강**:
+  - `TeammateIdentity == nil` (기본) → system header 주입 0, SDKMessage metadata 에 teammate 필드 부재. 네거티브 서브테스트 `t.Run("nil_identity", ...)`.
+  - `AgentID` 만 세팅되고 `TeamName` 이 빈 문자열 → 빈 문자열 그대로 주입 (silent default 없음).
+  - 동일 engine 에서 `SubmitMessage` 2회 연속 호출 시 두 번째 호출의 payload 와 SDKMessage 에도 동일 identity 주입 (누적 일관성).
+
+---
+
 ## 성능 / 품질 게이트
 
-AC 12개를 관통하는 비기능 기준. 각 항목은 specific 테스트 혹은 CI 단계로 검증.
+AC 16개를 관통하는 비기능 기준. 각 항목은 specific 테스트 혹은 CI 단계로 검증.
 
 | 항목 | 근거 REQ | 검증 방법 |
 |-----|--------|---------|
-| **SubmitMessage 10ms 마감** | REQ-QUERY-016 | `TestQueryEngine_SubmitMessage_Returns_Within_10ms` — stub LLM 초기화 100ms sleep 상황에서도 `time.Since(start) < 10ms` |
+| **SubmitMessage 10ms 마감** | REQ-QUERY-016 | **AC-QUERY-014** `TestQueryEngine_SubmitMessage_Returns10ms` (N=1000, p99 ≤ 10ms) — stub LLM 초기화 100ms sleep 상황에서도 `time.Since(start) < 10ms` |
 | **Abort 500ms 마감** | REQ-QUERY-010 | `TestQueryLoop_AbortsOnContextCancel` — `ctx` cancel 후 terminal yield 까지 `< 500ms` 측정 |
 | **Race detector 무경보** | REQ-QUERY-015 | `go test -race -count=5 ./internal/query/... ./internal/message/... ./internal/permissions/...` (CI `test-race` job, plan.md §8) |
 | **Coverage ≥ 85% 가중 평균** | spec.md §6.7 Tested | `go test -coverprofile=... ./internal/...` → 가중 평균 ≥ 85%, `internal/query` ≥ 90%, `internal/query/loop` ≥ 92%, `internal/message` ≥ 85%, `internal/permissions` ≥ 90% |
 | **Lint 무경고** | spec.md §6.7 Unified | `golangci-lint run` (errcheck, govet, staticcheck, ineffassign, gocyclo) exit 0 |
 | **채널 close 단일 소유자** | REQ-QUERY-002 / 010 | grep 으로 `close(` 호출이 `internal/query/loop/loop.go` 외부에 없음을 CI 에서 확인 |
-| **Integration 12개 GREEN** | AC-QUERY-001~012 | `go test -tags=integration ./internal/query/...` exit 0 |
+| **Integration 16개 GREEN** | AC-QUERY-001~016 | `go test -tags=integration ./internal/query/...` exit 0 (AC-013 Ask suspend/resume, AC-014 10ms 마감, AC-015 PostSamplingHooks FIFO, AC-016 TeammateIdentity 포함) |
 | **MX 태그 `@MX:TODO` 잔존 0** | plan.md §6 | sync 단계 스캔 (`moai hook mx-scan`) exit 0 |
 
 ---
 
 ## Definition of Done (수용 기준 관점)
 
-1. 위 AC-QUERY-001 ~ 012 각각에 명시된 Go 테스트 함수가 존재하고 `go test -tags=integration` 로 GREEN.
+1. 위 AC-QUERY-001 ~ 016 각각에 명시된 Go 테스트 함수가 존재하고 `go test -tags=integration` 로 GREEN (감사 review-1 D1/D2/D3 으로 AC-013~016 신설).
 2. 각 AC 의 edge case 서브테스트가 최소 1개 GREEN.
 3. "성능 / 품질 게이트" 표의 8개 항목이 모두 PASS.
 4. plan.md §11 의 Definition of Done 1 ~ 6 과 교차 검증되어 불일치 없음.
