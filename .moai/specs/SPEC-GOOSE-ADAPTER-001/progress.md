@@ -145,4 +145,4 @@ evaluator-active "commit 후 권장" 2건 처리:
 - go test -race 전 패키지 ALL PASS (anthropic 13s, openai/ollama/google/xai/deepseek/factory 각 1~4s)
 - coverage: anthropic 77.0%, openai 78.7%, ollama 77.8%, deepseek/xai 100%, google 51.7%
 - goleak: PASS (reader goroutine 누수 없음)
-- 최종 8번째 commit SHA: (커밋 후 갱신)
+- 최종 8번째 commit SHA: db51dd7
