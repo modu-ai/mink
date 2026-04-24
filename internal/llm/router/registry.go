@@ -180,7 +180,7 @@ func DefaultRegistry() *ProviderRegistry {
 		SuggestedModels: []string{"llama3.2", "qwen2.5", "phi4"},
 	})
 
-	// Phase 1 metadata-only providers (9종)
+	// SPEC-001 metadata-only providers (cohere/nous/minimax 유지, SPEC-002 범위 외)
 	mustRegister(reg, &ProviderMeta{
 		Name:            "cohere",
 		DisplayName:     "Cohere",
@@ -190,47 +190,8 @@ func DefaultRegistry() *ProviderRegistry {
 		SupportsTools:   true,
 		SupportsVision:  false,
 		SupportsEmbed:   true,
-		AdapterReady:    false,
+		AdapterReady:    false, // 사용자 선택 없음, SPEC-002 범위 외
 		SuggestedModels: []string{"command-r-plus", "command-r"},
-	})
-
-	mustRegister(reg, &ProviderMeta{
-		Name:            "glm",
-		DisplayName:     "GLM (ZhipuAI)",
-		DefaultBaseURL:  "https://open.bigmodel.cn/api/paas/v4",
-		AuthType:        "api_key",
-		SupportsStream:  true,
-		SupportsTools:   true,
-		SupportsVision:  true,
-		SupportsEmbed:   false,
-		AdapterReady:    false,
-		SuggestedModels: []string{"glm-4", "glm-4-flash"},
-	})
-
-	mustRegister(reg, &ProviderMeta{
-		Name:            "groq",
-		DisplayName:     "Groq",
-		DefaultBaseURL:  "https://api.groq.com/openai/v1",
-		AuthType:        "api_key",
-		SupportsStream:  true,
-		SupportsTools:   true,
-		SupportsVision:  false,
-		SupportsEmbed:   false,
-		AdapterReady:    false,
-		SuggestedModels: []string{"llama3.2-70b", "mixtral-8x7b"},
-	})
-
-	mustRegister(reg, &ProviderMeta{
-		Name:            "kimi",
-		DisplayName:     "Kimi (Moonshot)",
-		DefaultBaseURL:  "https://api.moonshot.cn/v1",
-		AuthType:        "api_key",
-		SupportsStream:  true,
-		SupportsTools:   true,
-		SupportsVision:  false,
-		SupportsEmbed:   false,
-		AdapterReady:    false,
-		SuggestedModels: []string{"moonshot-v1-8k", "moonshot-v1-32k"},
 	})
 
 	mustRegister(reg, &ProviderMeta{
@@ -242,21 +203,8 @@ func DefaultRegistry() *ProviderRegistry {
 		SupportsTools:   false,
 		SupportsVision:  false,
 		SupportsEmbed:   false,
-		AdapterReady:    false,
+		AdapterReady:    false, // 수요 검증 후 결정, SPEC-002 범위 외
 		SuggestedModels: []string{"abab6", "abab5.5"},
-	})
-
-	mustRegister(reg, &ProviderMeta{
-		Name:            "mistral",
-		DisplayName:     "Mistral AI",
-		DefaultBaseURL:  "https://api.mistral.ai/v1",
-		AuthType:        "api_key",
-		SupportsStream:  true,
-		SupportsTools:   true,
-		SupportsVision:  false,
-		SupportsEmbed:   true,
-		AdapterReady:    false,
-		SuggestedModels: []string{"mistral-large", "mistral-small"},
 	})
 
 	mustRegister(reg, &ProviderMeta{
@@ -268,8 +216,62 @@ func DefaultRegistry() *ProviderRegistry {
 		SupportsTools:   false,
 		SupportsVision:  false,
 		SupportsEmbed:   false,
-		AdapterReady:    false,
+		AdapterReady:    false, // OAuth 확장 후속 SPEC, 현재 범위 외
 		SuggestedModels: []string{"hermes-3", "hermes-2-pro"},
+	})
+
+	// SPEC-002 adapter-ready providers (9종)
+	// GLM: Z.ai endpoint 이전 (구 bigmodel.cn → api.z.ai), thinking mode 지원 (REQ-ADP2-022)
+	mustRegister(reg, &ProviderMeta{
+		Name:            "glm",
+		DisplayName:     "Z.ai GLM",
+		DefaultBaseURL:  "https://api.z.ai/api/paas/v4",
+		AuthType:        "api_key",
+		SupportsStream:  true,
+		SupportsTools:   true,
+		SupportsVision:  true,
+		SupportsEmbed:   false,
+		AdapterReady:    true, // SPEC-002 M4 구현 완료
+		SuggestedModels: []string{"glm-5", "glm-4.7", "glm-4.6", "glm-4.5", "glm-4.5-air"},
+	})
+
+	mustRegister(reg, &ProviderMeta{
+		Name:            "groq",
+		DisplayName:     "Groq",
+		DefaultBaseURL:  "https://api.groq.com/openai/v1",
+		AuthType:        "api_key",
+		SupportsStream:  true,
+		SupportsTools:   true,
+		SupportsVision:  false,
+		SupportsEmbed:   false,
+		AdapterReady:    true, // SPEC-002 M1 구현 완료
+		SuggestedModels: []string{"llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"},
+	})
+
+	mustRegister(reg, &ProviderMeta{
+		Name:            "kimi",
+		DisplayName:     "Kimi (Moonshot)",
+		DefaultBaseURL:  "https://api.moonshot.ai/v1", // 국제판 기본값 (REQ-ADP2-012)
+		AuthType:        "api_key",
+		SupportsStream:  true,
+		SupportsTools:   true,
+		SupportsVision:  true,
+		SupportsEmbed:   false,
+		AdapterReady:    true, // SPEC-002 M3 구현 완료
+		SuggestedModels: []string{"moonshot-v1-128k", "moonshot-v1-32k", "moonshot-v1-8k"},
+	})
+
+	mustRegister(reg, &ProviderMeta{
+		Name:            "mistral",
+		DisplayName:     "Mistral AI",
+		DefaultBaseURL:  "https://api.mistral.ai/v1",
+		AuthType:        "api_key",
+		SupportsStream:  true,
+		SupportsTools:   true,
+		SupportsVision:  false,
+		SupportsEmbed:   true,
+		AdapterReady:    true, // SPEC-002 M1 구현 완료
+		SuggestedModels: []string{"mistral-large-latest", "mistral-small-latest", "open-mixtral-8x22b"},
 	})
 
 	mustRegister(reg, &ProviderMeta{
@@ -281,21 +283,61 @@ func DefaultRegistry() *ProviderRegistry {
 		SupportsTools:   true,
 		SupportsVision:  true,
 		SupportsEmbed:   false,
-		AdapterReady:    false,
-		SuggestedModels: []string{"openai/gpt-4o", "anthropic/claude-3-5-sonnet"},
+		AdapterReady:    true, // SPEC-002 M2 구현 완료
+		SuggestedModels: []string{"deepseek/deepseek-r1:free", "openai/gpt-4o", "anthropic/claude-sonnet-4-6"},
 	})
 
 	mustRegister(reg, &ProviderMeta{
 		Name:            "qwen",
 		DisplayName:     "Qwen (Alibaba)",
-		DefaultBaseURL:  "https://dashscope.aliyuncs.com/compatible-mode/v1",
+		DefaultBaseURL:  "https://dashscope-intl.aliyuncs.com/compatible-mode/v1", // 국제판 기본값 (REQ-ADP2-011)
 		AuthType:        "api_key",
 		SupportsStream:  true,
 		SupportsTools:   true,
 		SupportsVision:  true,
 		SupportsEmbed:   false,
-		AdapterReady:    false,
-		SuggestedModels: []string{"qwen3", "qwen2.5-72b"},
+		AdapterReady:    true, // SPEC-002 M3 구현 완료
+		SuggestedModels: []string{"qwen3-max", "qwen3-235b-a22b", "qwen2.5-72b-instruct"},
+	})
+
+	// SPEC-002 신규 metadata 등록 (together, fireworks, cerebras)
+	mustRegister(reg, &ProviderMeta{
+		Name:            "cerebras",
+		DisplayName:     "Cerebras",
+		DefaultBaseURL:  "https://api.cerebras.ai/v1",
+		AuthType:        "api_key",
+		SupportsStream:  true,
+		SupportsTools:   true,
+		SupportsVision:  false,
+		SupportsEmbed:   false,
+		AdapterReady:    true, // SPEC-002 M1 구현 완료
+		SuggestedModels: []string{"llama-3.3-70b", "llama-3.1-8b"},
+	})
+
+	mustRegister(reg, &ProviderMeta{
+		Name:            "fireworks",
+		DisplayName:     "Fireworks AI",
+		DefaultBaseURL:  "https://api.fireworks.ai/inference/v1",
+		AuthType:        "api_key",
+		SupportsStream:  true,
+		SupportsTools:   true,
+		SupportsVision:  true,
+		SupportsEmbed:   false,
+		AdapterReady:    true, // SPEC-002 M2 구현 완료
+		SuggestedModels: []string{"accounts/fireworks/models/deepseek-r1", "accounts/fireworks/models/llama-v3p3-70b-instruct"},
+	})
+
+	mustRegister(reg, &ProviderMeta{
+		Name:            "together",
+		DisplayName:     "Together AI",
+		DefaultBaseURL:  "https://api.together.xyz/v1",
+		AuthType:        "api_key",
+		SupportsStream:  true,
+		SupportsTools:   true,
+		SupportsVision:  true,
+		SupportsEmbed:   true,
+		AdapterReady:    true, // SPEC-002 M2 구현 완료
+		SuggestedModels: []string{"meta-llama/Llama-3.3-70B-Instruct-Turbo", "Qwen/Qwen2.5-72B-Instruct-Turbo"},
 	})
 
 	return reg
