@@ -1,0 +1,60 @@
+spec_id: SPEC-AGENCY-CLEANUP-002
+generated_at: "2026-04-25"
+strategy: archive_and_delete
+archive_root: ".archive/agency-legacy-20260425"
+total_artifacts: 28
+notes: |
+  Original SPEC scope = 19 artifacts. Scope expanded by user during run phase
+  to also remove .claude/skills/agency/ (deprecated stub skill, 1 file)
+  and .claude/commands/agency/ (8 deprecated command stubs) which had
+  broken imports referencing the legacy 19. Total = 28 artifacts removed,
+  archived intact under archive_root with directory structure preserved.
+
+artifacts:
+  # Original 19 (REQ-CL-001 in-scope)
+  - { path: ".agency/config.yaml", type: file, action: delete, status: done }
+  - { path: ".agency/fork-manifest.yaml", type: file, action: delete, status: done }
+  - { path: ".agency/context/target-audience.md", type: file, action: delete, status: done }
+  - { path: ".agency/context/tech-preferences.md", type: file, action: delete, status: done }
+  - { path: ".agency/context/quality-standards.md", type: file, action: delete, status: done }
+  - { path: ".agency/context/visual-identity.md", type: file, action: delete, status: done }
+  - { path: ".agency/context/brand-voice.md", type: file, action: delete, status: done }
+  - { path: ".agency/templates/brief-template.md", type: file, action: delete, status: done }
+  - { path: ".claude/skills/agency-client-interview/", type: dir, action: delete, status: done }
+  - { path: ".claude/skills/agency-copywriting/", type: dir, action: delete, status: done }
+  - { path: ".claude/skills/agency-design-system/", type: dir, action: delete, status: done }
+  - { path: ".claude/skills/agency-evaluation-criteria/", type: dir, action: delete, status: done }
+  - { path: ".claude/skills/agency-frontend-patterns/", type: dir, action: delete, status: done }
+  - { path: ".claude/agents/agency/builder.md", type: file, action: delete, status: done }
+  - { path: ".claude/agents/agency/copywriter.md", type: file, action: delete, status: done }
+  - { path: ".claude/agents/agency/designer.md", type: file, action: delete, status: done }
+  - { path: ".claude/agents/agency/evaluator.md", type: file, action: delete, status: done }
+  - { path: ".claude/agents/agency/learner.md", type: file, action: delete, status: done }
+  - { path: ".claude/agents/agency/planner.md", type: file, action: delete, status: done }
+
+  # Scope expansion (user approved in run phase)
+  - { path: ".claude/skills/agency/", type: dir, action: delete, status: done, scope_expansion: true }
+  - { path: ".claude/commands/agency/agency.md", type: file, action: delete, status: done, scope_expansion: true }
+  - { path: ".claude/commands/agency/brief.md", type: file, action: delete, status: done, scope_expansion: true }
+  - { path: ".claude/commands/agency/build.md", type: file, action: delete, status: done, scope_expansion: true }
+  - { path: ".claude/commands/agency/evolve.md", type: file, action: delete, status: done, scope_expansion: true }
+  - { path: ".claude/commands/agency/learn.md", type: file, action: delete, status: done, scope_expansion: true }
+  - { path: ".claude/commands/agency/profile.md", type: file, action: delete, status: done, scope_expansion: true }
+  - { path: ".claude/commands/agency/resume.md", type: file, action: delete, status: done, scope_expansion: true }
+  - { path: ".claude/commands/agency/review.md", type: file, action: delete, status: done, scope_expansion: true }
+
+manifest_json_cleanup:
+  removed_entries: 28
+  source_file: .moai/manifest.json
+
+acceptance_criteria_status:
+  AC-CL-001: PASS  # legacy-manifest.yaml created with required fields
+  AC-CL-002: PASS  # archive copied to .archive/agency-legacy-20260425/ before git rm
+  AC-CL-003: PASS  # import check found references; user approved scope expansion to clear them
+  AC-CL-004: PASS  # single commit covering archive + deletions + manifest cleanup
+  AC-CL-005: N/A   # standard delete mode (with archive backup); --archive-only mode not used
+
+rollback:
+  command: "git revert <commit-sha>"
+  alternative: "git reset --hard HEAD~1"
+  archive_recovery: "Files preserved at .archive/agency-legacy-20260425/ for direct restore."
