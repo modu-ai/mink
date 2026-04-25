@@ -66,6 +66,42 @@ func NewStubLLMCallSimple(delta string) *StubLLMCall {
 	}
 }
 
+// MakeToolUseEvents는 tool_use 블록 이벤트 시퀀스를 생성한다.
+// content_block_start(tool_use) → input_json_delta(json) → content_block_stop → message_stop 순서.
+// AC-QUERY-002/003 tool roundtrip 테스트용.
+func MakeToolUseEvents(toolUseID, toolName string, inputJSON string) []message.StreamEvent {
+	return []message.StreamEvent{
+		{
+			Type:      message.TypeContentBlockStart,
+			BlockType: "tool_use",
+			ToolUseID: toolUseID,
+			Delta:     toolName,
+		},
+		{
+			Type:  message.TypeInputJSONDelta,
+			Delta: inputJSON,
+		},
+		{
+			Type: message.TypeContentBlockStop,
+		},
+		{
+			Type:       message.TypeMessageStop,
+			StopReason: "tool_use",
+		},
+	}
+}
+
+// MakeStopEvents는 단순 stop 이벤트 시퀀스를 생성한다.
+// tool roundtrip 후 2번째 LLM 응답 시뮬레이션용.
+func MakeStopEvents(delta string) []message.StreamEvent {
+	events := []message.StreamEvent{}
+	if delta != "" {
+		events = append(events, message.StreamEvent{Type: message.TypeTextDelta, Delta: delta})
+	}
+	events = append(events, message.StreamEvent{Type: message.TypeMessageStop, StopReason: "end_turn"})
+	return events
+}
+
 // Call은 LLMCallFunc 시그니처를 구현한다.
 func (s *StubLLMCall) Call(ctx context.Context, req query.LLMCallReq) (<-chan message.StreamEvent, error) {
 	// payload 기록
@@ -195,6 +231,15 @@ func NewStubCanUseToolAllow() *StubCanUseTool {
 func NewStubCanUseToolDeny(reason string) *StubCanUseTool {
 	return &StubCanUseTool{
 		defaultDecision: permissions.Decision{Behavior: permissions.Deny, Reason: reason},
+		overrides:       make(map[string]permissions.Decision),
+	}
+}
+
+// NewStubCanUseToolAsk는 항상 Ask를 반환하는 스텁을 생성한다.
+// S4: Ask 분기는 Deny로 대체 처리된다 (S6에서 실제 Ask 구현 예정).
+func NewStubCanUseToolAsk(reason string) *StubCanUseTool {
+	return &StubCanUseTool{
+		defaultDecision: permissions.Decision{Behavior: permissions.Ask, Reason: reason},
 		overrides:       make(map[string]permissions.Decision),
 	}
 }

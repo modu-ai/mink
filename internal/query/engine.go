@@ -79,6 +79,11 @@ func (e *QueryEngine) SubmitMessage(ctx context.Context, prompt string) (<-chan 
 		MaxTurns:     e.cfg.MaxTurns,
 		PermInbox:    e.permInbox,
 		CallLLM:      callLLM,
+		// S4: tool roundtrip 의존성 주입
+		CallLLMFactory: e.buildLLMStreamFuncFactory(),
+		CanUseTool:     e.cfg.CanUseTool,
+		Execute:        e.cfg.Executor.Run,
+		ToolResultCap:  e.cfg.TaskBudget.ToolResultCap,
 	}
 
 	// loop.Run은 goroutine을 spawn하고 즉시 반환한다.
@@ -112,6 +117,21 @@ func (e *QueryEngine) buildLLMStreamFunc(prompt string) loop.LLMStreamFunc {
 			Messages: msgs,
 		}
 		return llmCall(ctx, req)
+	}
+}
+
+// buildLLMStreamFuncFactory는 messages를 갱신하여 새 LLMStreamFunc를 생성하는 factory를 반환한다.
+// S4 after_tool_results continue site에서 tool_result를 포함한 다음 LLM 호출 클로저를 만들 때 사용된다.
+func (e *QueryEngine) buildLLMStreamFuncFactory() func(msgs []message.Message) loop.LLMStreamFunc {
+	llmCall := e.cfg.LLMCall
+	return func(msgs []message.Message) loop.LLMStreamFunc {
+		// 전달받은 messages 스냅샷을 사용하는 LLMStreamFunc를 반환한다.
+		return func(ctx context.Context) (<-chan message.StreamEvent, error) {
+			req := LLMCallReq{
+				Messages: msgs,
+			}
+			return llmCall(ctx, req)
+		}
 	}
 }
 
