@@ -1,15 +1,16 @@
 ---
 id: SPEC-GOOSE-COMPRESSOR-001
-version: 0.1.0
-status: Planned
-created: 2026-04-21
-updated: 2026-04-21
+version: 0.2.0
+status: planned
+created_at: 2026-04-21
+updated_at: 2026-04-25
 author: manager-spec
 priority: P0
 issue_number: null
 phase: 4
 size: 중(M)
 lifecycle: spec-anchored
+labels: [learning, compressor, trajectory, llm-summary]
 ---
 
 # SPEC-GOOSE-COMPRESSOR-001 — Trajectory Compressor (Protected Head/Tail + LLM Middle Summary)
@@ -19,6 +20,7 @@ lifecycle: spec-anchored
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-21 | 초안 작성 (hermes-learning.md §3 + Hermes `trajectory_compressor.py` 1517 LoC 기반) | manager-spec |
+| 0.2.0 | 2026-04-25 | plan-auditor iter1 FAIL(0.58) 수정: CONTEXT-001 계약 일치화. D3 CompactorAdapter 시그니처를 value receiver(`loop.State`/반환값)로 교정. D4 `ShouldCompact` 80%/ReactiveTriggered/MaxMessageCount/Red override 의미론 추가(REQ-019). D5 `Compact` 전략 선택 순서(ReactiveCompact→AutoCompact→Snip) + Summarizer nil/err → Snip 폴백 명시(REQ-020). D6 `redacted_thinking` 보존 계약 추가(REQ-021). D7-D11 REQ-001/004/012/013/017 전용 AC 신설(AC-014~AC-018). D12 §1 L36 "동일 코드 경로 공유" 문구를 "AutoCompact 변종 제공, Snip/ReactiveCompact는 CONTEXT-001 기본"으로 완화. D13 CompressionConfig에 `AdapterMaxRetries` 명시. D14 AC-001 포인터 의미 정정. D15 AC-010 tail 묘사 정정. D17 `2×` 근거 주석 추가. D19 Metadata deep-copy 요구 추가. `labels` 보강. | manager-spec |
 
 ---
 
@@ -33,7 +35,7 @@ GOOSE-AGENT **자기진화 파이프라인의 Layer 2**를 정의한다. SPEC-GO
 - 원본 `trajectory[:compress_start] + {human, summary} + trajectory[compress_until:]`로 재구성한 후 새 `Trajectory`와 `TrajectoryMetrics`를 반환하며,
 - 50개 궤적을 동시 처리해도 `semaphore`로 LLM RPM/TPM 한도를 준수하고, 개별 궤적 실패(timeout / LLM error)는 전체 배치를 중단시키지 않는다.
 
-또한 본 SPEC의 `Compressor` 타입은 SPEC-GOOSE-CONTEXT-001이 정의한 **런타임 context compaction 인터페이스의 호환 구현체**로도 주입 가능하여, Phase 0의 in-session compaction(turn 실행 중)과 Phase 4의 offline trajectory compaction(디스크 압축)이 동일 코드 경로를 공유한다.
+또한 본 SPEC은 SPEC-GOOSE-CONTEXT-001이 정의한 `Compactor` 인터페이스의 **`AutoCompact` 전략 변종**을 `CompactorAdapter`로 제공한다 — 즉 어댑터는 CONTEXT-001 계약의 일부(AutoCompact 경로)만 구현하며, `Snip`/`ReactiveCompact` 전략 선택·실행 자체는 CONTEXT-001의 `DefaultCompactor`가 담당한다. 어댑터는 CONTEXT-001의 `ShouldCompact`/`Compact` 시그니처(value receiver)를 그대로 구현하여 컴파일 타임 호환성을 확보하고, trigger 의미론(80% / ReactiveTriggered / MaxMessageCount / Red override)과 전략 선택(ReactiveCompact → AutoCompact → Snip, Summarizer nil/err 시 Snip 폴백)을 본 SPEC 어댑터가 CONTEXT-001 REQ-CTX-007/008/011/014와 동일하게 재현한다. `redacted_thinking` 블록은 중간 요약 전후 모든 경로에서 보존된다 (REQ-CTX-003 호환).
 
 ---
 
@@ -43,14 +45,14 @@ GOOSE-AGENT **자기진화 파이프라인의 Layer 2**를 정의한다. SPEC-GO
 
 - LORA 훈련 데이터셋은 토큰당 비용이 급격하다. 15K 토큰 초과 궤적을 그대로 쌓으면 디스크 + 훈련 비용이 수십 배 증가한다. 압축은 **Layer 1 → Layer 3 파이프라인의 필수 게이트**.
 - `.moai/project/research/hermes-learning.md` §3이 Hermes `trajectory_compressor.py` 1517 LoC의 알고리즘을 정확히 이식할 근거를 제시한다. Kimi-K2 tokenizer(Python `trust_remote_code=True`) 의존성을 제거하고 Go-native tokenization으로 재설계한다.
-- CONTEXT-001의 `Compactor` 인터페이스와 신호 호환되는 단일 구현체를 제공하면, Phase 0 in-session compaction과 Phase 4 offline compression이 동일 알고리즘을 사용 — 유지보수 부담 감소.
+- CONTEXT-001의 `Compactor` 인터페이스와 시그니처·의미론 호환되는 어댑터(`CompactorAdapter`, AutoCompact 전략 변종)를 제공하면, Phase 0 in-session compaction의 AutoCompact 경로가 Phase 4 offline compression과 **동일한 요약 알고리즘**(head/tail 보호 + 중간 LLM 요약)을 재사용한다 — `Snip`/`ReactiveCompact`는 CONTEXT-001 `DefaultCompactor`가 담당하므로 본 SPEC의 책임 범위가 아니다. 유지보수 단위 분리.
 - 로드맵 v2.0 §4 Phase 4 #20. ROUTER-001이 제공하는 저렴한 요약 모델(예: Gemini 3 Flash, temp 0.3) 호출 진입점이다.
 
 ### 2.2 상속 자산
 
 - **Hermes Agent Python** (`./hermes-agent-main/trajectory_compressor.py` 1517 LoC): 보호 인덱스 산출 로직, target=15,250 / summary=750 상수, asyncio semaphore 병렬 제어, 재시도 3회 jittered backoff, 300s timeout. 본 SPEC의 GREEN 단계는 알고리즘을 Go로 재작성하되 상수와 계약을 60% 재사용한다.
 - **Claude Code TypeScript**: 계승 대상 아님(동등 기능 없음).
-- **SPEC-GOOSE-CONTEXT-001**: `Compactor { ShouldCompact(State) bool; Compact(State) (State, CompactBoundary, error) }` 인터페이스. 본 SPEC은 trajectory용 별도 API를 제공하고, 옵션으로 CONTEXT-001 호환 어댑터도 제공.
+- **SPEC-GOOSE-CONTEXT-001**: `Compactor { ShouldCompact(s loop.State) bool; Compact(s loop.State) (loop.State, loop.CompactBoundary, error) }` 인터페이스 (value receivers, CONTEXT-001 §6.2 L321-332 / §6.3 L359-362 정의). 본 SPEC은 trajectory용 별도 API(`Compress`)를 제공하고, 옵션으로 CONTEXT-001 호환 `CompactorAdapter`를 제공한다 — 어댑터는 value-receiver 시그니처를 **그대로** 구현하고 `AutoCompact` 전략 변종만 담당한다.
 
 ### 2.3 범위 경계
 
@@ -136,7 +138,13 @@ GOOSE-AGENT **자기진화 파이프라인의 Layer 2**를 정의한다. SPEC-GO
 
 **REQ-COMPRESSOR-017 [Optional]** — **Where** `CompressionConfig.SummarizerPromptTemplate` is provided, the compressor **shall** use it instead of the built-in template; template **shall** support variables `{{.Turns}}`, `{{.ModelName}}`, `{{.TargetTokens}}`.
 
-**REQ-COMPRESSOR-018 [Optional]** — **Where** the compressor is invoked via the CONTEXT-001 `Compactor` adapter interface, it **shall** satisfy the same `ShouldCompact(State) bool` + `Compact(State) (State, CompactBoundary, error)` contract by translating `State.Messages` to an ephemeral `Trajectory`.
+**REQ-COMPRESSOR-018 [Optional]** — **Where** the compressor is invoked via the `CompactorAdapter`, the adapter **shall** implement CONTEXT-001의 `Compactor` 인터페이스를 동일 시그니처(value receiver: `ShouldCompact(s loop.State) bool` + `Compact(s loop.State) (loop.State, loop.CompactBoundary, error)`)로 만족시키며, 컴파일 타임 계약 증명을 위해 패키지에 `var _ loop.Compactor = (*CompactorAdapter)(nil)` assertion을 포함한다. 어댑터는 `State.Messages`를 ephemeral `Trajectory`로 번역한 뒤 inner Compressor의 `AutoCompact` 전략 변종을 실행하고, `Snip`/`ReactiveCompact` 전략은 CONTEXT-001 `DefaultCompactor`의 책임이다.
+
+**REQ-COMPRESSOR-019 [Event-Driven]** — **When** `CompactorAdapter.ShouldCompact(s loop.State)` is called, the adapter **shall** evaluate the trigger set mandated by CONTEXT-001 REQ-CTX-007 + REQ-CTX-011, returning `true` if and only if any of the following holds: (a) `TokenCountWithEstimation(s.Messages) / s.TokenLimit >= 0.80`; (b) `s.AutoCompactTracking.ReactiveTriggered == true`; (c) `len(s.Messages) > s.MaxMessageCount`; (d) `CalculateTokenWarningState(s)` 결과가 `Red` (>92%). 단일 임계치 비교(`Tokenizer.CountTrajectory(traj) > TargetMaxTokens`)만으로 판정하는 것은 금지된다.
+
+**REQ-COMPRESSOR-020 [Event-Driven]** — **When** `CompactorAdapter.Compact(s loop.State)` is invoked, the adapter **shall** select a strategy in the priority order `ReactiveCompact` > `AutoCompact` > `Snip` aligned with CONTEXT-001 REQ-CTX-008/017/018: (a) `s.AutoCompactTracking.ReactiveTriggered == true`이면 `ReactiveCompact`; (b) 그 외에 80% 임계 충족이면 `AutoCompact`; (c) 둘 다 아니면 `Snip`. 선택된 전략이 `Summarizer`를 요구하되 `inner.summarizer == nil`이면 `Snip`으로 폴백한다 (CONTEXT-001 REQ-CTX-012). `Summarizer.Summarize`가 에러를 반환하면 `Snip`으로 폴백하고 호출자에게는 에러를 전파하지 않는다 (CONTEXT-001 REQ-CTX-014). `Snip` 실행은 CONTEXT-001 `DefaultCompactor.Snip`에 위임하거나 본 SPEC 범위로 재구현하지 않는다 — 어댑터는 inner `DefaultCompactor` 핸들을 주입받아 위임할 수 있다.
+
+**REQ-COMPRESSOR-021 [Ubiquitous]** — The compressor **shall** preserve every `redacted_thinking` content block encountered in the input trajectory across all execution paths (CONTEXT-001 REQ-CTX-003 호환). Concretely: (a) `findProtectedIndices`는 `redacted_thinking` 블록을 포함한 entry의 인덱스를 자동으로 protected set에 추가한다; (b) 중간 영역 요약 시 drop 대상 턴에 `redacted_thinking` 블록이 포함되어 있으면 요약 결과(`{From:human, Value:summary}`) 양옆에 해당 블록을 보존 entry로 첨부하거나 해당 턴 자체를 protected로 승격한다; (c) 어떤 경로에서도 `redacted_thinking` 블록을 drop/mutate하지 않는다.
 
 ---
 
@@ -147,7 +155,7 @@ GOOSE-AGENT **자기진화 파이프라인의 Layer 2**를 정의한다. SPEC-GO
 **AC-COMPRESSOR-001 — Target 미만 스킵**
 - **Given** 20턴 짜리 `Trajectory`, `Tokenizer.Count` stub이 10,000을 반환, target=15,250
 - **When** `Compress(t)`
-- **Then** 반환된 `*Trajectory`가 입력과 동일 포인터 내용(새 alloc이지만 값은 등가), `metrics.SkippedUnderTarget == true`, `metrics.WasCompressed == false`, Summarizer mock 호출 0회
+- **Then** 반환된 `*Trajectory`는 입력과 **다른 포인터**이지만 `reflect.DeepEqual(got, input) == true` (새 alloc, 값은 등가), `metrics.SkippedUnderTarget == true`, `metrics.WasCompressed == false`, Summarizer mock 호출 0회
 
 **AC-COMPRESSOR-002 — 정상 압축 후 target 이하**
 - **Given** 50턴 `Trajectory`, 총 20,000 tokens, 보호 (head 4 + tail 4) = 8턴 4,000 tokens, 중간 42턴 16,000 tokens. Summarizer stub이 750-token 요약 반환
@@ -190,9 +198,9 @@ GOOSE-AGENT **자기진화 파이프라인의 Layer 2**를 정의한다. SPEC-GO
 - **Then** 반환 `[]BatchResult` 길이 10, index 3의 `Err != nil`이고 `Trajectory == 원본`, 나머지 9개는 `Err == nil`이고 `metrics.WasCompressed == true`
 
 **AC-COMPRESSOR-010 — 미압축 영역 없음**
-- **Given** 5턴 `Trajectory`(head 4 + tail 1 겹침), 총 20,000 tokens
+- **Given** 5턴 `Trajectory` (head-protected set이 첫 4 distinct role의 index {0..3}을 포함, `TailProtectedTurns=4`이므로 tail-protected set이 indices {1,2,3,4}를 포함 → 전 5턴 모두 protected, 압축 가능 구간 없음), 총 20,000 tokens (> target=15,250)
 - **When** `Compress(t)`
-- **Then** 반환 trajectory == 원본, `metrics.SkippedNoCompressibleRegion == true`, `metrics.StillOverLimit == true`, Summarizer 호출 0회
+- **Then** 반환 trajectory는 입력과 `reflect.DeepEqual` 등가, `metrics.SkippedNoCompressibleRegion == true`, `metrics.StillOverLimit == true`, Summarizer 호출 0회
 
 **AC-COMPRESSOR-011 — Summarizer 응답 과대 거부**
 - **Given** Summarizer stub이 `SummaryTargetTokens=750`의 3배인 2,250 token 응답 반환
@@ -204,10 +212,55 @@ GOOSE-AGENT **자기진화 파이프라인의 Layer 2**를 정의한다. SPEC-GO
 - **When** `Compress(t)` 후 원본 `p0` 검사
 - **Then** `p0`가 가리키는 슬라이스의 length/content가 변경되지 않음(unsafe copy semantics 확인)
 
-**AC-COMPRESSOR-013 — CONTEXT-001 Compactor 어댑터**
-- **Given** `CompactorAdapter{inner: compressor}`, stub `State.Messages`를 Trajectory로 변환
-- **When** `adapter.ShouldCompact(state)` 호출, 이어 `adapter.Compact(state)`
-- **Then** ShouldCompact는 `Tokenizer.Count(trajectory) > TargetMaxTokens`와 동등한 bool 반환, Compact는 `(newState, CompactBoundary{turn:..., messages_before:N, messages_after:M}, nil)` 반환
+**AC-COMPRESSOR-013 — CONTEXT-001 Compactor 어댑터 계약 (value receiver)**
+- **Given** `CompactorAdapter{inner: compressor, snipDelegate: defaultCompactor}`, stub `State.Messages`를 Trajectory로 변환. 컴파일 단위에 `var _ loop.Compactor = (*CompactorAdapter)(nil)` 포함.
+- **When** `adapter.ShouldCompact(s)` 호출 (value 전달), 이어 `adapter.Compact(s)` 호출 (value 전달)
+- **Then** (a) 두 메서드 시그니처 모두 value receiver (`s loop.State`)이며 반환값도 value (`loop.State`, `loop.CompactBoundary`); (b) Go 빌드가 `var _` assertion 포함 상태에서 성공; (c) `Compact` 반환값이 CONTEXT-001의 `loop.CompactBoundary` 필드(`Turn`, `Strategy`, `MessagesBefore`, `MessagesAfter`, `TokensBefore`, `TokensAfter`, `TaskBudgetPreserved`)를 전부 채움; (d) 반환된 newState의 `TaskBudget.Remaining == s.TaskBudget.Remaining` (REQ-CTX-010 호환).
+
+**AC-COMPRESSOR-014 — 메트릭 non-nil 불변식 (covers REQ-COMPRESSOR-001)**
+- **Given** Summarizer stub이 `panic("boom")` 또는 `ErrPermanent`를 반환하도록 구성, 20턴 20,000 tokens 입력
+- **When** `Compress(ctx, t)` 호출 후 반환된 `*TrajectoryMetrics` 검사
+- **Then** `metrics != nil`, `err != nil`, `metrics.SummarizationErrors >= 1`, `metrics.WasCompressed == false`, `metrics.EndedAt.After(metrics.StartedAt)`. panic 경로도 `defer` 또는 recover로 non-nil metrics를 보장한다.
+
+**AC-COMPRESSOR-015 — Tokenizer 단일 소스 정적 검증 (covers REQ-COMPRESSOR-004)**
+- **Given** 패키지 소스 트리 `internal/learning/compressor/*.go` (단, `tokenizer.go`는 제외)
+- **When** 정적 grep 기반 테스트 `TestNoHardcodedTokenRatios` 실행. 허용되지 않는 패턴 예시: `* 1.3`, `len(s) / 4`, `/ 3.5`, `SummaryTargetTokens * 2` 등 토큰/문자 비율 리터럴.
+- **Then** 매치 0건. 어긋나는 경우 테스트 실패 + 오프라인 파일/라인 출력. `tokenizer.go` 내부에서만 리터럴 비율이 허용됨.
+
+**AC-COMPRESSOR-016 — Middle region 부족 (covers REQ-COMPRESSOR-012)**
+- **Given** 15턴 `Trajectory` 총 17,000 tokens. Protected(head 4 + tail 4) = 8턴 14,000 tokens. 중간 7턴 3,000 tokens 합계. `target_compress = (17_000 - 15_250) + 750 = 2,500`. 중간 전체 3,000 > 2,500이지만 **요약 결과가 반환 후 여전히 target 초과**하도록 Summarizer stub이 정확히 750 token 요약을 반환.
+- **When** `Compress(t)`
+- **Then** Summarizer 호출 1회 (중간 전체 범위 대상), `metrics.WasCompressed == true`, `metrics.TurnsInCompressedRegion == 7`, post-compression total = 14_000 + 750 = 14,750 ≤ 15,250 → `metrics.StillOverLimit == false`. **대조군**: Protected를 6 + 5로 바꿔 중간 4턴 1,800 tokens만 남기고 target_compress=2,500 미달 시 → `metrics.StillOverLimit == true`이며 Summarizer는 여전히 1회 호출되고 가용 범위 전체를 대상으로 한다.
+
+**AC-COMPRESSOR-017 — Protected 영역 byte-exact 보존 (covers REQ-COMPRESSOR-013)**
+- **Given** 50턴 `Trajectory`, protected set = {0,1,2,4 (head)} ∪ {46,47,48,49 (tail)}. 각 protected entry의 `Value` 필드에 uniquely-identifying sentinel 문자열(예: `"__PROTECTED_<i>__"`) 삽입. Summarizer stub은 기본 750-token 요약.
+- **When** `Compress(t)` 실행 후 반환된 `compressed.Conversations` 검사
+- **Then** (a) 반환 slice에서 첫 4 entries가 입력의 indices {0,1,2,4}와 byte-for-byte 일치(순서 포함); (b) 마지막 4 entries가 입력의 indices {46,47,48,49}와 byte-for-byte 일치; (c) 중간 entry는 `{From:human, Value:<summary>}` 단 1개. 어떤 sentinel 문자열도 손실·순서 변경 없음.
+
+**AC-COMPRESSOR-018 — Custom prompt template 렌더 (covers REQ-COMPRESSOR-017)**
+- **Given** `CompressionConfig.SummarizerPromptTemplate = "Model={{.ModelName}} Target={{.TargetTokens}} Turns={{len .Turns}}"`, `SummarizerModel="gemini-3-flash"`, `SummaryTargetTokens=750`, 중간 영역 12턴 확보
+- **When** `Compress(t)` 실행, Summarizer stub이 렌더된 prompt 문자열을 수신 후 기록
+- **Then** Summarizer가 받은 prompt는 정확히 `"Model=gemini-3-flash Target=750 Turns=12"`. 기본 템플릿은 사용되지 않음 (prefix `"You are summarizing"`이 출현하지 않음을 cross-check).
+
+**AC-COMPRESSOR-019 — 어댑터 ShouldCompact 4개 trigger (covers REQ-COMPRESSOR-019)**
+- **Given** 4개 sub-case로 분리: (a) token ratio 80%, ReactiveTriggered=false, Messages<Max, WarningLevel<Red → 80% trigger; (b) token ratio 10%, ReactiveTriggered=true → Reactive trigger; (c) token ratio 10%, ReactiveTriggered=false, len(Messages)=Max+1 → MaxMessageCount trigger; (d) token ratio 93% (Red) → Red override trigger. 각 sub-case마다 나머지 조건은 모두 `false`.
+- **When** `adapter.ShouldCompact(s)` 호출 (4회)
+- **Then** 4개 sub-case 모두 `true` 반환. **대조군**: 모든 조건이 false (ratio 50%, ReactiveTriggered=false, Messages<Max, WarningLevel=Yellow)인 경우 `false` 반환.
+
+**AC-COMPRESSOR-020 — 어댑터 전략 선택 + Summarizer nil/err 폴백 (covers REQ-COMPRESSOR-020)**
+- **Given** 5개 sub-case: (a) `Summarizer!=nil`, `ReactiveTriggered=true` → ReactiveCompact; (b) `Summarizer!=nil`, `ReactiveTriggered=false`, ratio=85% → AutoCompact; (c) `Summarizer!=nil`, `ReactiveTriggered=false`, ratio=85%, `HistorySnipOnly=true` → Snip; (d) `Summarizer=nil`, ratio=85% → Snip 폴백, `CompactBoundary.Strategy == "Snip"`, Summarizer 미호출; (e) `Summarizer!=nil`이지만 `Summarize` 호출이 `ErrTransient` 반복(재시도 소진) → 어댑터는 Snip으로 폴백, `CompactBoundary.Strategy == "Snip"`, 호출자에게 error 미전파.
+- **When** 각 sub-case에 대해 `adapter.Compact(s)` 호출
+- **Then** 기대 strategy가 `CompactBoundary.Strategy`에 기록됨. sub-case (d)/(e)에서 `err == nil` (REQ-CTX-014 호환), Snip 실행은 주입된 `DefaultCompactor.Snip` 대리자를 호출함이 stub 검증으로 확인됨.
+
+**AC-COMPRESSOR-021 — redacted_thinking 보존 (covers REQ-COMPRESSOR-021)**
+- **Given** 20턴 `Trajectory`, 중간 영역(index 4..15)의 index 7과 index 11이 `redacted_thinking` 블록을 포함. Summarizer stub은 정상 750-token 요약 반환. 총 토큰 overflow 조건 충족.
+- **When** `Compress(t)` 호출 후 `compressed.Conversations` 검사
+- **Then** (a) `redacted_thinking` 블록 2개 모두 결과 trajectory에 존재 (byte-exact 비교); (b) 블록 위치는 요약 entry `{From:human, Value:<summary>}`의 직전/직후에 보존 entry로 첨부되거나 해당 원본 turn 자체가 protected로 승격; (c) Summarizer는 `redacted_thinking` 블록이 제거된 clean 입력만 수신했음을 stub 호출 기록으로 검증 (LLM에 opaque 블록이 노출되지 않음); (d) 어떠한 경우에도 `redacted_thinking` 블록이 drop/mutate되지 않음.
+
+**AC-COMPRESSOR-022 — Metadata deep copy (covers REQ-COMPRESSOR-002 강화, D19)**
+- **Given** 원본 `Trajectory.Metadata = map[string]any{"session": "S1", "tags": []string{"foo"}}`, 정상 압축 경로
+- **When** `Compress(t)` 실행 후 반환된 `compressed.Metadata`를 변경 (`compressed.Metadata["session"] = "MUTATED"`, `compressed.Metadata["tags"] = append(..., "bar")`)
+- **Then** 원본 `t.Metadata["session"] == "S1"` (변경 없음), 원본 `t.Metadata["tags"]` 는 `["foo"]` 유지. `compressed.Metadata`는 원본과 **별개 map 인스턴스**이며, 중첩 slice/map도 deep copy됨.
 
 ---
 
@@ -243,11 +296,18 @@ type CompressionConfig struct {
     SummaryTargetTokens      int           // 기본 750
     TailProtectedTurns       int           // 기본 4
     MaxConcurrentRequests    int           // 기본 50
-    MaxRetries               int           // 기본 3
+    MaxRetries               int           // 기본 3 (offline batch 경로)
+    AdapterMaxRetries        int           // 기본 1 (in-session adapter 경로, UI blocking 방지; D13/R5)
     BaseDelay                time.Duration // 기본 2s
     PerTrajectoryTimeout     time.Duration // 기본 300s
     SummarizerPromptTemplate string        // optional; 비면 기본 템플릿
     SummarizerModel          string        // optional hint; 실제 선택은 Summarizer 구현체 결정
+    // SummaryOvershootFactor (기본 2.0): Summarizer 응답이
+    // SummaryTargetTokens * SummaryOvershootFactor를 초과하면 REQ-015 위반.
+    // 2.0 근거: Summarizer의 stop-sequence/반올림 오차 허용 1.25x + 프롬프트 비의도적
+    // 반복/메타 주석 허용 0.75x = 2.0. 1.25x는 stop token 경계 진동에 취약,
+    // 1.5x는 반복 생성에 취약. 3.0x는 압축 목표 의미 상실. (D17 근거)
+    SummaryOvershootFactor   float64
 }
 
 func DefaultConfig() CompressionConfig  // Hermes 원본 상수 적용
@@ -374,16 +434,26 @@ func findCompressibleRegion(
 
 
 // internal/learning/compressor/adapter.go
-
-// CompactorAdapter는 CONTEXT-001의 Compactor 인터페이스 호환.
+//
+// CompactorAdapter는 CONTEXT-001의 Compactor 인터페이스 호환 (value receiver).
+// 시그니처는 CONTEXT-001 §6.2 L321-332 / §6.3 L359-362와 동일해야 함.
 type CompactorAdapter struct {
-    inner     *TrajectoryCompressor
-    messageToEntry  func(m *message.Message) trajectory.TrajectoryEntry  // 주입
+    inner          *TrajectoryCompressor
+    snipDelegate   loop.SnipCompactor             // CONTEXT-001 DefaultCompactor의 Snip 수행자; nil이면
+                                                  // 어댑터는 Snip 경로 진입 시 에러 대신 원본 State를 그대로 반환
+    messageToEntry func(m message.Message) trajectory.TrajectoryEntry  // 주입
+    entryToMessage func(e trajectory.TrajectoryEntry) message.Message  // 역변환
 }
 
-func (a *CompactorAdapter) ShouldCompact(state *loop.State) bool
-func (a *CompactorAdapter) Compact(state *loop.State) (*loop.State, CompactBoundary, error)
+// [HARD] 컴파일 타임 계약 증명 (CONTEXT-001 §6.3 L362 호환 확인용)
+var _ loop.Compactor = (*CompactorAdapter)(nil)
+
+// value receiver 시그니처 (CONTEXT-001 계약 준수)
+func (a *CompactorAdapter) ShouldCompact(s loop.State) bool
+func (a *CompactorAdapter) Compact(s loop.State) (loop.State, loop.CompactBoundary, error)
 ```
+
+`loop.State`, `loop.CompactBoundary`, `loop.Compactor`, `loop.SnipCompactor`는 모두 CONTEXT-001이 지정한 `internal/query/loop/` 패키지 소유이며, 본 SPEC 어댑터는 이 패키지를 import하여 계약에 맞춘다 (CONTEXT-001 research.md §9 단방향 의존).
 
 ### 6.3 알고리즘 의사코드 (hermes-learning.md §3 기반)
 
@@ -402,6 +472,10 @@ Compress(t):
         return t, metrics, nil
     
     protected = findProtectedIndices(t, cfg.TailProtectedTurns)
+    // REQ-021: redacted_thinking 블록을 포함한 인덱스는 protected에 자동 추가
+    for i, entry := range t.Conversations:
+        if entry.HasRedactedThinkingBlock():
+            protected[i] = struct{}{}
     compressStart, compressEnd = findCompressibleRegion(protected, len(t.Conversations))
     
     if compressStart >= compressEnd:
@@ -432,10 +506,12 @@ Compress(t):
         return t, metrics, wrap(err)
     
     summaryTokens = tokenizer.Count(summary)
-    if summaryTokens > 2 * cfg.SummaryTargetTokens:
+    // D17 근거: SummaryOvershootFactor(기본 2.0) 참조 — §6.2 주석 참고
+    if summaryTokens > int(float64(cfg.SummaryTargetTokens) * cfg.SummaryOvershootFactor):
         metrics.SummarizerOvershot = true
         return t, metrics, nil
     
+    // REQ-002/D19: Metadata deep copy로 입력 불변성 보장 (map 공유 금지).
     compressed = new Trajectory{
         Conversations: concat(
             t.Conversations[:compressStart],
@@ -443,7 +519,8 @@ Compress(t):
             t.Conversations[compressUntil:],
         ),
         Timestamp: t.Timestamp, Model: t.Model, Completed: t.Completed,
-        SessionID: t.SessionID, Metadata: t.Metadata,
+        SessionID: t.SessionID,
+        Metadata:  deepCopyMetadata(t.Metadata),   // map/slice/중첩 struct 복사
     }
     
     metrics.WasCompressed         = true
@@ -492,32 +569,102 @@ delay(attempt) = BaseDelay * 2^attempt * rand.Float64(0.5, 1.5)
 
 Jitter 근거: thundering herd 방지 (50개 동시 호출이 동일 시점에 재시도 몰리는 걸 방지).
 
-### 6.6 CONTEXT-001 어댑터 세부
+### 6.6 CONTEXT-001 어댑터 세부 (REQ-018/019/020/021 구현 근거)
+
+어댑터는 **value receiver** 시그니처를 유지하고, CONTEXT-001의 `ShouldCompact`/`Compact` 의미론을 그대로 재현한다. 전략 선택 순서는 `ReactiveCompact → AutoCompact → Snip` (CONTEXT-001 REQ-CTX-008/017/018) 이며, `Summarizer == nil` 또는 `Summarize` 에러 시 `Snip` 폴백 (REQ-CTX-012/014).
 
 ```go
-func (a *CompactorAdapter) ShouldCompact(state *loop.State) bool {
-    traj := messagesToTrajectory(state.Messages)
-    return a.inner.tokenizer.CountTrajectory(traj) > a.inner.cfg.TargetMaxTokens
+// REQ-019: 4개 trigger 의미론 (CONTEXT-001 REQ-CTX-007 + REQ-CTX-011)
+func (a *CompactorAdapter) ShouldCompact(s loop.State) bool {
+    ratio := float64(loop.TokenCountWithEstimation(s.Messages)) / float64(s.TokenLimit)
+    if ratio >= 0.80 {
+        return true
+    }
+    if s.AutoCompactTracking.ReactiveTriggered {
+        return true
+    }
+    if len(s.Messages) > s.MaxMessageCount {
+        return true
+    }
+    // Red override (>92%): REQ-CTX-011
+    if loop.CalculateTokenWarningState(s).Level == loop.WarningRed {
+        return true
+    }
+    return false
 }
 
-func (a *CompactorAdapter) Compact(state *loop.State) (*loop.State, CompactBoundary, error) {
-    traj := messagesToTrajectory(state.Messages)
-    compressed, metrics, err := a.inner.Compress(ctx, traj)
-    if err != nil {
-        return state, CompactBoundary{}, err
+// REQ-020: 전략 선택 + Summarizer nil/err 폴백
+// REQ-021: redacted_thinking 보존
+func (a *CompactorAdapter) Compact(s loop.State) (loop.State, loop.CompactBoundary, error) {
+    strategy := a.selectStrategy(s)
+
+    // (b) Summarizer == nil 폴백 (CONTEXT-001 REQ-CTX-012)
+    if (strategy == loop.StrategyAutoCompact || strategy == loop.StrategyReactiveCompact) &&
+       a.inner.summarizer == nil {
+        strategy = loop.StrategySnip
     }
-    newState := cloneState(state)
-    newState.Messages = trajectoryToMessages(compressed)
-    boundary := CompactBoundary{
-        Turn:           state.TurnCount,
-        MessagesBefore: len(state.Messages),
-        MessagesAfter:  len(newState.Messages),
-        TokensBefore:   metrics.OriginalTokens,
-        TokensAfter:    metrics.CompressedTokens,
+
+    switch strategy {
+    case loop.StrategySnip:
+        // Snip은 CONTEXT-001 DefaultCompactor 책임 — 어댑터는 위임만 수행
+        if a.snipDelegate != nil {
+            return a.snipDelegate.Snip(s)
+        }
+        // delegate 미주입 시 no-op (원본 State 반환)
+        return s, loop.CompactBoundary{
+            Turn: s.TurnCount, Strategy: "Snip",
+            MessagesBefore: len(s.Messages), MessagesAfter: len(s.Messages),
+            TaskBudgetPreserved: true,
+        }, nil
+
+    case loop.StrategyAutoCompact, loop.StrategyReactiveCompact:
+        traj := a.messagesToTrajectoryPreservingRedacted(s.Messages)  // REQ-021
+        // adapterConfig는 inner.cfg를 AdapterMaxRetries로 override (D13/R5)
+        compressed, metrics, err := a.inner.CompressWithRetries(ctx, traj, a.inner.cfg.AdapterMaxRetries)
+        if err != nil {
+            // CONTEXT-001 REQ-CTX-014: Summarizer 에러 시 Snip 폴백 (에러 미전파)
+            a.inner.logger.Warn("summarizer failed; falling back to Snip",
+                zap.Error(err), zap.String("strategy", string(strategy)))
+            if a.snipDelegate != nil {
+                return a.snipDelegate.Snip(s)
+            }
+            return s, loop.CompactBoundary{Turn: s.TurnCount, Strategy: "Snip"}, nil
+        }
+        newState := cloneStateDeep(s)
+        newState.Messages = a.trajectoryToMessagesPreservingRedacted(compressed)  // REQ-021
+        // TaskBudget.Remaining 보존 (CONTEXT-001 REQ-CTX-010)
+        newState.TaskBudget.Remaining = s.TaskBudget.Remaining
+        boundary := loop.CompactBoundary{
+            Turn:                s.TurnCount,
+            Strategy:            string(strategy),
+            MessagesBefore:      len(s.Messages),
+            MessagesAfter:       len(newState.Messages),
+            TokensBefore:        metrics.OriginalTokens,
+            TokensAfter:         metrics.CompressedTokens,
+            TaskBudgetPreserved: true,
+        }
+        return newState, boundary, nil
     }
-    return newState, boundary, nil
+    return s, loop.CompactBoundary{}, fmt.Errorf("unknown strategy: %v", strategy)
+}
+
+// selectStrategy: CONTEXT-001 REQ-CTX-008/017/018 우선순위
+func (a *CompactorAdapter) selectStrategy(s loop.State) loop.CompactStrategy {
+    if s.HistorySnipOnly {
+        return loop.StrategySnip                                      // REQ-CTX-016
+    }
+    if s.AutoCompactTracking.ReactiveTriggered {
+        return loop.StrategyReactiveCompact                           // REQ-CTX-017
+    }
+    ratio := float64(loop.TokenCountWithEstimation(s.Messages)) / float64(s.TokenLimit)
+    if ratio >= 0.80 {
+        return loop.StrategyAutoCompact                               // REQ-CTX-018
+    }
+    return loop.StrategySnip
 }
 ```
+
+`messagesToTrajectoryPreservingRedacted` / `trajectoryToMessagesPreservingRedacted` 쌍은 **REQ-021의 핵심 구현**으로, `redacted_thinking` content block을 부가 payload로 운반하여 요약 전후 어느 경로에서도 drop/mutate되지 않도록 보장한다. Summarizer에 전달되는 `middle_slice`에서는 `redacted_thinking` 블록을 먼저 제거(opaque 블록이 LLM에 노출되지 않도록)한 뒤, 요약 결과 entry 양옆에 보존 entry로 재부착한다.
 
 ### 6.7 TDD 진입 순서
 
@@ -533,9 +680,18 @@ func (a *CompactorAdapter) Compact(state *loop.State) (*loop.State, CompactBound
 10. **RED #10**: `TestCompress_SummarizerOvershot` — AC-COMPRESSOR-011.
 11. **RED #11**: `TestBatch_50Parallelism` — AC-COMPRESSOR-008.
 12. **RED #12**: `TestBatch_IndividualFailureIsolated` — AC-COMPRESSOR-009.
-13. **RED #13**: `TestAdapter_CompactorInterfaceCompatible` — AC-COMPRESSOR-013.
-14. **GREEN**: 알고리즘 본체 + Summarizer retry wrapper + Semaphore batch.
-15. **REFACTOR**: `protected.go`로 보호 계산 추출, `retry.go`로 backoff 추출.
+13. **RED #13**: `TestAdapter_CompactorInterfaceCompatible` — AC-COMPRESSOR-013 (value-receiver + `var _ loop.Compactor = ...`).
+14. **RED #14**: `TestCompress_MetricsNonNilOnErrorPath` — AC-COMPRESSOR-014 (REQ-001).
+15. **RED #15**: `TestNoHardcodedTokenRatios` — AC-COMPRESSOR-015 (REQ-004, 정적 grep).
+16. **RED #16**: `TestCompress_MiddleRegionShortOfTarget` — AC-COMPRESSOR-016 (REQ-012).
+17. **RED #17**: `TestCompress_ProtectedByteExactPreservation` — AC-COMPRESSOR-017 (REQ-013).
+18. **RED #18**: `TestCompress_CustomPromptTemplateRenders` — AC-COMPRESSOR-018 (REQ-017).
+19. **RED #19**: `TestAdapter_ShouldCompact_FourTriggers` — AC-COMPRESSOR-019 (REQ-019).
+20. **RED #20**: `TestAdapter_StrategySelection_And_NilSummarizerFallback` — AC-COMPRESSOR-020 (REQ-020).
+21. **RED #21**: `TestCompress_RedactedThinkingPreserved` — AC-COMPRESSOR-021 (REQ-021).
+22. **RED #22**: `TestCompress_MetadataDeepCopy` — AC-COMPRESSOR-022 (REQ-002 강화/D19).
+23. **GREEN**: 알고리즘 본체 + Summarizer retry wrapper + Semaphore batch + adapter strategy selector + redacted-thinking preserver + metadata deep copy.
+24. **REFACTOR**: `protected.go`로 보호 계산 추출, `retry.go`로 backoff 추출, `redacted.go`로 redacted_thinking preserver 추출, `strategy.go`로 어댑터 전략 선택 추출.
 
 ### 6.8 TRUST 5 매핑
 
@@ -574,7 +730,7 @@ func (a *CompactorAdapter) Compact(state *loop.State) (*loop.State, CompactBound
 | R2 | Summarizer가 압축 목표(`SummaryTargetTokens=750`)를 무시하고 장황한 요약 반환 | 중 | 중 | REQ-015/AC-011로 2배 초과 시 폐기. 프롬프트 템플릿에 "≤ 750 tokens" 명시 |
 | R3 | 보호 인덱스 규칙이 한 도메인에 편향됨(예: 툴 많은 세션은 head 4 role 만족 못함) | 중 | 낮 | `findProtectedIndices`가 없는 role은 스킵(nil entry 안 만듦). Edge case 테스트 추가 |
 | R4 | Batch 50 동시성이 provider RPM 한도 위반 | 중 | 중 | `MaxConcurrentRequests` 설정 가능. Hermes 원본값 50은 Gemini 3 Flash 전용. 타 모델은 RATELIMIT-001과 교차 조정 |
-| R5 | Retry jittered backoff가 CONTEXT-001의 in-session compaction에서 너무 길음(21s worst case가 UI blocking) | 중 | 중 | 어댑터 경로는 `MaxRetries=1`로 재구성 가능. CONTEXT-001에서 override 주입 |
+| R5 | Retry jittered backoff가 CONTEXT-001의 in-session compaction에서 너무 길음(21s worst case가 UI blocking) | 중 | 중 | `CompressionConfig.AdapterMaxRetries`(기본 1) 필드로 어댑터 경로만 별도 상한 지정(§6.2 / D13). offline batch 경로는 `MaxRetries=3` 유지. 어댑터가 `inner.CompressWithRetries(ctx, traj, AdapterMaxRetries)`를 호출하여 override를 강제한다 |
 | R6 | Summarizer가 PII를 요약에 노출(원본에는 redact됐으나 LLM 응답은 아님) | 중 | 고 | TRAJECTORY-001에서 redact한 궤적만 입력 허용. 프롬프트에 "do not reveal masked tokens" 명시. 향후 2차 redact pass 고려 |
 | R7 | StillOverLimit 궤적이 누적되어 LoRA 훈련 시 batch skew | 낮 | 중 | INSIGHTS-001가 비율 모니터링, 임계치 초과 시 TargetMaxTokens 재조정 권고 |
 | R8 | 어댑터 경로의 `messagesToTrajectory` 변환 비용이 매 turn 반복 | 중 | 낮 | CONTEXT-001에서 ShouldCompact는 cheap tokenizer만 호출, 변환은 Compact 시에만 |
@@ -621,6 +777,9 @@ func (a *CompactorAdapter) Compact(state *loop.State) (*loop.State, CompactBound
 - 본 SPEC은 **Summarizer 모델 선택 자체를 구현하지 않는다**. ROUTER-001 위임.
 - 본 SPEC은 **압축 결과의 품질 회귀 검증을 포함하지 않는다**. REFLECT-001에서 평가.
 - 본 SPEC은 **LoRA 훈련 데이터셋 포맷 변환을 포함하지 않는다**. LORA-001.
+- 본 SPEC은 **CONTEXT-001의 `Snip` 전략 구체 구현(protected window + redacted_thinking 마커 부착)을 포함하지 않는다**. `CompactorAdapter.Compact`의 Snip 폴백 경로는 CONTEXT-001 `DefaultCompactor.Snip`에 주입 위임한다.
+- 본 SPEC은 **CONTEXT-001의 `ReactiveCompact` 분기 자체를 독립 구현하지 않는다**. 어댑터는 `ReactiveTriggered` 신호를 전달받아 전략 선택에 반영할 뿐, 예측/트리거 설정(`ReactiveTriggered = true`)은 SPEC-GOOSE-QUERY-001 책임이다.
+- 본 SPEC은 **`loop.State`/`loop.CompactBoundary` 타입을 정의하지 않는다**. 정의는 SPEC-GOOSE-QUERY-001 `internal/query/loop/` 소유이며, 본 SPEC은 consumer/producer.
 
 ---
 

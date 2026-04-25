@@ -1,15 +1,16 @@
 ---
 id: SPEC-GOOSE-HEALTH-001
 version: 0.1.0
-status: Planned
-created: 2026-04-22
-updated: 2026-04-22
+status: planned
+created_at: 2026-04-22
+updated_at: 2026-04-22
 author: manager-spec
 priority: P1
 issue_number: null
 phase: 7
 size: 중(M)
 lifecycle: spec-anchored
+labels: []
 ---
 
 # SPEC-GOOSE-HEALTH-001 — Meal · Medication · Hydration Tracker (Post-Meal Ritual, Drug Interaction Warning, No Medical Advice)

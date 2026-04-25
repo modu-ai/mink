@@ -1,15 +1,16 @@
 ---
 id: SPEC-GOOSE-RITUAL-001
-version: 0.1.0
-status: Planned
-created: 2026-04-22
-updated: 2026-04-22
+version: 0.3.0
+status: planned
+created_at: 2026-04-22
+updated_at: 2026-04-25
 author: manager-spec
 priority: P0
 issue_number: null
 phase: 7
 size: 대(L)
 lifecycle: spec-anchored
+labels: [ritual, orchestration, bond-score, streak, mood-adaptive, state-machine]
 ---
 
 # SPEC-GOOSE-RITUAL-001 — Daily Ritual Orchestrator (Morning + Meals×3 + Evening, Bond Level, Streaks, Mood-adaptive)
@@ -25,6 +26,8 @@ lifecycle: spec-anchored
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-22 | 초안 작성 (Phase 7 #38, 전체 리추얼 통합) | manager-spec |
+| 0.2.0 | 2026-04-25 | 감사 리포트 `RITUAL-001-audit.md` Must-Pass/Critical/Major 수정. (1) 프론트매터 `labels` 값 추가(MP-3/D1), `updated_at` 갱신. (2) REQ-012~015를 `[Unwanted]`→`[Ubiquitous]`로 재분류(MP-2/D2). (3) §5 서두에 Given-When-Then 시나리오 포맷 선언(AC↔EARS 매핑 명시)으로 MP-2 (b)/D3 해소. (4) **REQ-019 추가**: RitualCompletion 상태 전이(scheduled→triggered→{responded|skipped|failed}) 규칙 + 타임아웃 윈도우 + skip/failed 구분 명세(D5). (5) AC-013 추가(상태 전이). (6) REQ-012와 REQ-018 A2A 정책 모순 해소(D8, REQ-012에 "REQ-RITUAL-018 opt-in 경로는 예외" 절 추가). (7) REQ-016 "add 2× Bond score" → "multiply by 2" 수정(D9, AC-012 산식과 정합). | manager-spec |
+| 0.3.0 | 2026-04-25 | 감사 리포트 `RITUAL-001-review-2.md` iter 3 후속 수정. (1) **§5 13개 AC 전부 EARS 패턴으로 직접 변환**(MP-2 b / D14·D3 해소): 각 AC를 단일 EARS sentence(Event-Driven / State-Driven / Ubiquitous)로 재작성하고 setup은 본문 내 "under conditions [...]" 절로 통합, 다중 assertion은 (a)/(b)/(c) nested clauses로 분리. Given-When-Then 포맷 선언 블록 폐기, EARS 패턴 라벨로 대체. (2) **REQ 본문 구현 누출 제거**(D6/D16): REQ-001 `goosed` startup → "orchestrator bootstrap phase", REQ-002 `ErrPersistFailed` → "typed persistence-failure error", REQ-003 zap 필드명 → 행위 단위 5필드 기술, REQ-005 6-step a–f → 행위 단위 5단계, REQ-009 `ErrRitualsDisabled` → "typed rituals-disabled error", REQ-010 `< 0.3` → "configured negative-mood threshold (default 0.3, parameterized)" parameterize. (3) **REQ-014 quiet hours config 분리**(D10/D18): 23:00–06:00 hardcode → `config.rituals.quiet_hours.{start,end}` (default 23:00/06:00). (4) **REQ-018 분리**(D11/D19): REQ-018a [Optional] aggregated 메트릭 opt-in 공유, REQ-018b [Ubiquitous] 원시 payload 공유 절대 금지. REQ-012 cross-reference를 REQ-018a/018b로 업데이트. (5) **§4.7 신규**(D7/D17 해소): full-day bonus(REQ-020 [State-Driven]) 및 streak day eligibility(REQ-021 [State-Driven])를 normative REQ로 승격. AC-004는 REQ-020을, AC-005는 REQ-021을 verifies. | manager-spec |
 
 ---
 
@@ -176,17 +179,17 @@ GOOSE v6.0 Daily Companion의 **최상위 orchestration 레이어**. Phase 7의 
 
 ### 4.1 Ubiquitous
 
-**REQ-RITUAL-001 [Ubiquitous]** — The orchestrator **shall** register HOOK-001 consumers for exactly 5 ritual events (MorningBriefing, PostBreakfast, PostLunch, PostDinner, EveningCheckIn); registration failure during `goosed` startup **shall** abort bootstrap.
+**REQ-RITUAL-001 [Ubiquitous]** — The orchestrator **shall** register HOOK-001 consumers for exactly 5 ritual events (MorningBriefing, PostBreakfast, PostLunch, PostDinner, EveningCheckIn); a registration failure occurring during the orchestrator's bootstrap phase **shall** prevent the orchestrator from entering its operational state and **shall** be surfaced to the caller as a typed bootstrap-failure error.
 
-**REQ-RITUAL-002 [Ubiquitous]** — Every `RitualCompletion` **shall** be persisted to MEMORY-001 within 1 second of status update; persistence failure **shall** retry 3× with exponential backoff before returning `ErrPersistFailed`.
+**REQ-RITUAL-002 [Ubiquitous]** — Every `RitualCompletion` **shall** be persisted to MEMORY-001 within 1 second of status update; a persistence failure **shall** be retried 3 times with exponential backoff and, if all retries fail, **shall** be surfaced to the caller as a typed persistence-failure error.
 
-**REQ-RITUAL-003 [Ubiquitous]** — The orchestrator **shall** emit zap INFO logs `{user_id_hash, ritual_kind, status, bond_score_delta, streak_length}` for every completion recording.
+**REQ-RITUAL-003 [Ubiquitous]** — For every completion recording, the orchestrator **shall** emit a structured INFO-level log event whose fields cover (a) hashed user identifier, (b) ritual kind, (c) terminal status, (d) Bond score delta applied, and (e) the user's current streak length; raw user identifiers **shall not** appear in any log field.
 
 **REQ-RITUAL-004 [Ubiquitous]** — All Bond score calculations **shall** be deterministic — identical `RitualCompletion` inputs **shall** produce identical scores regardless of call time.
 
 ### 4.2 Event-Driven
 
-**REQ-RITUAL-005 [Event-Driven]** — **When** a sub-ritual SPEC (BRIEFING/HEALTH/JOURNAL) reports back completion via its callback API, the orchestrator **shall** (a) map to `RitualKind`, (b) construct `RitualCompletion`, (c) call `RecordCompletion`, (d) invoke `BondLevelCalculator.ScoreForCompletion`, (e) check `StreakTracker` update, (f) if milestone triggered, call `MilestoneNotifier`.
+**REQ-RITUAL-005 [Event-Driven]** — **When** a sub-ritual SPEC (BRIEFING/HEALTH/JOURNAL) reports completion via its callback API, the orchestrator **shall** (a) translate the callback payload into a `RitualKind`-typed `RitualCompletion` record, (b) persist the record via the completion-recording pathway, (c) apply the resulting Bond score delta to the user's accumulated total, (d) update streak state for the affected user and date, and (e) when this update crosses a streak threshold for the first time, dispatch a milestone notification.
 
 **REQ-RITUAL-006 [Event-Driven]** — **When** `StreakTracker.CurrentStreak(userID)` exceeds a `streak_targets` value for the first time, `MilestoneNotifier.Notify(milestone)` **shall** be called once; the emitted event **shall** be recorded to prevent duplicate notifications.
 
@@ -196,93 +199,170 @@ GOOSE v6.0 Daily Companion의 **최상위 orchestration 레이어**. Phase 7의 
 
 ### 4.3 State-Driven
 
-**REQ-RITUAL-009 [State-Driven]** — **While** `config.rituals.enabled == false`, the orchestrator **shall not** register any HOOK consumers; no ritual events are processed; `GetTodayStatus` **shall** return `ErrRitualsDisabled`.
+**REQ-RITUAL-009 [State-Driven]** — **While** `config.rituals.enabled == false`, the orchestrator **shall not** register any HOOK consumers; no ritual events **shall** be processed; `GetTodayStatus` **shall** return a typed "rituals-disabled" error to its caller.
 
-**REQ-RITUAL-010 [State-Driven]** — **While** a user's mood trend (last 3 days) shows persistent negative valence (< 0.3 avg), `MoodAdaptiveStrategy` **shall** default all rituals to `tone: "gentle", length: "short"`; morning fortune section **shall** be auto-disabled if style is "gentle" + fortune style is "mystical".
+**REQ-RITUAL-010 [State-Driven]** — **While** a user's mood trend over the last 3 days shows persistent negative valence (defined as average valence below the configured negative-mood threshold, default 0.3, parameterized via `config.rituals.mood_adaptive.negative_valence_threshold`), `MoodAdaptiveStrategy` **shall** default all rituals to `tone: "gentle", length: "short"`; the morning fortune section **shall** be auto-disabled if the resolved style is "gentle" and the fortune style is "mystical".
 
 **REQ-RITUAL-011 [State-Driven]** — **While** today's `EveningCheckIn` completion status is "skipped" OR "failed" for 3 consecutive days, the orchestrator **shall** send a gentle nudge at the next morning briefing: "요즘 저녁에 못 보인 것 같아 조금 걱정됐어요. 잘 지내시죠?"
 
-### 4.4 Unwanted
+### 4.4 Ubiquitous Prohibitions
 
-**REQ-RITUAL-012 [Unwanted]** — The orchestrator **shall not** use completion data for ML training or external sharing; completions remain local (MEMORY-001) and serve only as input to Bond score / Streak / Mood-adaptive logic within this process.
+> **Note (v0.2.0)**: The four requirements below were originally labelled `[Unwanted]` in v0.1.0.
+> Per audit `RITUAL-001-audit.md` D2, they are system-wide prohibitions ("shall not …"),
+> not conditional failure-mode responses (`If <undesired>, then <response>`).
+> They are therefore EARS **Ubiquitous** (negative form) and relabelled as such.
+> REQ numbers are preserved for traceability with v0.1.0.
 
-**REQ-RITUAL-013 [Unwanted]** — The orchestrator **shall not** penalize users for missed rituals via guilt-inducing language ("왜 안 오셨어요?", "실망이에요"); all nudges **shall** be empathetic ("괜찮아요", "편할 때 와주세요").
+**REQ-RITUAL-012 [Ubiquitous]** — The orchestrator **shall not** use completion data for ML training or external sharing; completions remain local (MEMORY-001) and serve only as input to Bond score / Streak / Mood-adaptive logic within this process. **Exception**: the opt-in aggregated-metrics path governed by REQ-RITUAL-018a (anonymized counters only, no payloads) is explicitly permitted and does not violate this prohibition; raw payload sharing remains absolutely prohibited under REQ-RITUAL-018b.
 
-**REQ-RITUAL-014 [Unwanted]** — Milestone notifications **shall not** be sent during quiet hours (23:00-06:00 local) per SCHEDULER-001's policy; defer to next morning.
+**REQ-RITUAL-013 [Ubiquitous]** — The orchestrator **shall not** penalize users for missed rituals via guilt-inducing language ("왜 안 오셨어요?", "실망이에요"); all nudges **shall** be empathetic ("괜찮아요", "편할 때 와주세요").
 
-**REQ-RITUAL-015 [Unwanted]** — The Bond Level API **shall not** expose raw completion history to non-internal callers; only aggregate scores and day-status summaries are surfaced.
+**REQ-RITUAL-014 [Ubiquitous]** — Milestone notifications **shall not** be dispatched during the configured quiet-hours window (parameterized via `config.rituals.quiet_hours.start` and `config.rituals.quiet_hours.end`, default values `23:00` and `06:00` local time respectively); deferred notifications **shall** be re-scheduled to the next non-quiet-hours morning.
+
+**REQ-RITUAL-015 [Ubiquitous]** — The Bond Level API **shall not** expose raw completion history to non-internal callers; only aggregate scores and day-status summaries are surfaced.
 
 ### 4.5 Optional
 
-**REQ-RITUAL-016 [Optional]** — **Where** the user's birthday is in IDENTITY-001 `important_dates` AND today matches, the orchestrator **shall** prepend a special greeting to all rituals of the day ("생일 축하합니다 🎂") and add 2× Bond score for that day.
+**REQ-RITUAL-016 [Optional]** — **Where** the user's birthday is in IDENTITY-001 `important_dates` AND today matches, the orchestrator **shall** prepend a special greeting to all rituals of the day ("생일 축하합니다 🎂") and **multiply** the day's total Bond score by 2 (applied to the sum of base scores and full-day bonus; see §6.3). This is a multiplicative modifier, not an additive one; AC-RITUAL-012 (5.5 × 2 = 11.0) fixes the arithmetic.
 
 **REQ-RITUAL-017 [Optional]** — **Where** `config.rituals.weekly_report == true`, every Sunday 22:00 local, a weekly report **shall** be generated summarizing completion rates, Bond total, streak status, and mood trend.
 
-**REQ-RITUAL-018 [Optional]** — **Where** A2A-001 is active AND user explicitly opts in, **only aggregated anonymized** metrics (completion count, streak length, no payloads) **may** be shared with trusted peer agents; specific ritual contents **shall never** be shared.
+**REQ-RITUAL-018a [Optional]** — **Where** A2A-001 is active AND the user has explicitly opted in via the documented consent surface, the orchestrator **shall** be permitted to share **only aggregated anonymized metrics** (completion count, streak length; no payloads, no identifiers, no narrative content) with trusted peer agents.
+
+**REQ-RITUAL-018b [Ubiquitous]** — The orchestrator **shall not** share raw `RitualCompletion` payloads, individual ritual contents, narrative text, or any user-identifying fields with any external agent under any circumstances. This prohibition is absolute and **shall** apply even when the REQ-RITUAL-018a opt-in is active; REQ-RITUAL-018a's permission **shall** never be interpreted as authorizing any disclosure beyond aggregated anonymized metrics.
+
+### 4.6 State Transitions (v0.2.0 addition — resolves audit D5)
+
+`RitualCompletion.Status` (Section 3.1 item 4) is a 5-state finite enum. The following requirement defines the full transition graph, the event that causes each transition, and the skip-vs-failed distinction.
+
+**Legal transition graph:**
+
+```
+                    (hook fires)              (user responds within window)
+     scheduled ───────────────────▶ triggered ──────────────────────────────▶ responded [terminal]
+         │                              │
+         │                              ├─ (timeout window elapses, no user action)
+         │                              │      ────────────────────────▶ skipped [terminal]
+         │                              │
+         │                              └─ (sub-ritual SPEC callback reports error)
+         │                                     ────────────────────────▶ failed [terminal]
+         │
+         └─ (orchestrator shutdown / config.rituals.enabled=false before HOOK fires)
+                ──────────────▶ (record deleted, no terminal state written)
+```
+
+**Timeout window** = the per-ritual `prompt_timeout_min` (default 60 minutes; see §6.3 and research.md §7.1 config). Measured from the `triggered` timestamp; on expiry the record transitions to `skipped`.
+
+**REQ-RITUAL-019 [Ubiquitous]** — Every `RitualCompletion` record **shall** follow the finite-state transition graph defined in §4.6. Specifically:
+1. A record is created in state `scheduled` at the moment the orchestrator subscribes the HOOK-001 consumer for that ritual day.
+2. The transition `scheduled → triggered` **shall** occur exactly when the HOOK-001 consumer callback fires for that ritual event; the `triggered_at` timestamp is recorded.
+3. The transition `triggered → responded` **shall** occur when a sub-ritual SPEC (BRIEFING/HEALTH/JOURNAL) callback reports successful user engagement within the per-ritual timeout window (default 60 min; overridable via `config.rituals.<kind>.prompt_timeout_min`).
+4. The transition `triggered → skipped` **shall** occur automatically when the timeout window elapses without any sub-ritual SPEC callback; skipped is **timer-initiated** (not user-initiated) and is **not** a failure.
+5. The transition `triggered → failed` **shall** occur when the sub-ritual SPEC callback reports a non-timeout error (e.g., downstream service unavailable, payload validation failure); failed is **error-initiated** and is distinct from skipped.
+6. States `responded`, `skipped`, and `failed` are **terminal**; no further transitions are legal from these states within the same ritual day.
+7. Any attempted transition not in the graph above **shall** be rejected by `RecordCompletion` with a typed error and **shall not** mutate the stored record.
+8. Retries (REQ-RITUAL-002) apply only to the persistence layer; they **shall not** cause a terminal state to be re-entered or change the record's status.
+
+**Table — Status semantics:**
+
+| Status | Who triggers transition | Meaning | Bond score contribution |
+|--------|------------------------|---------|-------------------------|
+| `scheduled` | Orchestrator `Start` | Consumer registered, HOOK not yet fired | 0 |
+| `triggered` | HOOK-001 consumer callback | Ritual delivered, awaiting user | 0 (intermediate) |
+| `responded` | Sub-ritual callback (success) | User engaged within window | Per §6.3 (base × quality) |
+| `skipped` | Timer (orchestrator clock) | Window elapsed, no response | 0, streak impact per §6.4 |
+| `failed` | Sub-ritual callback (error) | Downstream error, not user-caused | 0, does **not** break streak for current day |
+
+### 4.7 Bond Score & Streak Normative Rules (v0.3.0 addition — resolves audit D7/D17)
+
+The Bond score base values (Section 6.3) and streak day eligibility (Section 6.4) are technical contracts described in §6 for implementation guidance. The following two requirements promote the directly user-observable rules to normative status so that AC-004 and AC-005 verify EARS requirements rather than implementation sections.
+
+**REQ-RITUAL-020 [State-Driven]** — **While** a single ritual day's `RitualCompletion` records satisfy [`FullCompleteCount >= 5`, meaning all 5 ritual kinds reached state `responded` with `quality == "full"`], the day's total Bond score **shall** include an additive full-day bonus of `+1.0` on top of the sum of base scores; this bonus **shall** be applied at most once per `(userID, date)` tuple and **shall** be visible via `GetTodayStatus.BondScoreEarned`.
+
+**REQ-RITUAL-021 [State-Driven]** — **While** evaluating whether a given calendar day counts as a streak day for a user, the orchestrator **shall** treat the day as a streak day if and only if at least one of the user's `Morning` or `Evening` `RitualCompletion` records for that day is in state `responded` with `quality` of `"full"` or `"partial"`; days where both Morning and Evening are in any non-`responded` terminal state (i.e., `skipped` or `failed`) **shall** break the current streak.
 
 ---
 
 ## 5. 수용 기준
 
-**AC-RITUAL-001 — 5개 HOOK consumer 등록**
-- **Given** `config.rituals.enabled=true`, goosed bootstrap
-- **When** `orchestrator.Start(ctx)`
-- **Then** HOOK-001 registry에 Morning/PostBreakfast/PostLunch/PostDinner/EveningCheckIn 각 consumer 1개씩 총 5개 등록됨.
+> **Format declaration (v0.3.0 — resolves audit D14 / MP-2 (b))**
+>
+> Acceptance criteria in this section are written in **EARS syntax**. Each AC consists of a single normative `shall` statement classified by EARS pattern (Ubiquitous / Event-Driven / State-Driven / Optional). Multi-condition setup that would traditionally be expressed as Given clauses is folded into the EARS sentence as a `under conditions [...]` or `while [...]` qualifier. Multi-part observable outcomes are expressed as nested `(a)`, `(b)`, `(c)` clauses within a single `shall` predicate.
+>
+> Each AC includes a `**Verifies:** REQ-RITUAL-NNN` annotation establishing traceability to the normative §4 requirement(s) it tests, and an `[EARS pattern]` label after the AC heading.
+>
+> Tooling consumers (e.g., `manager-ddd` / `manager-tdd`) should treat each AC as a directly testable contract and the §6.9 TDD entry list as the canonical mapping from AC to test function.
 
-**AC-RITUAL-002 — Completion 영속**
-- **Given** Morning briefing 완수 후 BRIEFING-001이 callback 호출
-- **When** `orchestrator.RecordCompletion(u1, Morning, {status:"responded", ...})`
-- **Then** MEMORY-001에 session_id="rituals" 로 1 레코드 저장, `GetTodayStatus(u1).Rituals[Morning]` 조회됨.
+**AC-RITUAL-001 — 5개 HOOK consumer 등록** [EARS Event-Driven]
+**Verifies:** REQ-RITUAL-001
 
-**AC-RITUAL-003 — Bond score 결정론**
-- **Given** `RitualCompletion{kind:Evening, status:"responded", quality:"full"}`
-- **When** `BondLevelCalculator.ScoreForCompletion` 100회 반복
-- **Then** 모든 호출 반환값 2.0 일치.
+**When** `orchestrator.Start(ctx)` is invoked at orchestrator bootstrap under conditions [`config.rituals.enabled == true`], the orchestrator **shall** register exactly 5 consumers in the HOOK-001 registry, one for each of the ritual events Morning, PostBreakfast, PostLunch, PostDinner, and EveningCheckIn, such that the registry exposes (a) exactly 5 ritual-class consumers attributable to this orchestrator and (b) one consumer per ritual kind with no duplicates.
 
-**AC-RITUAL-004 — Full day bonus**
-- **Given** 오늘 5개 ritual 모두 quality=full 완수
-- **When** `GetTodayStatus.BondScoreEarned`
-- **Then** 기본 점수(1+0.5×3+2=4.5) + full day bonus(1.0) = 5.5.
+**AC-RITUAL-002 — Completion 영속** [EARS Event-Driven]
+**Verifies:** REQ-RITUAL-002
 
-**AC-RITUAL-005 — Streak 집계**
-- **Given** 5일 연속 morning+evening 완수, 6일째 evening skip
-- **When** `StreakTracker.CurrentStreak(u1)`
-- **Then** 5일째는 5, 6일째 0 (streak break).
+**When** `orchestrator.RecordCompletion(u1, Morning, {status: "responded", ...})` is invoked under conditions [a sub-ritual SPEC has just reported completion via its callback API], the orchestrator **shall** (a) persist exactly one `RitualCompletion` record to the local memory layer with `session_id == "rituals"`, and (b) make the persisted record retrievable via `GetTodayStatus(u1).Rituals[Morning]` immediately after the call returns.
 
-**AC-RITUAL-006 — 7일 Milestone 1회 발화**
-- **Given** `streak_targets=[7,30,100]`, current streak=7 도달
-- **When** `RecordCompletion` 후 milestone check
-- **Then** `MilestoneNotifier.Notify(7일)` 1회 호출, 동일 streak 에서 재발화 0회.
+**AC-RITUAL-003 — Bond score 결정론** [EARS Ubiquitous]
+**Verifies:** REQ-RITUAL-004
 
-**AC-RITUAL-007 — Mood low → gentle tone**
-- **Given** INSIGHTS mock이 최근 3일 valence 평균 0.25 반환
-- **When** `AdjustRitualStyle(Morning, currentMood)`
-- **Then** 반환 Override에 `tone="gentle", length="short"` 포함.
+The Bond score calculator **shall** be deterministic: given the input `RitualCompletion{kind: Evening, status: "responded", quality: "full"}`, 100 consecutive invocations of `BondLevelCalculator.ScoreForCompletion` **shall** each return the identical numeric value `2.0` with zero variance attributable to call timing, invocation order, or process state.
 
-**AC-RITUAL-008 — Evening 3일 연속 skip → 다음 morning nudge**
-- **Given** 3일 연속 evening status="skipped", 다음 morning briefing 실행
-- **When** `BRIEFING-001` 프롬프트 조립 시 orchestrator 컨텍스트 주입
-- **Then** briefing narrative에 "요즘 저녁에" 또는 "잘 지내시죠" 문구 포함.
+**AC-RITUAL-004 — Full day bonus** [EARS State-Driven]
+**Verifies:** REQ-RITUAL-020 (full-day bonus, §4.7), REQ-RITUAL-004 (determinism)
 
-**AC-RITUAL-009 — Guilt-free 언어**
-- **Given** 사용자가 2일 연속 전체 ritual skip
-- **When** 다음 날 아침 nudge
-- **Then** "실망", "왜 안", "서운" 같은 키워드 0회, "괜찮", "편할 때" 같은 공감 키워드 포함.
+**While** today's `RitualCompletion` records satisfy [all 5 ritual kinds in state `responded` with `quality == "full"`], a query of `GetTodayStatus.BondScoreEarned` **shall** return exactly `5.5`, decomposed as (a) the sum of base scores 1.0 (Morning) + 0.5 × 3 (Breakfast/Lunch/Dinner) + 2.0 (Evening) = 4.5, plus (b) the full-day bonus of 1.0 awarded when all 5 rituals reach `responded` with `quality == "full"`.
 
-**AC-RITUAL-010 — A2A 데이터 격리**
-- **Given** A2A mock connection 있음, 사용자 opt-in 없음
-- **When** `RecordCompletion`
-- **Then** A2A 전송 0회.
+**AC-RITUAL-005 — Streak 집계** [EARS State-Driven]
+**Verifies:** REQ-RITUAL-021 (streak day eligibility, §4.7), REQ-RITUAL-005 step (d)
 
-**AC-RITUAL-011 — 비활성 시 no-op**
-- **Given** `config.rituals.enabled=false`
-- **When** `orchestrator.Start(ctx)`
-- **Then** HOOK consumer 0개 등록, `GetTodayStatus` → `ErrRitualsDisabled`.
+**While** the user `u1`'s ritual history satisfies [5 consecutive days where Morning AND Evening transitioned to `responded`, followed by day 6 where Evening transitioned to `skipped`], a query of `StreakTracker.CurrentStreak(u1)` **shall** return (a) `5` when evaluated at the close of day 5, and (b) `0` when evaluated at the close of day 6, reflecting an immediate streak break upon the day-6 Evening skip per §6.4.
 
-**AC-RITUAL-012 — 생일 2x 점수**
-- **Given** IDENTITY u1 birthday=today, 5개 ritual 전부 완수
-- **When** `GetTodayStatus.BondScoreEarned`
-- **Then** 일반 full day 점수 (5.5)의 2배 = 11.0.
+**AC-RITUAL-006 — 7일 Milestone 1회 발화** [EARS Event-Driven]
+**Verifies:** REQ-RITUAL-006
+
+**When** `StreakTracker.CurrentStreak(u1)` reaches the configured target value `7` for the first time under conditions [`streak_targets == [7, 30, 100]` and no prior `milestone:u1:streak:7` record exists], the orchestrator **shall** invoke `MilestoneNotifier.Notify` exactly once for the 7-day milestone; subsequent `RecordCompletion` calls on the same continuous streak **shall** produce zero additional milestone invocations for the same threshold.
+
+**AC-RITUAL-007 — Mood low → gentle tone** [EARS State-Driven]
+**Verifies:** REQ-RITUAL-010
+
+**While** the user's mood trend over the last 3 days satisfies [valence average `0.25`, which is below the configured negative-mood threshold], a call to `AdjustRitualStyle(Morning, currentMood)` **shall** return a `RitualStyleOverride` whose (a) `tone` field equals `"gentle"`, and (b) `length` field equals `"short"`.
+
+**AC-RITUAL-008 — Evening 3일 연속 skip → 다음 morning nudge** [EARS Event-Driven]
+**Verifies:** REQ-RITUAL-011
+
+**When** the next morning briefing prompt is being assembled under conditions [the previous 3 consecutive `Evening` `RitualCompletion` records have status `"skipped"`], the orchestrator **shall** inject contextual nudge text into the briefing such that the assembled narrative contains at least one of the empathetic phrases `"요즘 저녁에"` or `"잘 지내시죠"`.
+
+**AC-RITUAL-009 — Guilt-free 언어** [EARS Ubiquitous]
+**Verifies:** REQ-RITUAL-013
+
+The orchestrator **shall** avoid guilt-inducing language in user-facing nudges: under conditions [a user has skipped all rituals for 2 consecutive days], the next morning nudge text emitted **shall** (a) contain zero occurrences of any of the keywords `"실망"`, `"왜 안"`, or `"서운"`, and (b) contain at least one keyword from the empathetic set `{"괜찮", "편할 때"}`.
+
+**AC-RITUAL-010 — A2A 데이터 격리 (default-deny)** [EARS State-Driven]
+**Verifies:** REQ-RITUAL-012, REQ-RITUAL-018b (absolute payload prohibition)
+
+**While** the A2A connection is active and the user has not provided opt-in consent for aggregated metrics, every `RecordCompletion` invocation **shall** result in exactly zero outbound A2A transmissions attributable to that completion, regardless of completion status, ritual kind, or quality.
+
+**AC-RITUAL-011 — 비활성 시 no-op** [EARS State-Driven]
+**Verifies:** REQ-RITUAL-009
+
+**While** `config.rituals.enabled == false`, an invocation of `orchestrator.Start(ctx)` **shall** (a) result in zero HOOK consumer registrations attributable to this orchestrator, and (b) cause every subsequent `GetTodayStatus` invocation to return a typed "rituals-disabled" error to the caller.
+
+**AC-RITUAL-012 — 생일 2x 점수** [EARS State-Driven]
+**Verifies:** REQ-RITUAL-016
+
+**While** today matches the user's birthday in IDENTITY-001 `important_dates` AND all 5 ritual kinds are in state `responded` with `quality == "full"`, a query of `GetTodayStatus.BondScoreEarned` **shall** return exactly `11.0`, computed as the regular full-day total (`5.5`) multiplied by the birthday modifier `2` (multiplicative, not additive).
+
+**AC-RITUAL-013 — RitualCompletion 상태 전이 (resolves audit D5)** [EARS Event-Driven]
+**Verifies:** REQ-RITUAL-019 (§4.6 state transition graph)
+
+**When** the event sequences described below execute under conditions [`config.rituals.enabled == true`, Morning ritual registered for users `u1`, `u2`, `u3` with `prompt_timeout_min == 60`, clockwork-frozen time simulation], the orchestrator **shall** enforce the §4.6 finite-state transition graph such that:
+
+(a) For user `u1`, given `Start(ctx)` at T0 (record initialized in state `scheduled`), HOOK-001 firing at `07:30` (state transitions to `triggered` with `triggered_at == 07:30`), and a BRIEFING-001 success callback at `07:45`, the stored `Status` transitions **shall** be exactly `scheduled → triggered → responded` with `responded_at == 07:45` recorded; any later `RecordCompletion` call attempting a non-terminal status for the same `(user, kind, date)` tuple **shall** return a typed `"illegal transition"` error and **shall not** mutate the stored record;
+
+(b) For user `u2`, given the same setup but no sub-ritual callback within the 60-minute timeout window, when the clockwork clock advances past `08:30` the orchestrator **shall** transition the record from `triggered` to `skipped` (timer-initiated, not user-initiated), and a late callback arriving at `09:00` **shall** be rejected with a typed `"already terminal"` error such that `Status == "skipped"` is preserved;
+
+(c) For user `u3`, given a BRIEFING-001 callback that reports a downstream error at `07:35`, the orchestrator **shall** transition the record from `triggered` to `failed` (error-initiated, distinct from `skipped`), and the streak for `u3` on this day **shall not** be broken by this `failed` state alone (per §4.6 status semantics table row 5).
 
 ---
 
@@ -476,7 +556,8 @@ BRIEFING-001 prompt 조립 시 orchestrator가 context로 nudge를 전달.
 10. RED: `TestA2A_Blocked` — AC-RITUAL-010
 11. RED: `TestDisabled_NoHookRegistration` — AC-RITUAL-011
 12. RED: `TestBirthday_DoubleScore` — AC-RITUAL-012
-13. GREEN → REFACTOR
+13. RED: `TestStatusTransitions_ScheduledTriggeredResponded_And_TimeoutSkipped_And_CallbackFailed` — AC-RITUAL-013 (covers REQ-RITUAL-019 state machine; use clockwork time freeze)
+14. GREEN → REFACTOR
 
 ### 6.10 TRUST 5 매핑
 

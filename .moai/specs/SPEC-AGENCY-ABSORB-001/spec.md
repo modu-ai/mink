@@ -1,16 +1,16 @@
 ---
 id: AGENCY-ABSORB-001
-version: 1.0.0
+version: 1.0.1
 title: /agency를 /moai design으로 흡수·통합
 status: completed
 lifecycle_level: spec-first
-created: 2026-04-20
-updated: 2026-04-24
+created_at: 2026-04-20
+updated_at: 2026-04-25
 completed: 2026-04-24
 author: GOOS행님
-priority: high
+priority: P1
 issue_number: null
-labels:
+labels: 
   - refactoring
   - skill-system
   - design-workflow
@@ -21,6 +21,7 @@ labels:
 
 ## HISTORY
 
+- 2026-04-25 (v1.0.1 audit patch): plan-audit mass-20260425 피드백 반영. 결함 수정 6건 — (D1) REQ-DETECT-003 번호 gap 설명 주석 추가(옵션 B: 외부 선행 트랙 참조 명시, 재배치 금지 제약 준수); (D2) acceptance.md Quality Gate Checklist의 "35개 REQ" → "41개 REQ"로 정정하여 spec.md footer와 일관화; (D3/D4/D5) 실행 정합성 결함(`.agency/` 8 파일 잔존, `.claude/skills/agency-*` 5 디렉터리 잔존, `.claude/agents/agency/` 6 파일 잔존)을 Open Items 테이블로 공식 이관하고 후속 SPEC `SPEC-AGENCY-CLEANUP-002`(가칭)의 선행 스펙(CL-1~CL-6) 정의; (D6) REQ-ABSORB-008의 pencil 스킬 참조에 외부 SPEC `SPEC-PENCIL-*` 위임 주석 추가 및 REQ-FALLBACK-002의 Pencil error code 4종을 본 SPEC 고유 workflow-level 폴백 계약으로 경계 명확화; REQ-DOC-001의 "확인 필요" 박스를 Open Items 참조로 정리. 코드 변경 없음, REQ 번호 재배치 없음.
 - 2026-04-24: Characterization SPEC 회고 작성 (Level 1 spec-first). 이미 구현·커밋된 흡수 작업을 EARS 형식으로 재구성하여 `.moai/specs/`에 등록. 본 SPEC은 코드 변경을 유발하지 않으며 단지 기존 구현을 문서화한다.
 - 2026-04-20 (M1): `.claude/rules/agency/constitution.md`(v3.2.0)을 `.claude/rules/moai/design/constitution.md`(v3.3.0)로 이전 완료. 원본 파일은 redirect stub으로 유지.
 - 2026-04-20 (M2): 6개 신규 design 스킬 추가 (moai-domain-brand-design, moai-domain-copywriting, moai-workflow-design-context, moai-workflow-design-import, moai-workflow-gan-loop, moai-workflow-pencil-integration).
@@ -150,7 +151,7 @@ The system SHALL provide a new workflow skill `moai-workflow-gan-loop` that abso
 The system SHALL provide three additional workflow skills to support the design pipeline:
 - `moai-workflow-design-context` (auto-load `.moai/design/` briefs into context)
 - `moai-workflow-design-import` (parse Claude Design handoff bundle)
-- `moai-workflow-pencil-integration` (Pencil MCP batch operations, conditional)
+- `moai-workflow-pencil-integration` (Pencil MCP batch operations, conditional — 자체 요구사항은 외부 SPEC `SPEC-PENCIL-*`에 정의된 REQ-PENCIL-001~016으로 관리되며 본 SPEC은 스킬 파일의 존재와 category 메타데이터만 검증한다)
 - 증거: 세 디렉터리·SKILL.md 파일 존재 (각 user-invocable=false, category="workflow", updated="2026-04-20").
 
 **REQ-ABSORB-009 (Ubiquitous)**
@@ -216,6 +217,7 @@ WHEN `moai-workflow-design-import` fails (invalid bundle, unsupported format, pa
 **REQ-FALLBACK-002 (State-Driven)**
 WHILE Phase B is active and a structured Pencil error code (`PENCIL_MCP_UNAVAILABLE`, `PENCIL_CONNECTION_FAILED`, `PENCIL_PLAN_SYNTAX_ERROR`, `PENCIL_BATCH_FAILED`) is returned by `moai-workflow-pencil-integration`, THE system SHALL log the error and continue to Phase B3 instead of returning to Phase 1 route selection.
 - 증거: design.md Phase B2.6 — "Do NOT abort the overall `/moai design` workflow. Continue to Phase B3 immediately."
+- **경계 주석**: Pencil error code 4종(`PENCIL_MCP_UNAVAILABLE`, `PENCIL_CONNECTION_FAILED`, `PENCIL_PLAN_SYNTAX_ERROR`, `PENCIL_BATCH_FAILED`)은 본 SPEC 고유의 workflow-level 폴백 계약이다. Pencil MCP 자체의 내부 에러 처리·MCP protocol·batch 연산 semantics는 외부 SPEC(`SPEC-PENCIL-*`, REQ-PENCIL-001~016)의 책임이며 본 SPEC은 재정의하지 않는다.
 
 **REQ-FALLBACK-003 (Event-Driven)**
 WHEN `moai-domain-brand-design` is invoked but `.moai/project/brand/visual-identity.md` is missing or contains `_TBD_` markers, THE skill SHALL stop and request brand interview completion before generating design output.
@@ -236,6 +238,7 @@ IF the brand files are missing when manager-spec attempts BRIEF generation, THEN
 **REQ-DETECT-003 (State-Driven)**
 WHILE `.agency/` directory exists AND `.moai/project/brand/` does not exist, THE `/moai design` workflow SHALL output a warning before route selection: "agency data detected — run `moai migrate agency` to migrate your brand context first." and continue to route selection without blocking.
 - 증거: design.md Phase 0 Check 1.
+- **번호 체계 주석**: REQ-DETECT-001, REQ-DETECT-002는 본 SPEC이 아닌 선행 `moai migrate agency` CLI 설계 트랙(외부 트랙, agency-migration CLI)에서 정의된 detection 요구사항이며, 본 SPEC은 그 후속 state-driven 검사만을 `-003`으로 번호화한다. 본 SPEC은 `-001/-002`를 재정의하지 않으며, 외부 트랙 결정 이전까지 번호 gap은 의도된 참조 포인트로 보존된다. 재배치 금지 (규칙: REQ 번호 고정).
 
 ### Category 5: Configuration & Brief Directory (REQ-CONFIG / REQ-DESIGN-DOCS)
 
@@ -284,9 +287,9 @@ IF a user invokes a deprecated `/agency` command without subcommand or with an u
 ### Category 7: Documentation Sync (REQ-DOC)
 
 **REQ-DOC-001 (Ubiquitous)**
-CLAUDE.md §4 (Agent Catalog) SHALL be updated to remove the agency planner/builder/evaluator/learner agents from the active catalog and to note that copywriter/designer are absorbed into moai-domain-* skills as path B fallback references.
+CLAUDE.md §4 (Agent Catalog) SHALL be updated to remove the agency planner/builder/evaluator/learner agents from the active catalog and to note that copywriter/designer are absorbed into moai-domain-* skills as path B fallback references. "Removed"의 정의는 **active catalog 등록 해제**이며, 파일시스템 차원의 물리적 삭제는 본 SPEC의 책임이 아니다(Exclusions L86 참조).
 - 증거: CLAUDE.md line 128-131 — "Agency Agents (2) — copywriter and designer retained as fallback path B skills" + "planner, builder, evaluator, learner removed in SPEC-AGENCY-ABSORB-001 M5".
-- **확인 필요**: 실제 agent 파일들 (`.claude/agents/agency/{planner,builder,evaluator,learner}.md`)은 여전히 디스크상에 존재 (mtime 2026-04-21). CLAUDE.md의 "removed" 표현은 active catalog 등록 측면을 의미하며, 파일 시스템 차원의 즉시 삭제는 REQ-DEPRECATE-003 deprecation window까지 보류된 것으로 해석한다. SPEC 작성자는 이 모순을 후속 sync 작업의 정리 대상으로 권고.
+- 실행 정합성 참조: Open Items #1 (SPEC-AGENCY-CLEANUP-002로 이관). 파일시스템 불일치는 REQ-DEPRECATE-003 deprecation window 종료 후 후속 cleanup SPEC에서 해소된다.
 
 **REQ-DOC-002 (Ubiquitous)**
 CLAUDE.md §9 SHALL document the new design system configuration locations: `.moai/config/sections/design.yaml`, `.moai/project/brand/`, `.claude/rules/moai/design/constitution.md`.
@@ -322,12 +325,32 @@ CLAUDE.md SHALL note that legacy `.agency/` directories are archived via the `mo
 
 ## Open Items / 확인 필요
 
-회고 작성 과정에서 발견된 모순 또는 후속 정리 권고 사항:
+회고 작성 과정에서 발견된 모순 또는 후속 정리 권고 사항. 실행 정합성(filesystem vs status=completed 선언) 관련 결함은 **후속 SPEC `SPEC-AGENCY-CLEANUP-002`(가칭)**로 공식 이관된다. 본 SPEC의 status=completed는 "문서화 완료(characterization 100%)"를 의미하며, 실행 정합성은 이관된 cleanup SPEC의 책임이다.
 
-1. **agency agent 파일 잔존**: CLAUDE.md §4는 "planner, builder, evaluator, learner removed"라 명시하나, `.claude/agents/agency/{planner,builder,evaluator,learner}.md` 6개 파일이 디스크상에 여전히 존재한다. 본 SPEC에서는 "active catalog 등록 해제 = removed"로 해석하지만, 다음 minor version에서 REQ-DEPRECATE-003 cleanup과 함께 물리적 삭제 여부를 결정해야 한다.
-2. **brand 파일 _TBD_ 미해소**: `.moai/project/brand/{brand-voice,visual-identity,target-audience}.md`에 _TBD_ 마커가 다수 잔존 (예: brand-voice.md line 12 `tone: _TBD_`). 본 SPEC의 책임은 아니나, `/moai design` 첫 실행 시 REQ-ROUTE-001에 따라 brand interview가 강제 트리거됨을 사용자에게 안내할 필요가 있다.
-3. **구버전 design 스킬 잔존**: `.claude/skills/agency-design-system/`이 여전히 존재 (mtime 2026-04-10). 본 SPEC은 새 스킬(`moai-domain-brand-design`)이 흡수된 사실만 기록하며, 구 디렉터리 정리는 후속 sync 작업으로 권고.
-4. **/agency learn·evolve 경로**: 두 명령이 `moai-workflow-research`로 라우팅되는데, 이는 직접 등가물이 아닌 "관련성 있는 스킬"이라는 절충이다. 향후 사용자 피드백에 따라 별도 SPEC으로 정식 매핑을 정의할지 검토.
+### Open Items 현황 (2026-04-25 재감사 반영)
+
+| # | 항목 | 심각도 | 이관 대상 SPEC | 근거 |
+|---|------|--------|----------------|------|
+| 1 | `.claude/agents/agency/{planner,builder,evaluator,learner,copywriter,designer}.md` 6 파일 잔존 vs CLAUDE.md §4 "removed" 선언 | minor (어휘 모호) | SPEC-AGENCY-CLEANUP-002 | 감사 리포트 D5. "active catalog 등록 해제 = removed"로 해석하되 물리적 삭제는 REQ-DEPRECATE-003 deprecation window 종료 후 수행 |
+| 2 | `.moai/project/brand/{brand-voice,visual-identity,target-audience}.md` _TBD_ 마커 다수 잔존 | 정보성 | SPEC-BRAND-ONBOARDING-001 | `/moai design` 첫 실행 시 REQ-ROUTE-001이 brand interview를 강제 트리거함 |
+| 3 | `.claude/skills/agency-*` 5개 디렉터리(agency-client-interview, agency-copywriting, agency-design-system, agency-evaluation-criteria, agency-frontend-patterns) 잔존 | minor | SPEC-AGENCY-CLEANUP-002 | 감사 리포트 D4. CLAUDE.md 선언과 filesystem 불일치. 신 스킬(`moai-domain-*`)은 정상 흡수 완료됨 |
+| 4 | `.agency/` legacy 디렉터리 8 파일(config.yaml, fork-manifest.yaml, context/\*.md 5개, templates/brief-template.md) 잔존 | major (실행 정합성) | SPEC-AGENCY-CLEANUP-002 | 감사 리포트 D3. CLAUDE.md는 "archived via `moai migrate agency`"라 선언했으나 실제 archive 미수행. 본 SPEC의 Exclusions(spec.md L86)는 **즉시 삭제 금지**를 명시하므로 SPEC 문서상 결함은 아니나, cleanup SPEC에서 `moai migrate agency` 실행 또는 물리적 삭제를 결정해야 함 |
+| 5 | `/agency learn`·`/agency evolve` → `moai-workflow-research` 라우팅은 직접 등가물이 아닌 "관련성 있는 스킬"로의 절충 | 정보성 | SPEC-AGENCY-LEARN-EVOLVE-MIGRATION | 사용자 피드백 수집 후 정식 매핑 정의 필요 |
+
+### SPEC-AGENCY-CLEANUP-002 (가칭) 선행 스펙
+
+후속 cleanup SPEC은 최소한 다음 작업을 포함해야 한다:
+
+- **CL-1**: REQ-DEPRECATE-003의 deprecation window(2 minor version cycles) 만료 시점 확인 및 물리적 삭제 대상 목록 확정.
+- **CL-2**: `.agency/` legacy 디렉터리를 `moai migrate agency`로 archive 또는 삭제. CLAUDE.md line 417 선언과 filesystem 정합성 회복.
+- **CL-3**: `.claude/skills/agency-*` 5개 디렉터리 삭제 (moai-domain-*, moai-workflow-* 신 스킬이 흡수 완료되었음을 회귀 테스트로 확인 후).
+- **CL-4**: `.claude/agents/agency/` 6 파일 삭제 결정 (planner/builder/evaluator/learner는 CLAUDE.md §4 "removed" 선언과 일치시키기 위해 삭제, copywriter/designer는 REQ-ABSORB-009에 따라 fallback path B 참조용으로 유지 여부 별도 결정).
+- **CL-5**: `.claude/commands/agency/` 8개 redirect stub 및 `.claude/rules/agency/constitution.md` redirect stub 삭제 (REQ-DEPRECATE-003 window 만료 후).
+- **CL-6**: CLAUDE.md §4의 "removed" 어휘를 filesystem 실제 상태와 동기화 (삭제 완료 시점에 "file no longer present"로 구체화).
+
+### 본 SPEC에서 다루지 않는 이유 (재확인)
+
+본 SPEC은 **characterization / 회고 SPEC**으로서 "어떤 변경이 이미 적용되었는가"를 EARS로 기록하는 역할이다. 실행 정합성 회복(물리적 삭제)은 본 SPEC의 Exclusions(L84-89)에 의해 명시적으로 **금지**되므로, 별도 cleanup SPEC 트랙이 반드시 필요하다. status=completed는 따라서 **문서화 목표 기준**의 완료 선언이며, 실행 정합성은 후속 SPEC의 책임 영역이다.
 
 ---
 

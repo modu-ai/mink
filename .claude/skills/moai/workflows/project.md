@@ -35,6 +35,22 @@ This workflow is also triggered automatically when project documentation does no
 
 ---
 
+## Scope Boundaries [HARD]
+
+[HARD] `/moai project` MUST NOT create SPEC documents under `.moai/specs/SPEC-*/`.
+
+- Allowed outputs: `.moai/project/product.md`, `.moai/project/structure.md`, `.moai/project/tech.md`, `.moai/project/codemaps/`, `.moai/project/interview.md`
+- PROHIBITED outputs: any file under `.moai/specs/`, ROADMAP.md, IMPLEMENTATION-ORDER.md, any EARS requirements document
+
+Rationale: SPEC creation is the exclusive responsibility of `/moai plan`, which invokes `manager-spec` subagent with Phase 2.3 `plan-auditor` quality gate. Bypassing this path via `/moai project` produces SPECs that skip all audit gates, yielding systemic schema defects, EARS violations, and REQ↔AC traceability gaps (see `.moai/reports/plan-audit/mass-20260425/` for historical evidence of 386 defects across 30 SPECs generated via this scope violation on 2026-04-21).
+
+Enforcement:
+- If the user asks `/moai project` to produce SPECs or ROADMAP during the interview, the agent MUST refuse and redirect: "SPEC creation requires `/moai plan`. I can generate project documentation now and record SPEC scope ideas in `structure.md` for later planning."
+- If the agent detects itself writing to `.moai/specs/` or generating EARS-format requirements, it MUST halt immediately and return a blocker report.
+- This is an [HARD] invariant of the `/moai project` workflow.
+
+---
+
 ## Phase 0: Project Type Detection
 
 [HARD] Auto-detect project type by checking for existing source code files FIRST.

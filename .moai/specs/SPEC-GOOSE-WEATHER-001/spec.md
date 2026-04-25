@@ -1,15 +1,16 @@
 ---
 id: SPEC-GOOSE-WEATHER-001
 version: 0.1.0
-status: Planned
-created: 2026-04-22
-updated: 2026-04-22
+status: planned
+created_at: 2026-04-22
+updated_at: 2026-04-22
 author: manager-spec
 priority: P1
 issue_number: null
 phase: 7
 size: 소(S)
 lifecycle: spec-anchored
+labels: []
 ---
 
 # SPEC-GOOSE-WEATHER-001 — Weather Report Tool (Global + Korean, Cache, Air Quality, Offline Fallback)

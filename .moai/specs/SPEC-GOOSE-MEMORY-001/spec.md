@@ -1,15 +1,16 @@
 ---
 id: SPEC-GOOSE-MEMORY-001
-version: 0.1.0
-status: Planned
-created: 2026-04-21
-updated: 2026-04-21
+version: 0.2.0
+status: planned
+created_at: 2026-04-21
+updated_at: 2026-04-25
 author: manager-spec
 priority: P0
 issue_number: null
 phase: 4
 size: 중(M)
 lifecycle: spec-anchored
+labels: [memory, storage, phase-4, pluggable, goose-agent]
 ---
 
 # SPEC-GOOSE-MEMORY-001 — Pluggable Memory Provider (Builtin + 외부 1개 Plugin)
@@ -19,6 +20,7 @@ lifecycle: spec-anchored
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-21 | 초안 작성 (hermes-learning.md §6 + Hermes `memory_provider.py` / `memory_manager.py` 368 LoC 기반) | manager-spec |
+| 0.2.0 | 2026-04-25 | 감사 리포트(MEMORY-001-audit.md) Must-Pass/Major 반영: labels 필드 값 주입(MP-3 해소), §5 AC 상단 Format declaration 선언(MP-2 해소, GWT는 테스트 시나리오 포맷 / normative EARS는 §4로 명시), 선택 메서드 7→9 일관화(§1·§3.1·§6.2), 6 REQ(004/011/013/017/019/020) AC 신설(AC-017~022), GC/eviction normative REQ-021 승격(§4.4·§3.2) 및 AC-023 추가 | manager-spec |
 
 ---
 
@@ -28,7 +30,7 @@ GOOSE-AGENT **자기진화 파이프라인의 Layer 4**를 정의한다. QueryEn
 
 본 SPEC이 통과한 시점에서:
 
-- `MemoryProvider` 인터페이스 11개 메서드(필수 4 + 선택 7)가 정의되고,
+- `MemoryProvider` 인터페이스 13개 메서드(필수 4 + 선택 9)가 정의되고,
 - `BuiltinProvider`가 SQLite FTS5 전문 검색 + 파일 기반 system prompt block을 제공하며,
 - `MemoryManager`가 Builtin을 항상 첫 번째로 등록 + 선언된 외부 plugin 1개를 그 뒤에 등록하되, 이름 충돌 시 충돌 감지 오류를 반환하고,
 - QueryEngine의 lifecycle 훅(`on_turn_start` / `on_session_end` / `on_pre_compress` / `on_delegation`)이 각 Provider에 순차 dispatch되며 개별 Provider 실패가 QueryEngine 흐름을 차단하지 않고,
@@ -54,7 +56,7 @@ GOOSE-AGENT **자기진화 파이프라인의 Layer 4**를 정의한다. QueryEn
 
 ### 2.3 범위 경계
 
-- **IN**: `MemoryProvider` 인터페이스(11 메서드), `MemoryManager` + 등록/조정 로직, `BuiltinProvider`(SQLite FTS5 + 파일 MEMORY.md/USER.md), session_id 격리, lifecycle 훅 dispatch, tool schema 수집 + 충돌 검출, 실패 격리, 설정 통합(config.memory.{provider, plugin}).
+- **IN**: `MemoryProvider` 인터페이스(13 메서드: 필수 4 + 선택 9), `MemoryManager` + 등록/조정 로직, `BuiltinProvider`(SQLite FTS5 + 파일 MEMORY.md/USER.md), session_id 격리, lifecycle 훅 dispatch, tool schema 수집 + 충돌 검출, 실패 격리, 설정 통합(config.memory.{provider, plugin}).
 - **OUT**: 외부 plugin 구현체(Honcho / Hindsight / Mem0 각각의 HTTP 클라이언트 — 각 별도 SPEC 또는 외부 모듈), MCP gateway(MCP-001), Identity Graph 스키마 자체(IDENTITY-001), vector embedding 검색(VECTOR-001), REFLECT-001 5단계 승격(REFLECT-001), 오래된 memory pruning 정책(초기값만 제공, 고도화는 별도 SPEC).
 
 ---
@@ -66,9 +68,9 @@ GOOSE-AGENT **자기진화 파이프라인의 Layer 4**를 정의한다. QueryEn
 1. `internal/memory/` 패키지: `MemoryProvider` 인터페이스, `MemoryManager`, `SessionContext`, `RecallResult`, `ToolSchema` 구조체.
 2. `internal/memory/builtin/` 서브패키지: `BuiltinProvider` (SQLite FTS5 + 파일 기반).
 3. `internal/memory/plugin/` 서브패키지: 외부 plugin loader의 공통 인터페이스(`PluginProvider` 어댑터). 실제 구현체는 별도 모듈.
-4. `MemoryProvider` 인터페이스 11 메서드:
+4. `MemoryProvider` 인터페이스 13 메서드:
    - **필수 4**: `Name()`, `IsAvailable()`, `Initialize(sessionID, ...)`, `GetToolSchemas()`
-   - **선택 7**: `SystemPromptBlock()`, `Prefetch(query)`, `QueuePrefetch(query)`, `SyncTurn(userMsg, assistantMsg)`, `HandleToolCall(toolName, args)`, `OnTurnStart(turn, msg)`, `OnSessionEnd(messages)`, `OnPreCompress(messages)`, `OnDelegation(task, result)`
+   - **선택 9**: `SystemPromptBlock()`, `Prefetch(query)`, `QueuePrefetch(query)`, `SyncTurn(userMsg, assistantMsg)`, `HandleToolCall(toolName, args)`, `OnTurnStart(turn, msg)`, `OnSessionEnd(messages)`, `OnPreCompress(messages)`, `OnDelegation(task, result)`
 5. `MemoryManager` 책임: provider 등록 검증(Builtin 필수 1순위, 외부 최대 1개), 이름 충돌 검출, tool schema 수집(충돌 시 에러), lifecycle 훅 순차 dispatch, 개별 provider 실패 격리.
 6. `BuiltinProvider` 기능: SQLite FTS5 풀텍스트 인덱스, `MEMORY.md` 파일 read/write, `USER.md` 파일 read(읽기 전용), `session_id` 컬럼 기반 격리, `recall(query, limit, session_id)` 구현.
 7. 설정 통합: `config.memory.builtin.db_path`, `config.memory.plugin.name`, `config.memory.plugin.config` (플러그인별 임의 YAML).
@@ -84,7 +86,7 @@ GOOSE-AGENT **자기진화 파이프라인의 Layer 4**를 정의한다. QueryEn
 - **Federated Learning / Secure Aggregation**: 로컬 저장 only. 원격 동기화는 별도 SPEC.
 - **암호화 at-rest**: SQLite 파일 권한(0600) + 디렉토리(0700) 만. DB 암호화는 선택적 향후 확장.
 - **Backup / Restore**: 사용자가 `~/.goose/memory/` 복사로 해결. 자동 백업 기능 없음.
-- **Pruning / Retention 정책**: `BuiltinProvider`에 `max_rows` 기본값만(10,000 행), LRU 자동 제거는 향후 확장.
+- **Pruning / Retention 정책**: `BuiltinProvider`에 `max_rows` 용량 한계(기본값 10,000 행, REQ-MEMORY-021로 normative)와 초과 시 FIFO 드롭(가장 오래된 `created_at` 행 제거)만 제공. LRU / 접근 시간 기반 제거, 승격 우선순위 등 고도화는 향후 확장.
 
 ---
 
@@ -134,6 +136,8 @@ GOOSE-AGENT **자기진화 파이프라인의 Layer 4**를 정의한다. QueryEn
 
 **REQ-MEMORY-017 [Unwanted]** — The `MemoryManager` **shall not** retain references to `messages[]` passed to `OnSessionEnd` or `OnPreCompress` after the hook returns; providers that need persistence must copy the data.
 
+**REQ-MEMORY-021 [Unwanted]** — The `BuiltinProvider` **shall not** allow the `facts` table to exceed `config.memory.builtin.max_rows` (default 10,000). **When** a `SyncTurn` / `SaveFact` insertion would exceed the cap, the provider **shall** delete the oldest row (minimum `created_at`, ties broken by minimum `id`) prior to insertion — FIFO eviction — and **shall** log a `warn` level zap entry `{provider: "builtin", event: "fifo_evict", evicted_id, session_id}`. No other automatic eviction strategy (LRU, confidence-weighted, TTL) **shall** be applied by this SPEC.
+
 ### 4.5 Optional (선택적)
 
 **REQ-MEMORY-018 [Optional]** — **Where** a provider implements `QueuePrefetch`, the `MemoryManager` **shall** dispatch the query asynchronously on a background goroutine and **shall not** wait for the result (best-effort cache warming).
@@ -146,7 +150,10 @@ GOOSE-AGENT **자기진화 파이프라인의 Layer 4**를 정의한다. QueryEn
 
 ## 5. 수용 기준 (Acceptance Criteria)
 
-> 각 AC는 Given-When-Then.
+> **Format declaration**: 본 섹션의 AC는 **Given/When/Then** 테스트 시나리오 포맷으로 기술된다. 이는 TDD RED 단계에서 실행 가능한 테스트로 바로 변환하기 위한 선택이며, **normative EARS 요구사항은 §4** (REQ-MEMORY-001~021)에 존재한다. GWT AC는 §4 REQ의 검증 수단(test scenario form)이지 요구사항 원본이 아니다. 각 AC는 하나 이상의 REQ에 바인딩되며, REQ-to-AC traceability는 각 AC 헤더의 REQ 참조와 §4 REQ 번호로 추적한다.
+>
+> - **Normative 층 (§4)**: EARS 5 패턴 (Ubiquitous / Event-Driven / State-Driven / Unwanted / Optional)
+> - **Verification 층 (§5)**: Given-When-Then 테스트 시나리오
 
 **AC-MEMORY-001 — Builtin 필수**
 - **Given** 새 `MemoryManager` 인스턴스
@@ -228,6 +235,53 @@ GOOSE-AGENT **자기진화 파이프라인의 Layer 4**를 정의한다. QueryEn
 - **When** manager 생성 + 모든 hook 호출
 - **Then** 오직 Builtin이 dispatch됨, 에러 없음, 시스템은 정상 작동
 
+**AC-MEMORY-017 — IsAvailable I/O 금지 검증 (REQ-MEMORY-004)**
+- **Given** `net.Dial` / `http.Client.Do` / file I/O를 가로채는 spy 레이어(`testnet.Forbidden(t)`)가 활성화된 상태에서, Builtin 및 PluginA가 등록된 manager
+- **When** `provider.IsAvailable()` 을 각 provider에 대해 100회 반복 호출
+- **Then** spy 레이어에 기록된 네트워크/파일 I/O 호출 수가 0이어야 하며, 반환 boolean은 config + credential 존재 여부만 반영 (1 µs 이내 반환)
+
+**AC-MEMORY-018 — OnPreCompress 집계 + compaction 주입 (REQ-MEMORY-011)**
+- **Given** Builtin이 `OnPreCompress` 에서 `"top-fact: user prefers Go"` 반환, PluginA가 `"recent-entity: SEOUL"` 반환
+- **When** `manager.OnPreCompress(sessionID, messages)` 호출 후 반환 문자열을 CompactBoundary 경로로 전달
+- **Then** 반환 문자열이 `"top-fact: user prefers Go"` 와 `"recent-entity: SEOUL"` 을 모두 포함하며, 등록 순서대로 나열되고, compaction prompt 빌더가 이 문자열을 prefix로 부착한 사실이 trace 로그로 확인됨 (REQ-MEMORY-020 연계)
+
+**AC-MEMORY-019 — Initialize 실패 후 dispatch 억제 + 다음 세션 재시도 (REQ-MEMORY-013)**
+- **Given** PluginA.Initialize 가 세션 `s1` 에서 `errors.New("backend down")` 반환, Builtin은 정상
+- **When** 동일 세션 `s1` 동안 `manager.OnTurnStart(s1, ...)` · `manager.SyncTurn(s1, ...)` 연속 호출 후, 새 세션 `s2` 진입하여 `manager.Initialize(s2, ...)` 호출 (이때 PluginA.Initialize 는 nil 반환하도록 변경)
+- **Then** 세션 `s1` 구간에서 PluginA 의 lifecycle 훅 호출 카운트 = 0 (Builtin 만 호출), 세션 `s2` 진입 후 PluginA.Initialize 가 재호출되며 이후 훅이 정상 dispatch 됨. `s1` 실패 상태는 `s2` 로 이월되지 않음
+
+**AC-MEMORY-020 — messages[] slice 복사 의무 검증 (REQ-MEMORY-017)**
+- **Given** Builtin 및 PluginA 가 등록, 호출 측에서 `orig := []Message{m0, m1, m2}` 를 `manager.OnSessionEnd(sessionID, orig)` 에 전달 후 `orig[0] = Message{Role:"tampered"}` 로 변조
+- **When** hook 반환 이후 각 provider 내부에 복사/영속된 `messages` 스냅샷을 조회
+- **Then** provider 측 스냅샷의 첫 번째 요소는 원본 `m0` 과 동일해야 하며 `"tampered"` 여서는 안 됨. Manager 내부에도 `orig` 슬라이스에 대한 참조가 잔존하지 않음 (reflect 기반 동일성 검사, `manager` 내부 필드를 pointer-equal 로 비교해 `false` 확인)
+
+**AC-MEMORY-021 — Plugin factory registry lookup (REQ-MEMORY-019)**
+- **Given** `internal/memory/plugin/registry.go` 에 `"github.com/goose/memory-honcho"` factory 가 등록되어 있음. `"github.com/unknown/x"` 는 미등록
+- **When**
+  - 케이스 A: `config.memory.plugin.name = "github.com/goose/memory-honcho"` 로 `MemoryManager.New` 호출
+  - 케이스 B: `config.memory.plugin.name = "github.com/unknown/x"` 로 `MemoryManager.New` 호출
+- **Then**
+  - 케이스 A: 반환 error 없음, `manager.providers[1].Name()` 이 factory 가 생산한 provider 이름과 일치
+  - 케이스 B: `errors.Is(err, ErrUnknownPlugin)` 로 실패, 어떤 plugin 도 등록되지 않음
+
+**AC-MEMORY-022 — OnPreCompress 빈 문자열은 wrapping 생략 (REQ-MEMORY-020)**
+- **Given**
+  - 케이스 A: Builtin.OnPreCompress = `"fact-1"`, PluginA.OnPreCompress = `"fact-2"`
+  - 케이스 B: Builtin.OnPreCompress = `""`, PluginA.OnPreCompress = `""`
+- **When** `manager.OnPreCompress(sessionID, messages)` 호출 후 반환 문자열을 compaction prompt 에 주입
+- **Then**
+  - 케이스 A: compaction prompt 에 `"## Memory Context\nfact-1\n\nfact-2"` 섹션이 정확히 prefix 로 존재
+  - 케이스 B: compaction prompt 에 `"## Memory Context"` 헤더 자체가 존재하지 않음 (빈 문자열은 wrapping 생략)
+
+**AC-MEMORY-023 — FIFO 용량 한계 enforcement (REQ-MEMORY-021)**
+- **Given** `config.memory.builtin.max_rows = 3` 으로 Builtin 초기화, 세션 `s1` 에 `SaveFact` 를 순서대로 4회 호출 (`f1`→`f2`→`f3`→`f4`, 각 호출 사이 `created_at` 단조 증가)
+- **When** 4번째 `SaveFact` 완료 직후 `SELECT id, key FROM facts ORDER BY id` 쿼리 실행
+- **Then**
+  - 결과 행 수 정확히 3,
+  - 최초 삽입된 `f1` 은 존재하지 않음 (FIFO 드롭),
+  - `f2` · `f3` · `f4` 가 남아 있음,
+  - zap 로그에 `{event: "fifo_evict", evicted_id: <f1의 id>, provider: "builtin"}` warn 엔트리 정확히 1건 기록됨.
+
 ---
 
 ## 6. 기술적 접근 (Technical Approach)
@@ -261,7 +315,7 @@ internal/
 // internal/memory/provider.go
 
 // MemoryProvider는 swappable memory backend 인터페이스.
-// 필수 4 + 선택 7. 선택 메서드는 기본 구현(no-op) 제공 가능.
+// 필수 4 + 선택 9. 선택 메서드는 기본 구현(no-op) 제공 가능.
 type MemoryProvider interface {
     // ===== 필수 =====
     // Name은 고유 식별자. ^[a-z][a-z0-9_-]{0,31}$
@@ -374,6 +428,7 @@ var (
     ErrInvalidProviderName  = errors.New("memory: provider name must match ^[a-z][a-z0-9_-]{0,31}$")
     ErrUserMdReadOnly       = errors.New("memory: USER.md is read-only")
     ErrProviderNotInit      = errors.New("memory: provider not initialized for this session")
+    ErrUnknownPlugin        = errors.New("memory: plugin name not registered in factory registry")
 )
 
 
@@ -554,8 +609,15 @@ func (m *MemoryManager) RegisterPlugin(p MemoryProvider) error {
 14. **RED #14**: `TestBuiltin_UserMdReadOnly` — AC-MEMORY-014.
 15. **RED #15**: `TestBuiltin_MemoryMdAppend` — AC-MEMORY-015.
 16. **RED #16**: `TestManager_BuiltinOnlyFlow` — AC-MEMORY-016.
-17. **GREEN**: Manager 등록 / dispatcher / BuiltinProvider SQLite 구현.
-18. **REFACTOR**: `dispatcher.go` 추출, `builtin/sqlite.go`의 쿼리를 constant 분리, BaseProvider 임베드 패턴 문서화.
+17. **RED #17**: `TestProvider_IsAvailableNoIO` — AC-MEMORY-017 / REQ-MEMORY-004.
+18. **RED #18**: `TestManager_OnPreCompressAggregation` — AC-MEMORY-018 / REQ-MEMORY-011.
+19. **RED #19**: `TestManager_InitErrorSuppressesUntilNextSession` — AC-MEMORY-019 / REQ-MEMORY-013.
+20. **RED #20**: `TestManager_MessagesNotRetainedAfterHook` — AC-MEMORY-020 / REQ-MEMORY-017.
+21. **RED #21**: `TestPlugin_FactoryRegistryLookup` — AC-MEMORY-021 / REQ-MEMORY-019.
+22. **RED #22**: `TestManager_OnPreCompressEmptyStringNoWrap` — AC-MEMORY-022 / REQ-MEMORY-020.
+23. **RED #23**: `TestBuiltin_FIFOEvictionOnMaxRows` — AC-MEMORY-023 / REQ-MEMORY-021.
+24. **GREEN**: Manager 등록 / dispatcher / BuiltinProvider SQLite 구현 (FIFO eviction 포함).
+25. **REFACTOR**: `dispatcher.go` 추출, `builtin/sqlite.go`의 쿼리를 constant 분리, BaseProvider 임베드 패턴 문서화, plugin registry lookup 정리.
 
 ### 6.7 TRUST 5 매핑
 

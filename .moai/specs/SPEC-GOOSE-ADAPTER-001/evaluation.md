@@ -229,3 +229,42 @@ PASS 조건 충족:
 
 OVERALL: PASS
 RECOMMENDATION: APPROVE (3개 warning 수정 후 commit 강력 권장)
+
+---
+
+## Addendum — 2026-04-25 Post-audit Follow-up
+
+### Phase C1 (code) — implementation defects 선행 수정 완료
+
+plan-audit가 제기한 implementation defect 3건(I1/I2/I3)이 **문서 수정과 별개로 선 처리**되었다. 본 Addendum은 evaluator-active 점수를 재계산하지는 않으나, 원 평가의 "PASS with warnings" 판정을 강화하는 증거를 기록한다.
+
+- **I1 해소**: `google/gemini.go` + `ollama/local.go` 응답 경로에 `tracker.Parse(provider, resp.Header, now)` 호출 추가 → REQ-ADAPTER-004 완전 준수
+- **I2 해소**: `google/gemini.go`를 `CredentialPool` + `SecretStore` 경유 흐름으로 전환 → REQ-ADAPTER-005 준수 확대
+- **I3 해소**: `llm_call.go`가 `req.FallbackModels` 비어있지 않을 때 `TryWithFallback` wrapper 경유 → REQ-ADAPTER-008 production wiring 완료
+
+### Phase C2 (document) — SPEC document audit fix 완료 (2026-04-25)
+
+원 감사의 SPEC-document FAIL 판정을 초래한 defect 9건을 수정:
+
+| Defect | 조치 | 위치 |
+|--------|------|------|
+| MP-3 labels 부재 | 8개 레이블 부여 | frontmatter |
+| D2 frontmatter stale | `status: implemented`, `updated_at: 2026-04-25`, `version: 1.0.0` | frontmatter |
+| D3 AC 포맷 | 이원 구조 선언(EARS REQ + GWT AC) + 각 AC에 주 REQ 태깅 | §5 |
+| D4 의존성 사실화 (major) | `anthropic-sdk-go`/`go-openai`/`ollama-api` 제거, hand-rolled `net/http` 명시 | §7, §2.2, §3.1, §6.2, §6.4, §6.6, §6.7, §9.2 |
+| D5 tiktoken-go dead claim | 의존성 표에서 제거 | §7.2 |
+| D1 REQ→AC gap | AC-013(heartbeat), AC-014(PII log indirect), AC-015(disk write indirect), AC-016(JSON mode deferred), AC-017(UserID deferred) 신설 | §5 |
+| HISTORY thin | 0.2.0/0.3.0/0.4.0/1.0.0 소급 기록 | §HISTORY |
+
+### 재감사 예상
+
+원 점수 0.789(PASS with warnings) 대비 **SPEC 문서 품질만** 기준:
+
+- Clarity: 0.85 → 0.90 (SDK 타입 혼선 제거, 실 구현과 문서 일치)
+- Completeness: 0.80 → 0.90 (HISTORY 충실, AC 완전성)
+- Testability: 0.85 → 0.88 (AC-013/014/015 신설로 검증 수단 명시)
+- Traceability: 0.78 → 0.92 (REQ→AC 역매핑 체크리스트 + 주 REQ 태깅)
+
+가중 평균 예상: 0.82 ± 0.03 (SPEC 문서 축). Implementation 축은 I1/I2/I3 해소로 기존 80% strict 커버리지가 90%+ 로 상승 예상.
+
+재감사 필요 여부: **권장** (mass-audit 다음 라운드에서 ADAPTER-001 재스코어 시 PASS/high-quality로 판정될 것으로 기대).

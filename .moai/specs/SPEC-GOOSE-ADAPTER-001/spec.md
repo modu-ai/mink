@@ -1,15 +1,16 @@
 ---
 id: SPEC-GOOSE-ADAPTER-001
-version: 0.1.0
-status: Planned
-created: 2026-04-21
-updated: 2026-04-21
+version: 1.0.0
+status: implemented
+created_at: 2026-04-21
+updated_at: 2026-04-25
 author: manager-spec
 priority: P0
 issue_number: null
 phase: 1
 size: 대(L)
 lifecycle: spec-anchored
+labels: ["llm-provider", "phase-1", "adapter", "credpool-extension", "anthropic", "openai", "google", "ollama"]
 ---
 
 # SPEC-GOOSE-ADAPTER-001 — 6 Provider 어댑터 (Anthropic/OpenAI/Google/xAI/DeepSeek/Ollama)
@@ -19,6 +20,10 @@ lifecycle: spec-anchored
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-21 | 초안 작성 (hermes-llm.md §7-9 + ROADMAP v2.0 Phase 1 기반) | manager-spec |
+| 0.2.0 | 2026-04-24 | Phase 2.X evaluator-fix: anthropic 429 lease Release, `pathSafe` 정리, `AnthropicThinkingParam.Type` json 태그, `TestAnthropic_ThinkingMode_EndToEnd` 추가 | manager-tdd |
+| 0.3.0 | 2026-04-24 | Phase 2.Y: REQ-ADAPTER-013 heartbeat timeout watchdog 실구현 (`constants.go` + 4 provider), xAI/DeepSeek `New() → (Adapter, error)` 에러 전파 | manager-tdd |
+| 0.4.0 | 2026-04-24 | Phase 2.Z: SPEC-GOOSE-ADAPTER-002 선행 gap 해소 — `OpenAIOptions.ExtraHeaders` + `CompletionRequest.ExtraRequestFields` 추가 | manager-tdd |
+| 1.0.0 | 2026-04-25 | 구현 완료 반영 · plan-audit defect 수정 (MP-3 labels, D1 REQ→AC gap, D2 frontmatter stale, D3 AC format declaration, D4 의존성 사실화, D5 tiktoken-go 제거) · AC-013~017 신설 · §6.4 pseudocode를 hand-rolled `net/http`로 정정 · status: planned→implemented | manager-spec |
 
 ---
 
@@ -29,10 +34,10 @@ GOOSE-AGENT Phase 1의 **LLM HTTP 호출 경계**를 정의한다. QUERY-001의 
 본 SPEC이 Plan·Run을 통과한 시점에서:
 
 - 모든 provider는 `Provider` interface(`Complete`, `Stream`, `Tools`, `Vision` capability query)를 구현하고,
-- `Anthropic` 어댑터는 **OAuth PKCE 2.1 refresh**, **thinking mode**(Adaptive Thinking), **tool schema 변환**(OpenAI → Anthropic), **PROMPT-CACHE-001의 CachePlan 소비**, **content conversion**(image/code/thinking block)을 제공하고,
-- `OpenAI` 어댑터는 `go-openai` SDK 기반으로 Chat Completions + Tools + Streaming을 구현하며 xAI/DeepSeek에 재사용되고,
-- `Google` 어댑터는 `google.golang.org/genai`로 Gemini를 구현하며,
-- `Ollama` 어댑터는 `github.com/ollama/ollama/api`로 localhost:11434 기반 로컬 모델을 지원하고,
+- `Anthropic` 어댑터는 **OAuth PKCE 2.1 refresh**, **thinking mode**(Adaptive Thinking), **tool schema 변환**(OpenAI → Anthropic), **PROMPT-CACHE-001의 CachePlan 소비**, **content conversion**(image/code/thinking block)을 hand-rolled `net/http`로 제공하고,
+- `OpenAI` 어댑터는 hand-rolled `net/http` 기반으로 Chat Completions + Tools + Streaming을 구현하며 xAI/DeepSeek에 `base_url` override로 재사용되고,
+- `Google` 어댑터는 `google.golang.org/genai`(유일한 SDK 기반 어댑터)로 Gemini를 구현하며,
+- `Ollama` 어댑터는 hand-rolled `net/http`로 localhost:11434 `/api/chat` JSON-L 기반 로컬 모델을 지원하고,
 - 모든 어댑터는 `CREDPOOL-001`의 `Refresher`를 구현(OAuth provider), `RATELIMIT-001`에 응답 헤더 전달, `ROUTER-001`이 결정한 Route를 소비한다.
 
 본 SPEC은 **QUERY-001의 `LLMCall` 시그니처 구현자**이며, QUERY-001 AC-QUERY-001~012의 모든 계약을 만족하는 stub 대체 실 구현을 제공한다.
@@ -50,10 +55,8 @@ GOOSE-AGENT Phase 1의 **LLM HTTP 호출 경계**를 정의한다. QUERY-001의 
 ### 2.2 상속 자산
 
 - **Hermes Agent Python**: `providers/anthropic_adapter.py`(1.45K LoC, 복잡도 최대), `openai_compat.py`, `google_gemini.py`, `ollama_local.py`. 본 SPEC은 **30-50%를 재사용**(hermes-llm.md §11 판정표).
-- **Anthropic 공식 SDK**: `github.com/anthropics/anthropic-sdk-go` v0.x.
-- **OpenAI-compat SDK**: `github.com/sashabaranov/go-openai` v1.x (xAI, DeepSeek, Groq 공용).
-- **Google genai SDK**: `google.golang.org/genai`.
-- **Ollama API**: `github.com/ollama/ollama/api`.
+- **HTTP client 전략 (v1.0.0 정정)**: 초기 설계는 각 provider의 공식 SDK(`anthropic-sdk-go`, `sashabaranov/go-openai`, `ollama/ollama/api`) 재사용을 가정했으나, OAuth PKCE 제어·payload 확장성·테스트 가능성을 이유로 **모든 HTTP provider를 Go 표준 라이브러리 `net/http` + `encoding/json`으로 hand-rolling**하기로 결정. 구현 완료 후 `go.mod`에 해당 SDK가 포함되지 않는다. §7.2 참조.
+- **Google genai SDK**: `google.golang.org/genai` — **유일한 SDK 기반 어댑터**. streaming/tool/vision 추상화가 hand-roll 대비 이득이 커 유지.
 
 ### 2.3 범위 경계
 
@@ -68,7 +71,7 @@ GOOSE-AGENT Phase 1의 **LLM HTTP 호출 경계**를 정의한다. QUERY-001의 
 
 1. `internal/llm/provider/` 패키지: `Provider` interface, `ProviderFactory`, `Capabilities`.
 2. **Anthropic** 어댑터 (`anthropic/`): `adapter.go`, `oauth.go`(PKCE refresh), `tools.go`(schema 변환), `content.go`(image/code/thinking), `thinking.go`, `stream.go`.
-3. **OpenAI** 어댑터 (`openai/`): `adapter.go`, `stream.go`, `tools.go`. base_url 치환으로 `xai`/`deepseek`에 재사용.
+3. **OpenAI** 어댑터 (`openai/`): `adapter.go`, `stream.go`, `tools.go` — **hand-rolled `net/http`**. `base_url` 치환으로 `xai`/`deepseek`에 재사용. v0.4.0에서 `ExtraHeaders` + `ExtraRequestFields` 확장점 추가(SPEC-002 선행).
 4. **Google** 어댑터 (`google/gemini.go`): Gemini 2.0 Flash 기본.
 5. **xAI** 어댑터 (`xai/grok.go`): OpenAI-compat 래퍼.
 6. **DeepSeek** 어댑터 (`deepseek/client.go`): OpenAI-compat 래퍼.
@@ -160,65 +163,99 @@ GOOSE-AGENT Phase 1의 **LLM HTTP 호출 경계**를 정의한다. QUERY-001의 
 
 ## 5. 수용 기준 (Acceptance Criteria)
 
-**AC-ADAPTER-001 — Anthropic 기본 streaming**
+**AC 포맷 선언 (Format Declaration)** — 본 SPEC은 다음 이원 구조를 채택한다:
+
+- §4 **REQ**는 EARS 패턴(Ubiquitous / Event-Driven / State-Driven / Unwanted / Optional)으로 시스템 요구사항을 기술한다.
+- §5 **AC**는 Given/When/Then(BDD/Gherkin) 시나리오로 작성되어, 각 AC가 **실행 가능한 httptest 기반 Go 테스트 1개 이상**과 1:1로 매핑된다. AC 자체는 EARS 문장이 아니라 EARS REQ의 **검증 명세(verification specification)**다.
+- REQ↔AC 매핑 표는 `tasks.md` §"Acceptance Criteria → Task Mapping"에 유지한다. 본 SPEC §5의 각 AC 머리말은 주 REQ 번호를 괄호로 표기한다.
+- 어떤 REQ가 간접적으로만 검증되는 경우(예: `@MX:WARN` 또는 정적 분석으로 enforcement), 해당 AC 본문에 "indirect verification" 유형을 명시한다.
+
+**AC-ADAPTER-001 — Anthropic 기본 streaming** *(주 REQ: REQ-ADAPTER-001, REQ-ADAPTER-004, REQ-ADAPTER-006)*
 - **Given** ProviderRegistry에 Anthropic 어댑터 등록, 유효한 OAuth 자격 풀, CachePlanner 주입, Route `{model:"claude-opus-4-7", provider:"anthropic"}`, messages 2개 (system + user "hello")
 - **When** `LLMCall(ctx, req)` 호출 후 `<-chan StreamEvent` drain
 - **Then** `stream_request_start` → 1+개 `text_delta` chunks → 1개 `message_stop` 순서로 수신, 채널 close. `RateLimitTracker`에 `anthropic` 상태 갱신됨
 
-**AC-ADAPTER-002 — Anthropic tool call round-trip**
+**AC-ADAPTER-002 — Anthropic tool call round-trip** *(주 REQ: REQ-ADAPTER-011)*
 - **Given** messages에 tool_result 포함, CachePlan는 system_and_3 적용
 - **When** `LLMCall` 호출 후 응답이 `tool_use{name:"echo"}` 반환
 - **Then** StreamEvent 시퀀스에 `content_block_start{type:"tool_use"}` + `input_json_delta` chunks 포함, QUERY-001의 queryLoop가 tool_use 감지 가능
 
-**AC-ADAPTER-003 — Anthropic OAuth 자동 refresh**
+**AC-ADAPTER-003 — Anthropic OAuth 자동 refresh** *(주 REQ: REQ-ADAPTER-007, REQ-ADAPTER-016)*
 - **Given** 풀 엔트리 `expires_at == now + 2분`, refreshMargin = 5분. Anthropic 토큰 엔드포인트 stub이 새 `access_token`과 rotated `refresh_token`을 반환
 - **When** `LLMCall` 호출
 - **Then** `CredentialPool.Refresher.Refresh`가 1회 호출, 풀 엔트리의 `access_token` 갱신, HTTP 호출은 새 토큰으로 수행, `~/.claude/.credentials.json`에 rotated refresh_token 기록
 
-**AC-ADAPTER-004 — OpenAI-compat streaming**
+**AC-ADAPTER-004 — OpenAI-compat streaming** *(주 REQ: REQ-ADAPTER-001, REQ-ADAPTER-004)*
 - **Given** OpenAI 어댑터, API key 자격, 모델 `gpt-4o`, messages 2개
 - **When** `LLMCall`
 - **Then** OpenAI `/v1/chat/completions` SSE로 streaming 수신, `StreamEvent{Type:"text_delta"}` 방출, 응답 헤더가 RATELIMIT에 전달
 
-**AC-ADAPTER-005 — xAI Grok (OpenAI-compat 재사용)**
+**AC-ADAPTER-005 — xAI Grok (OpenAI-compat 재사용)** *(주 REQ: REQ-ADAPTER-012)*
 - **Given** xAI 어댑터가 `openai` 어댑터를 base_url override로 감싸고 있음. 모델 `grok-2`
 - **When** `LLMCall`
 - **Then** HTTPS 호출이 `https://api.x.ai/v1/chat/completions`로 이루어지고, 성공 streaming 수신
 
-**AC-ADAPTER-006 — Google Gemini**
+**AC-ADAPTER-006 — Google Gemini** *(주 REQ: REQ-ADAPTER-001, REQ-ADAPTER-003)*
 - **Given** Google 어댑터, API key, 모델 `gemini-2.0-flash`
 - **When** `LLMCall`
 - **Then** `google.golang.org/genai` SDK 경유 streaming 수신, `StreamEvent{Type:"text_delta"}` 방출
 
-**AC-ADAPTER-007 — Ollama localhost**
+**AC-ADAPTER-007 — Ollama localhost** *(주 REQ: REQ-ADAPTER-001, REQ-ADAPTER-003)*
 - **Given** Ollama 서버 `localhost:11434` 동작 중, 모델 `llama3.2`
 - **When** `LLMCall`
 - **Then** `POST /api/chat` streaming JSON-L 수신, StreamEvent 변환 성공. Credential 미필요
 
-**AC-ADAPTER-008 — 429 후 회전 재시도**
+**AC-ADAPTER-008 — 429 후 회전 재시도** *(주 REQ: REQ-ADAPTER-005)*
 - **Given** 풀에 엔트리 2개(a, b), a 선택 후 HTTP 429(`Retry-After: 120`) 수신
 - **When** `LLMCall`
-- **Then** (1) `MarkExhaustedAndRotate("a", 429, 120s)` 호출됨, (2) b 자격으로 재시도, (3) 재시도 성공 시 stream 정상, 실패 시 `error` StreamEvent 후 close
+- **Then** (1) `MarkExhaustedAndRotate("a", 429, 120s)` 호출됨, (2) b 자격으로 재시도, (3) `MarkExhaustedAndRotate`가 반환한 `next` credential은 rotation 경로 종료 시 반드시 `pool.Release(next)`로 lease 반환(v1.0 `anthropic/adapter.go`의 Phase 2.X fix 기준), (4) 재시도 성공 시 stream 정상, 실패 시 `error` StreamEvent 후 close
 
-**AC-ADAPTER-009 — Fallback model chain**
-- **Given** primary `claude-opus`가 HTTP 529 반환, FallbackModels=["claude-sonnet"]
+**AC-ADAPTER-009 — Fallback model chain** *(주 REQ: REQ-ADAPTER-008)*
+- **Given** primary `claude-opus`가 HTTP 529 반환, FallbackModels=["claude-sonnet"], `NewLLMCall`이 fallback-aware production path로 wiring됨(`llm_call.go`가 `TryWithFallback`을 호출하거나 동등한 chaining을 수행)
 - **When** `LLMCall`
-- **Then** 투명하게 sonnet 재시도, 공개 StreamEvent에는 단일 응답처럼 보임(fallback 로그로만 식별)
+- **Then** 투명하게 sonnet 재시도, 공개 StreamEvent에는 단일 응답처럼 보임(fallback 로그로만 식별). **Production wiring 검증**: `llm_call_test.go` 또는 `fallback_test.go`에서 단순 unit 호출이 아닌 `NewLLMCall()` 경유 full stack test로 `req.FallbackModels`가 실제 소비됨을 증명
 
-**AC-ADAPTER-010 — Context cancellation**
+**AC-ADAPTER-010 — Context cancellation** *(주 REQ: REQ-ADAPTER-003)*
 - **Given** streaming 중 `ctx`가 `WithTimeout(500ms)`로 취소
 - **When** 500ms 경과
 - **Then** HTTP 요청 abort, 채널 500ms 이내 close, 마지막 StreamEvent는 `error{message:"context cancelled"}`
 
-**AC-ADAPTER-011 — Capability 체크 (vision unsupported)**
+**AC-ADAPTER-011 — Capability 체크 (vision unsupported)** *(주 REQ: REQ-ADAPTER-017)*
 - **Given** Route `{provider:"deepseek", model:"deepseek-chat"}`, DeepSeek `Capabilities.Vision == false`, CompletionRequest에 이미지 포함
 - **When** `LLMCall`
 - **Then** `ErrCapabilityUnsupported{feature:"vision", provider:"deepseek"}` 반환, HTTP 호출 발생하지 않음
 
-**AC-ADAPTER-012 — Anthropic thinking mode (Adaptive Thinking)**
+**AC-ADAPTER-012 — Anthropic thinking mode (Adaptive Thinking)** *(주 REQ: REQ-ADAPTER-009, REQ-ADAPTER-010)*
 - **Given** 모델 `claude-opus-4-7` (AdaptiveThinking == true), CompletionRequest.Thinking = `{Enabled:true, Effort:"high"}`
 - **When** `LLMCall`
-- **Then** Anthropic API 요청 payload에 `thinking: {type:"enabled", effort:"high"}`가 포함되고, `budget_tokens`는 부재. Streaming에서 `thinking_delta` StreamEvent 수신 가능
+- **Then** Anthropic API 요청 payload에 `thinking: {type:"enabled", effort:"high"}`가 포함되고(json 태그 `"type"` 직렬화됨, Phase 2.X `AnthropicThinkingParam.Type` 태그 수정 반영), `budget_tokens`는 부재. Streaming에서 `thinking_delta` StreamEvent 수신 가능. **End-to-end 검증**: `TestAnthropic_ThinkingMode_EndToEnd`가 (1) payload `thinking` 필드 존재, (2) SSE `content_block_delta.thinking_delta` 수신 → `message.TypeThinkingDelta` StreamEvent 방출을 함께 검증
+
+**AC-ADAPTER-013 — Heartbeat timeout (stream watchdog)** *(주 REQ: REQ-ADAPTER-013)*
+- **Given** httptest SSE 서버가 연결 수립 후 **아무 이벤트도 송신하지 않고 blocking** 상태로 유지됨. 어댑터는 `HeartbeatTimeout=200ms`로 생성됨 (production 기본값 60s는 테스트 시간 단축을 위해 override)
+- **When** `LLMCall` 호출 후 스트림 drain
+- **Then** (1) 채널이 **2초 이내에 close**됨 (heartbeat watchdog이 ctx/body cancel), (2) 마지막 `StreamEvent.Type == "error"`로 heartbeat 초과 메시지 포함, (3) goroutine leak 없음(`goleak.VerifyTestMain`). 검증 테스트: `TestAnthropic_HeartbeatTimeout_EmitsError`, `TestOpenAI_HeartbeatTimeout_EmitsError`, `TestOllama_HeartbeatTimeout_EmitsError`, `TestGoogle_HeartbeatTimeout_EmitsError`. 기본값 상수는 `internal/llm/provider/constants.go`에 정의(`DefaultStreamHeartbeatTimeout=60s`, `DefaultNonStreamDataTimeout=30s`)
+
+**AC-ADAPTER-014 — PII log 금지 (indirect verification)** *(주 REQ: REQ-ADAPTER-014)*
+- **Given** 어댑터가 임의의 request/response에서 zap logger에 기록한 모든 필드
+- **When** log 필드 집합을 정적 분석(`grep` 또는 test hook)으로 수집
+- **Then** 로그 필드 allowlist는 `{provider, model, message_count, tokens_estimated, route_signature, credential_id_redacted, trace_id, error_class}`에 한정. **Body/message/content/tool_arguments/response_body는 INFO 이상 레벨에 절대 기록되지 않는다**. DEBUG 레벨 response_body 발췌는 최대 500바이트 cap. 검증 방식: indirect — 코드 리뷰 + test-level log capture (`zaptest.NewLogger` + observed logs 검사). 리뷰 책임자: evaluator-active Security 축
+
+**AC-ADAPTER-015 — Disk write 제한 (indirect verification)** *(주 REQ: REQ-ADAPTER-016)*
+- **Given** 어댑터 실행 환경(`~/.goose/credentials/`, `~/.claude/.credentials.json` 경로는 임시 디렉터리로 리다이렉트)
+- **When** 전체 adapter flow(Stream/Complete/Refresh 포함) 수행
+- **Then** 파일 시스템 쓰기는 **정확히 두 경로로만** 발생: (1) `{FileSecretStore.BaseDir}/{keyringID}.json`, (2) `$HOME/.claude/.credentials.json` (Anthropic OAuth write-back 후). 로그 파일, 캐시 파일, temp 디렉터리(atomic write의 중간 파일 제외) 쓰기는 0건. 검증: `testhelper`의 `RecordingFS` 또는 `os.Chdir` + `HOME` override로 격리된 임시 경로 스캔. path traversal 방어: `FileSecretStore.CredentialFile()`이 `..` 포함 keyringID를 거부함(SPEC-GOOSE-ADAPTER-001 Phase 2.X `pathSafe` 정리로 `oauth.go`도 동일 경로 검증 경유)
+
+**AC-ADAPTER-016 — JSON mode (REQ-019, Deferred)** *(주 REQ: REQ-ADAPTER-019 [Optional])*
+- **Status**: **DEFERRED** to SPEC-GOOSE-ADAPTER-003. `CompletionRequest.ResponseFormat` 필드는 `provider.go`에 선언되어 있으나, 본 SPEC v1.0 시점 6개 어댑터 중 어느 것도 해당 필드를 소비하지 않는다. REQ-019는 Optional 분류로 MVP 스코프 외 처리.
+- **Given** SPEC-GOOSE-ADAPTER-003에서 JSON mode 지원이 계획될 때
+- **When** 해당 SPEC Plan phase 시작
+- **Then** (1) OpenAI 계열은 `response_format: {"type":"json_object"}` 파라미터 주입, (2) Gemini는 `response_mime_type: "application/json"` 파라미터 주입, (3) 미지원 provider는 `ErrCapabilityUnsupported{feature:"json_mode"}` 반환하는 AC를 SPEC-003에 작성. 본 AC는 본 SPEC 합격 기준에 포함되지 않는 **지연 명세**로 기록됨
+
+**AC-ADAPTER-017 — UserID forwarding (REQ-020, Deferred)** *(주 REQ: REQ-ADAPTER-020 [Optional])*
+- **Status**: **DEFERRED** to SPEC-GOOSE-ADAPTER-003. `CompletionRequest.Metadata.UserID` 필드는 `provider.go`에 선언되어 있으나, 본 SPEC v1.0 시점 어느 어댑터도 해당 필드를 API 요청에 forwarding하지 않는다. REQ-020은 Optional 분류로 MVP 스코프 외 처리.
+- **Given** SPEC-GOOSE-ADAPTER-003에서 user ID forwarding이 계획될 때
+- **When** 해당 SPEC Plan phase 시작
+- **Then** (1) OpenAI 계열은 `user` top-level 필드, (2) Anthropic은 `metadata.user_id` 필드로 forwarding하는 AC를 SPEC-003에 작성. 본 AC는 지연 명세
 
 ---
 
@@ -349,20 +386,27 @@ func NewLLMCall(
 
 ```go
 // internal/llm/provider/anthropic/adapter.go
+//
+// 주의: 본 어댑터는 SDK를 사용하지 않고 표준 라이브러리(`net/http` + `encoding/json`)
+// 만으로 Anthropic Messages API를 직접 호출한다. OAuth PKCE refresh, SSE 파싱,
+// tool schema 변환, thinking mode payload 구성, prompt cache marker 적용은 모두
+// 어댑터 내부 코드로 구현되며 외부 SDK 의존성이 없다.
 
 type AnthropicAdapter struct {
-    pool          *credential.CredentialPool
-    tracker       *ratelimit.Tracker
-    cachePlanner  *cache.BreakpointPlanner
-    cacheStrategy cache.CacheStrategy
-    cacheTTL      cache.TTL
-    client        *anthropic.Client // anthropic-sdk-go
-    logger        *zap.Logger
+    pool              *credential.CredentialPool
+    tracker           *ratelimit.Tracker
+    cachePlanner      *cache.BreakpointPlanner
+    cacheStrategy     cache.CacheStrategy
+    cacheTTL          cache.TTL
+    httpClient        *http.Client        // hand-rolled client (SDK 없음)
+    secretStore       provider.SecretStore
+    heartbeatTimeout  time.Duration       // REQ-ADAPTER-013 watchdog
+    logger            *zap.Logger
 }
 
 func New(opts AnthropicOptions) (*AnthropicAdapter, error)
 
-// CREDPOOL Refresher interface 구현
+// CREDPOOL Refresher interface 구현 (OAuth PKCE refresh)
 func (a *AnthropicAdapter) Refresh(
     ctx context.Context,
     entry *credential.PooledCredential,
@@ -413,59 +457,96 @@ func NewLLMCall(
 }
 ```
 
-### 6.4 Anthropic 어댑터 Stream 흐름
+### 6.4 Anthropic 어댑터 Stream 흐름 (hand-rolled `net/http`)
+
+> **주의**: 아래 의사코드는 SDK를 사용하지 않는 hand-rolled HTTP 구현을 반영한다. 요청 payload는 `encoding/json`으로 직접 마샬링하고, SSE 응답은 `bufio.Scanner`로 라인 단위 파싱하여 `anthropic/stream.go`의 이벤트 디스패처에 전달한다.
 
 ```
 Stream(ctx, req):
-  // 1. credential
-  cred, err = pool.Select(ctx, FillFirst)
+  // 1. credential 획득
+  cred, err = pool.Select(ctx)
   if err: return nil, err
   lease = pool.AcquireLease(cred.ID)
   defer lease.Release()
 
-  // 2. prompt cache
+  apiKey, err = secretStore.Resolve(ctx, cred.KeyringID)
+  if err: return nil, err
+
+  // 2. prompt cache plan 소비 (PROMPT-CACHE-001)
   plan, _ = cachePlanner.Plan(req.Messages, cacheStrategy, cacheTTL)
 
-  // 3. convert messages → Anthropic schema
+  // 3. messages → Anthropic native schema 변환
   anthropicMsgs = convertMessages(req.Messages)
-  applyCacheMarkers(anthropicMsgs, plan.Markers)
+  applyCacheMarkers(anthropicMsgs, plan.Markers)   // plan 비어있으면 no-op
 
-  // 4. tools
+  // 4. tool schema 변환 (OpenAI function → Anthropic tool)
   anthropicTools = convertTools(req.Tools)
 
-  // 5. thinking
+  // 5. thinking payload 구성 (Adaptive vs budget_tokens 분기)
   thinkingParam = buildThinkingParam(req.Thinking, req.Route.Model)
 
-  // 6. HTTP request
-  apiReq = anthropic.MessagesRequest{
-    Model: normalizeModel(req.Route.Model),
-    System: extractSystem(anthropicMsgs),
-    Messages: stripSystem(anthropicMsgs),
-    Tools: anthropicTools,
-    MaxTokens: req.MaxOutputTokens,
-    Thinking: thinkingParam,
-    Stream: true,
+  // 6. request body 조립 (JSON, SDK 없음)
+  //    json.Marshal로 직접 직렬화. Thinking 구조체는 `json:"type"` 태그 필수
+  //    (Phase 2.X 수정 사항). ExtraRequestFields는 top-level merge 지원.
+  bodyMap = {
+    "model":       normalizeModel(req.Route.Model),
+    "messages":    stripSystem(anthropicMsgs),
+    "system":      extractSystem(anthropicMsgs),
+    "tools":       anthropicTools,         // nil 이면 생략
+    "max_tokens":  req.MaxOutputTokens,
+    "thinking":    thinkingParam,          // disabled 면 생략
+    "stream":      true,
   }
+  for k, v in req.ExtraRequestFields:     // Phase 2.Z — SPEC-002 호환
+    bodyMap[k] = v                         // 사용자 override 허용
+  body, _ = json.Marshal(bodyMap)
 
-  // 7. SDK call with credential
-  client := a.newClient(cred.RuntimeAPIKey())
-  stream, err := client.Messages.CreateStreaming(ctx, apiReq)
-  if err:
-    if httpStatus == 429 or 402:
-      // 8. rotation
-      next, _ := pool.MarkExhaustedAndRotate(ctx, cred.ID, httpStatus, retryAfter)
-      if next != nil:
-        return a.retryWith(ctx, req, next)  // 1회 재시도
-    return nil, err
+  // 7. HTTP request 구성
+  httpReq, _ = http.NewRequestWithContext(
+    ctx, "POST",
+    "https://api.anthropic.com/v1/messages",
+    bytes.NewReader(body),
+  )
+  httpReq.Header.Set("Content-Type", "application/json")
+  httpReq.Header.Set("Anthropic-Version", "2023-06-01")
+  httpReq.Header.Set("Accept", "text/event-stream")
+  setAuthHeader(httpReq, cred, apiKey)    // OAuth Bearer 또는 x-api-key
 
-  // 9. rate limit 헤더 전달
-  tracker.Parse("anthropic", stream.Response().Header, time.Now())
+  // 8. 호출 + rate limit 헤더 전달
+  resp, err = a.httpClient.Do(httpReq)
+  if err: return nil, err
+  tracker.Parse("anthropic", resp.Header, time.Now())  // REQ-ADAPTER-004
 
-  // 10. stream conversion goroutine
-  out := make(chan message.StreamEvent, 8)
-  go a.convertStream(ctx, stream, out)
+  // 9. 429/402 → credential rotation (REQ-ADAPTER-005)
+  if resp.StatusCode == 429 or resp.StatusCode == 402:
+    retryAfter = parseRetryAfter(resp.Header)
+    resp.Body.Close()
+    next, _ = pool.MarkExhaustedAndRotate(ctx, cred.ID, resp.StatusCode, retryAfter)
+    if next != nil:
+      defer pool.Release(next)           // Phase 2.X fix — lease 반환 필수
+      return a.retryWith(ctx, req, next) // 1회 재시도
+    return nil, ErrExhausted
+
+  if resp.StatusCode >= 400:
+    return nil, parseErrorBody(resp)     // 구조화 에러 매핑
+
+  // 10. SSE → StreamEvent 변환 goroutine (heartbeat watchdog 포함)
+  out = make(chan message.StreamEvent, 8)
+  go a.convertStream(ctx, resp.Body, out, heartbeatTimeout)
+    // convertStream은 bufio.Scanner로 라인 단위 SSE 파싱
+    // "event: " / "data: " 라인을 누적하여 완성된 event를 디스패치
+    // heartbeat timer: 매 데이터 수신 시 reslide, timeout 초과 시 ctx cancel + body.Close
+    // defer close(out) + defer resp.Body.Close() 필수 (goleak 검증)
   return out, nil
 ```
+
+**보조 함수 요약:**
+
+- `convertMessages([]message.Message) []AnthropicMessage`: role 매핑(user/assistant/tool → Anthropic 형식), ContentBlock → native block 변환
+- `convertTools([]tool.Definition) []AnthropicTool`: OpenAI function schema → Anthropic tool schema, tool_choice 매핑
+- `buildThinkingParam(*ThinkingConfig, model string) map[string]any`: `{"type":"enabled","effort":cfg.Effort}` 또는 `{"type":"enabled","budget_tokens":cfg.BudgetTokens}`. 비활성 시 nil 반환하여 payload에서 생략
+- `setAuthHeader(req, cred, apiKey)`: OAuth credential → `Authorization: Bearer <token>`, API key credential → `x-api-key: <key>`
+- `convertStream(ctx, body, out, heartbeat)`: SSE 이벤트 파싱, `content_block_delta.thinking_delta`/`text_delta`/`input_json_delta` 분기, heartbeat watchdog은 `time.Timer.Reset` 패턴
 
 ### 6.5 Stream event 변환 (Anthropic)
 
@@ -484,45 +565,95 @@ Stream(ctx, req):
 
 ### 6.6 OpenAI-compat 재사용 (xAI/DeepSeek)
 
+> **주의**: OpenAI 계열 어댑터도 SDK 없이 `net/http`로 직접 구현한다. `base_url` override만 다르고 payload/SSE 포맷은 OpenAI 표준 그대로. `ExtraHeaders` 및 `ExtraRequestFields`는 Phase 2.Z SPEC-GOOSE-ADAPTER-002 선행 gap 해소로 추가된 provider-specific 확장점이다. v0.3.0(Phase 2.Y)부터 `New()`는 에러를 반환하며 xAI/DeepSeek wrapper도 동일 시그니처를 전파한다.
+
 ```go
+// openai/adapter.go (발췌)
+type OpenAIOptions struct {
+    Name              string
+    BaseURL           string
+    Pool              *credential.CredentialPool
+    SecretStore       provider.SecretStore
+    Tracker           *ratelimit.Tracker
+    HeartbeatTimeout  time.Duration          // 0이면 DefaultStreamHeartbeatTimeout(60s)
+    ExtraHeaders      map[string]string      // Phase 2.Z — provider-specific HTTP 헤더
+    Capabilities      provider.Capabilities  // Vision 등 per-provider override
+    Logger            *zap.Logger
+}
+
+func New(opts OpenAIOptions) (*OpenAIAdapter, error)
+
 // xai/grok.go
-func New(pool *credential.CredentialPool, tracker *ratelimit.Tracker, logger *zap.Logger) *openai.Adapter {
-    return openai.NewWithBase(openai.Options{
-        Name:    "xai",
-        BaseURL: "https://api.x.ai/v1",
-        Pool:    pool,
-        Tracker: tracker,
-        Logger:  logger,
+func New(pool *credential.CredentialPool, secretStore provider.SecretStore,
+         tracker *ratelimit.Tracker, logger *zap.Logger,
+) (*openai.OpenAIAdapter, error) {
+    return openai.New(openai.OpenAIOptions{
+        Name:        "xai",
+        BaseURL:     "https://api.x.ai/v1",
+        Pool:        pool,
+        SecretStore: secretStore,
+        Tracker:     tracker,
+        Logger:      logger,
     })
 }
 
-// deepseek/client.go: 동일 패턴, BaseURL만 다름
+// deepseek/client.go: 동일 패턴, BaseURL="https://api.deepseek.com/v1" + Capabilities{Vision: false}
 ```
 
-### 6.7 OAuth Refresher 구현 (Anthropic)
+### 6.7 OAuth Refresher 구현 (Anthropic, hand-rolled)
+
+> **주의**: Refresh 경로도 SDK 없이 `net/http` + `encoding/json`으로 직접 구현한다. Token endpoint URL, body 형식, rotated refresh_token 대응은 Anthropic 공식 문서 기준. 파일 write-back은 `anthropic/token_sync.go`의 atomic write (temp file + rename + `chmod 0600`) 경로를 거친다.
 
 ```go
 func (a *AnthropicAdapter) Refresh(
     ctx context.Context,
     entry *credential.PooledCredential,
 ) (credential.RefreshResult, error) {
-    // 1. Anthropic OAuth token 엔드포인트에 POST
-    // POST https://claude.ai/api/oauth/token
-    // Body: {grant_type:"refresh_token", refresh_token:"...", client_id:"..."}
-    resp, err := a.oauthClient.Post(ctx, ...)
-    if err:
+    // 1. refresh_token 획득 (SecretStore 경유)
+    raw, err := a.secretStore.Resolve(ctx, entry.KeyringID)
+    if err != nil {
         return credential.RefreshResult{}, err
+    }
+    refreshToken := parseRefreshTokenFromRaw(raw)
 
-    // 2. 새 토큰 파싱
+    // 2. POST https://console.anthropic.com/v1/oauth/token (hand-rolled HTTP)
+    body, _ := json.Marshal(map[string]any{
+        "grant_type":    "refresh_token",
+        "refresh_token": refreshToken,
+        "client_id":     entry.OAuth.ClientID,
+    })
+    httpReq, _ := http.NewRequestWithContext(ctx, "POST",
+        "https://console.anthropic.com/v1/oauth/token",
+        bytes.NewReader(body),
+    )
+    httpReq.Header.Set("Content-Type", "application/json")
+
+    resp, err := a.httpClient.Do(httpReq)
+    if err != nil {
+        return credential.RefreshResult{}, err
+    }
+    defer resp.Body.Close()
+    if resp.StatusCode >= 400 {
+        return credential.RefreshResult{}, parseOAuthError(resp)
+    }
+
+    // 3. 응답 파싱
     var tokenResp struct {
         AccessToken  string `json:"access_token"`
-        RefreshToken string `json:"refresh_token"` // rotated
+        RefreshToken string `json:"refresh_token"` // rotated (single-use)
         ExpiresIn    int    `json:"expires_in"`
     }
-    json.Unmarshal(resp, &tokenResp)
+    if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+        return credential.RefreshResult{}, err
+    }
 
-    // 3. ~/.claude/.credentials.json 동기화 (write-back)
-    syncClaudeCredentials(entry.ID, tokenResp)
+    // 4. rotated refresh_token + access_token write-back
+    //    - SecretStore.WriteBack(ctx, keyringID, newRaw)
+    //    - AtomicWriteCredentialsFile(~/.claude/.credentials.json) — Phase 2.X에서 pathSafe
+    //      검증을 FileSecretStore.CredentialFile() 경유로 통합. `..` 포함 keyringID 거부.
+    if err := a.storeRotatedRefreshToken(ctx, entry.KeyringID, tokenResp); err != nil {
+        return credential.RefreshResult{}, err
+    }
 
     return credential.RefreshResult{
         AccessToken:  tokenResp.AccessToken,
@@ -590,6 +721,10 @@ func buildThinkingParam(cfg *provider.ThinkingConfig, model string) anthropic.Th
 
 ## 7. 의존성 (Dependencies)
 
+> **중요 (v1.0.0 정정)**: 본 SPEC 초안(v0.1.0)은 `anthropic-sdk-go`, `sashabaranov/go-openai`, `ollama/ollama/api`, `tiktoken-go`를 의존 라이브러리로 선언했으나, **실 구현은 SDK를 사용하지 않고 표준 라이브러리 `net/http` + `encoding/json`으로 직접 HTTP 호출을 수행한다**. `go.mod`에는 해당 SDK가 포함되어 있지 않으며, 아래 표는 실제 빌드 그래프를 반영한다. Google Gemini만이 유일한 SDK-기반 어댑터다(`google.golang.org/genai`).
+
+### 7.1 선행/후속 SPEC 의존성
+
 | 타입 | 대상 | 설명 |
 |-----|------|------|
 | 선행 SPEC | SPEC-GOOSE-QUERY-001 | `LLMCallFunc` 시그니처 수신측 구현, `message.Message` / `StreamEvent` 타입 |
@@ -599,23 +734,31 @@ func buildThinkingParam(cfg *provider.ThinkingConfig, model string) anthropic.Th
 | 선행 SPEC | SPEC-GOOSE-PROMPT-CACHE-001 | Anthropic 어댑터가 `Plan` 소비 |
 | 선행 SPEC | SPEC-GOOSE-CORE-001 | zap logger, context 루트 |
 | 선행 SPEC | SPEC-GOOSE-CONFIG-001 | `LLMConfig.Providers[*]` |
+| 후속 SPEC | SPEC-GOOSE-ADAPTER-002 | 9 OpenAI-compat Provider + Z.ai GLM (본 SPEC Phase 2.Z `ExtraHeaders`/`ExtraRequestFields` 소비) |
+| 후속 SPEC | SPEC-GOOSE-ADAPTER-003 | REQ-019 JSON mode, REQ-020 UserID forwarding 등 Optional REQ 실구현 |
 | 후속 SPEC | SPEC-GOOSE-TOOLS-001 | `tool.Definition` 소비, tool_use StreamEvent 전달 |
 | 후속 SPEC | SPEC-GOOSE-ERROR-CLASS-001 | HTTP 에러 분류(14 FailoverReason) 연계 |
-| 외부 | Go 1.22+ | generics, `context.Context` |
-| 외부 | `go.uber.org/zap` v1.27+ | 로깅 |
-| 외부 | `github.com/anthropics/anthropic-sdk-go` v0.x | Anthropic 공식 SDK — OAuth, streaming, tool |
-| 외부 | `github.com/sashabaranov/go-openai` v1.x | OpenAI-compat (xAI/DeepSeek/Groq 재사용) |
-| 외부 | `google.golang.org/genai` | Gemini |
-| 외부 | `github.com/ollama/ollama/api` | Ollama |
-| 외부 | `github.com/pkoukk/tiktoken-go` | 토큰 카운팅 (usage 추정) |
-| 외부 | `github.com/stretchr/testify` v1.9+ | 테스트 |
 
-**라이브러리 결정 (본 SPEC에서 채택)**:
-- `anthropic-sdk-go` (공식): OAuth + streaming + tool schema 지원이 완비.
-- `go-openai`: xAI·DeepSeek·Groq 재사용. base_url override 지원.
-- `google.golang.org/genai`: Google 공식 Go SDK.
-- `ollama/ollama/api`: Ollama 공식.
-- `tiktoken-go`: OpenAI 토크나이저. Usage 추정 시 사용.
+### 7.2 외부 라이브러리 (실제 `go.mod` 반영)
+
+| 타입 | 대상 | 용도 |
+|-----|------|------|
+| 외부 | Go 1.22+ | generics, `context.Context` |
+| 외부 (stdlib) | `net/http` | **모든 HTTP provider** (Anthropic/OpenAI/xAI/DeepSeek/Ollama) hand-rolled 클라이언트. 서드파티 SDK 없음 |
+| 외부 (stdlib) | `encoding/json` | 요청 body 직렬화 + SSE/JSON-L 응답 파싱 |
+| 외부 (stdlib) | `bufio` | SSE 라인 단위 스트림 파싱 |
+| 외부 | `go.uber.org/zap` v1.27+ | 구조화 로깅 (PII 필드 제외, REQ-ADAPTER-014) |
+| 외부 | `google.golang.org/genai` | **유일한 SDK 기반 어댑터** — Google Gemini 공식 Go SDK (streaming/tool/vision 추상화가 hand-roll보다 우위) |
+| 외부 (test) | `github.com/stretchr/testify` v1.9+ | 테스트 assertion |
+| 외부 (test) | `go.uber.org/goleak` v1.3+ | goroutine leak 검증 (REQ-ADAPTER-003) |
+
+**라이브러리 결정 근거 (v1.0.0 정정)**:
+
+- **Anthropic**: 공식 `anthropic-sdk-go`는 OAuth PKCE refresh 경로를 충분히 제어할 수 없어 **채택 불가**. `net/http`로 직접 구현하여 Bearer 헤더/PKCE flow/rotated refresh token을 완전 제어.
+- **OpenAI 계열(OpenAI/xAI/DeepSeek)**: `sashabaranov/go-openai`는 추상화 비용 대비 이득이 적고, `base_url` override + SSE 파싱 + `tool_calls` aggregation을 직접 구현하는 편이 단순. SPEC-ADAPTER-002에서 `ExtraHeaders`/`ExtraRequestFields`로 확장 가능성을 확보하므로 hand-roll이 향후 provider 추가에도 유리.
+- **Ollama**: `github.com/ollama/ollama/api`는 `/api/chat` JSON-L streaming만 필요하고 전체 SDK 도입은 과함. `net/http`로 직접 호출.
+- **Google Gemini**: 공식 `google.golang.org/genai`는 streaming/tool/vision 추상화가 hand-roll 대비 이득이 크므로 **유지**. 단 테스트 용이성을 위해 내부 `geminiClient` interface로 래핑하여 fake client 주입 가능.
+- **tiktoken-go**: **제거**. 본 SPEC v1.0 시점 `internal/llm/provider/` 하위에서 `tiktoken-go`를 import하는 코드가 없다(Usage 카운팅은 provider 응답 헤더/body에서 직접 추출). 잘못된 선언이었으므로 삭제.
 
 ---
 
@@ -654,13 +797,14 @@ func buildThinkingParam(cfg *provider.ThinkingConfig, model string) anthropic.Th
 - **Anthropic API 문서**: https://docs.anthropic.com/en/api
 - **Anthropic Prompt Caching**: https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching
 - **Anthropic Thinking**: https://docs.anthropic.com/en/docs/about-claude/extended-thinking
-- **Anthropic SDK Go**: https://github.com/anthropics/anthropic-sdk-go
+- **Anthropic OAuth**: https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/oauth
 - **OpenAI API**: https://platform.openai.com/docs/api-reference
-- **go-openai**: https://github.com/sashabaranov/go-openai
-- **Google genai**: https://pkg.go.dev/google.golang.org/genai
-- **Ollama API**: https://github.com/ollama/ollama/blob/main/docs/api.md
-- **tiktoken-go**: https://github.com/pkoukk/tiktoken-go
+- **OpenAI streaming SSE**: https://platform.openai.com/docs/api-reference/chat/streaming
+- **Google genai (Go SDK)**: https://pkg.go.dev/google.golang.org/genai — **본 SPEC에서 채택된 유일한 SDK**
+- **Ollama API (/api/chat JSON-L)**: https://github.com/ollama/ollama/blob/main/docs/api.md
 - **Hermes Agent Python**: `./hermes-agent-main/agent/providers/` — 원형 참고
+
+> **참고**: 초안 v0.1.0에 포함되었던 `github.com/anthropics/anthropic-sdk-go`, `github.com/sashabaranov/go-openai`, `github.com/ollama/ollama/api`, `github.com/pkoukk/tiktoken-go` 레퍼런스는 v1.0.0에서 제거됨. 실 구현은 hand-rolled `net/http`이므로 해당 SDK 문서는 참고 가치가 없음. §7.2 참조.
 
 ### 9.3 부속 문서
 

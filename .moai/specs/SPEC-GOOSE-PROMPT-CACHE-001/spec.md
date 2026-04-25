@@ -1,15 +1,16 @@
 ---
 id: SPEC-GOOSE-PROMPT-CACHE-001
 version: 0.1.0
-status: Planned
-created: 2026-04-21
-updated: 2026-04-21
+status: planned
+created_at: 2026-04-21
+updated_at: 2026-04-21
 author: manager-spec
 priority: P1
 issue_number: null
 phase: 1
 size: 소(S)
 lifecycle: spec-anchored
+labels: []
 ---
 
 # SPEC-GOOSE-PROMPT-CACHE-001 — Prompt Caching (system_and_3 Strategy, 4 Breakpoint, TTL)

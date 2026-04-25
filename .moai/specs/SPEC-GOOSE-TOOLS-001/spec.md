@@ -1,15 +1,16 @@
 ---
 id: SPEC-GOOSE-TOOLS-001
-version: 0.1.0
-status: Planned
-created: 2026-04-21
-updated: 2026-04-21
+version: 0.1.1
+status: planned
+created_at: 2026-04-21
+updated_at: 2026-04-25
 author: manager-spec
 priority: P0
 issue_number: null
 phase: 3
 size: 중(M)
 lifecycle: spec-anchored
+labels: [phase-3, tools, mcp, permission, security]
 ---
 
 # SPEC-GOOSE-TOOLS-001 — Tool Registry 및 ToolSearch (Deferred Loading, Inventory)
@@ -19,6 +20,7 @@ lifecycle: spec-anchored
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-21 | 초안 작성 (Phase 3 신규, claude-primitives §3.4 + Hermes model_tools.py 패턴 + QUERY-001 소비자 계약) | manager-spec |
+| 0.1.1 | 2026-04-25 | plan-auditor 결함 수정: labels 채움(D1), AC-TOOLS-010~018 추가(D2), REQ-TOOLS-007 ↔ §6.4 일관화(D3, Option A), REQ-TOOLS-016 negative-path AC(D6, AC-TOOLS-015), REQ-TOOLS-001 behavioral 재표현(D5), REQ-TOOLS-021 MCP duplicate 추가(D7), REQ-TOOLS-022 sequential dispatch 추가(D8) | manager-spec |
 
 ---
 
@@ -130,7 +132,7 @@ GOOSE-AGENT의 **Tool 실행 인프라 계층**을 정의한다. `SPEC-GOOSE-QUE
 
 ### 4.1 Ubiquitous (시스템 상시 불변)
 
-**REQ-TOOLS-001 [Ubiquitous]** — The `tools.Registry` **shall** expose a read-only `Resolve(name string) (Tool, bool)` that is safe for concurrent callers without requiring external locking; internal synchronization uses `sync.RWMutex`.
+**REQ-TOOLS-001 [Ubiquitous]** — The `tools.Registry` **shall** expose a read-only `Resolve(name string) (Tool, bool)` that is safe for concurrent callers without requiring external locking. The synchronization primitive selection is deferred to §6.2 implementation guidance.
 
 **REQ-TOOLS-002 [Ubiquitous]** — Every registered `Tool` **shall** declare a non-empty `Schema()` returning a valid JSON Schema (draft 2020-12) describing its `input` object; registration of a tool whose `Schema()` fails validation **shall** return `ErrInvalidSchema` at registration time.
 
@@ -144,13 +146,15 @@ GOOSE-AGENT의 **Tool 실행 인프라 계층**을 정의한다. `SPEC-GOOSE-QUE
 
 **REQ-TOOLS-006 [Event-Driven]** — **When** `Executor.Run(ctx, req)` is invoked, the executor **shall** (a) call `Registry.Resolve(req.ToolName)` to locate the tool, (b) validate `req.Input` against the tool's JSON Schema, (c) invoke `PermissionMatcher.Preapproved(...)`, (d) if not pre-approved, invoke the `CanUseTool` gate supplied by QUERY-001 via `ToolPermissionContext`, and (e) on `Allow` dispatch `Tool.Call(ctx, input)`. On any step failure, a synthetic `ToolResult{IsError: true, Content: <reason>}` **shall** be returned without panicking.
 
-**REQ-TOOLS-007 [Event-Driven]** — **When** a tool is referenced by name but not yet activated (MCP-backed with deferred manifest), `Registry.Resolve(name)` **shall** either (a) return a stub Tool whose first `Call` triggers `Search.Activate(ctx, name)` and then re-dispatches, or (b) return `(nil, false)` if `eagerResolveMCP` policy is enabled via config; the default policy is (a).
+**REQ-TOOLS-007 [Event-Driven]** — **When** a tool is referenced by name but not yet activated (MCP-backed with deferred manifest), `Registry.Resolve(name)` **shall** either (a) return a stub Tool whose first `Call` triggers a manifest fetch via the shared Search cache (keyed by `(serverID, toolName)`) and then re-dispatches to the resolved tool, or (b) return `(nil, false)` if `eagerResolveMCP` policy is enabled via config; the default policy is (a). The stub's fetch path **shall** use the same cache that `Search.Activate(ctx, name)` populates, ensuring cache coherency when `Search.InvalidateCache(serverID)` fires.
 
 **REQ-TOOLS-008 [Event-Driven]** — **When** `Search.Activate(ctx, name)` is invoked for an MCP-backed tool, the adapter **shall** call `mcp.Connection.FetchToolManifest(toolName)` (MCP-001 API), cache the result in-memory keyed by `(serverID, toolName)`, and complete within 5 seconds or return `ErrMCPTimeout`.
 
 **REQ-TOOLS-009 [Event-Driven]** — **When** an MCP server connection is removed (MCP-001 emits `ConnectionClosed` event), the `Registry` **shall** unregister all `mcp__{serverID}__*` tools and invalidate their cached manifests within 1 second.
 
 **REQ-TOOLS-010 [Event-Driven]** — **When** `Bash.Call(ctx, input)` exceeds `input.timeout_ms` (default 120,000ms, max 600,000ms per `.claude/rules/moai/core/agent-common-protocol.md`), the tool **shall** SIGTERM the subprocess, collect partial stdout/stderr, wait up to 2s for graceful exit, then SIGKILL if still running, and return `ToolResult{IsError: true, Content: "timeout: <duration>", Metadata: {stdout_partial, stderr_partial, exit_code: -1}}`.
+
+**REQ-TOOLS-022 [Event-Driven]** — **When** a single LLM response yields N `tool_use` blocks with N > 1, the `Executor` **shall** dispatch them sequentially in their original array order and **shall not** start block N+1 until block N has produced a `ToolResult`; parallel dispatch is explicitly deferred to TOOLS-002 and **shall** not be enabled in this SPEC.
 
 ### 4.3 State-Driven (상태 기반)
 
@@ -169,6 +173,8 @@ GOOSE-AGENT의 **Tool 실행 인프라 계층**을 정의한다. `SPEC-GOOSE-QUE
 **REQ-TOOLS-016 [Unwanted]** — The `Bash` tool **shall not** inherit environment variables matching secret-name heuristics (`*_TOKEN`, `*_KEY`, `*_SECRET`, `GOOSE_SHUTDOWN_TOKEN`) into subprocess env unless `input.inherit_secrets == true` is explicitly set AND the invocation is pre-approved via `PermissionMatcher`.
 
 **REQ-TOOLS-017 [Unwanted]** — An MCP tool manifest that claims `tool.name` containing `__` (double underscore) **shall** be rejected at adoption to prevent prefix collision ambiguity; the adapter logs ERROR and skips the tool.
+
+**REQ-TOOLS-021 [Unwanted]** — **If** `AdoptMCPServer` processes a manifest containing a `(serverID, toolName)` pair already adopted in the `Registry`, **then** the adapter **shall** return `ErrDuplicateName`, log ERROR with the conflicting pair, and **shall not** replace or mutate the existing registration.
 
 ### 4.5 Optional (선택적)
 
@@ -228,6 +234,67 @@ GOOSE-AGENT의 **Tool 실행 인프라 계층**을 정의한다. `SPEC-GOOSE-QUE
 - **Given** `QueryEngineConfig.Cwd = "/tmp/project"`, `PermissionsConfig.additional_directories = []`
 - **When** `Executor.Run(ctx, {ToolName:"FileWrite", Input:{"path":"/etc/passwd", "content":"..."}})`
 - **Then** `ToolResult{IsError:true, Content: contains "outside cwd"}`이 반환되고 `/etc/passwd`는 수정되지 않음
+
+**AC-TOOLS-010 — Inventory 결정론적 정렬 (REQ-TOOLS-005)**
+- **Given** 동일한 tool 집합이 순서만 다르게 두 개의 Registry 인스턴스에 등록되어 있음 (built-in 6종 + MCP `mcp__foo__bar`, `mcp__foo__baz` adopted)
+- **When** 각 Registry에 대해 `Inventory.ForModel(ctx, filter{})`를 호출하여 결과를 바이트로 직렬화
+- **Then** 두 결과는 바이트 단위로 정확히 동일하며, descriptor 배열은 canonical name 알파벳 오름차순으로 정렬됨 (`Bash`, `FileEdit`, ..., `mcp__foo__bar`, `mcp__foo__baz`)
+
+**AC-TOOLS-011 — Search.Activate 5초 타임아웃 (REQ-TOOLS-008)**
+- **Given** `mcp.Connection.FetchToolManifest`가 6초 동안 블로킹하도록 mock 설정됨, MCP tool `mcp__slow__op`가 adopt된 상태
+- **When** `search.Activate(ctx, "mcp__slow__op")`를 호출
+- **Then** 호출은 5초 이내에 반환하며 `ErrMCPTimeout`을 반환하고, `Search.cache`에 `(slow, op)` 항목은 저장되지 않음
+
+**AC-TOOLS-012 — ConnectionClosed 이벤트 처리 (REQ-TOOLS-009)**
+- **Given** MCP server `foo`가 adopt되어 `mcp__foo__a`, `mcp__foo__b` 두 tool이 등록됨, 해당 server 매니페스트가 `Search.cache`에 존재
+- **When** MCP-001이 `ConnectionClosed{ServerID: "foo"}` 이벤트를 발행
+- **Then** 1초 이내에 `registry.Resolve("mcp__foo__a")`와 `registry.Resolve("mcp__foo__b")`가 모두 `(nil, false)`를 반환하며, `Search.cache`에서 `foo/*` 항목이 제거됨
+
+**AC-TOOLS-013 — Draining 상태 진입 (REQ-TOOLS-011)**
+- **Given** Registry가 정상 동작 중이고 in-flight `Tool.Call` 없음
+- **When** `registry.Drain()` 호출 후 `executor.Run(ctx, {ToolName:"FileRead", Input:{"path":"/tmp/x"}})`
+- **Then** `ToolResult{IsError:true, Content:"registry draining"}`이 반환되고 `FileRead.Call`은 호출되지 않음
+
+**AC-TOOLS-014 — CoordinatorMode Inventory 필터 (REQ-TOOLS-012)**
+- **Given** Registry에 built-in 6종(모두 `ScopeShared`) + `ScopeLeaderOnly` tool `TeamSpawn`이 등록됨, `QueryEngineConfig.CoordinatorMode = true`
+- **When** `Inventory.ForModel(ctx, filter{CoordinatorMode:true})` 호출
+- **Then** 반환된 descriptor 배열에 `TeamSpawn`은 포함되지 않고, built-in 6종만 포함됨
+
+**AC-TOOLS-015 — Bash secret env 필터링 negative + positive path (REQ-TOOLS-016)**
+- **Given 1** 프로세스 env에 `GITHUB_TOKEN=xyz`, `MY_API_KEY=abc`, `PATH=/usr/bin` 설정
+- **When 1** `Executor.Run(ctx, {ToolName:"Bash", Input:{"command":"env"}})` 호출 (`inherit_secrets` 미설정, pre-approval 없음)
+- **Then 1** `ToolResult.Content` stdout에 `GITHUB_TOKEN` 및 `MY_API_KEY`가 포함되지 않고 `PATH`는 포함됨
+- **Given 2** 동일 env, `PermissionsConfig.allow = []` (pre-approval 없음)
+- **When 2** `Executor.Run(ctx, {ToolName:"Bash", Input:{"command":"env", "inherit_secrets":true}})`, `CanUseTool` stub이 `Allow` 반환
+- **Then 2** secret 필터링은 여전히 유효 — `GITHUB_TOKEN`과 `MY_API_KEY`는 stdout에 포함되지 않음 (`inherit_secrets:true` 단독으로는 bypass 불가)
+- **Given 3** 동일 env, `PermissionsConfig.allow = ["Bash(env)"]` (pre-approval 일치)
+- **When 3** `Executor.Run(ctx, {ToolName:"Bash", Input:{"command":"env", "inherit_secrets":true}})`
+- **Then 3** `GITHUB_TOKEN=xyz`와 `MY_API_KEY=abc`가 stdout에 포함됨 (pre-approval + inherit_secrets 양쪽 만족 시에만 통과)
+
+**AC-TOOLS-016 — MCP 이름에 `__` 포함 시 거부 (REQ-TOOLS-017)**
+- **Given** mock MCP connection이 manifest `{tool.name: "bad__name", ...}`를 노출
+- **When** `registry.AdoptMCPServer(conn)` 호출
+- **Then** `bad__name` tool은 등록되지 않으며(`registry.Resolve("mcp__srv__bad__name")` → `(nil, false)`), ERROR 레벨 로그가 emit되고, 동일 manifest 내 다른 유효 tool은 영향 없이 등록됨
+
+**AC-TOOLS-017 — strict_schema additionalProperties 강제 (REQ-TOOLS-019)**
+- **Given** `ToolsConfig.strict_schema = true`, tool `BadTool`의 `Schema()`는 `additionalProperties` 필드를 선언하지 않음
+- **When** `registry.Register(NewBadTool(), SourceBuiltin)` 호출
+- **Then** 등록이 실패하고 `ErrInvalidSchema` (또는 동등한 strict-schema 위반 에러)가 반환되며, `registry.Resolve("BadTool")`은 `(nil, false)`
+
+**AC-TOOLS-018 — log_invocations 구조화 로그 (REQ-TOOLS-020)**
+- **Given** `ToolsConfig.log_invocations = true`, in-memory zap observer logger 주입
+- **When** `executor.Run(ctx, {ToolName:"FileRead", Input:{"path":"/tmp/x"}})` 호출하여 성공
+- **Then** INFO 레벨 로그 엔트리 1건이 emit되고, 필드에 `tool="FileRead"`, `outcome="allow"`, `duration_ms` 숫자, `input_size`/`output_size` 바이트 값이 포함됨; 실패 경로에서는 `outcome="error"` 또는 `outcome="deny"`로 기록됨
+
+**AC-TOOLS-019 — MCP adoption duplicate 거부 (REQ-TOOLS-021)**
+- **Given** mock MCP connection이 serverID=`github`, manifest tool `create_issue`를 노출하여 1회 adopt 완료된 상태 (`registry.Resolve("mcp__github__create_issue")`가 `(Tool, true)`)
+- **When** 동일 `(github, create_issue)` pair를 포함하는 manifest로 `registry.AdoptMCPServer(conn)` 재호출
+- **Then** 함수는 `ErrDuplicateName`을 반환하고, ERROR 레벨 로그에 `serverID=github` 및 `toolName=create_issue`가 기록되며, 기존 registration은 교체/변경되지 않음 (동일 Tool 인스턴스 pointer 유지)
+
+**AC-TOOLS-020 — Sequential tool_use dispatch (REQ-TOOLS-022)**
+- **Given** 한 LLM 응답이 3개의 `tool_use` 블록을 순서대로 포함: `[{id:"a", name:"Glob"}, {id:"b", name:"FileRead"}, {id:"c", name:"Bash"}]`, 각 tool은 호출 완료까지 200ms 소요
+- **When** QueryEngine이 해당 응답을 받아 `Executor.Run`을 디스패치
+- **Then** tool 호출 순서는 정확히 `a → b → c`이며, 블록 `b`의 시작 시각은 블록 `a`의 완료 이후(단조 증가 time window 검증), 블록 `c` 시작 시각은 `b` 완료 이후여야 함; 동시 실행된 호출 수는 어느 순간에도 1을 넘지 않음 (tool.callCount 동시성 카운터로 측정)
 
 ---
 

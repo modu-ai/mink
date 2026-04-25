@@ -12,6 +12,7 @@ import (
 	"github.com/modu-ai/goose/internal/llm/provider"
 	"github.com/modu-ai/goose/internal/llm/provider/ollama"
 	"github.com/modu-ai/goose/internal/llm/provider/testhelper"
+	"github.com/modu-ai/goose/internal/llm/ratelimit"
 	"github.com/modu-ai/goose/internal/llm/router"
 	"github.com/modu-ai/goose/internal/message"
 	"github.com/stretchr/testify/assert"
@@ -327,6 +328,50 @@ func TestOllama_ServerError(t *testing.T) {
 	_, err = adapter.Stream(ctx, req)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "500")
+}
+
+// TestOllamaProvider_ParsesRateLimitHeaders는 I1 결함 수정을 검증한다.
+// OllamaAdapter.Stream 호출 시 tracker.Parse가 호출되어야 한다. REQ-ADAPTER-004 준수.
+// Ollama는 표준 rate-limit 헤더를 제공하지 않으나, tracker.Parse는 noop이므로
+// conformance 목적으로 호출되어야 한다.
+func TestOllamaProvider_ParsesRateLimitHeaders(t *testing.T) {
+	t.Parallel()
+
+	tracker := ratelimit.NewTracker()
+
+	lines := []any{
+		map[string]any{"message": map[string]any{"role": "assistant", "content": "tracker test"}, "done": false},
+		map[string]any{"message": map[string]any{"role": "assistant", "content": ""}, "done": true},
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		// Ollama 표준 헤더 없음 — tracker.Parse는 빈 헤더로 noop 호출됨
+		writeJSONL(w, lines)
+	}))
+	defer srv.Close()
+
+	adapter, err := ollama.New(ollama.OllamaOptions{
+		Endpoint:   srv.URL,
+		HTTPClient: srv.Client(),
+		Tracker:    tracker, // tracker 주입
+	})
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	req := provider.CompletionRequest{
+		Route:    router.Route{Provider: "ollama", Model: "llama3.2"},
+		Messages: []message.Message{{Role: "user", Content: []message.ContentBlock{{Type: "text", Text: "test"}}}},
+	}
+
+	ch, err := adapter.Stream(ctx, req)
+	require.NoError(t, err)
+
+	evts := testhelper.DrainStream(ctx, ch, 0)
+
+	// tracker.Parse 호출 이후 스트림이 정상 완료되어야 한다.
+	textDeltas := filterByType(evts, message.TypeTextDelta)
+	require.Len(t, textDeltas, 1)
+	assert.Equal(t, "tracker test", textDeltas[0].Delta)
 }
 
 func filterByType(evts []message.StreamEvent, typ string) []message.StreamEvent {

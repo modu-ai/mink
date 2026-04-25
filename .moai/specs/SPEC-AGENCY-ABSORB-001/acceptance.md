@@ -1,15 +1,16 @@
 ---
 spec_id: AGENCY-ABSORB-001
 document: acceptance
-version: 1.0.0
+version: 1.0.1
 status: completed
-created: 2026-04-20
-updated: 2026-04-24
+created_at: 2026-04-20
+updated_at: 2026-04-25
+labels: []
 ---
 
 # Acceptance Criteria — SPEC-AGENCY-ABSORB-001
 
-본 문서는 spec.md의 41개 EARS 요구사항에 대한 검증 절차와 글로벌 수용 기준을 정의한다. characterization SPEC이므로 모든 검증은 **현재 디스크 상태**를 대상으로 수행되며, 통과 여부가 곧 흡수 작업의 성공을 의미한다.
+본 문서는 spec.md의 41개 EARS 요구사항(ABSORB 9 + CONST 4 + ROUTE 8 + FALLBACK 3 + BRIEF 3 + DETECT 1 + CONFIG 3 + DESIGN-DOCS 3 + DEPRECATE 4 + DOC 3)에 대한 검증 절차와 글로벌 수용 기준을 정의한다. characterization SPEC이므로 모든 검증은 **현재 디스크 상태**를 대상으로 수행되며, 통과 여부가 곧 흡수 작업의 성공을 의미한다.
 
 ---
 
@@ -278,20 +279,24 @@ grep "Pass threshold floor" .claude/rules/moai/design/constitution.md   # expect
 
 본 작성 시점(2026-04-24)에 위 7개 조건이 모두 만족되며, status: completed로 기록한다.
 
+**2026-04-25 v1.0.1 audit patch 주석**: plan-audit mass-20260425 결과(FAIL/0.62) 반영 시 "실행 정합성" 관련 결함(D3/D4/D5)은 본 SPEC의 Exclusions(spec.md L86 — 즉시 삭제 금지)에 의해 본 SPEC 책임 영역이 아님을 재확인한다. 해당 결함은 Open Items 테이블(spec.md "Open Items 현황 (2026-04-25 재감사 반영)")로 공식 이관되었으며, 후속 SPEC `SPEC-AGENCY-CLEANUP-002`(가칭)의 CL-1~CL-6 선행 스펙을 통해 해소된다. 따라서 status=completed는 **문서화 목표 기준**의 완료 선언으로 유지된다.
+
 ---
 
 ## Quality Gate Checklist
 
 - [x] EARS 형식 준수 (WHEN/WHILE/IF/THE SHALL 키워드 사용)
-- [x] 35개 REQ 모두 증거 파일 인용 포함
+- [x] 41개 REQ 모두 증거 파일 인용 포함 (spec.md footer REQ coverage와 일치)
 - [x] Exclusions 섹션 존재 (spec.md "What NOT to Build")
 - [x] 3-파일 구조 (spec.md / plan.md / acceptance.md)
 - [x] Frontmatter 유효 (id, version, status, dates)
 - [x] HISTORY 섹션 존재 (spec.md)
 - [x] Non-Goals/Out of Scope 명시
-- [x] Open Items / 확인 필요 항목 명시
+- [x] Open Items / 확인 필요 항목 명시 (2026-04-25 v1.0.1 audit patch로 테이블화 + SPEC-AGENCY-CLEANUP-002 선행 스펙 CL-1~CL-6 공식 이관)
 - [x] Verification 명령 제공 (grep/Read 명령으로 즉시 실행 가능)
 - [x] characterization SPEC 패턴 준수 (신규 코드 작성 없음)
+- [x] REQ-DETECT 번호 gap 설명 주석 (spec.md L236 — 외부 선행 트랙 참조, 재배치 금지 제약 준수)
+- [x] REQ-PENCIL 경계 명확화 (REQ-ABSORB-008 외부 SPEC 위임 주석 + REQ-FALLBACK-002 본 SPEC 고유 계약 명시)
 
 ---
 

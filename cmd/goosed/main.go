@@ -47,11 +47,17 @@ func run() int {
 	}
 	defer logger.Sync() //nolint:errcheck
 
-	// 3. Runtime 초기화
-	rt := core.NewRuntime(logger)
+	// 3. Root context 생성 — SIGINT/SIGTERM 수신 시 cancel됨 (REQ-CORE-004(b))
+	// signal.NotifyContext를 사용하여 OS 시그널과 context cancellation을 연결한다.
+	// 후속 SPEC의 hook은 rt.RootCtx를 구독하여 데몬 생애주기에 참여할 수 있다.
+	rootCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	// 4. Runtime 초기화
+	rt := core.NewRuntime(logger, rootCtx)
 	rt.State.Store(core.StateBootstrap)
 
-	// 4. 헬스서버 기동
+	// 5. 헬스서버 기동
 	healthSrv := health.New(rt.State, version, logger)
 	if err := healthSrv.ListenAndServe(cfg.HealthPort); err != nil {
 		logger.Error("health-port in use",
@@ -61,21 +67,23 @@ func run() int {
 		return core.ExitConfig
 	}
 
-	// 5. serving 상태 전환
+	// 6. serving 상태 전환
 	rt.State.Store(core.StateServing)
 	// version 필드는 NewLogger에서 이미 With()로 주입되어 있으므로 중복 부여하지 않는다.
 	logger.Info("goosed started", zap.Int("health_port", cfg.HealthPort))
 
-	// 6. 시그널 대기 (REQ-CORE-004)
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	<-sigCh
+	// 7. 시그널 대기 (REQ-CORE-004)
+	// rootCtx는 SIGINT/SIGTERM 수신 시 cancel된다.
+	// 이 시점 이후 rt.RootCtx.Done()을 구독하는 모든 하위 컴포넌트에 취소가 전파된다.
+	<-rootCtx.Done()
+	// 시그널 처리 완료 후 stop()을 호출하여 추가 시그널이 기본 동작(즉시 종료)으로 처리되도록 한다.
+	stop()
 
-	// 7. draining 상태 전환
+	// 8. draining 상태 전환
 	rt.State.Store(core.StateDraining)
 	logger.Info("received shutdown signal, draining")
 
-	// 8. 헬스서버 종료 (새 연결 차단, REQ-CORE-008)
+	// 9. 헬스서버 종료 (새 연결 차단, REQ-CORE-008)
 	shutdownTimeout := time.Duration(cfg.ShutdownTimeout) * time.Second
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
@@ -84,7 +92,7 @@ func run() int {
 		logger.Warn("health server shutdown error", zap.Error(err))
 	}
 
-	// 9. cleanup hook 실행 (REQ-CORE-004, REQ-CORE-009)
+	// 10. cleanup hook 실행 (REQ-CORE-004, REQ-CORE-009)
 	panicOccurred := rt.Shutdown.RunAllHooks(shutdownCtx)
 
 	rt.State.Store(core.StateStopped)

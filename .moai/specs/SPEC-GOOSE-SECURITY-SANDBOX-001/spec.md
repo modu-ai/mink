@@ -1,9 +1,9 @@
 ---
 id: SPEC-GOOSE-SECURITY-SANDBOX-001
 version: 0.1.0
-status: Planned (skeleton)
-created: 2026-04-24
-updated: 2026-04-24
+status: planned
+created_at: 2026-04-24
+updated_at: 2026-04-24
 author: architecture-redesign-v0.2
 priority: P0
 issue_number: null
@@ -11,6 +11,7 @@ phase: 5
 milestone: M5
 size: 대(L)
 lifecycle: spec-first
+labels: []
 ---
 
 # SPEC-GOOSE-SECURITY-SANDBOX-001 — OS-Level Sandbox

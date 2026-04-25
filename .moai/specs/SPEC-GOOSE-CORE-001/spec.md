@@ -1,15 +1,16 @@
 ---
 id: SPEC-GOOSE-CORE-001
-version: 0.1.0
-status: Planned
-created: 2026-04-21
-updated: 2026-04-21
+version: 1.0.0
+status: implemented
+created_at: 2026-04-21
+updated_at: 2026-04-25
 author: manager-spec
 priority: P0
 issue_number: null
 phase: 0
 size: 소(S)
 lifecycle: spec-anchored
+labels: [phase-0, area/core, area/runtime, area/health, type/feature]
 ---
 
 # SPEC-GOOSE-CORE-001 — goosed 데몬 부트스트랩 및 Graceful Shutdown
@@ -19,6 +20,8 @@ lifecycle: spec-anchored
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-21 | 초안 작성 (프로젝트 문서 9종 기반) | manager-spec |
+| 0.1.1 | 2026-04-24 | Phase C1 코드 수정 반영: `signal.NotifyContext` 도입(REQ-CORE-004 b절 강화), `RunAllHooks` parentCtx 만료 감시 추가(REQ-CORE-004 c절 보강). 신규 테스트 `TestGoosedMain_SIGTERM_CancelsRootContext`, `TestRunAllHooks_ParentCtxCanceled_StopsIteration` 추가 (commit `79d92ff`). | manager-spec |
+| 1.0.0 | 2026-04-25 | iter 1·2 감사 결함 18건 정합화: REQ-CORE-008/011/012 AC 신설(AC-CORE-007/008/009), REQ-CORE-011 EARS 패턴 정정([Unwanted] If…then…), REQ-CORE-003 `atomic.Int32` 표기 정렬, Go 1.26 버전 단일화, §11 번호링 `11.x` 정정, §6.3 Phase 0 OUT OF SCOPE 마킹, §7.1 미생성 테스트 파일 마킹, AC-CORE-001 50ms 단속 강화, AC-CORE-005 stack trace 검증 메커니즘 명시. status: planned→implemented (Phase C1 코드 반영). | manager-spec |
 
 ---
 
@@ -59,7 +62,7 @@ GOOSE-AGENT의 모든 후속 기능이 붙어야 할 **Go 데몬 프로세스 `g
 
 ### 3.1 IN SCOPE (본 SPEC이 구현하는 것)
 
-1. Go 1.22+ 단일 바이너리 `goosed`가 `cmd/goosed/main.go`에 존재한다.
+1. Go 1.26+ 단일 바이너리 `goosed`가 `cmd/goosed/main.go`에 존재한다.
 2. 프로세스 생애주기: `init → bootstrap → serve → shutdown`의 4-단계 상태 머신.
 3. 환경 변수 `GOOSE_HOME` (기본값: `~/.goose`)에서 설정 파일 `~/.goose/config.yaml`을 읽는다. 파일 부재 시 템플릿 기본값으로 fallback.
 4. 구조화 로거(`uber-go/zap`) 초기화, JSON 포맷 + stderr 출력.
@@ -91,7 +94,7 @@ GOOSE-AGENT의 모든 후속 기능이 붙어야 할 **Go 데몬 프로세스 `g
 
 **REQ-CORE-002 [Ubiquitous]** — The `goosed` process **shall** identify itself with the fields `service="goosed"` and `version="<semver>"` injected at build time via `-ldflags "-X main.version=..."`.
 
-**REQ-CORE-003 [Ubiquitous]** — The `goosed` process **shall** expose its process state (`init|bootstrap|serving|draining|stopped`) through an internal `atomic.Value` readable by health probes.
+**REQ-CORE-003 [Ubiquitous]** — The `goosed` process **shall** expose its process state (`init|bootstrap|serving|draining|stopped`) through an internal `atomic.Int32` readable by health probes (typed counter for type-safe state machine; replaces earlier `atomic.Value` draft).
 
 ### 4.2 Event-Driven (이벤트 기반)
 
@@ -113,7 +116,7 @@ GOOSE-AGENT의 모든 후속 기능이 붙어야 할 **Go 데몬 프로세스 `g
 
 **REQ-CORE-010 [Unwanted]** — **If** `GOOSE_HOME/config.yaml` exists but fails YAML parsing, **then** the `goosed` process **shall** exit with code `78` (EX_CONFIG) without starting the health server.
 
-**REQ-CORE-011 [Unwanted]** — The `goosed` process **shall not** write any log line at level `DEBUG` or below when `GOOSE_LOG_LEVEL` is set to `info` or higher.
+**REQ-CORE-011 [Unwanted]** — **If** `GOOSE_LOG_LEVEL` is set to `info` or higher, **then** the `goosed` process **shall not** write any log line at level `DEBUG` or below.
 
 ### 4.5 Optional (선택적)
 
@@ -125,10 +128,10 @@ GOOSE-AGENT의 모든 후속 기능이 붙어야 할 **Go 데몬 프로세스 `g
 
 > 각 AC는 Given-When-Then. `*_test.go`로 변환 가능한 수준.
 
-**AC-CORE-001 — 정상 부트스트랩 및 헬스체크**
+**AC-CORE-001 — 정상 부트스트랩 및 헬스체크 (REQ-CORE-001/002/003/005)**
 - **Given** `GOOSE_HOME`이 `t.TempDir()`로 설정되고 `config.yaml`이 비어있는 기본값 상태
 - **When** `goosed`를 실행하고 200ms 대기
-- **Then** 상태는 `serving`이고, `curl localhost:17890/healthz`가 200 + `{"status":"ok","state":"serving",...}`를 반환
+- **Then** 상태는 `serving`이고, `curl localhost:17890/healthz`가 200 + `{"status":"ok","state":"serving","version":"<semver>"}`를 반환하며, **응답 latency가 50ms 이내**임이 측정되어야 한다(REQ-CORE-005 — `time.Since(start) < 50*time.Millisecond` 단속).
 
 **AC-CORE-002 — SIGTERM 수신 시 graceful shutdown**
 - **Given** `goosed`가 `serving` 상태로 동작 중
@@ -145,15 +148,30 @@ GOOSE-AGENT의 모든 후속 기능이 붙어야 할 **Go 데몬 프로세스 `g
 - **When** `goosed` 실행
 - **Then** exit code 78, stderr에 `health-port in use: 17890` 메시지
 
-**AC-CORE-005 — cleanup hook panic 격리**
+**AC-CORE-005 — cleanup hook panic 격리 (REQ-CORE-009)**
 - **Given** 3개 cleanup hook이 등록되어 있고 그중 2번째가 `panic("boom")`을 발생
 - **When** `SIGTERM` 송신
-- **Then** exit code 1, 3개 hook이 모두 호출됨(패닉 이후에도 나머지 실행), 패닉 스택이 ERROR 로그에 포함됨
+- **Then** exit code 1, 3개 hook이 모두 호출됨(패닉 이후에도 나머지 실행), `zaptest/observer`로 캡처한 ERROR 로그 레코드의 `stack` 필드가 `goroutine ` 패턴(또는 `runtime.gopanic`)을 포함함을 assertion으로 검증.
 
-**AC-CORE-006 — 드레이닝 중 503 응답**
+**AC-CORE-006 — 드레이닝 중 503 응답 (REQ-CORE-007)**
 - **Given** `goosed` state=`draining` (cleanup 진행 중 강제 고정)
 - **When** `GET /healthz`
 - **Then** 503 + body `{"status":"draining"}`
+
+**AC-CORE-007 — 드레이닝 시 listener 종료 (REQ-CORE-008)**
+- **Given** `goosed`가 `serving` 상태로 동작 중이고 health listener는 `:17890`에 바인딩되어 있음
+- **When** `SIGTERM`을 송신하여 process가 `draining`으로 전이된 후, 새로운 TCP 연결 `net.Dial("tcp", "127.0.0.1:17890")`을 시도
+- **Then** 연결 시도가 `connection refused` 또는 동등한 OS 오류로 실패해야 한다(listener는 hook fan-out 이전에 close됨). 실패는 `draining` 상태 관측 시점으로부터 100ms 이내에 발생해야 한다.
+
+**AC-CORE-008 — DEBUG 로그 억제 (REQ-CORE-011)**
+- **Given** 환경변수 `GOOSE_LOG_LEVEL=info`로 `goosed` 시작
+- **When** 내부 코드가 `logger.Debug(...)`를 1회 이상 호출
+- **Then** stderr에서 캡처한 JSON 로그 라인 중 `"level":"debug"` 필드를 가진 라인이 **0건**이어야 한다.
+
+**AC-CORE-009 — 헬스 포트 override (REQ-CORE-012)**
+- **Given** 환경변수 `GOOSE_HEALTH_PORT=18999` 설정 후 `goosed` 시작
+- **When** `curl http://127.0.0.1:18999/healthz` 200ms 이내 호출
+- **Then** 200 + `{"status":"ok","state":"serving",...}` 반환. 동시에 기본 포트 `:17890`에는 어떤 listener도 바인딩되어 있지 않아야 한다(`net.Dial("tcp", "127.0.0.1:17890")` → `connection refused`).
 
 ---
 
@@ -184,15 +202,17 @@ GOOSE-AGENT의 모든 후속 기능이 붙어야 할 **Go 데몬 프로세스 `g
 | **Rust CGO** | CGO-embedded staticlib | QMD · (후속) LoRA · crypto; 단일 바이너리 유지 |
 | **OS Keyring** | `github.com/zalando/go-keyring` | macOS Keychain / libsecret / Windows Cred Vault 추상 |
 
-### 6.3 보안 스택 (M5 Safety 확장)
+### 6.3 보안 스택 (참고용 — Phase 0 **OUT OF SCOPE**)
 
-| 계층 | 도구 / 기법 |
-|-----|-----------|
-| Tier 1 Storage partition | 파일시스템 분리 (`~/.goose/secrets/` vs `./.goose/**`) |
-| Tier 2 FS access matrix | `security.yaml` allowlist/denylist + blocked_always 목록 |
-| Tier 3 OS sandbox | macOS Seatbelt, Linux Landlock+Seccomp, Windows AppContainer |
-| Tier 4 Zero-knowledge proxy | OS keyring + `goose-proxy` transport injection |
-| Tier 5 Declared permission | Skill/MCP frontmatter `requires:` + first-call confirm |
+> **Phase 0 적용 불가**: 본 SPEC은 보안 계층을 구현하지 않는다. 아래 표는 후속 SPEC(M5 Safety) 작성자를 위한 사전 합의 자료이며, Phase 0 코드/테스트 평가 기준에서 제외된다.
+
+| 계층 | 도구 / 기법 | 도입 SPEC |
+|-----|-----------|---------|
+| Tier 1 Storage partition | 파일시스템 분리 (`~/.goose/secrets/` vs `./.goose/**`) | M5 Safety |
+| Tier 2 FS access matrix | `security.yaml` allowlist/denylist + blocked_always 목록 | M5 Safety |
+| Tier 3 OS sandbox | macOS Seatbelt, Linux Landlock+Seccomp, Windows AppContainer | M5 Safety |
+| Tier 4 Zero-knowledge proxy | OS keyring + `goose-proxy` transport injection | M5 Safety |
+| Tier 5 Declared permission | Skill/MCP frontmatter `requires:` + first-call confirm | M5 Safety |
 
 > **Phase 0 (본 SPEC)** 에서는 `modernc.org/sqlite`, gRPC, tiktoken-go를 `go.mod`에 추가하되,
 > 실제 사용은 후속 SPEC에서 진행한다. Kuzu는 Phase 8, QMD는 M1, Rust CGO staticlib 바인딩은 M5/M8로 유예.
@@ -206,19 +226,21 @@ GOOSE-AGENT의 모든 후속 기능이 붙어야 할 **Go 데몬 프로세스 `g
 ```
 / (repo root)
 ├── go.mod                          # module github.com/modu-ai/goose (Go 1.26+)
-├── cmd/goosed/main.go              # 진입점: 15~30줄, argparse, build-time version
+├── cmd/goosed/main.go              # 진입점: ≤120 LoC (root ctx + signal.NotifyContext + exit code 분기 포함)
 ├── internal/core/
-│   ├── bootstrap.go                # bootstrap() → context, config, logger
-│   ├── shutdown.go                 # RegisterHook / RunAllHooks / 30s timeout
-│   ├── state.go                    # atomic.Value 기반 state machine
-│   └── exitcodes.go                # const ExitOK, ExitConfig=78, ExitHookPanic=1
+│   ├── runtime.go                  # NewRuntime() factory, RootCtx 노출 (실제 구현은 bootstrap.go 대신 runtime.go)
+│   ├── shutdown.go                 # RegisterHook / RunAllHooks / 30s timeout / parentCtx 만료 감시
+│   ├── state.go                    # atomic.Int32 기반 state machine
+│   ├── logger.go                   # zap JSON 로거 (REQ-CORE-001/002/011)
+│   ├── exitcodes.go                # const ExitOK, ExitConfig=78, ExitHookPanic=1
+│   └── runtime_test.go             # 통합 테스트 (현 시점 health/config 테스트 포함; 후속 분리 예정)
 ├── internal/health/
-│   ├── server.go                   # http.Server + /healthz
-│   └── server_test.go              # integration test
+│   └── server.go                   # http.Server + /healthz (※ server_test.go는 차기 sprint에서 추가)
 └── internal/config/
-    ├── bootstrap_config.go         # 최소 loader (본 SPEC 전용, CONFIG-001이 확장)
-    └── bootstrap_config_test.go
+    └── bootstrap_config.go         # 최소 loader (본 SPEC 전용, CONFIG-001이 확장; ※ bootstrap_config_test.go는 차기 sprint에서 추가)
 ```
+
+> **레이아웃 노트**: SPEC 초안은 `bootstrap.go` / 패키지별 `_test.go` 파일을 가정했으나, 실제 구현은 `runtime.go` 팩토리 + 통합 `internal/core/runtime_test.go` 단일 파일로 진행됨. `internal/health/server_test.go`와 `internal/config/bootstrap_config_test.go`는 본 SPEC 범위에서 미생성 상태이며, 차기 리팩터 sprint(테스트 분리 작업)에서 추가한다.
 
 ### 7.2 핵심 타입 (초안)
 
@@ -260,14 +282,23 @@ gin, viper, cobra 등은 본 SPEC에서 **의도적으로 미사용**. CONFIG-00
 3. **RED #3**: `TestSIGTERM_InvokesHooks_ExitZero` — AC-CORE-002 → 실패.
 4. ... (AC별 테스트 모두 RED 확인 후)
 5. **GREEN**: `internal/core/*`, `internal/health/*` 최소 구현.
-6. **REFACTOR**: state machine을 `sync/atomic.Value`로 일관화, logger를 모든 hook에 DI.
+6. **REFACTOR**: state machine을 `atomic.Int32`로 일관화, logger를 모든 hook에 DI.
+
+#### 7.4.1 Phase C1 보강 테스트 (commit `79d92ff`, 2026-04-24)
+
+iter 1 감사에서 도출된 Major 결함 B4-1·B4-2(root context 미전파, RunAllHooks parentCtx 만료 감시 부재)를 해결하기 위해 다음 두 테스트가 추가되었다. 본 테스트는 REQ-CORE-004 b·c 절의 계약 강화를 검증한다.
+
+- **`TestGoosedMain_SIGTERM_CancelsRootContext`** (`internal/core/runtime_test.go`) — `signal.NotifyContext` 기반 root ctx 취소 경로 검증. `SIGTERM` 송신 시 `Runtime.RootCtx.Done()`이 닫히고 hook이 해당 ctx를 구독할 수 있음을 assertion (REQ-CORE-004 b절).
+- **`TestRunAllHooks_ParentCtxCanceled_StopsIteration`** (`internal/core/runtime_test.go`) — `RunAllHooks` 진입 후 parentCtx가 만료되면 남은 hook 실행을 중단하고 warn 로그를 남기는 경로 검증 (REQ-CORE-004 c절 30s timeout 보장).
+
+두 테스트 모두 `go test -race -count=5` 240s 환경에서 PASS 확인됨. 본 SPEC의 구현 정합률은 Phase C1 이후 12/12 REQ + 9/9 AC 커버리지로 정렬된다.
 
 ### 7.5 TRUST 5 매핑
 
 | 차원 | 본 SPEC의 달성 방법 |
 |-----|-----------------|
 | **T**ested | 85%+ 커버리지, 시그널·포트·패닉 전부 integration test |
-| **R**eadable | main.go 30줄 미만, package별 단일 책임 |
+| **R**eadable | main.go ≤120 LoC (root ctx + signal.NotifyContext + exit code 분기 포함; 초기 30줄 목표는 root ctx 보강 후 완화), package별 단일 책임 |
 | **U**nified | `go fmt` + `golangci-lint` (errcheck, govet, staticcheck) |
 | **S**ecured | 헬스 endpoint 인증 없음은 의도적 (localhost only, 기본 포트 바인드 `127.0.0.1`) |
 | **T**rackable | `service="goosed"`, SPEC-ID commit trailer 적용 |
@@ -292,7 +323,7 @@ gin, viper, cobra 등은 본 SPEC에서 **의도적으로 미사용**. CONFIG-00
 | 선행 SPEC | (없음) | 본 SPEC이 Phase 0의 최초 SPEC |
 | 후속 SPEC | SPEC-GOOSE-CONFIG-001 | 계층형 설정으로 확장 |
 | 후속 SPEC | SPEC-GOOSE-TRANSPORT-001 | 동일 process 내 gRPC 등록 |
-| 외부 | Go 1.22+ toolchain | `go build`, `go test` |
+| 외부 | Go 1.26+ toolchain | `go build`, `go test` (go.mod = `go 1.26`) |
 | 외부 | `go.uber.org/zap` | 구조화 로깅 |
 
 ---
@@ -301,7 +332,7 @@ gin, viper, cobra 등은 본 SPEC에서 **의도적으로 미사용**. CONFIG-00
 
 | # | 리스크 | 가능성 | 영향 | 완화 |
 |---|------|------|-----|------|
-| R1 | Go 버전 합의 실패 (tech.md 1.26+ vs 현실 1.22 최신 안정) | 중 | 중 | 본 SPEC에서 Go 1.22로 고정. tech.md는 로드맵 버전이므로 후속 SPEC이 필요 시 업그레이드 |
+| R1 | Go 버전 합의 실패 (tech.md 1.26+ vs 과거 안정 1.22 잔존) | 낮 | 낮 | 본 SPEC에서 **Go 1.26**으로 단일화 (go.mod `go 1.26`). tech.md/structure.md/spec.md §6.2 모두 일관. 1.26 미만 toolchain은 빌드 거부. |
 | R2 | `SIGTERM` 처리가 OS별로 상이 (Windows) | 중 | 낮 | 초기 타깃은 darwin/linux만. Windows 지원은 OUT OF SCOPE |
 | R3 | 30초 graceful 타임아웃 부족 (LoRA 훈련 중 종료 등) | 낮 | 중 | 본 SPEC은 학습 hook 없음. 학습 SPEC들이 자체 cancellable 패턴 보장 |
 | R4 | panic recovery가 stack trace를 분실 | 낮 | 중 | `debug.Stack()` 호출 보장, 테스트로 검증 (AC-CORE-005) |
@@ -311,20 +342,20 @@ gin, viper, cobra 등은 본 SPEC에서 **의도적으로 미사용**. CONFIG-00
 
 ## 11. 참고 (References)
 
-### 10.1 프로젝트 문서 (본 SPEC 근거)
+### 11.1 프로젝트 문서 (본 SPEC 근거)
 
 - `.moai/project/structure.md` §1 (디렉토리), §3 (3-tier 계층), §9 (MoAI-ADK 상속)
 - `.moai/project/tech.md` §1.2 (3-언어 매핑), §3.1 (Go 런타임 스택), §11.1 (개발환경)
 - `.moai/project/product.md` §3.1 (4-Layer 아키텍처 상 "goosed" 등장)
 - `.moai/project/migration.md` §6.4 (v4.0 신규 작업 항목 중 "코어 런타임" 필요)
 
-### 10.2 외부 참조
+### 11.2 외부 참조
 
 - **MoAI-ADK-Go** (외부 레포): `cmd/*/main.go` + `internal/core/bootstrap.go` graceful shutdown 패턴
 - **go.uber.org/zap** v1.27: https://pkg.go.dev/go.uber.org/zap
 - **sysexits.h** exit code 관례: FreeBSD `/usr/include/sysexits.h`
 
-### 10.3 부속 문서
+### 11.3 부속 문서
 
 - `./research.md` — MoAI-ADK-Go 상속 가능 영역, Hermes/Claude Code 분석 결과
 - `../ROADMAP.md` — 전체 Phase 계획

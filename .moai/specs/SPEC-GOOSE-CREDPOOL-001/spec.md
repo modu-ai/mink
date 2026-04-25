@@ -1,31 +1,39 @@
 ---
 id: SPEC-GOOSE-CREDPOOL-001
-version: 0.1.0
-status: Planned
-created: 2026-04-21
-updated: 2026-04-21
+version: 0.3.0
+status: planned
+created_at: 2026-04-21
+updated_at: 2026-04-25
 author: manager-spec
 priority: P0
 issue_number: null
 phase: 1
 size: 대(L)
 lifecycle: spec-anchored
+labels: [credential, llm, oauth, phase-1, zero-knowledge]
 ---
 
 # SPEC-GOOSE-CREDPOOL-001 — Credential Pool (OAuth/API 통합, 4 Strategy, Rotation)
 
-> **v0.2 Amendment (2026-04-24)**: SPEC-GOOSE-ARCH-REDESIGN-v0.2 Tier 4 통합 요구.
+> **v0.2 Amendment (2026-04-24, v0.3.0 확정)**: SPEC-GOOSE-ARCH-REDESIGN-v0.2 Tier 4 통합 요구.
 > 본 SPEC이 관리하는 것은 **credential reference (keyring_id)** 이며, **raw secret value는 절대 agent 메모리에 로드하지 않는다**.
 > 실제 secret 조회 및 transport-layer injection은 SPEC-GOOSE-CREDENTIAL-PROXY-001 의 `goose-proxy` 프로세스가 담당.
 > CredentialPool은 (a) 어떤 credential을 다음에 쓸 것인가 (selection strategy), (b) 언제 OAuth refresh가 필요한가 (expiry 추적), (c) refresh 요청을 proxy에 위임하는 흐름을 관리한다.
-> OS keyring 백엔드: `github.com/zalando/go-keyring` (macOS Keychain / libsecret / Windows Credential Vault).
+> OS keyring 백엔드: `github.com/zalando/go-keyring` (macOS Keychain / libsecret / Windows Credential Vault) — 본 SPEC 범위 외, SPEC-GOOSE-CREDENTIAL-PROXY-001 담당.
 > 구현 시 `.moai/design/goose-runtime-architecture-v0.2.md` §5 Tier 4 참조.
+>
+> **파급 규칙 (v0.3.0 명문화)**:
+> 1. **REQ-004 (persistence)**: "credential 전체를 persist" → "**metadata만 persist** (status, cooldown, usage count, expires_at). access_token / refresh_token / api_key는 persist 대상이 아니며 풀 메모리에도 존재하지 않는다."
+> 2. **REQ-014 (redaction)**: `PooledCredential.String()` redaction 의무는 vacuously 충족 — struct에 secret field 자체가 없기 때문(`pooled.go`의 `KeyringID`만 존재). redaction은 "struct-level 무-secret 불변(invariant)"으로 재정의된다.
+> 3. **§3.1 rule 8 / §6.4 JSON 스키마**: `access_token` / `refresh_token` / `api_key` 필드는 영속 JSON에서도 **제외**. v0.1 스키마의 raw secret 필드는 삭제된 것으로 간주.
+> 4. **`Refresher` 인터페이스**: 본 SPEC은 interface의 **호출 트리거 규칙 (when to refresh)** 만 규정한다. 실제 HTTP refresh 및 token rotation은 SPEC-GOOSE-CREDENTIAL-PROXY-001 + SPEC-GOOSE-ADAPTER-001 (Anthropic PKCE) 이 담당한다. 구현 시그니처는 `Refresh(ctx, cred) error`(Zero-Knowledge: pool에 새 token이 돌아오지 않음)로 수정한다.
 
 ## HISTORY
 
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-21 | 초안 작성 (hermes-llm.md §1-3 + ROADMAP v2.0 Phase 1 기반) | manager-spec |
+| 0.3.0 | 2026-04-25 | mass audit iteration 1 결함 수정: (a) 프론트매터 `labels` 채움, (b) v0.2 Zero-Knowledge 파급 — REQ-004(persist)를 metadata-only로 재정의, REQ-014 redaction을 struct-level 무secret 제약으로 변환, §3.1 rule 8 / §6.4 JSON 스키마를 metadata-only로 교정, (c) Strategy 명명을 구현 코드 실체(`PriorityStrategy`/`RoundRobinStrategy`/`WeightedStrategy`/`LRUStrategy`)에 정합화, (d) REQ-011 LRU를 `UsageCount` 기반으로 완화, (e) D13 ExpiresAt 필터 누락은 Phase C1(commit 79d92ff)에서 수정됨을 AC-011로 고정, (f) Skeleton 미착수(외부 소스/Refresher 배선/영속 Storage)를 Open Items로 이관. | manager-spec |
 
 ---
 
@@ -72,18 +80,19 @@ GOOSE-AGENT Phase 1의 **Multi-LLM Infrastructure 진입점**을 정의한다. H
 
 ### 3.1 IN SCOPE (본 SPEC이 구현하는 것)
 
-1. `internal/llm/credential/` 패키지: `PooledCredential`, `CredentialPool`, `Lease`, `SelectionStrategy`, `ExhaustionPolicy`, `Storage`, `CredentialSource`.
-2. 선택 전략 4종 — `FillFirst`(우선순위), `RoundRobin`(공평), `Random`(부하 분산), `LeastUsed`(사용 빈도).
-3. 가용성 필터링: `status == OK` AND `last_error_reset_at <= now` AND (OAuth의 경우) `expires_at > now + refresh_margin`.
-4. OAuth 자동 갱신 훅: `Refresher` 인터페이스를 통해 provider별 HTTP refresh 구현을 주입받고, `expires_at - refreshMargin < now`일 때 호출.
-5. 고갈 처리: HTTP 429 → 서버 제공 `Retry-After` 또는 기본 1시간 쿨다운 기록. HTTP 402 → 영구 고갈(운영자 개입 대기).
-6. 회전: `MarkExhaustedAndRotate(id, statusCode, ctx)` 호출 시 (a) 해당 엔트리 상태를 `EXHAUSTED` 전환, (b) 다음 가용 엔트리 선택, (c) 반환.
-7. 소프트 임대(`AcquireLease/ReleaseLease`): 동일 엔트리가 동시에 N개 요청에 쓰여도 API 호출은 허용하되, 엔트리 단위 사용량(`request_count`, `active_leases`)을 추적한다. 하드 락이 아니므로 복수 임대가 허용됨(하지만 `LeastUsed` 전략이 이를 참조).
-8. 영속 상태: `~/.goose/credentials/<provider>.json`에 `last_status`, `last_status_at`, `last_error_code`, `last_error_reset_at`, `request_count`, `expires_at_ms` 저장. `Load()` 시 복원, `MarkExhausted/Refresh` 시 atomic write(tmp + rename).
-9. 외부 소스 동기화: `CredentialSource` 인터페이스 구현 3종 — `AnthropicClaudeSource`(`~/.claude/.credentials.json`), `OpenAICodexSource`(`~/.codex/auth.json`), `NousSource`(`~/.hermes/auth.json`). 파일 mtime 감지를 통해 load-only(폴링 없음, 명시적 `Refresh()` 호출 시점에만 재검사).
-10. 관측성: `PoolStats{Total, Available, Exhausted, Pending, RefreshesTotal, RotationsTotal}` 노출.
-11. 에러 타입: `ErrExhausted`(풀 전체 소진), `ErrRefreshFailed`, `ErrLeaseUnavailable`, `ErrInvalidEntry`.
-12. `CONFIG-001`의 `LLMConfig.Providers[*].Credentials[]`를 읽어 초기 풀 구성.
+1. `internal/llm/credential/` 패키지: `PooledCredential` (metadata + KeyringID만), `CredentialPool`, `Lease`, `SelectionStrategy` (interface), `Refresher` (interface), `CredentialSource` (interface).
+2. 선택 전략 4종 (**구현 코드 실체 기준**) — `PriorityStrategy`(Priority 값 최고 우선, 동일 Priority는 RR 타이브레이커), `RoundRobinStrategy`(카운터 기반 순환), `WeightedStrategy`(Weight 비례 가중치 무작위), `LRUStrategy`(UsageCount 최저 우선).
+   - 비고: v0.1.0 SPEC의 `FillFirst` / `Random` / `LeastUsed` 명명은 **구현에 맞춰 각각 `Priority` / `Weighted` / `LRU`로 교체되었다**(v0.3.0). 의미 차이: (a) `FillFirst` → `Priority`: "첫 슬롯 채움"이 아닌 "최고 Priority 값 우선"으로 명확화. (b) `Random` → `Weighted`: 균등 난수가 아닌 Weight-비례 가중치 난수. (c) `LeastUsed` → `LRU`: `active_leases` 다기준이 아닌 `UsageCount` 단일 기준.
+3. 가용성 필터링 (Phase C1 commit `79d92ff` 반영): `!leased` AND `status == CredOK` (쿨다운 만료 시 자동 복구) AND (`ExpiresAt.IsZero()` OR `ExpiresAt > now`). **`ExpiresAt.IsZero()`는 API key의 "영구 유효" 표식**이고, 비-zero이고 `now` 이전이면 만료된 OAuth로 간주하여 선택 후보에서 제외한다(REQ-CREDPOOL-001 (b)).
+4. OAuth 자동 갱신 훅 (호출 트리거 규칙만 정의): `Refresher` 인터페이스를 통해 외부 refresh 구현을 주입받고, `expires_at - refreshMargin < now`일 때 Select 경로에서 호출한다. 실 refresh HTTP 호출과 token 교체는 본 SPEC 범위 외(§3.2 참조).
+5. 고갈 처리: HTTP 429 → 호출자가 `retryAfter` 기간을 전달하면 해당 기간 쿨다운, 그 외 기본값 사용. HTTP 402 → 영구 고갈은 운영자 개입 대기. (본 SPEC에서 402/429 구분 자체는 `statusCode` 인자로 전달만 하고, 현 MVP 구현은 로깅용; 영구 고갈 분기는 REQ-013 참조.)
+6. 회전: `MarkExhaustedAndRotate(ctx, id, statusCode, retryAfter)` 호출 시 (a) 해당 엔트리 상태를 `CredExhausted` 전환, (b) `exhaustedUntil = now + retryAfter`, (c) 리스 해제, (d) 다음 가용 엔트리 선택 후 반환.
+7. 소프트 임대(`AcquireLease/ReleaseLease`): 엔트리를 명시적으로 점유 상태로 만든다. `AcquireLease`는 `*Lease`를 반환하고 `Lease.Release()`로 반환한다. 복수 임대가 아닌 단일 임대 시맨틱(구현 `lease.go`: 이미 점유 시 재획득 불가). `LRUStrategy`는 `UsageCount` 기반이며 `active_leases` 카운터는 참조하지 않는다(REQ-011 참조).
+8. 영속 상태 (**metadata-only, Zero-Knowledge 준수**): `~/.goose/credentials/<provider>.json` 파일에 **metadata만** 저장한다 — `id`, `provider`, `keyring_id` (참조만), `status`, `last_error_at_ms`, `last_error_reset_at_ms`, `exhausted_until_ms`, `usage_count`, `expires_at_ms`, `priority`, `weight`. **`access_token` / `refresh_token` / `api_key` 등 raw secret 필드는 포함하지 않는다**. 실제 secret은 SPEC-GOOSE-CREDENTIAL-PROXY-001의 OS keyring에 저장되고 `keyring_id`로만 참조된다.
+9. 외부 소스 동기화 (**본 SPEC은 interface 정의까지만 IN SCOPE**): `CredentialSource` 인터페이스를 정의하고 `Load(ctx) []*PooledCredential` 계약을 명시한다. 3개 provider별 구현(`AnthropicClaudeSource`, `OpenAICodexSource`, `NousSource`)은 skeleton으로 이관됨 — §11 Open Items 참조. 현 MVP는 `DummySource`(테스트용)만 구현되어 있다.
+10. 관측성: `Size() (total, available int)` 노출. 상세 `PoolStats{RefreshesTotal, RotationsTotal, ...}`는 §11 Open Items.
+11. 에러 타입 (구현 코드 실체): `ErrExhausted`(풀 전체 소진), `ErrNotFound`(id 미존재), `ErrAlreadyReleased`(중복 Release). SPEC-v0.1의 `ErrRefreshFailed` / `ErrInvalidEntry` / `ErrLeaseUnavailable`는 구현에 없으며, 필요 시 SPEC-GOOSE-CREDENTIAL-PROXY-001에서 재정의.
+12. `CONFIG-001`의 `LLMConfig.Providers[*].Credentials[]`를 읽어 초기 풀 구성(§11 Open Items — CONFIG 배선은 후속 작업).
 
 ### 3.2 OUT OF SCOPE (명시적 제외)
 
@@ -104,13 +113,13 @@ GOOSE-AGENT Phase 1의 **Multi-LLM Infrastructure 진입점**을 정의한다. H
 
 ### 4.1 Ubiquitous (시스템 상시 불변)
 
-**REQ-CREDPOOL-001 [Ubiquitous]** — The `CredentialPool` **shall** guarantee that every call to `Select()` returns either (a) a `*PooledCredential` whose `status == OK` and (for OAuth) `expires_at > now`, or (b) `ErrExhausted` if no such entry exists; **shall not** return an entry in `EXHAUSTED` or `PENDING` state.
+**REQ-CREDPOOL-001 [Ubiquitous]** — The `CredentialPool` **shall** guarantee that every call to `Select()` returns either (a) a `*PooledCredential` whose `Status == CredOK` AND `!leased` AND (`ExpiresAt.IsZero()` OR `ExpiresAt > now`) — where `ExpiresAt.IsZero()` signifies a permanently-valid credential (API key), and a non-zero `ExpiresAt` that has elapsed is treated as expired OAuth and excluded — or (b) `ErrExhausted` if no such entry exists; **shall not** return an entry in `CredExhausted` state or a leased entry. (v0.3.0: ExpiresAt 필터 규칙을 명문화. 구현은 Phase C1 commit `79d92ff`에서 `pool.go` `available()` 및 `availableCount()` 양쪽에 반영되었으며, `pool_expires_test.go`의 4개 테스트가 이를 검증한다 — AC-CREDPOOL-011 참조.)
 
 **REQ-CREDPOOL-002 [Ubiquitous]** — All mutations to `PooledCredential.status`, `last_error_reset_at`, and `request_count` **shall** go through `CredentialPool` public methods; external callers **shall not** mutate credential fields directly.
 
 **REQ-CREDPOOL-003 [Ubiquitous]** — The `CredentialPool` **shall** be safe for concurrent `Select`/`MarkExhaustedAndRotate`/`AcquireLease` calls from multiple goroutines; internal synchronization uses `sync.Mutex` scoped to the pool instance.
 
-**REQ-CREDPOOL-004 [Ubiquitous]** — Every mutation **shall** be immediately persisted to `~/.goose/credentials/<provider>.json` via atomic write (temp file + rename) before the public method returns.
+**REQ-CREDPOOL-004 [Ubiquitous]** — Every mutation **shall** be persistable to `~/.goose/credentials/<provider>.json` as **metadata only** (status / cooldown / usage count / expires_at / keyring_id reference — NO raw secrets). When a `Storage` implementation is wired, mutations **shall** atomic-write (temp file + rename) before the public method returns. (v0.3.0 파급: Zero-Knowledge 원칙상 `access_token` / `refresh_token` / `api_key`는 persist 대상에서 제외된다. 실제 Storage 배선은 §11 Open Items.)
 
 ### 4.2 Event-Driven (이벤트 기반)
 
@@ -128,7 +137,7 @@ GOOSE-AGENT Phase 1의 **Multi-LLM Infrastructure 진입점**을 정의한다. H
 
 **REQ-CREDPOOL-010 [State-Driven]** — **While** an OAuth entry's `expires_at - refreshMargin < now AND expires_at > now`, the next `Select()` that would return this entry **shall** first invoke `Refresher.Refresh(ctx, entry)`; upon refresh success, update `access_token`, `refresh_token`(if rotated), and `expires_at`; upon refresh failure, mark the entry as `EXHAUSTED` with a 5-minute cooldown and try the next entry.
 
-**REQ-CREDPOOL-011 [State-Driven]** — **While** the pool's `defaultStrategy == LeastUsed`, the `Select()` ordering **shall** prefer entries with the lowest `active_leases` first, then the lowest `request_count` as tiebreaker.
+**REQ-CREDPOOL-011 [State-Driven]** — **While** the pool's strategy is `LRUStrategy` (v0.1 `LeastUsed`의 v0.3.0 재명명), the `Select()` ordering **shall** prefer entries with the **lowest `UsageCount`** first. 동일 `UsageCount`일 경우 첫 매칭 엔트리를 반환한다. (v0.3.0 완화: 구현 `strategy.go:L56-L67`이 `UsageCount` 단일 기준을 사용한다. `active_leases` + `request_count` 다기준 ordering은 struct에 `ActiveLeases` 필드가 없어 불가능하며, 도입 시 §11 Open Items로 추적.)
 
 **REQ-CREDPOOL-012 [State-Driven]** — **While** all entries are in `EXHAUSTED` state with future `last_error_reset_at`, `Select()` **shall** return `ErrExhausted` with `RetryAfter` populated to the earliest reset time.
 
@@ -136,7 +145,7 @@ GOOSE-AGENT Phase 1의 **Multi-LLM Infrastructure 진입점**을 정의한다. H
 
 **REQ-CREDPOOL-013 [Unwanted]** — **If** `Refresher.Refresh` returns an error for the same entry **3 times consecutively**, the pool **shall** mark the entry as permanently exhausted (`last_error_code = -1`) and emit a WARN log; **shall not** retry this entry in subsequent `Select()` calls until operator intervention (e.g., `Pool.Reset(id)`).
 
-**REQ-CREDPOOL-014 [Unwanted]** — The pool **shall not** write credential fields to any log line; `access_token`, `refresh_token`, `api_key` must be redacted (`"sk-***"`) in every log emission. `PooledCredential.String()` **shall** return a redacted form.
+**REQ-CREDPOOL-014 [Unwanted]** — The pool **shall not** hold raw secret values (`access_token`, `refresh_token`, `api_key`) as fields of `PooledCredential`; this invariant **shall** be enforced by a reflection-based test (e.g., `TestPooledCredential_NoSecretFields` at `pool_test.go:L328-L347`). 이로써 log 경로에서의 secret 유출은 vacuously 불가능해지고, provider-facing HTTP 호출 경로의 redaction은 SPEC-GOOSE-CREDENTIAL-PROXY-001이 담당한다. (v0.3.0 재정의: v0.1의 "String() redaction" 의무를 "struct-level 무-secret 불변"으로 격상.)
 
 **REQ-CREDPOOL-015 [Unwanted]** — The pool **shall not** block on refresh for entries other than the one currently being considered; specifically, `Select()` **shall not** preemptively refresh all entries in the background.
 
@@ -154,55 +163,69 @@ GOOSE-AGENT Phase 1의 **Multi-LLM Infrastructure 진입점**을 정의한다. H
 
 > 각 AC는 Given-When-Then. `*_test.go`로 변환 가능한 수준.
 
-**AC-CREDPOOL-001 — 기본 선택(FillFirst) 및 우선순위**
-- **Given** 3개 엔트리 `[{id:"a", priority:10}, {id:"b", priority:5}, {id:"c", priority:1}]`, 모두 `OK` 상태
-- **When** `Select(ctx, FillFirst)` 호출
-- **Then** 반환된 엔트리의 `id == "a"` (최고 priority), `entry.request_count == 1`
+**AC-CREDPOOL-001 — 기본 선택 (PriorityStrategy, v0.3.0 재명명)**
+- **Given** 3개 엔트리 `[{id:"a", Priority:10}, {id:"b", Priority:5}, {id:"c", Priority:1}]`, 모두 `CredOK`
+- **When** `New(src, NewPriorityStrategy())` 후 `Select(ctx)` 호출
+- **Then** 반환된 엔트리의 `ID == "a"` (최고 Priority), `UsageCount == 1`, `leased == true`. (v0.3.0: v0.1의 `FillFirst`는 "첫 슬롯 채움"으로 오해 소지가 있어 `Priority`로 재명명되었고, 구현 `strategy.go:L125-L166` `PriorityStrategy`가 이 의미론을 실현한다.)
 
-**AC-CREDPOOL-002 — RoundRobin 전략**
-- **Given** 3개 엔트리 모두 OK, 전략 `RoundRobin`
-- **When** 연속 4회 `Select` 호출
-- **Then** 반환 순서는 `[a, b, c, a]` (wrap-around)
+**AC-CREDPOOL-002 — RoundRobinStrategy**
+- **Given** 3개 엔트리 `[a, b, c]` 모두 `CredOK`, 전략 `NewRoundRobinStrategy()`
+- **When** 4회 `Select` + 매 호출 후 `Release`
+- **Then** 반환 순서는 `[a, b, c, a]` (wrap-around). 내부 `counter atomic.Uint64`가 단조 증가한다(`strategy.go:L25-L44`).
 
-**AC-CREDPOOL-003 — OAuth 자동 갱신**
-- **Given** 엔트리 `e1`의 `expires_at == now + 2분`, `refreshMargin == 5분`. 스텁 `Refresher.Refresh`가 새 토큰 `"new_token"`과 `expires_at = now + 1h`를 반환
-- **When** `Select(ctx, FillFirst)`
-- **Then** 반환된 엔트리의 `access_token == "new_token"`, `expires_at > now + 30분`, `Refresher.Refresh`는 1회만 호출됨
+**AC-CREDPOOL-003 — OAuth refresh trigger (호출 규칙만, v0.3.0 Zero-Knowledge 조정)**
+- **Given** 엔트리 `e1`의 `ExpiresAt = now + 2분`, `RefreshMargin = 5분`. 스텁 `Refresher.Refresh(ctx, cred) error`가 호출 횟수를 기록하고 `nil`을 반환
+- **When** `Select(ctx)` 호출
+- **Then** `Refresher.Refresh`가 정확히 1회 호출됨 (`ExpiresAt - RefreshMargin < now` 트리거). **실제 token rotation은 본 SPEC 범위 외** — proxy가 keyring의 값을 갱신하고 풀은 `Reload(ctx)` 또는 외부 신호로 `ExpiresAt`만 재-load한다 (§11 Open Items). v0.1의 "새 access_token이 entry에 주입" 시나리오는 Zero-Knowledge 원칙상 불가능하므로 삭제.
 
-**AC-CREDPOOL-004 — 429 고갈 후 회전**
-- **Given** 2개 엔트리 `[a, b]` 모두 OK, `a`가 선택된 후 외부 호출이 HTTP 429(retry_after=60)를 반환
-- **When** `MarkExhaustedAndRotate("a", 429, 60)` 호출
-- **Then** (1) `a.status == EXHAUSTED`, `a.last_error_reset_at == now + 60s`, (2) 반환값은 `b`이고 `b.status == OK`, (3) `~/.goose/credentials/<provider>.json`에 `a`의 상태가 persisted됨
+**AC-CREDPOOL-004 — 429 고갈 후 회전 (구현 완료, `f1a428c`/`bea5df1`)**
+- **Given** 2개 엔트리 `[a, b]` 모두 `CredOK`, `a`가 선택된 후 외부 호출이 HTTP 429(retryAfter=60s)를 반환
+- **When** `MarkExhaustedAndRotate(ctx, "a", 429, 60s)` 호출
+- **Then** (1) `a.Status == CredExhausted`, `a.exhaustedUntil ≈ now + 60s`, `a.leased == false`, (2) 반환값은 `b`이고 `b.Status == CredOK`, `b.leased == true`, `b.UsageCount++`. (3) 영속 persist 검증은 `Storage` 배선이 완료된 이후 — §11 Open Items.
+- **검증 테스트**: `pool_extend_test.go` 의 `TestMarkExhaustedAndRotate_*`.
 
 **AC-CREDPOOL-005 — 풀 전체 소진**
 - **Given** 모든 엔트리가 `EXHAUSTED`, `last_error_reset_at = now + 30s`
 - **When** `Select`
 - **Then** 반환은 `nil, ErrExhausted`이고, `ErrExhausted.RetryAfter == 30s`
 
-**AC-CREDPOOL-006 — 재기동 시 영속 상태 복원**
-- **Given** 엔트리 `a`가 `EXHAUSTED`, `last_error_reset_at = now + 5분`으로 저장된 상태에서 풀을 파괴 후 새 풀 생성
-- **When** 새 풀이 `Load()`
-- **Then** `a.status == EXHAUSTED`, `last_error_reset_at` 복원, `Select()` 시 `a`는 필터 아웃됨
+**AC-CREDPOOL-006 — 재기동 시 영속 상태 복원 (Open Item, §11 참조)**
+- **Given** 엔트리 `a`가 `CredExhausted`, `exhaustedUntil = now + 5분`으로 metadata-only 영속 파일에 저장된 상태에서 풀을 파괴 후 새 풀 생성
+- **When** 새 풀이 `load(ctx)`
+- **Then** `a.Status == CredExhausted`, `exhaustedUntil` 복원, `Select()` 시 `a`는 available 필터에서 제외됨
+- **상태**: 본 SPEC에서 계약만 정의. `Storage` interface 배선 및 atomic write 구현은 Open Item (§11). 검증 가능 시점은 Storage 구현 완료 후.
 
-**AC-CREDPOOL-007 — 외부 파일 소스 동기화**
-- **Given** `~/.claude/.credentials.json`이 엔트리 `claude-1`을 포함. 풀 초기화 후 파일 수정으로 `claude-2` 추가
-- **When** `Pool.RefreshSources(ctx)`
-- **Then** 풀의 `Stats().Total`이 1 증가하고 `claude-2`가 `Select` 후보에 포함됨. 기존 `claude-1`의 `request_count`는 보존
+**AC-CREDPOOL-007 — 외부 파일 소스 동기화 (Open Item, §11 참조)**
+- **Given** `AnthropicClaudeSource.Load(ctx)`가 `[claude-1]` 반환 후 두 번째 호출 시 `[claude-1, claude-2]` 반환하도록 stub
+- **When** `Pool.Reload(ctx)` (현재 구현 API 명칭)
+- **Then** `pool.Size().total == 2`, `claude-2`가 Select 후보에 포함됨. `claude-1`의 `UsageCount` / `leased` / `exhaustedUntil`은 보존됨 (`pool.go:L73-L84`의 기존 상태 병합 로직).
+- **상태**: `Reload` 기존 상태 병합은 구현 완료. 그러나 3개 provider 구현(`AnthropicClaudeSource` / `OpenAICodexSource` / `NousSource`)은 아직 skeleton — §11 Open Items. 현 MVP는 `DummySource`로만 검증.
 
-**AC-CREDPOOL-008 — Soft lease 집계**
-- **Given** 엔트리 `a` OK, 전략 `LeastUsed`, 두 번째 엔트리 `b`도 OK
-- **When** `AcquireLease("a")` 3회 후 `Select(LeastUsed)`
-- **Then** 반환은 `b` (active_leases 0 vs a의 3)
+**AC-CREDPOOL-008 — LRUStrategy UsageCount 우선 (v0.3.0 완화)**
+- **Given** 엔트리 `[a, b]` 모두 `CredOK`, 전략 `NewLRUStrategy()`. `a.UsageCount = 3`, `b.UsageCount = 0` (예: `a`를 3회 먼저 Select+Release)
+- **When** 네 번째 `Select(ctx)`
+- **Then** 반환은 `b` (lowest `UsageCount` 우선, `strategy.go:L56-L67`). (v0.3.0: v0.1은 `active_leases`를 1차 키로, `request_count`를 tiebreaker로 기대했으나 struct에 `ActiveLeases` 필드가 없으므로 `UsageCount` 단일 기준으로 완화됨.)
 
-**AC-CREDPOOL-009 — Refresh 3회 연속 실패 → 영구 고갈**
-- **Given** 엔트리 `e1`의 `expires_at`이 임박, `Refresher.Refresh`가 항상 에러 반환
+**AC-CREDPOOL-009 — Refresh 3회 연속 실패 → 영구 고갈 (Open Item, §11 참조)**
+- **Given** 엔트리 `e1`의 `ExpiresAt`이 `RefreshMargin` 임박, `Refresher.Refresh(ctx, cred)`가 항상 에러 반환
 - **When** 3회 `Select` 시도
-- **Then** 3회 모두 내부 refresh 시도가 발생하고, 3회 이후 `e1.status == EXHAUSTED`, `last_error_code == -1`, WARN 로그 1건. 이후 `Select`는 다른 엔트리 또는 `ErrExhausted`.
+- **Then** 3회 모두 내부 refresh 시도가 발생하고, 3회 이후 `e1`가 영구 고갈 상태로 전환되어 후속 `Select`에서 후보 제외 (운영자 개입 대기).
+- **상태**: `refreshFailCount` 카운터와 `Refresher` 배선이 Select 경로에 연결되어야 검증 가능. 현 MVP는 `Refresher` interface만 존재하고 Select 경로에 연결되지 않음 — §11 Open Items.
 
-**AC-CREDPOOL-010 — 비밀값 로그 마스킹**
-- **Given** zap logger에 debug 레벨 훅
-- **When** 모든 공개 메서드 호출 후 로그 수집
-- **Then** `access_token`, `refresh_token`, `api_key` 원문이 로그에 등장하지 않음. `String()` 결과에 `"sk-***"` 형태.
+**AC-CREDPOOL-010 — 구조체 수준 무-secret 불변 (v0.3.0 재정의)**
+- **Given** `PooledCredential` struct (`pooled.go`) 정의
+- **When** `TestPooledCredential_NoSecretFields`(`pool_test.go:L328-L347`)를 실행
+- **Then** reflect로 모든 exported/unexported field를 순회하여 `access_token` / `refresh_token` / `api_key` / `secret` / `password` 유사 이름의 필드가 **단 하나도 존재하지 않음**을 검증. `KeyringID`만 secret reference로 허용.
+
+**AC-CREDPOOL-011 — 만료 OAuth 토큰 필터링 (Phase C1 commit `79d92ff` 반영, v0.3.0 신설)**
+- **Given** 풀에 3개 엔트리 `[{oauth-expired, ExpiresAt: now-1h, Status: CredOK}, {oauth-valid-1, ExpiresAt: now+1h, Status: CredOK}, {oauth-valid-2, ExpiresAt: now+2h, Status: CredOK}]`
+- **When** `Select()` 10회 반복 호출 (매 호출 후 `Release`)
+- **Then** (1) `oauth-expired`는 한 번도 선택되지 않음 — REQ-CREDPOOL-001 (b) 준수, (2) `oauth-valid-1` 및 `oauth-valid-2`는 적어도 한 번씩 선택됨, (3) `ExpiresAt.IsZero()`인 엔트리는 영구 유효로 취급되어 `Size()` 의 `available` 카운트에 포함됨 (`TestAvailable_ZeroExpiresAt_IncludedAsNonExpiring`), (4) 미래 만료 엔트리는 정상 선택 및 `available` 집계 (`TestAvailable_ExpiresAtInFuture_Included`), (5) 만료 엔트리는 `Size()` 의 `available` 에서 제외됨 (`TestAvailable_ExpiredTokenExcludedFromSize`).
+- **검증 테스트 (현재 존재)**: `internal/llm/credential/pool_expires_test.go` 의 4개 테스트:
+  1. `TestAvailable_FiltersExpiredOAuthTokens`
+  2. `TestAvailable_ZeroExpiresAt_IncludedAsNonExpiring`
+  3. `TestAvailable_ExpiresAtInFuture_Included`
+  4. `TestAvailable_ExpiredTokenExcludedFromSize`
 
 ---
 
@@ -230,148 +253,128 @@ internal/llm/credential/
 ### 6.2 핵심 타입 (Go 시그니처 제안)
 
 ```go
-// internal/llm/credential/credential.go
+// internal/llm/credential/pooled.go (v0.3.0: Zero-Knowledge 실체 반영)
 
-// Status는 풀 엔트리의 현재 상태.
-type Status string
-
-const (
-    StatusOK        Status = "ok"        // 즉시 사용 가능
-    StatusExhausted Status = "exhausted" // 고갈 (쿨다운 중)
-    StatusPending   Status = "pending"   // 갱신 진행 중
-)
-
-// AuthType은 엔트리의 인증 방식.
-type AuthType string
+// CredStatus는 풀 엔트리의 현재 상태.
+type CredStatus int
 
 const (
-    AuthOAuth  AuthType = "oauth"
-    AuthAPIKey AuthType = "api_key"
+    CredOK        CredStatus = iota // 즉시 사용 가능
+    CredExhausted                   // 고갈 (exhaustedUntil까지 쿨다운)
+    // 주: v0.1의 "Pending" 상태는 구현에서 생략되었다. Refresh는 Select 트리거로만 발생.
 )
 
-// PooledCredential은 단일 자격 엔트리.
-// 필드는 Pool의 공개 메서드를 통해서만 mutate됨(REQ-CREDPOOL-002).
+// PooledCredential은 단일 자격 엔트리의 reference + metadata.
+// **raw secret은 포함하지 않는다** (REQ-CREDPOOL-014 struct-level 불변).
+// 필드는 Pool의 공개 메서드를 통해서만 mutate됨 (REQ-CREDPOOL-002).
 type PooledCredential struct {
-    Provider          string
-    ID                string // UUID hex[:6]
-    Label             string
-    AuthType          AuthType
-    Priority          int
-    Source            string // "config" | "anthropic_claude" | "openai_codex" | "nous"
+    ID             string        // 고유 식별자
+    Provider       string        // "anthropic" | "openai" | "nous" | ...
+    KeyringID      string        // OS keyring 참조 키 (raw secret 아님)
+    Status         CredStatus    // CredOK | CredExhausted
+    ExpiresAt      time.Time     // OAuth 만료. API key는 zero value (영구 유효)
+    LastErrorAt    time.Time     // 마지막 에러 발생 시각
+    LastErrorReset time.Time     // 에러 상태 초기화 시각
+    UsageCount     uint64        // 누적 선택 횟수 (LRU 기준)
+    Priority       int           // PriorityStrategy용 우선순위 (값이 클수록 우선)
+    Weight         int           // WeightedStrategy용 가중치
 
-    // 비밀값 — String() / MarshalJSON에서 redact.
-    accessToken  string
-    refreshToken string
-    apiKey       string
-    agentKey     string // Nous-specific
-
-    // 상태.
-    Status            Status
-    LastStatusAt      time.Time
-    LastErrorCode     int
-    LastErrorResetAt  time.Time
-    ExpiresAt         time.Time
-    BaseURL           string
-    RequestCount      int64
-    ActiveLeases      int32
-
-    // Refresh 연속 실패 카운터.
-    refreshFailCount  int
+    exhaustedUntil time.Time     // (내부) MarkExhausted 쿨다운 만료
+    leased         bool          // (내부) 현재 리스 중 여부
 }
 
-// RuntimeAPIKey는 호출자가 실제 HTTP 헤더에 쓸 토큰.
-// agentKey 우선, 없으면 accessToken, 없으면 apiKey.
-func (c *PooledCredential) RuntimeAPIKey() string
-
-// String은 비밀값을 redact한 표현을 반환(REQ-CREDPOOL-014).
-func (c *PooledCredential) String() string
+// v0.3.0: `RuntimeAPIKey()` / `String()` redaction 메서드는 존재하지 않는다.
+// Zero-Knowledge 원칙상 secret이 struct에 없으므로 redaction이 vacuously 성립.
+// 검증: `TestPooledCredential_NoSecretFields` (pool_test.go:L328-L347) — reflect로 강제.
 ```
 
 ```go
-// internal/llm/credential/strategy.go
+// internal/llm/credential/strategy.go (v0.3.0: interface 기반으로 변경됨)
 
-type SelectionStrategy int
+// SelectionStrategy는 사용 가능한 크레덴셜 중 하나를 선택하는 전략 interface이다.
+type SelectionStrategy interface {
+    Select(available []*PooledCredential) (*PooledCredential, error)
+    Name() string
+}
 
-const (
-    FillFirst SelectionStrategy = iota // 최고 priority 엔트리 우선
-    RoundRobin                         // 마지막 선택 인덱스 + 1
-    Random                             // crypto/rand
-    LeastUsed                          // min(active_leases), tiebreaker min(request_count)
-)
+// 4 구현 (strategy.go, v0.3.0 명칭):
+//   - NewPriorityStrategy()    : 최고 Priority, 동일 Priority는 RR 타이브레이커   (v0.1 "FillFirst")
+//   - NewRoundRobinStrategy() : atomic.Uint64 카운터 순환                      (v0.1 "RoundRobin")
+//   - NewWeightedStrategy()   : Weight 비례 가중치 무작위; 모두 0이면 RR 폴백    (v0.1 "Random")
+//   - NewLRUStrategy()        : 최저 UsageCount                             (v0.1 "LeastUsed")
 ```
 
 ```go
-// internal/llm/credential/oauth.go
+// internal/llm/credential/refresher.go (v0.3.0: Zero-Knowledge 시그니처)
 
-// Refresher는 provider별 OAuth refresh 구현 주입점.
-// ADAPTER-001이 provider별 구현체 제공.
+// Refresher는 외부 refresh 구현 주입점.
+// 풀에 raw token이 돌아오지 않고, proxy/adapter가 keyring을 직접 갱신한 뒤
+// 호출자가 ExpiresAt을 재-load하는 모델.
 type Refresher interface {
-    // Refresh는 refreshToken을 사용해 새 토큰을 얻는다.
-    // 반환값의 AccessToken/RefreshToken/ExpiresAt은 기존 entry에 덮어쓰여진다.
-    Refresh(ctx context.Context, entry *PooledCredential) (RefreshResult, error)
+    // Refresh는 keyring_id가 가리키는 secret의 갱신을 외부에 위임한다.
+    // 성공 시 nil, 실패 시 error. 새 AccessToken은 반환하지 않는다 (Zero-Knowledge).
+    Refresh(ctx context.Context, cred *PooledCredential) error
 }
 
-type RefreshResult struct {
-    AccessToken  string
-    RefreshToken string // rotated or same
-    ExpiresAt    time.Time
-    Extra        map[string]any
-}
+// v0.3.0: v0.1의 `RefreshResult{AccessToken, RefreshToken, ExpiresAt, Extra}` 반환 타입은
+// 폐기되었다. 풀은 새 token을 받지 않으며, `ExpiresAt` 갱신은 Source.Load()의 재-load
+// 또는 별도 메타데이터 hook으로 이루어진다 (§11 Open Items).
 
-// RefreshMargin: expires_at - margin < now → refresh 필요.
-// 기본값 5분 (REQ-CREDPOOL-018).
+// RefreshMargin: ExpiresAt - margin < now → refresh trigger. 기본값 5분 (REQ-CREDPOOL-018).
+// 주: 현 MVP는 Refresher를 Select 경로에 연결하지 않음 (§11 Open Items).
 ```
 
 ```go
-// internal/llm/credential/pool.go
+// internal/llm/credential/pool.go (v0.3.0: 구현 실체 반영)
 
-type PoolOptions struct {
-    Provider         string
-    DefaultStrategy  SelectionStrategy
-    Refresher        Refresher         // nullable: API key-only 풀은 nil
-    Storage          Storage           // nullable: 영속 비활성화
-    Sources          []CredentialSource // 외부 파일 소스
-    RefreshMargin    time.Duration     // 기본 5분
-    DefaultCooldown  time.Duration     // 기본 1시간
-    Logger           *zap.Logger
-    Clock            func() time.Time  // testability; 기본 time.Now
-}
+// Option은 CredentialPool 생성 functional 옵션.
+type Option func(*CredentialPool)
 
+// CredentialPool은 크레덴셜 reference + metadata 오케스트레이터.
+// raw secret은 보유하지 않는다 (Zero-Knowledge).
 type CredentialPool struct {
-    opts    PoolOptions
-    mu      sync.Mutex
-    entries []*PooledCredential
-    rrIdx   int // RoundRobin 인덱스
-    stats   PoolStats
+    mu       sync.RWMutex
+    source   CredentialSource
+    strategy SelectionStrategy // interface (구현: Priority/RoundRobin/Weighted/LRU 중 1)
+    creds    map[string]*PooledCredential  // ID → entry
+    order    []string                      // 로드 순서 보존
 }
 
-func New(ctx context.Context, opts PoolOptions, initial []*PooledCredential) (*CredentialPool, error)
+// New는 주어진 Source와 Strategy로 풀을 생성. Source.Load()로 초기 엔트리 구성.
+// @MX:ANCHOR (pool.go:L39-L56): 풀 생성 진입점.
+func New(source CredentialSource, strategy SelectionStrategy, opts ...Option) (*CredentialPool, error)
 
-// Select는 전략에 따라 가용 엔트리 1건을 반환.
-func (p *CredentialPool) Select(
-    ctx context.Context,
-    strategy SelectionStrategy, // 전략 override; FillFirst 기본
+// Select는 가용 엔트리 1건을 선택하고 리스를 획득.
+// 가용성 필터: !leased && Status==CredOK (쿨다운 만료 자동 복구) && (ExpiresAt.IsZero() || ExpiresAt > now).
+// @MX:ANCHOR (pool.go:L156-L185): 핫패스.
+func (p *CredentialPool) Select(ctx context.Context) (*PooledCredential, error)
+
+// Release는 리스를 반환.
+func (p *CredentialPool) Release(cred *PooledCredential) error
+
+// MarkExhausted는 쿨다운 기간 동안 exhausted 표시.
+func (p *CredentialPool) MarkExhausted(cred *PooledCredential, cooldownDur time.Duration) error
+
+// MarkError는 에러 발생 시각을 기록 (exhausted로 전환하지 않음).
+func (p *CredentialPool) MarkError(cred *PooledCredential, _ error) error
+
+// MarkExhaustedAndRotate은 HTTP 429/402 수신 후 회전.
+// @MX:ANCHOR (pool.go:L268-L315): 429/402 회전 핵심.
+func (p *CredentialPool) MarkExhaustedAndRotate(
+    ctx context.Context, id string, statusCode int, retryAfter time.Duration,
 ) (*PooledCredential, error)
 
-// MarkExhaustedAndRotate은 호출자가 HTTP 에러를 수신한 뒤 호출.
-func (p *CredentialPool) MarkExhaustedAndRotate(
-    ctx context.Context,
-    id string,
-    statusCode int,
-    retryAfter time.Duration,
-) (*PooledCredential, error) // 다음 가용 엔트리
-
-// AcquireLease는 soft lease 발급.
+// AcquireLease / ReleaseLease (lease.go)은 명시적 점유/반환 API.
 func (p *CredentialPool) AcquireLease(id string) (*Lease, error)
 
-// RefreshSources는 CredentialSource들을 재호출하여 풀을 동기화.
-func (p *CredentialPool) RefreshSources(ctx context.Context) error
+// Size는 total / available 스냅샷.
+func (p *CredentialPool) Size() (total, available int)
 
-// Stats는 현재 통계 스냅샷.
-func (p *CredentialPool) Stats() PoolStats
+// Reload는 Source.Load()를 재호출하여 풀을 재초기화 (기존 리스/에러 상태 보존).
+func (p *CredentialPool) Reload(ctx context.Context) error
 
-// Reset은 특정 엔트리의 영구 고갈을 해제(운영자 수동).
-func (p *CredentialPool) Reset(id string) error
+// 주: v0.1의 `PoolOptions` 구조체, `RefreshSources`, `Stats() PoolStats`, `Reset(id)`는
+// v0.3.0에서 §11 Open Items로 이관됨. Functional Option + Source.Load 모델이 실체.
 ```
 
 ```go
@@ -406,82 +409,100 @@ func (e *ExhaustedError) Error() string
 func (e *ExhaustedError) Is(target error) bool // match ErrExhausted
 ```
 
-### 6.3 선택 알고리즘 의사코드
+### 6.3 선택 알고리즘 의사코드 (v0.3.0)
+
+현 MVP (Phase C1 `79d92ff` 반영):
 
 ```
-Select(strategy):
+Select(ctx):
+  ctx.Done() 체크 → ctx.Err()
   Lock()
   defer Unlock()
 
-  // 1. 가용성 필터
+  // 1. 가용성 필터 (REQ-CREDPOOL-001)
   available = entries.filter(e =>
-    e.status == OK AND
-    (e.LastErrorResetAt <= now OR e.LastErrorResetAt.IsZero()) AND
-    (e.ExpiresAt.IsZero() OR e.ExpiresAt > now))
+    !e.leased AND
+    e.Status == CredOK  // 쿨다운 만료 시 available() 내부에서 자동 복구
+    AND (e.ExpiresAt.IsZero() OR e.ExpiresAt > now))  // Phase C1 추가
 
-  // 2. OAuth 엔트리 중 refresh 필요한 것 처리
-  for e in available.filter(AuthOAuth):
+  if available.empty():
+    return nil, ErrExhausted
+
+  // 2. 전략 적용 (interface dispatch)
+  chosen, err = strategy.Select(available)
+  if err: return nil, ErrExhausted
+
+  chosen.leased = true
+  chosen.UsageCount++
+  return chosen, nil
+```
+
+v0.3.0 대상 확장 흐름 (§11 Open Items — 미구현):
+
+```
+// Refresher 배선 후 Select 경로에 삽입 예정
+Select_with_refresh(ctx):
+  ...1. 가용성 필터...
+
+  // 2. OAuth refresh trigger: expires_at - margin < now
+  for e in available.filter(e.ExpiresAt != zero):
     if e.ExpiresAt - RefreshMargin < now AND refresher != nil:
       Unlock()
-      result, err = refresher.Refresh(ctx, e)
+      err = refresher.Refresh(ctx, e)   // Zero-Knowledge: pool에 token 안 돌아옴
       Lock()
       if err:
         e.refreshFailCount++
         if e.refreshFailCount >= 3:
-          e.Status = EXHAUSTED; e.LastErrorCode = -1  # 영구 고갈
-          logWarn("credential permanently exhausted")
+          e.Status = CredExhausted; 영구 고갈 표시  // REQ-013
         else:
-          e.Status = EXHAUSTED; e.LastErrorResetAt = now + 5분
-        persistOne(e)
+          e.Status = CredExhausted; e.exhaustedUntil = now + 5분
+        persistMetadata(e)
         continue
-      e.accessToken = result.AccessToken
-      if result.RefreshToken != "":
-        e.refreshToken = result.RefreshToken
-      e.ExpiresAt = result.ExpiresAt
       e.refreshFailCount = 0
-      persistOne(e)
+      // ExpiresAt은 외부(proxy/adapter)가 갱신 후 Source.Load()에서 재-load
 
-  // 3. 다시 가용성 재평가
-  available = entries.filter(...)
-  if available.empty():
-    return nil, ExhaustedError{RetryAfter: minResetGap}
-
-  // 4. 전략 적용
-  chosen = applyStrategy(strategy, available)
-  chosen.RequestCount++
-  persistOne(chosen)
-  return chosen, nil
+  ...3. 재평가 / 4. 전략 적용 / return...
 ```
 
-### 6.4 영속 레이아웃
+### 6.4 영속 레이아웃 (metadata-only, v0.3.0 Zero-Knowledge)
 
-`~/.goose/credentials/<provider>.json` 예시:
+`~/.goose/credentials/<provider>.json` 예시 (**비밀값 없음**):
 
 ```json
 {
   "provider": "anthropic",
-  "version": 1,
+  "version": 2,
   "entries": [
     {
       "id": "a1b2c3",
-      "label": "work-claude",
-      "auth_type": "oauth",
-      "priority": 10,
-      "source": "anthropic_claude",
-      "last_status": "ok",
-      "last_status_at_ms": 1746000000000,
-      "last_error_code": 0,
+      "keyring_id": "anthropic-work-claude",
+      "status": "ok",
+      "last_error_at_ms": 0,
       "last_error_reset_at_ms": 0,
+      "exhausted_until_ms": 0,
       "expires_at_ms": 1746003600000,
-      "request_count": 42
+      "usage_count": 42,
+      "priority": 10,
+      "weight": 1
     }
   ]
 }
 ```
 
-**비밀값은 저장하지 않는다**. `access_token`/`refresh_token`은 `~/.claude/.credentials.json` 등 **원본 소스 파일에만** 저장되며, 풀은 매 프로세스 시작 시 원본에서 읽는다. `api_key`는 `CONFIG-001`의 env vars 또는 YAML (redacted log).
+**핵심 제약 (v0.3.0)**:
+- `access_token` / `refresh_token` / `api_key` / `id_token` / `agent_key` 등 모든 raw secret 필드는 **본 파일에 절대 포함되지 않는다**.
+- 실제 secret은 SPEC-GOOSE-CREDENTIAL-PROXY-001 담당의 OS keyring (macOS Keychain / libsecret / Windows Credential Vault)에 저장된다.
+- 풀은 `keyring_id`를 통해 proxy에 "이 키로 요청해달라"는 reference 전달만 수행한다.
+- `version: 2`는 v0.1의 schema와 **호환되지 않음** (v0.1의 raw-secret 포함 버전은 폐기).
+- atomic write (tmp + rename) 패턴은 유지되며 파일 권한은 0600.
 
-### 6.5 외부 소스 스키마
+**본 §6.4의 구현**: 현 MVP에 미착수 — §11 Open Items.
+
+### 6.5 외부 소스 스키마 (read-only reference, v0.3.0)
+
+> **v0.3.0 메모**: 아래 스키마는 외부 CLI(Claude Code / Codex / Hermes)가 관리하는 파일의 스키마이며, **풀은 이를 읽어 `keyring_id`로 매핑만 하고 raw token을 메모리에 보존하지 않는다**. 스키마 자체는 외부 벤더 스펙에 종속. 파일 내 `accessToken` 값은 SPEC-GOOSE-CREDENTIAL-PROXY-001이 keyring으로 이전하거나 transport-layer에서만 사용한다.
+>
+> **구현 상태**: 3개 Source 구현은 모두 skeleton 이관 (§11 Open Items).
 
 **AnthropicClaudeSource** — `~/.claude/.credentials.json`:
 ```json
@@ -612,6 +633,41 @@ Select(strategy):
 - 본 SPEC은 **키체인/1Password/Vault 통합을 포함하지 않는다**. 평문 JSON 파일 + env vars만.
 - 본 SPEC은 **GitHub/Google Workspace OAuth를 지원하지 않는다**. LLM provider 3종만(Anthropic, OpenAI Codex, Nous).
 - 본 SPEC은 **hot reload / fsnotify 감시를 포함하지 않는다**. 명시적 `Pool.RefreshSources(ctx)` 호출만.
+
+---
+
+## 11. Open Items (v0.3.0 신설, Run phase / 후속 SPEC 이관)
+
+> mass audit iteration 1에서 식별된 SPEC vs 구현 gap 중, 본 SPEC의 Plan 단계에 포함하지 않고 Run phase 또는 후속 SPEC으로 이관되는 항목.
+
+### 11.1 본 SPEC Run phase로 이관 (구현 미착수)
+
+| ID | 항목 | 관련 REQ/AC | 상태 |
+|----|-----|-----------|------|
+| OI-01 | `Storage` interface + atomic JSON write backend (`~/.goose/credentials/<provider>.json`, metadata-only, 0600) | REQ-004, AC-006 | skeleton 미착수 |
+| OI-02 | `Refresher` interface를 Select 경로에 배선 (ExpiresAt − RefreshMargin < now 트리거) | REQ-010, REQ-018, AC-003 | interface만 존재 |
+| OI-03 | `refreshFailCount` 카운터 + 3회 연속 실패 시 영구 고갈 전환 | REQ-013, AC-009 | 구현 부재 |
+| OI-04 | 402 vs 429 status code 분기 로직 (402 → 영구 고갈, 429 → 쿨다운) | REQ-006, REQ-007 | statusCode 인자는 수신하나 분기 없음 |
+| OI-05 | 3개 provider `CredentialSource` 구현: `AnthropicClaudeSource`(`~/.claude/.credentials.json`) / `OpenAICodexSource`(`~/.codex/auth.json`) / `NousSource`(`~/.hermes/auth.json`) | §3.1 rule 9, §6.5, AC-007 | `DummySource`만 구현 |
+| OI-06 | `CONFIG-001` 의 `LLMConfig.Providers[*].Credentials[]` 초기 풀 구성 배선 | §3.1 rule 12 | 미배선 |
+| OI-07 | `PoolStats{Total, Available, Exhausted, RefreshesTotal, RotationsTotal}` 관측성 확장 (현재는 `Size()` 만 존재) | §3.1 rule 10 | 축소 구현 |
+| OI-08 | `Pool.Reset(id)` 운영자 수동 영구 고갈 해제 API | §3.1 rule 참고 | 미구현 |
+
+### 11.2 후속 SPEC으로 위임
+
+| ID | 항목 | 이관 대상 |
+|----|-----|---------|
+| OI-09 | OS keyring 백엔드 통합 (`github.com/zalando/go-keyring`) | SPEC-GOOSE-CREDENTIAL-PROXY-001 |
+| OI-10 | 실제 OAuth refresh HTTP 구현 (Anthropic PKCE / OpenAI Codex / Nous) | SPEC-GOOSE-CREDENTIAL-PROXY-001 + SPEC-GOOSE-ADAPTER-001 |
+| OI-11 | Rate limit 헤더 파싱 (`x-ratelimit-*`, `Retry-After`) | SPEC-GOOSE-RATELIMIT-001 |
+| OI-12 | 다중 goosed 프로세스용 flock / cross-process 잠금 | Phase 2+ |
+| OI-13 | `LRUStrategy`의 `active_leases` 다기준 지원 (현재 `UsageCount` 단일 기준) | 별도 SPEC 혹은 본 SPEC v0.4.0 amendment |
+| OI-14 | `StatusPending` 상태 도입 여부 (현재 구현은 `CredOK` / `CredExhausted` 2-상태) | Refresher 배선 시 검토 |
+
+### 11.3 매핑 요약
+
+- **SPEC 본문에 남아있는 미래형 기술**은 반드시 §11에 해당 OI-ID로 참조한다.
+- iteration 2 감사 시 "SPEC에 있으나 구현에 없음"이 발견되면 §11에 해당 항목이 누락된 것이거나 Run phase 스코프가 아직 식별되지 않은 것이다.
 
 ---
 

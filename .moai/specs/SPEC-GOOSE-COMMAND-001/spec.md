@@ -1,15 +1,16 @@
 ---
 id: SPEC-GOOSE-COMMAND-001
 version: 0.1.0
-status: Planned
-created: 2026-04-21
-updated: 2026-04-21
+status: planned
+created_at: 2026-04-21
+updated_at: 2026-04-21
 author: manager-spec
 priority: P1
 issue_number: null
 phase: 3
 size: 소(S)
 lifecycle: spec-anchored
+labels: []
 ---
 
 # SPEC-GOOSE-COMMAND-001 — Slash Command System (내장 + Custom, Skill 연계)

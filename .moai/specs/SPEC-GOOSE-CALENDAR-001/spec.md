@@ -1,15 +1,16 @@
 ---
 id: SPEC-GOOSE-CALENDAR-001
-version: 0.1.0
-status: Planned
-created: 2026-04-22
-updated: 2026-04-22
+version: 0.1.1
+status: planned
+created_at: 2026-04-22
+updated_at: 2026-04-25
 author: manager-spec
 priority: P0
 issue_number: null
 phase: 7
 size: 중(M)
 lifecycle: spec-anchored
+labels: [calendar, caldav, oauth, integration, phase-7, security]
 ---
 
 # SPEC-GOOSE-CALENDAR-001 — Calendar Integration (Google, iCloud, Outlook, Naver via CalDAV + Native APIs)
@@ -19,6 +20,7 @@ lifecycle: spec-anchored
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-22 | 초안 작성 (Phase 7 #34, MCP-001 client 확장) | manager-spec |
+| 0.1.1 | 2026-04-25 | 감사 리포트 대응 (plan-audit/mass-20260425/CALENDAR-001-audit.md): MP-3 frontmatter `labels` 채움 / MP-2 AC 형식 선언 §5.0 서두 추가 / 미커버 REQ용 AC 신설 (AC-CAL-011~020, 10개 REQ 커버: REQ-CAL-004·008·010·012·013·014·015·016·017·018, 보안 critical 4개 포함) / §5.3 Traceability Matrix 추가 (19 REQ 100% 커버) / D11 Naver CalDAV premise 수정 (§1, §2.3, §3.1, §8 R4) / D8 attendees 스코프 경계 명확화 (§2.3) / D12 ADAPTER-001 의존성 추가 (§7) / §6.8 TDD 진입 10개 신규 테스트 추가. REQ 번호 불변. | manager-spec |
 
 ---
 
@@ -28,8 +30,9 @@ GOOSE v6.0 Daily Companion의 **아침 브리핑 3대 축** 중 마지막 **"오
 
 본 SPEC은 두 가지 경로를 동시에 지원한다:
 
-1. **CalDAV 표준 경로** (RFC 4791): Google, iCloud, Outlook, Naver 모두 CalDAV 표준 지원 → 단일 클라이언트 코드로 4개 provider 커버.
+1. **CalDAV 표준 경로** (RFC 4791): Google(CalDAV endpoint 확인됨), iCloud(공식 지원), Outlook/365(지원, 장기적으로 deprecated)의 3개 provider를 단일 클라이언트 코드로 커버. **Naver Calendar는 CalDAV 지원 여부가 공식 문서에서 확인되지 않았으며**, `research.md §1` 매트릭스에서 "△ 확인 필요"로 분류된다. Naver는 v0.1 범위에서는 provisional 지원 (엔드포인트 확인 후 활성화) 이며, 미지원 확정 시 REQ-CAL-004의 `credentials_ref` scope에서 `naver` provider를 제외하고 v0.2에서 재검토한다 (R4 위험 참조).
 2. **Native API 경로**: Google Calendar API / Microsoft Graph API 가 CalDAV보다 기능 풍부 (attendee, notification, recurrence 상세) → 고급 기능 요청 시 사용.
+3. **Naver 전용 API 경로**: 공개된 Naver Cloud Platform Calendar API가 존재하지 않으므로 v0.1에서는 사용자 설정에서 Naver를 enable 시에만 CalDAV로 시도하고, 실패 시 명시적으로 disable하도록 유도한다.
 
 본 SPEC이 통과한 시점에서 `internal/ritual/calendar/` 패키지는:
 
@@ -60,8 +63,8 @@ GOOSE v6.0 Daily Companion의 **아침 브리핑 3대 축** 중 마지막 **"오
 
 ### 2.3 범위 경계
 
-- **IN**: `CalendarProvider` 인터페이스, CalDAV 공용 구현, Google Native + Outlook Native optional, OAuth flow (CREDPOOL-001 경유), 읽기 API (today/upcoming), 쓰기 API (create/update/delete), recurring events, timezone 처리, multi-calendar 지원 (하나의 provider 계정에 여러 캘린더).
-- **OUT**: Free/busy lookup 정밀 연동 (회의 자동 조정), attendee 관리 (초대장 발송), 대면 미팅 이동 시간 계산, 캘린더 UI (CLI-001 책임), push notification (사용자 wearable 대신), shared calendar 편집 권한 관리, calendar sync conflict resolution 고도화 (last-write-wins만).
+- **IN**: `CalendarProvider` 인터페이스, CalDAV 공용 구현 (Google/iCloud/Outlook 확인), Google Native + Outlook Native optional, OAuth flow (CREDPOOL-001 경유), 읽기 API (today/upcoming), 쓰기 API (create/update/delete), recurring events, timezone 처리, multi-calendar 지원, **초기 이벤트 생성 시점에 attendees 배열을 포함한 CreateEvent (native provider 한정 초대장 발송, CalDAV는 초대 발송 보장 없음 — REQ-CAL-008 참조)**.
+- **OUT**: Free/busy lookup 정밀 연동 (회의 자동 조정), **이벤트 생성 이후의 attendee 초대 lifecycle 관리 (재발송·RSVP 추적·초대 취소)**, 대면 미팅 이동 시간 계산, 캘린더 UI (CLI-001 책임), push notification (사용자 wearable 대신), shared calendar 편집 권한 관리, calendar sync conflict resolution 고도화 (last-write-wins만), **Naver Calendar 정식 지원 (provisional, 엔드포인트 확인 전까지는 CLI에서 명시적으로 enable 필요)**.
 
 ---
 
@@ -85,7 +88,7 @@ GOOSE v6.0 Daily Companion의 **아침 브리핑 3대 축** 중 마지막 **"오
    - 지원 provider: Google, iCloud, Outlook, Naver
 4. `GoogleNativeProvider` (optional): Google Calendar API v3, OAuth 2.0.
 5. `OutlookNativeProvider` (optional): Microsoft Graph API, OAuth 2.0.
-6. `NaverProvider`: Naver Cloud Platform Calendar API (있으면) 또는 CalDAV only.
+6. `NaverProvider` (provisional, v0.1 unconfirmed): Naver Calendar는 CalDAV 공식 지원 여부 `research.md §1`에서 미확인(△). v0.1에서는 사용자가 `config.calendar.providers[].type="caldav"` + Naver 엔드포인트를 명시적으로 지정한 경우에만 시도하고, 3xx/4xx 응답 시 구조화 로그로 "Naver CalDAV 미지원 추정" 을 기록. Native Naver Cloud Calendar API는 공개되지 않아 v0.1 범위 제외. 정식 지원은 v0.2 재검토 (R4).
 7. `Event` DTO (iCalendar 기반):
    - id, summary, description, location, start, end, timezone, recurrence_rule, attendees, reminders, url
 8. `DailySchedule` / `UpcomingEvents` 전용 DTO.
@@ -179,6 +182,22 @@ GOOSE v6.0 Daily Companion의 **아침 브리핑 3대 축** 중 마지막 **"오
 
 ## 5. 수용 기준
 
+### 5.0 AC 형식 선언 (EARS ↔ Given/When/Then 대응)
+
+본 섹션의 모든 AC는 **EARS testable claim**으로 기능하며, 가독성을 위해 Given/When/Then(G/W/T) 시나리오 형식으로 기술한다. 각 AC는 다음 변환 규칙에 따라 EARS 패턴으로 일대일 매핑된다:
+
+- **Given**은 EARS Pattern의 precondition/state 절에 대응 (Ubiquitous의 경우 생략 가능, State-Driven의 `While`, Event-Driven의 호출 컨텍스트)
+- **When**은 EARS의 trigger/event 절에 대응 (`When <event>`, `If <undesired>`)
+- **Then**은 EARS의 system response 절(`shall / shall not <action>`)에 대응, 구체적 관찰 가능 평가식 (error type, 반환 값, side-effect) 포함
+
+예시 변환 (AC-CAL-002):
+- G/W/T: "Given from=...to=... (151일), When GetEvents, Then ErrRangeTooWide 반환"
+- 동치 EARS: "**When** GetEvents is called with a time range exceeding 90 days, the provider **shall** return ErrRangeTooWide without issuing a network request"
+
+각 AC는 **이진 테스트 가능**(binary testable) 해야 하며, 주관적 판단이나 추정을 포함하지 않는다. 5.1~5.2 절의 AC는 REQ-CAL-001~019에 대한 traceability를 보장하며, 커버리지 매핑은 본 섹션 말미 "AC ↔ REQ Traceability Matrix"에 명시된다.
+
+### 5.1 기능 AC (AC-CAL-001 ~ 010)
+
 **AC-CAL-001 — CalDAV list calendars**
 - **Given** CalDAV server mock (Radicale local)의 사용자 계정 `u1`에 3개 캘린더
 - **When** `CalDAVProvider.ListCalendars(ctx)`
@@ -228,6 +247,87 @@ GOOSE v6.0 Daily Companion의 **아침 브리핑 3대 축** 중 마지막 **"오
 - **Given** query day = 2026-10-03 (개천절)
 - **When** `GetTodaySchedule`
 - **Then** 결과 첫 번째 항목이 `{summary:"개천절", allDay:true, source:"holiday"}`.
+
+### 5.2 보안 및 경계 AC (AC-CAL-011 ~ 020)
+
+> 본 절은 감사 리포트(D5 traceability)에서 미커버로 지적된 REQ에 대한 보충이며, 특히 REQ-CAL-013~016의 4개 보안·격리 요구사항은 반드시 개별 AC로 검증한다.
+
+**AC-CAL-011 — CREDPOOL-001 강제 사용 (REQ-CAL-004)**
+- **Given** 프로젝트 내에 `os.WriteFile` 또는 임의 경로 token cache 호출이 추가된 가상의 PR diff
+- **When** `go vet ./internal/ritual/calendar/...` + 패키지 import 분석 (`go list -deps`) 실행
+- **Then** `internal/ritual/calendar/` 패키지의 OAuth token 저장·로드 경로는 오직 CREDPOOL-001 public API (`credpool.Load`, `credpool.Save`, `credpool.Refresh`) 만 호출해야 하며, `os/file` 기반 토큰 직렬화 호출 발견 시 린트 실패 (아키텍처 테스트 `TestArchitecture_NoDirectTokenFileAccess`).
+
+**AC-CAL-012 — Attendees 포함 CreateEvent 분기 (REQ-CAL-008)**
+- **Given** `Event.Attendees = [{email:"a@b"}]` + (a) `GoogleNativeProvider`, (b) `CalDAVProvider`
+- **When** `CreateEvent(ctx, calID, e)` 각각 호출
+- **Then** (a) Google API 요청 body에 `sendUpdates=all` + attendees 배열 포함; (b) CalDAV PUT 요청은 성공하되 반환 `Event.Attendees`는 provider 응답 그대로 에코되고, 구조화 로그에 `{invitation_sent: false, reason:"caldav-not-guaranteed"}` 1회 기록.
+
+**AC-CAL-013 — 크리덴셜 누락 provider skip (REQ-CAL-010)**
+- **Given** `google_primary` 정상 토큰 + `naver` CREDPOOL-001에서 `ErrNotFound` 반환
+- **When** `GetTodaySchedule(userID)`
+- **Then** `google_primary` 결과만 aggregation에 포함; `naver`는 WARN 로그 `{provider:"naver", status:"skipped", reason:"missing_credentials"}` 1회; 전체 호출은 에러 없이 성공 (`err == nil`).
+
+**AC-CAL-014 — Circuit breaker open (REQ-CAL-012)**
+- **Given** CalDAV mock 서버가 503을 3회 연속 반환 (60초 window 내)
+- **When** 4번째 `GetEvents` 호출 (동일 provider)
+- **Then** 네트워크 요청 미발생 (`mock.CallCount() == 3`), `ErrProviderUnavailable` 반환, 내부 상태 `circuit.state == "open"`; 5분 경과 후 (fake clock 전진) half-open 전환되어 1회 probe 요청 허용.
+
+**AC-CAL-015 — 최소 OAuth scope 강제 (REQ-CAL-013, 보안 critical)**
+- **Given** `config.calendar.providers[0].mode = "read_only"`
+- **When** OAuth authorize URL 생성
+- **Then** URL query string의 `scope` 파라미터에 **정확히** `https://www.googleapis.com/auth/calendar.events.readonly` 한 개만 포함, 상위 scope (`.../calendar`, `.../calendar.events`, `.../calendar.settings.readonly`) 미포함; 읽기 전용 모드에서 쓰기 scope가 요청되면 `ErrScopeElevationRejected` 반환 + AUDIT 로그 1회 기록.
+
+**AC-CAL-016 — Raw provider payload 미노출 (REQ-CAL-014, 보안 critical)**
+- **Given** CalDAV provider가 `X-APPLE-*` 비표준 필드 포함 XML 반환 + Google API가 `conferenceData` nested JSON 반환
+- **When** 상위 consumer가 `GetEvents` 결과 조회
+- **Then** 반환된 `Event` DTO에는 `RawPayload`/`RawJSON`/`RawXML` 계열 필드 부재 (Go reflect 기반 assertion), 모든 provider-specific 데이터는 `Event.Conferencing.MeetLink` 등 정규화된 필드에만 노출; raw payload 필드 검출 시 `TestDTO_NoRawProviderFields` 실패.
+
+**AC-CAL-017 — Cross-user 캐시 격리 (REQ-CAL-015, 보안 critical)**
+- **Given** user `alice@a.com`이 이벤트 `E1` 조회 후 캐시 히트 상태, user `mallory@a.com`이 동일 `calID`로 `GetEvents` 호출
+- **When** `mallory@a.com` 관점의 캐시 조회
+- **Then** `alice@a.com` 캐시 엔트리 재사용 미발생 (`cache.Hits[mallory]==0`), mallory 요청은 새 네트워크 호출 발생; 캐시 키 검사에서 키 문자열에 `userID` hash가 포함됨이 검증됨 (`TestCache_KeyIncludesUserID`).
+
+**AC-CAL-018 — Cross-origin redirect 거부 (REQ-CAL-016, 보안 critical)**
+- **Given** CalDAV 서버가 `302 Location: https://phishing.example/caldav/`를 반환 (원 origin은 `https://caldav.icloud.com`)
+- **When** `GetEvents` 호출 + HTTP client의 redirect 정책 검증
+- **Then** redirect 미추종, `ErrCrossOriginRedirect` 반환, AUDIT 로그 `{original_origin:"caldav.icloud.com", target_origin:"phishing.example", action:"rejected"}` 기록; 동일 origin redirect(`https://caldav.icloud.com/users/...`)는 정상 추종.
+
+**AC-CAL-019 — Google Meet link 주입 (REQ-CAL-017)**
+- **Given** Google native provider, 조회된 이벤트의 Google API 응답에 `conferenceData.entryPoints[0].uri = "https://meet.google.com/abc-defg-hij"`
+- **When** `GetEvents`
+- **Then** 반환 `Event.Conferencing.MeetLink == "https://meet.google.com/abc-defg-hij"`; 동일 이벤트를 CalDAV provider로 조회 시 `Event.Conferencing == nil` (REQ-CAL-017 state-fallback).
+
+**AC-CAL-020 — NLP CreateEvent (REQ-CAL-018, optional)**
+- **Given** `config.calendar.nlp_create=true`, ADAPTER-001 mock이 "내일 오후 3시 김과장과 점심" 입력에 대해 `{start:<tomorrow 15:00 local>, end:<tomorrow 16:00>, summary:"김과장과 점심"}` 반환
+- **When** `CreateEvent(ctx, calID, {NLPText:"내일 오후 3시 김과장과 점심"})`
+- **Then** ADAPTER-001이 정확히 1회 호출됨, 생성 결과 `Event.Start == expected`, `Event.Summary == "김과장과 점심"`; `config.calendar.nlp_create=false` 상태에서 NLPText 지정 시 `ErrNLPDisabled` 반환.
+
+### 5.3 AC ↔ REQ Traceability Matrix
+
+| AC | 주 REQ | 보조 REQ | 커버 카테고리 |
+|----|-------|---------|--------------|
+| AC-CAL-001 | REQ-CAL-001 | - | interface |
+| AC-CAL-002 | REQ-CAL-005 | - | event-driven |
+| AC-CAL-003 | REQ-CAL-006 | - | event-driven |
+| AC-CAL-004 | REQ-CAL-007 | REQ-CAL-004 | event-driven / credpool |
+| AC-CAL-005 | REQ-CAL-007 | - | event-driven / reauth |
+| AC-CAL-006 | REQ-CAL-003 | - | logging |
+| AC-CAL-007 | REQ-CAL-002 | - | ubiquitous / TZ |
+| AC-CAL-008 | REQ-CAL-011 | - | state-driven |
+| AC-CAL-009 | REQ-CAL-009 | - | event-driven / aggregation |
+| AC-CAL-010 | REQ-CAL-019 | - | optional / holiday |
+| AC-CAL-011 | REQ-CAL-004 | - | architecture / credpool |
+| AC-CAL-012 | REQ-CAL-008 | - | event-driven / attendees |
+| AC-CAL-013 | REQ-CAL-010 | - | state-driven / skip |
+| AC-CAL-014 | REQ-CAL-012 | - | state-driven / circuit |
+| AC-CAL-015 | REQ-CAL-013 | - | **security / scope** |
+| AC-CAL-016 | REQ-CAL-014 | - | **security / DTO** |
+| AC-CAL-017 | REQ-CAL-015 | - | **security / cache** |
+| AC-CAL-018 | REQ-CAL-016 | - | **security / redirect** |
+| AC-CAL-019 | REQ-CAL-017 | - | optional / google |
+| AC-CAL-020 | REQ-CAL-018 | - | optional / NLP |
+
+커버리지: 19 REQ 중 19 REQ가 최소 1개 AC로 커버됨 (100%). REQ-CAL-013~016 보안 critical 4개 REQ는 각각 전용 AC로 검증.
 
 ---
 
@@ -346,7 +446,7 @@ Content-Type: application/xml
 
 ### 6.8 TDD 진입
 
-1. RED: `TestCalDAV_ListCalendars` (Radicale local 컨테이너)
+1. RED: `TestCalDAV_ListCalendars` (Radicale local 컨테이너) — AC-CAL-001
 2. RED: `TestRangeTooWide_91days` — AC-CAL-002
 3. RED: `TestRRule_WeeklyExpansion` — AC-CAL-003
 4. RED: `TestOAuth_RefreshOnce` — AC-CAL-004
@@ -356,7 +456,17 @@ Content-Type: application/xml
 8. RED: `TestWriteDisabled_ReturnsErr` — AC-CAL-008
 9. RED: `TestAggregator_MultiProvider_Dedup` — AC-CAL-009
 10. RED: `TestHolidayInjection_2026_10_03` — AC-CAL-010
-11. GREEN → REFACTOR
+11. RED: `TestArchitecture_NoDirectTokenFileAccess` — AC-CAL-011
+12. RED: `TestCreateEvent_AttendeesBranch` — AC-CAL-012
+13. RED: `TestSkipProviderMissingCreds` — AC-CAL-013
+14. RED: `TestCircuitBreaker_OpenOn3x5xx` — AC-CAL-014
+15. RED: `TestMinimumScope_ReadOnly` — AC-CAL-015 (보안)
+16. RED: `TestDTO_NoRawProviderFields` — AC-CAL-016 (보안)
+17. RED: `TestCache_KeyIncludesUserID` — AC-CAL-017 (보안)
+18. RED: `TestRedirect_RejectCrossOrigin` — AC-CAL-018 (보안)
+19. RED: `TestGoogleMeetLink_Injection` — AC-CAL-019
+20. RED: `TestNLPCreate_AdapterCalledOnce` — AC-CAL-020
+21. GREEN → REFACTOR
 
 ### 6.9 TRUST 5 매핑
 
@@ -379,8 +489,9 @@ Content-Type: application/xml
 | 선행 SPEC | TOOLS-001 | `Calendar` tool 등록 |
 | 선행 SPEC | CONFIG-001 | calendar.yaml |
 | 선행 SPEC | CORE-001 | zap, context |
+| 선행 SPEC (optional) | ADAPTER-001 | REQ-CAL-018 NLP CreateEvent 파싱 (LLM provider 어댑터), `nlp_create=false` 시 불필요 |
+| 선행 SPEC | SCHEDULER-001 | HolidayCalendar 공유 (공휴일 주입) |
 | 후속 SPEC | BRIEFING-001 | 오늘의 일정 소비 |
-| 후속 SPEC | SCHEDULER-001 | HolidayCalendar 공유 |
 | 외부 | `emersion/go-webdav` | CalDAV |
 | 외부 | `teambition/rrule-go` | RRULE |
 | 외부 | `google.golang.org/api/calendar/v3` | 공식 SDK |
@@ -396,7 +507,7 @@ Content-Type: application/xml
 | R1 | iCloud CalDAV 서버 quirks (비표준 응답) | 중 | 중 | iCloud 전용 workaround 모듈, golden response fixture 유지 |
 | R2 | Google Calendar API v3 quota (1M/day/project but low per-user) | 중 | 중 | GetEvents 캐싱 5분, 공유 프로젝트 토큰 금지 |
 | R3 | RRULE 복잡 케이스 (BYSETPOS, EXDATE) 파싱 오류 | 중 | 중 | rrule-go 테스트 스위트 전수 검증 |
-| R4 | Naver Calendar CalDAV 미지원 | 고 | 중 | Naver API 문서 확인, 미지원 시 v0.1 scope에서 제외 |
+| R4 | Naver Calendar CalDAV 미지원 (`research.md §1` 미확인 △) | 고 | 중 | v0.1에서 Naver는 provisional provider로 취급 (사용자 명시 enable 필요). 연결 실패 시 WARN 로그 + 자동 disable 가이드. 공식 문서 확인 결과 미지원 확정 시 v0.2까지 scope 제외 (spec.md §1, §2.3, §3.1 참조) |
 | R5 | OAuth 토큰 유출 | 낮 | 치명적 | CREDPOOL-001 암호화 저장, 로그 redaction |
 | R6 | Cross-timezone 버그 (DST 전환) | 중 | 고 | time.LoadLocation strict, DST goldenfile 테스트 |
 | R7 | CalDAV 서버 ETag mismatch로 쓰기 충돌 | 중 | 중 | If-Match 헤더 사용, 충돌 시 ErrConflict로 사용자 재시도 유도 |

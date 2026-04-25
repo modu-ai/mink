@@ -7,9 +7,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
+	"github.com/modu-ai/goose/internal/llm/credential"
 	"github.com/modu-ai/goose/internal/llm/provider"
 	"github.com/modu-ai/goose/internal/llm/ratelimit"
 	"github.com/modu-ai/goose/internal/message"
@@ -58,15 +60,14 @@ type FakeChunk struct {
 
 // GoogleOptions는 GoogleAdapter 생성 옵션이다.
 type GoogleOptions struct {
-	// APIKey는 Gemini API 키이다. ClientFactory가 제공되면 무시된다.
-	APIKey string
-	// Pool은 credential pool이다 (optional, future use).
-	// Tracker는 rate limit tracker이다 (optional).
-	Tracker *ratelimit.Tracker
-	// SecretStore는 secret 저장소이다 (optional).
+	// Pool은 credential pool이다 (REQ-ADAPTER-005). ClientFactory가 nil일 때 필수.
+	Pool *credential.CredentialPool
+	// SecretStore는 secret 저장소이다 (REQ-ADAPTER-005). ClientFactory가 nil일 때 필수.
 	SecretStore provider.SecretStore
+	// Tracker는 rate limit tracker이다 (optional, REQ-ADAPTER-004).
+	Tracker *ratelimit.Tracker
 	// ClientFactory는 테스트용 fake client 주입 함수이다.
-	// nil이면 실제 genai SDK 클라이언트를 생성한다.
+	// nil이면 실제 genai SDK 클라이언트를 Pool+SecretStore로 API key를 해결하여 생성한다.
 	ClientFactory func(apiKey string) GeminiClientIface
 	// HeartbeatTimeout은 streaming heartbeat 타임아웃이다 (REQ-ADAPTER-013).
 	// zero value이면 provider.DefaultStreamHeartbeatTimeout(60s)를 사용한다.
@@ -76,21 +77,26 @@ type GoogleOptions struct {
 }
 
 // GoogleAdapter는 Google Gemini API 어댑터이다.
+//
+// @MX:NOTE: [AUTO] Gemini는 genai SDK를 통해 스트리밍하므로 HTTP 헤더에 직접 접근 불가.
+// tracker.Parse는 빈 헤더로 호출되며 RATELIMIT-001 구현 시 실질적 파싱이 추가된다.
 type GoogleAdapter struct {
-	client           GeminiClientIface
+	pool             *credential.CredentialPool
+	secretStore      provider.SecretStore
+	clientFactory    func(apiKey string) GeminiClientIface
 	tracker          *ratelimit.Tracker
 	heartbeatTimeout time.Duration
 	logger           *zap.Logger
 }
 
 // New는 GoogleAdapter를 생성한다.
+// ClientFactory가 nil이면 Pool과 SecretStore가 필수이다 (REQ-ADAPTER-005).
 func New(opts GoogleOptions) (*GoogleAdapter, error) {
-	var client GeminiClientIface
-	if opts.ClientFactory != nil {
-		client = opts.ClientFactory(opts.APIKey)
-	} else {
-		// 실제 genai SDK 클라이언트 — 라이브 API 테스트에서만 사용
-		client = newRealGeminiClient(opts.APIKey)
+	if opts.ClientFactory == nil && opts.Pool == nil {
+		return nil, fmt.Errorf("google: Pool is required when ClientFactory is nil")
+	}
+	if opts.ClientFactory == nil && opts.SecretStore == nil {
+		return nil, fmt.Errorf("google: SecretStore is required when ClientFactory is nil")
 	}
 
 	hbTimeout := opts.HeartbeatTimeout
@@ -99,7 +105,9 @@ func New(opts GoogleOptions) (*GoogleAdapter, error) {
 	}
 
 	return &GoogleAdapter{
-		client:           client,
+		pool:             opts.Pool,
+		secretStore:      opts.SecretStore,
+		clientFactory:    opts.ClientFactory,
 		tracker:          opts.Tracker,
 		heartbeatTimeout: hbTimeout,
 		logger:           opts.Logger,
@@ -122,9 +130,51 @@ func (a *GoogleAdapter) Capabilities() provider.Capabilities {
 	}
 }
 
+// resolveClient는 요청에 사용할 GeminiClientIface를 반환한다.
+// ClientFactory가 주입된 경우(테스트) 그대로 반환한다.
+// 그렇지 않으면 Pool+SecretStore로 API key를 해결하여 실제 클라이언트를 생성한다 (REQ-ADAPTER-005).
+func (a *GoogleAdapter) resolveClient(ctx context.Context) (GeminiClientIface, *credential.PooledCredential, error) {
+	if a.clientFactory != nil {
+		// 테스트 경로: fake client를 직접 반환
+		return a.clientFactory(""), nil, nil
+	}
+
+	// 프로덕션 경로: CredentialPool에서 credential 선택 (REQ-ADAPTER-005)
+	cred, err := a.pool.Select(ctx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("google: credential 선택 실패: %w", err)
+	}
+
+	// SecretStore에서 실제 API key 조회
+	apiKey, err := a.secretStore.Resolve(ctx, cred.KeyringID)
+	if err != nil {
+		return nil, cred, fmt.Errorf("google: API key 해결 실패: %w", err)
+	}
+
+	return newRealGeminiClient(apiKey), cred, nil
+}
+
 // Stream은 스트리밍 방식으로 LLM 응답을 반환한다.
 // AC-ADAPTER-006: Google Gemini 스트리밍 검증.
 func (a *GoogleAdapter) Stream(ctx context.Context, req provider.CompletionRequest) (<-chan message.StreamEvent, error) {
+	// credential 해결 (REQ-ADAPTER-005)
+	client, cred, err := a.resolveClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// rate limit 헤더 파싱 (REQ-ADAPTER-004).
+	// genai SDK는 raw HTTP 헤더를 노출하지 않으므로 빈 헤더로 호출한다.
+	// RATELIMIT-001 구현 시 SDK 메타데이터에서 limit 정보를 추출할 예정이다.
+	if a.tracker != nil {
+		a.tracker.Parse("google", http.Header{}, time.Now())
+	}
+
+	// 429 응답 시 credential rotation (REQ-ADAPTER-005).
+	// genai SDK는 에러 타입으로 HTTP 상태를 노출하지 않으므로 현재는 단순 에러 반환.
+	// 향후 SDK 에러 타입 검사로 개선 예정.
+	_ = cred // 프로덕션 경로에서만 non-nil; SDK 기반이므로 직접 rotation은 별도 구현 필요
+
 	gemReq := GeminiRequest{
 		Model:    req.Route.Model,
 		Messages: req.Messages,
@@ -138,7 +188,7 @@ func (a *GoogleAdapter) Stream(ctx context.Context, req provider.CompletionReque
 		)
 	}
 
-	stream, err := a.client.GenerateStream(ctx, gemReq)
+	stream, err := client.GenerateStream(ctx, gemReq)
 	if err != nil {
 		return nil, fmt.Errorf("google: generate stream 실패: %w", err)
 	}

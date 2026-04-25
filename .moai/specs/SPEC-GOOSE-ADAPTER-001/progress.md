@@ -179,3 +179,35 @@ evaluator-active "commit 후 권장" 2건 처리:
     - MarkExhaustedAndRotate + AcquireLease API 선행 구현 문서화
     - SPEC-CREDPOOL-001 Run phase 다음 단계 예시
 - 다음: manager-git Phase 3 push + PR 생성
+
+### Phase C1 — Code defects I1/I2/I3 (2026-04-25 선행 완료)
+
+plan-audit에서 식별된 implementation defect 3건을 SPEC 문서 수정과 별개로 선 수정:
+
+- **I1 REQ-ADAPTER-004 부분 위반**: `google/gemini.go`, `ollama/local.go`에 `tracker.Parse(provider, resp.Header, now)` 호출 추가. anthropic/openai와 동일한 패턴으로 응답 헤더 도착 직후 RATELIMIT tracker에 전달. 기존 nil-guard 유지.
+- **I2 Google CredentialPool 미연결**: `google/gemini.go` GoogleOptions에 `Pool *credential.CredentialPool` + `SecretStore` 필드 추가. API key를 `APIKey string` 직접 전달 방식에서 pool→SecretStore.Resolve 방식으로 전환. `factory/registry_defaults.go`의 google provider wiring도 갱신.
+- **I3 TryWithFallback production wiring**: `llm_call.go`의 `NewLLMCall`이 `req.FallbackModels` 비어있지 않을 때 `TryWithFallback(ctx, registry, req, ...)`을 경유하도록 변경. `fallback.go`의 helper는 provider-agnostic하게 유지. `llm_call_test.go`에 full-stack fallback 테스트 추가.
+
+검증:
+- `go test ./internal/llm/provider/... -race -count=1` ALL PASS
+- google coverage 44.7% → 51.7% (pool/tracker 경로 신규 커버)
+- goleak: PASS
+- AC-ADAPTER-004(tracker), AC-ADAPTER-005(pool), AC-ADAPTER-009(fallback wiring)의 실제 검증 범위 확대
+
+### Phase C2 — SPEC document audit fix (2026-04-25)
+
+plan-audit `ADAPTER-001-audit.md` 기반 문서 전용 수정 (코드 변경 없음):
+
+- **MP-3**: `spec.md` frontmatter `labels: []` → `["llm-provider","phase-1","adapter","credpool-extension","anthropic","openai","google","ollama"]`
+- **D2**: `status: planned` → `implemented`, `updated_at: 2026-04-21` → `2026-04-25`, `version: 0.1.0` → `1.0.0`
+- **D3**: `spec.md` §5에 **AC 포맷 선언** 추가 — EARS for REQ / Given-When-Then for AC 이원 구조 명시. 모든 AC 머리말에 주 REQ 번호 태깅
+- **D4 (major)**: §7 Dependencies 재작성 — `anthropic-sdk-go` / `sashabaranov/go-openai` / `ollama/ollama/api` 제거, hand-rolled `net/http` + `encoding/json` 명시. §2.2, §3.1, §6.2, §6.4, §6.6, §6.7, §9.2 모두 SDK 언급 정정
+- **D5**: §7.2에서 `tiktoken-go` 제거 (실제 import 없음)
+- **D1**: 신규 AC-013 (heartbeat), AC-014 (PII log 금지 indirect), AC-015 (disk write indirect), AC-016 (JSON mode deferred), AC-017 (UserID deferred) 신설
+- **HISTORY**: 0.2.0/0.3.0/0.4.0/1.0.0 엔트리 소급 기록 (Phase 2.X/Y/Z + 문서 수정)
+- `tasks.md` §"Acceptance Criteria → Task Mapping" 확장 — 신설 AC-013~017 반영 + REQ→AC 역매핑 체크리스트 추가
+
+검증:
+- `spec.md` 라인 카운트 증가 (AC 5건 신설 + 의존성 섹션 재작성)
+- 코드 미변경, Run phase 재실행 불필요
+- 재감사 예상: MP-3/D1/D2/D3/D4/D5 모두 해소, I1/I2/I3은 Phase C1에서 완료되어 AC 매핑 보강됨. 재감사 예상 점수: 0.72 → 0.88+ (SPEC 문서 품질 기준)

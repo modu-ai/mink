@@ -70,11 +70,11 @@ func TestLLMCallFunc_Assignable(t *testing.T) {
 	t.Parallel()
 
 	// stub 함수를 LLMCallFunc에 할당할 수 있어야 한다.
-	var fn query.LLMCallFunc = func(_ context.Context, _ query.LLMCallReq) (<-chan message.StreamEvent, error) {
+	fn := query.LLMCallFunc(func(_ context.Context, _ query.LLMCallReq) (<-chan message.StreamEvent, error) {
 		ch := make(chan message.StreamEvent)
 		close(ch)
 		return ch, nil
-	}
+	})
 
 	ch, err := fn(context.Background(), query.LLMCallReq{})
 	if err != nil {

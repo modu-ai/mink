@@ -1,15 +1,16 @@
 ---
 id: SPEC-GOOSE-SAFETY-001
 version: 0.1.0
-status: Planned
-created: 2026-04-21
-updated: 2026-04-21
+status: planned
+created_at: 2026-04-21
+updated_at: 2026-04-21
 author: manager-spec
 priority: P1
 issue_number: null
 phase: 5
 size: 중(M)
 lifecycle: spec-anchored
+labels: []
 ---
 
 # SPEC-GOOSE-SAFETY-001 — 5-Layer Safety Architecture (FrozenGuard + Canary + Contradiction + RateLimiter + HumanOversight)

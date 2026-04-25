@@ -1,15 +1,16 @@
 ---
 id: SPEC-GOOSE-PLUGIN-001
 version: 0.1.0
-status: Planned
-created: 2026-04-21
-updated: 2026-04-21
+status: planned
+created_at: 2026-04-21
+updated_at: 2026-04-21
 author: manager-spec
 priority: P1
 issue_number: null
 phase: 2
 size: 중(M)
 lifecycle: spec-anchored
+labels: []
 ---
 
 # SPEC-GOOSE-PLUGIN-001 — Plugin Host (manifest.json + MCPB + 4 Primitive 패키징)

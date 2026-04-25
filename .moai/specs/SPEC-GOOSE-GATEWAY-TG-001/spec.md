@@ -1,15 +1,16 @@
 ---
 id: SPEC-GOOSE-GATEWAY-TG-001
 version: 0.1.0
-status: Planned (stub)
-created: 2026-04-22
-updated: 2026-04-22
+status: planned
+created_at: 2026-04-22
+updated_at: 2026-04-22
 author: session-decision
 priority: P1
 issue_number: null
 phase: 9
 size: 중(M)
 lifecycle: spec-first
+labels: []
 ---
 
 # SPEC-GOOSE-GATEWAY-TG-001 — Telegram Bot Gateway (Self-hosted) ★ v1.0 포함

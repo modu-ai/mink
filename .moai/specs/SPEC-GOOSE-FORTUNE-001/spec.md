@@ -1,15 +1,16 @@
 ---
 id: SPEC-GOOSE-FORTUNE-001
 version: 0.1.0
-status: Planned
-created: 2026-04-22
-updated: 2026-04-22
+status: planned
+created_at: 2026-04-22
+updated_at: 2026-04-22
 author: manager-spec
 priority: P1
 issue_number: null
 phase: 7
 size: 중(M)
 lifecycle: spec-anchored
+labels: []
 ---
 
 # SPEC-GOOSE-FORTUNE-001 — Personalized Fortune Generator (사주·바이오리듬·오늘의 운세, Opt-in)

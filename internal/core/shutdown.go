@@ -43,12 +43,25 @@ func (m *ShutdownManager) RegisterHook(h CleanupHook) {
 // RunAllHooks는 등록된 모든 hook을 순서대로 실행한다.
 // hook이 panic하면 stack trace를 ERROR로 기록하고 나머지 hook을 계속 실행한다.
 // panic이 하나라도 발생하면 true를 반환한다.
-// (SPEC-GOOSE-CORE-001 REQ-CORE-009, AC-CORE-005)
+// parentCtx가 만료되면 남은 hook을 즉시 건너뛰어 30 s 전체 timeout을 보장한다.
+// (SPEC-GOOSE-CORE-001 REQ-CORE-009, REQ-CORE-004(c), AC-CORE-005)
 //
 // @MX:WARN: [AUTO] panic recovery 내부에서 로깅 후 계속 진행
 // @MX:REASON: hook 중 하나가 panic해도 나머지 cleanup은 반드시 실행되어야 한다
 func (m *ShutdownManager) RunAllHooks(parentCtx context.Context) (panicOccurred bool) {
 	for _, h := range m.hooks {
+		// parentCtx가 이미 만료됐으면 남은 hook을 건너뛴다.
+		// 이를 통해 전체 shutdown이 30 s 이내에 완료됨을 보장한다. (REQ-CORE-004(c))
+		select {
+		case <-parentCtx.Done():
+			m.logger.Warn("shutdown timeout: skipping remaining hooks",
+				zap.String("skipped_hook", h.Name),
+				zap.Error(parentCtx.Err()),
+			)
+			return panicOccurred
+		default:
+		}
+
 		func(hook CleanupHook) {
 			defer func() {
 				if r := recover(); r != nil {
