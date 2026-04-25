@@ -1,7 +1,7 @@
 ---
 id: SPEC-GOOSE-TOOLS-001
-version: 0.1.1
-status: planned
+version: 0.1.2
+status: implemented
 created_at: 2026-04-21
 updated_at: 2026-04-25
 author: manager-spec
@@ -21,6 +21,7 @@ labels: [phase-3, tools, mcp, permission, security]
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-21 | 초안 작성 (Phase 3 신규, claude-primitives §3.4 + Hermes model_tools.py 패턴 + QUERY-001 소비자 계약) | manager-spec |
 | 0.1.1 | 2026-04-25 | plan-auditor 결함 수정: labels 채움(D1), AC-TOOLS-010~018 추가(D2), REQ-TOOLS-007 ↔ §6.4 일관화(D3, Option A), REQ-TOOLS-016 negative-path AC(D6, AC-TOOLS-015), REQ-TOOLS-001 behavioral 재표현(D5), REQ-TOOLS-021 MCP duplicate 추가(D7), REQ-TOOLS-022 sequential dispatch 추가(D8) | manager-spec |
+| 0.1.2 | 2026-04-25 | Status sync — `internal/tools/` 패키지 구현 완료를 frontmatter에 반영. PR #10 (commit 18ee5fb): `registry.go` (Registry + Resolve/Register/Adopt/Drain/IsDraining), `executor.go` (Run + draining state check), `inventory.go`, `errors.go` (ErrRegistryDraining 등), `mcp_adapter.go`, `budget.go`, `scope.go`, `tool.go`, `builtin/` (built-in 6종 stub). status: planned → implemented. SPEC 본문 변경 없음. | manager-spec |
 
 ---
 

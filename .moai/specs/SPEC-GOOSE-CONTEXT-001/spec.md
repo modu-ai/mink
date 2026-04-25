@@ -1,7 +1,7 @@
 ---
 id: SPEC-GOOSE-CONTEXT-001
-version: 0.1.2
-status: planned
+version: 0.1.3
+status: implemented
 created_at: 2026-04-21
 updated_at: 2026-04-25
 author: manager-spec
@@ -22,6 +22,7 @@ labels: [area/runtime, type/feature, priority/p0-critical]
 | 0.1.0 | 2026-04-21 | 초안 작성 (claude-core §7 + QUERY-001 인터페이스 합의 기반) | manager-spec |
 | 0.1.1 | 2026-04-25 | plan-auditor iteration 1 결함 수정: (1) 고아 REQ 5건(CTX-007/011/013/015/016)에 대응하는 AC-CTX-011~015 신설, (2) State/CompactBoundary 타입 소속을 `loop.State`/`loop.CompactBoundary`로 통일 (§3.1/§6.2/§6.3), (3) AutoCompact/ReactiveCompact trigger 분리 REQ-CTX-017/018 추가, (4) REQ-CTX-013 라벨 [Unwanted]→[Ubiquitous] 정정, (5) frontmatter labels 보강 | manager-spec |
 | 0.1.2 | 2026-04-25 | plan-auditor iteration 2 결함 수정: (D10) §3.1 #9 L75 Strategy 우선순위 문자열을 REQ-CTX-008/017/018 일관화하여 `ReactiveCompact > AutoCompact > Snip` 으로 정정, (D11) REQ-CTX-017 전용 AC-CTX-016 신설 (ReactiveTriggered 강제 ReactiveCompact 선택 검증), (D12) §6.2 `DefaultCompactor.MaxMessageCount` 주석에 state vs compactor owner 구분 명시, (D13) AC-CTX-003 fixture 경로(`internal/context/testdata/tokens/ko_en_mixed.json`) 명시, (D14) REQ-CTX-013 섹션 §4.4 Unwanted → §4.1 Ubiquitous 재배치 (라벨↔섹션 일관화), (D15) REQ-CTX-009 `<moai-snip-marker>` auxiliary content schema 계약을 SPEC-GOOSE-ADAPTER-001 위임 명시, AC-CTX-005에 REQ-CTX-018 covers 명시 (ReactiveTriggered=false 선조건) | manager-spec |
+| 0.1.3 | 2026-04-25 | Status sync — `internal/context/` 패키지 구현 완료를 frontmatter에 반영. PR #9 (commit b7ca5ca): `compactor.go` (DefaultCompactor with ReactiveCompact > AutoCompact > Snip 우선순위), `strategy_auto.go` / `strategy_reactive.go` / `strategy_snip.go` (3 strategy), `summarizer.go`, `system.go`, `tokens.go` (token estimator), `tool_use.go`, `user.go`. status: planned → implemented. SPEC 본문 변경 없음. | manager-spec |
 
 ---
 
