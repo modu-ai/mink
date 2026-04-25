@@ -1,0 +1,5 @@
+{
+  "input": "Hello, world! This is a test message with some Korean text: 안녕하세요, 이것은 테스트 메시지입니다. 한글과 영문이 혼합된 텍스트를 사용하여 토큰 추정 정확도를 검증합니다. The quick brown fox jumps over the lazy dog. 빠른 갈색 여우가 게으른 개 위를 뛰어넘습니다. Testing token estimation accuracy with mixed language content including CJK characters which typically require more tokens per character than ASCII text.",
+  "ground_truth_tokens": 92,
+  "source": "internal estimation baseline (2026-04-25); update with actual provider usage.input_tokens when available"
+}
