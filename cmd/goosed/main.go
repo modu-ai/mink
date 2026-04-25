@@ -1,5 +1,6 @@
 // goosed는 GOOSE-AGENT의 핵심 데몬 프로세스다.
 // SPEC-GOOSE-CORE-001 — 부트스트랩 및 Graceful Shutdown
+// SPEC-GOOSE-CONFIG-001 — 계층형 설정 로더 적용
 package main
 
 import (
@@ -26,21 +27,16 @@ func main() {
 // run은 데몬 생애주기를 실행하고 exit code를 반환한다.
 // init → bootstrap → serve → shutdown
 func run() int {
-	// 1. 설정 로드
-	cfg, err := config.Load()
+	// 1. 설정 로드 (SPEC-GOOSE-CONFIG-001 계층형 로더)
+	cfg, err := config.Load(config.LoadOptions{})
 	if err != nil {
 		// 로거 초기화 전이므로 stderr에 직접 출력
 		fallbackLog("ERROR", "config parse error", err.Error())
 		return core.ExitConfig
 	}
 
-	logLevel := os.Getenv("GOOSE_LOG_LEVEL")
-	if logLevel == "" {
-		logLevel = cfg.LogLevel
-	}
-
-	// 2. 로거 초기화
-	logger, err := core.NewLogger(logLevel, "goosed", version)
+	// 2. 로거 초기화 — cfg.Log.Level 사용 (SPEC-GOOSE-CONFIG-001 §6.2)
+	logger, err := core.NewLogger(cfg.Log.Level, "goosed", version)
 	if err != nil {
 		fallbackLog("ERROR", "logger init failed", err.Error())
 		return core.ExitConfig
@@ -57,11 +53,11 @@ func run() int {
 	rt := core.NewRuntime(logger, rootCtx)
 	rt.State.Store(core.StateBootstrap)
 
-	// 5. 헬스서버 기동
+	// 5. 헬스서버 기동 — cfg.Transport.HealthPort 사용 (SPEC-GOOSE-CONFIG-001 §6.2)
 	healthSrv := health.New(rt.State, version, logger)
-	if err := healthSrv.ListenAndServe(cfg.HealthPort); err != nil {
+	if err := healthSrv.ListenAndServe(cfg.Transport.HealthPort); err != nil {
 		logger.Error("health-port in use",
-			zap.Int("port", cfg.HealthPort),
+			zap.Int("port", cfg.Transport.HealthPort),
 			zap.Error(err),
 		)
 		return core.ExitConfig
@@ -69,22 +65,20 @@ func run() int {
 
 	// 6. serving 상태 전환
 	rt.State.Store(core.StateServing)
-	// version 필드는 NewLogger에서 이미 With()로 주입되어 있으므로 중복 부여하지 않는다.
-	logger.Info("goosed started", zap.Int("health_port", cfg.HealthPort))
+	logger.Info("goosed started", zap.Int("health_port", cfg.Transport.HealthPort))
 
 	// 7. 시그널 대기 (REQ-CORE-004)
 	// rootCtx는 SIGINT/SIGTERM 수신 시 cancel된다.
-	// 이 시점 이후 rt.RootCtx.Done()을 구독하는 모든 하위 컴포넌트에 취소가 전파된다.
 	<-rootCtx.Done()
-	// 시그널 처리 완료 후 stop()을 호출하여 추가 시그널이 기본 동작(즉시 종료)으로 처리되도록 한다.
 	stop()
 
 	// 8. draining 상태 전환
 	rt.State.Store(core.StateDraining)
 	logger.Info("received shutdown signal, draining")
 
-	// 9. 헬스서버 종료 (새 연결 차단, REQ-CORE-008)
-	shutdownTimeout := time.Duration(cfg.ShutdownTimeout) * time.Second
+	// 9. 헬스서버 종료 (REQ-CORE-008)
+	// CORE-001 REQ-CORE-004(c): 30초 고정 타임아웃 (SPEC-mandated 상수)
+	const shutdownTimeout = 30 * time.Second
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 
@@ -93,8 +87,6 @@ func run() int {
 	}
 
 	// 9.5 DrainConsumer fan-out (REQ-CORE-014)
-	// CleanupHook 체인 이전에 외부 등록 drain consumer를 호출하여
-	// TOOLS-001 Registry.Drain() 등 in-flight 작업을 마감한다.
 	rt.Drain.RunAllDrainConsumers(shutdownCtx)
 
 	// 10. cleanup hook 실행 (REQ-CORE-004, REQ-CORE-009)

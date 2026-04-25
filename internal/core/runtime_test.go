@@ -69,12 +69,16 @@ func TestBootstrap_SucceedsWithEmptyConfig(t *testing.T) {
 	gooseHome := t.TempDir()
 
 	// 빈 config 파일 없음 → 기본값 fallback
-	cfg, err := config.LoadFromFile(filepath.Join(gooseHome, "config.yaml"))
+	// SPEC-GOOSE-CONFIG-001: config.Load() 계층형 로더로 마이그레이션
+	cfg, err := config.Load(config.LoadOptions{
+		GooseHome: gooseHome,
+		WorkDir:   t.TempDir(),
+	})
 	if err != nil {
 		t.Fatalf("설정 로드 실패: %v", err)
 	}
-	// 기본값 확인
-	if cfg.HealthPort == 0 {
+	// 기본값 확인 (Transport.HealthPort로 필드 변경)
+	if cfg.Transport.HealthPort == 0 {
 		t.Fatal("기본 HealthPort가 0이면 안 됨")
 	}
 
