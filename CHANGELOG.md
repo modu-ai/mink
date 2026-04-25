@@ -5,6 +5,63 @@
 
 ## [Unreleased]
 
+### Added — SPEC-GOOSE-CORE-001 v1.1.0 (Cross-package interface contract)
+
+cross-pkg interface stub audit(`REPORT-CROSS-PKG-IFACE-AUDIT-2026-04-25`)에서 발견된 D-CORE-IF-1/2 결함을 v1.1.0 amendment(PR #15)로 SPEC에 추가하고, PR #16에서 TDD 사이클로 implementation 완료. 모든 `[Pending Implementation v1.1]` 마커는 GREEN 처리되어 §12 Open Items에서 CLOSED로 마킹됨.
+
+#### REQ-CORE-013 — SessionRegistry + WorkspaceRoot resolver
+
+- `internal/core/session.go` 신규
+  - `SessionRegistry` interface — `Register(sessionID, workspaceRoot)` / `Unregister(sessionID)` / `WorkspaceRoot(sessionID) string`
+  - `sync.RWMutex` 기반 동시성 안전 in-memory 구현체 (메모리 캐시 hit 1ms 이내)
+  - 패키지 레벨 `WorkspaceRoot(sessionID string) string` 헬퍼 — HOOK-001 dispatcher의 cross-package surface
+  - `defaultSessionRegistry`는 별도 mutex로 보호하여 `NewRuntime` 동시 호출 시 race-safe wire-up
+  - registry 미초기화 시 빈 문자열 반환 (nil-safe)
+
+- `Runtime.Sessions SessionRegistry` 필드 — `NewRuntime`에서 초기화 + default registry wire-up
+- HOOK-001(REQ-HK-021(b)) shell hook subprocess working directory 결정 시 호출
+
+- 신규 테스트 5건 (`internal/core/session_test.go`)
+  - `TestSessionRegistry_RegisterAndResolve` / `_UnknownSessionReturnsEmpty` / `_Unregister`
+  - `TestWorkspaceRoot_PackageHelper_NilSafe`
+  - `TestWorkspaceRoot_ConcurrentAccess` ← AC-CORE-010 (100 goroutine race detection)
+
+#### REQ-CORE-014 — DrainConsumer fan-out
+
+- `internal/core/drain.go` 신규
+  - `DrainConsumer` 구조체 (`Name` / `Fn func(ctx) error` / `Timeout`, default 10s)
+  - `DrainCoordinator`가 등록 순서대로 sequential 실행 (per-consumer timeout)
+  - 에러는 WARN 로그, panic은 ERROR + stack trace로 격리 (exit code 영향 없음)
+  - parentCtx 만료 시 남은 consumer skip + WARN 로그
+  - `runOne()` 분리로 panic recovery 스택 명확화
+
+- `Runtime.Drain *DrainCoordinator` 필드 — `NewRuntime`에서 초기화
+- `cmd/goosed/main.go` SIGTERM 경로 단계 9.5에 `RunAllDrainConsumers` 통합 (healthSrv.Shutdown 직후, RunAllHooks 직전)
+- TOOLS-001(REQ-TOOLS-011) `Registry.Drain()` 등 in-flight 작업 마감 consumer 등록 surface
+
+- 신규 테스트 5건 (`internal/core/drain_test.go`)
+  - `TestDrainConsumer_RegisterAndFanOut`
+  - `TestDrainConsumer_ErrorIsolation` ← AC-CORE-011 (3 consumer 순서 + 에러 격리)
+  - `TestDrainConsumer_PanicIsolation` / `_PerConsumerTimeout` / `_ParentCtxExpired`
+
+#### @MX 태그
+
+- `WorkspaceRoot` 패키지 헬퍼 → `@MX:ANCHOR` (HOOK-001 cross-package surface)
+- `DrainCoordinator.RunAllDrainConsumers` → `@MX:ANCHOR` (shutdown 경로 fan-in)
+
+#### 검증
+
+- `go test -race -count=2 ./internal/core/...` PASS (기존 11건 + 신규 10건 = 21건)
+- `go test -race ./...` PASS (전체 회귀 0건, AC-CORE-001~009 모두 GREEN 유지)
+- `go vet ./...` clean, `go build ./...` PASS
+- coverage: `internal/core/session.go` / `internal/core/drain.go` 모두 100% statement coverage
+
+#### 영향 범위
+
+- 외부 의존성 신규 추가 0건 (zap + stdlib만 사용)
+- 기존 `Runtime` / `ShutdownManager` / `RunAllHooks` 시그니처 변경 0건 (REQ-CORE-009/AC-CORE-005 회귀 위험 제거)
+- 후속 SPEC 영향: HOOK-001 / TOOLS-001가 본 amendment의 cross-package surface를 직접 호출 가능
+
 ### Added — SPEC-GOOSE-ADAPTER-001 (6 LLM Provider 어댑터 + 의존 타입 skeleton)
 
 #### Provider 인터페이스 + Registry
