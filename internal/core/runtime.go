@@ -21,6 +21,14 @@ type Runtime struct {
 	// 후속 SPEC의 hook이 이 컨텍스트를 구독하여 graceful shutdown에 참여할 수 있다.
 	// (REQ-CORE-004(b))
 	RootCtx context.Context
+	// Sessions는 sessionID → workspace root 매핑 레지스트리다.
+	// HOOK-001 dispatcher가 WorkspaceRoot(sessionID)를 통해 접근한다.
+	// (SPEC-GOOSE-CORE-001 REQ-CORE-013)
+	Sessions SessionRegistry
+	// Drain은 CleanupHook 이전에 실행되는 drain consumer 관리자다.
+	// TOOLS-001 Registry.Drain() 등 in-flight 작업 마감에 사용한다.
+	// (SPEC-GOOSE-CORE-001 REQ-CORE-014)
+	Drain *DrainCoordinator
 }
 
 // NewRuntime은 기본값으로 초기화된 Runtime을 반환한다.
@@ -35,10 +43,20 @@ func NewRuntime(logger *zap.Logger, rootCtx context.Context) *Runtime {
 	}
 	state := &StateHolder{}
 	state.Store(StateInit)
+
+	sessions := NewSessionRegistry()
+	drain := NewDrainCoordinator(logger)
+
+	// 패키지 레벨 default session registry wire-up.
+	// HOOK-001이 core.WorkspaceRoot(sessionID) 형태로 직접 호출할 수 있도록 한다.
+	setDefaultSessionRegistry(sessions)
+
 	return &Runtime{
 		State:    state,
 		Logger:   logger,
 		Shutdown: NewShutdownManager(logger),
 		RootCtx:  rootCtx,
+		Sessions: sessions,
+		Drain:    drain,
 	}
 }
