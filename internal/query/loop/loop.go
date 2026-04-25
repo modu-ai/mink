@@ -94,7 +94,16 @@ type LoopConfig struct {
 	// ShouldCompact가 nil이면 호출되지 않는다.
 	// 반환: (새 State, message.PayloadCompactBoundary, error)
 	Compact func(state State) (State, message.PayloadCompactBoundary, error)
+	// PostSamplingHooks는 LLM 응답 assistant message 조립 후 FIFO 순으로 적용되는 훅 목록이다.
+	// REQ-QUERY-018: nil 또는 빈 슬라이스이면 적용 없음.
+	//
+	// @MX:NOTE: [AUTO] PostSamplingHooks FIFO chain 진입점 - hook 적용 후 State.Messages에 저장됨.
+	PostSamplingHooks []PostSamplingHookFunc
 }
+
+// PostSamplingHookFunc는 LLM 응답 후 assistant message에 적용되는 훅 함수 타입이다.
+// REQ-QUERY-018: FIFO 순으로 적용. hook이 새 Message를 반환하면 chain에 전달된다.
+type PostSamplingHookFunc func(ctx context.Context, msg message.Message) (message.Message, error)
 
 // PermissionDecision은 외부에서 Ask 권한 결정을 전달하는 타입이다.
 // REQ-QUERY-013: ResolvePermission API를 통해 전달된다.
@@ -360,6 +369,11 @@ func queryLoop(ctx context.Context, cfg LoopConfig) {
 			Role:    "assistant",
 			Content: assistantBlocks,
 		}
+
+		// S9: PostSamplingHooks FIFO chain 적용 (REQ-QUERY-018)
+		// @MX:NOTE: [AUTO] PostSamplingHooks FIFO 적용 - tool 파싱 전 단계에서 assistantMsg에 순서대로 적용.
+		assistantMsg = applyPostSamplingHooks(ctx, assistantMsg, cfg.PostSamplingHooks)
+
 		state.Messages = append(state.Messages, assistantMsg)
 
 		// assistant message yield
@@ -655,6 +669,26 @@ func parseInputJSON(s string) map[string]any {
 		return map[string]any{}
 	}
 	return m
+}
+
+// applyPostSamplingHooks는 PostSamplingHooks slice를 FIFO 순으로 assistantMsg에 적용한다.
+// 훅이 에러를 반환하면 해당 훅 이후 체인을 중단하고 현재까지 적용된 msg를 반환한다.
+// REQ-QUERY-018: FIFO 순 적용, hook 에러 처리는 HOOK-001 책임.
+//
+// @MX:NOTE: [AUTO] PostSamplingHooks FIFO chain 구현 - queryLoop 내 assistantMsg에만 적용.
+func applyPostSamplingHooks(ctx context.Context, msg message.Message, hooks []PostSamplingHookFunc) message.Message {
+	for _, hook := range hooks {
+		if hook == nil {
+			continue
+		}
+		result, err := hook(ctx, msg)
+		if err != nil {
+			// 에러 시 체인 중단, 현재까지의 msg 반환 (HOOK-001에서 상세 처리)
+			break
+		}
+		msg = result
+	}
+	return msg
 }
 
 // send는 채널로 SDKMessage를 전송한다.

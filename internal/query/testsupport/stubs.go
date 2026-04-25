@@ -213,6 +213,95 @@ func (s *StubLLMCall) RecordMu() *sync.Mutex {
 	return &s.recordMu
 }
 
+// ResetResponses는 responses 슬라이스를 교체하고 callCount를 초기화한다.
+// 2턴 테스트에서 2번째 turn의 응답을 재설정할 때 사용한다.
+func (s *StubLLMCall) ResetResponses(responses []StubLLMResponse) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.responses = responses
+	s.callCount.Store(0)
+	s.recordMu.Lock()
+	s.RecordedRequests = nil
+	s.recordMu.Unlock()
+}
+
+// --- StubLLMCallWithFallback ---
+
+// StubLLMCallWithFallback은 primary 모델과 fallback 모델에 대해 다른 응답을 반환하는 스텁이다.
+// AC-QUERY-012: primary 실패 시 fallback 체인 검증용.
+//
+// 동작 원리:
+//   - req.Route.Model == "" → primary 응답 시퀀스 사용
+//   - req.Route.Model != "" → fallback 응답 시퀀스 사용 (모든 fallback 공용)
+type StubLLMCallWithFallback struct {
+	// primary는 primary 모델(Route.Model=="") 응답 시퀀스이다. nil이면 에러 반환.
+	primary *StubLLMCall
+	// fallback은 fallback 모델(Route.Model!="") 응답 시퀀스이다. nil이면 에러 반환.
+	fallback         *StubLLMCall
+	fallbackCallsMu  sync.Mutex
+	fallbackCallsCnt int64
+}
+
+// NewStubLLMCallWithFallback은 primary/fallback 응답을 분리하는 스텁을 생성한다.
+// primaryResponses가 nil이면 primary 호출 시 에러를 반환한다.
+// fallbackResponses가 nil이면 fallback 호출 시 에러를 반환한다.
+func NewStubLLMCallWithFallback(primaryResponses []StubLLMResponse, fallbackResponses []StubLLMResponse) *StubLLMCallWithFallback {
+	var primary *StubLLMCall
+	if primaryResponses != nil {
+		primary = NewStubLLMCall(primaryResponses...)
+	}
+	var fallback *StubLLMCall
+	if fallbackResponses != nil {
+		fallback = NewStubLLMCall(fallbackResponses...)
+	}
+	return &StubLLMCallWithFallback{
+		primary:  primary,
+		fallback: fallback,
+	}
+}
+
+// Call은 LLMCallFunc 시그니처를 구현한다.
+// Route.Model == "" → primary 응답, Route.Model != "" → fallback 응답.
+func (s *StubLLMCallWithFallback) Call(ctx context.Context, req query.LLMCallReq) (<-chan message.StreamEvent, error) {
+	if req.Route.Model == "" {
+		// primary 호출
+		if s.primary == nil {
+			return nil, fmt.Errorf("primary model overloaded (HTTP 529)")
+		}
+		return s.primary.Call(ctx, req)
+	}
+	// fallback 호출
+	s.fallbackCallsMu.Lock()
+	s.fallbackCallsCnt++
+	s.fallbackCallsMu.Unlock()
+	if s.fallback == nil {
+		return nil, fmt.Errorf("fallback model %q overloaded (HTTP 529)", req.Route.Model)
+	}
+	return s.fallback.Call(ctx, req)
+}
+
+// AsFunc는 LLMCallFunc 타입으로 변환한다.
+func (s *StubLLMCallWithFallback) AsFunc() query.LLMCallFunc {
+	return s.Call
+}
+
+// Primary는 내부 primary StubLLMCall을 반환한다 (nil 가능).
+// no_fallback_models 테스트에서 zaptest.NewLogger용으로 사용한다.
+func (s *StubLLMCallWithFallback) Primary() *StubLLMCall {
+	if s.primary != nil {
+		return s.primary
+	}
+	// nil인 경우 빈 스텁 반환 (logger 생성용)
+	return NewStubLLMCall()
+}
+
+// FallbackCallCount는 fallback 모델이 호출된 횟수를 반환한다.
+func (s *StubLLMCallWithFallback) FallbackCallCount() int {
+	s.fallbackCallsMu.Lock()
+	defer s.fallbackCallsMu.Unlock()
+	return int(s.fallbackCallsCnt)
+}
+
 // --- StubExecutor ---
 
 // StubExecutor는 Executor 인터페이스의 스텁 구현이다.

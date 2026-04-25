@@ -10,6 +10,7 @@ import (
 
 	"github.com/modu-ai/goose/internal/message"
 	"github.com/modu-ai/goose/internal/query/loop"
+	"go.uber.org/zap"
 )
 
 // ErrUnknownPermissionRequest는 알 수 없는 toolUseID로 ResolvePermission 호출 시 반환된다.
@@ -102,8 +103,35 @@ func (e *QueryEngine) SubmitMessage(ctx context.Context, prompt string) (<-chan 
 	// currentState.Messages는 이미 user message를 포함한 스냅샷이다.
 	callLLM := e.buildLLMStreamFuncFromMsgs(currentState.Messages)
 
+	// S9: TeammateIdentity meta 주입 채널 분리
+	// REQ-QUERY-020: 모든 SDKMessage.Meta에 teammate identity 주입.
+	// loopOut = loop가 쓰는 채널, returnCh = caller에게 반환하는 채널.
+	// TeammateIdentity가 nil이면 동일 채널 사용.
+	//
+	// @MX:NOTE: [AUTO] TeammateIdentity Meta 주입 래핑 goroutine - loop out → meta inject → returnCh.
+	loopOut := out
+	returnCh := (<-chan message.SDKMessage)(out)
+	teammateMeta := e.buildTeammateMeta()
+	if teammateMeta != nil {
+		loopOut = make(chan message.SDKMessage)
+		wrappedReturnCh := make(chan message.SDKMessage)
+		go func() {
+			defer close(wrappedReturnCh)
+			for msg := range loopOut {
+				if msg.Meta == nil {
+					msg.Meta = make(map[string]any)
+				}
+				for k, v := range teammateMeta {
+					msg.Meta[k] = v
+				}
+				wrappedReturnCh <- msg
+			}
+		}()
+		returnCh = wrappedReturnCh
+	}
+
 	cfg := loop.LoopConfig{
-		Out:          out,
+		Out:          loopOut,
 		InitialState: currentState,
 		Prompt:       prompt,
 		MaxTurns:     e.cfg.MaxTurns,
@@ -132,40 +160,126 @@ func (e *QueryEngine) SubmitMessage(ctx context.Context, prompt string) (<-chan 
 		// cfg.Compactor가 nil이면 compaction 비활성.
 		ShouldCompact: e.buildShouldCompactFunc(),
 		Compact:       e.buildCompactFunc(),
+		// S9: PostSamplingHooks 주입 — import cycle 방지를 위해 loop.PostSamplingHookFunc로 변환.
+		// REQ-QUERY-018: FIFO 순 적용.
+		PostSamplingHooks: e.buildPostSamplingHooks(),
 	}
 
 	// loop.Run은 goroutine을 spawn하고 즉시 반환한다.
-	// out 채널 close 책임은 queryLoop 단독.
+	// loopOut 채널 close 책임은 queryLoop 단독.
 	loop.Run(ctx, cfg)
 
-	return out, nil
+	return returnCh, nil
+}
+
+// buildSystemHeader는 TeammateIdentity가 nil이 아닌 경우 system header map을 반환한다.
+// REQ-QUERY-020: nil이면 LLM payload에 주입하지 않는다.
+func (e *QueryEngine) buildSystemHeader() map[string]any {
+	if e.cfg.TeammateIdentity == nil {
+		return nil
+	}
+	return map[string]any{
+		"agent_id":  e.cfg.TeammateIdentity.AgentID,
+		"team_name": e.cfg.TeammateIdentity.TeamName,
+	}
+}
+
+// buildTeammateMeta는 TeammateIdentity가 nil이 아닌 경우 SDKMessage Meta에 주입할 맵을 반환한다.
+// REQ-QUERY-020: nil이면 Meta 주입 없음.
+func (e *QueryEngine) buildTeammateMeta() map[string]any {
+	if e.cfg.TeammateIdentity == nil {
+		return nil
+	}
+	return map[string]any{
+		"agent_id":  e.cfg.TeammateIdentity.AgentID,
+		"team_name": e.cfg.TeammateIdentity.TeamName,
+	}
 }
 
 // buildLLMStreamFuncFromMsgs는 주어진 messages 슬라이스를 사용하는 LLMStreamFunc를 생성한다.
 // REQ-QUERY-016: LLM 연결 비용이 이 클로저 호출 시점(goroutine 내부)에서 발생한다.
 // S5: currentState.Messages (user message 포함)를 직접 전달하여 e.state 의존을 제거한다.
+// S9: FallbackModels 지원 — primary 실패 시 fallback 모델로 순차 재시도.
+//
+// @MX:NOTE: [AUTO] FallbackModels chain 진입점 - primary LLMCall 실패 시 FallbackModels 순회.
+// @MX:REASON: REQ-QUERY-019 - ROUTER-001 책임이 아닌 engine level fallback.
 func (e *QueryEngine) buildLLMStreamFuncFromMsgs(msgs []message.Message) loop.LLMStreamFunc {
 	llmCall := e.cfg.LLMCall
+	fallbackModels := e.cfg.FallbackModels
+	systemHeader := e.buildSystemHeader()
+	logger := e.cfg.Logger
 
 	return func(ctx context.Context) (<-chan message.StreamEvent, error) {
 		req := LLMCallReq{
-			Messages: msgs,
+			Messages:     msgs,
+			SystemHeader: systemHeader,
 		}
-		return llmCall(ctx, req)
+		ch, err := llmCall(ctx, req)
+		if err == nil {
+			return ch, nil
+		}
+
+		// primary 실패: fallback 모델 순차 시도
+		// @MX:WARN: [AUTO] fallback 순회 시 각 모델 실패는 다음 모델로 진행 — 최종 실패만 반환.
+		// @MX:REASON: REQ-QUERY-019 - FallbackModels 소진 시 마지막 에러 surface.
+		for i, model := range fallbackModels {
+			fallbackReq := LLMCallReq{
+				Messages:     msgs,
+				SystemHeader: systemHeader,
+			}
+			fallbackReq.Route.Model = model
+			fCh, fErr := llmCall(ctx, fallbackReq)
+			if fErr == nil {
+				logger.Info("fallback used",
+					zap.String("fallback_model", model),
+					zap.Int("fallback_index", i),
+					zap.Error(err),
+				)
+				return fCh, nil
+			}
+			err = fErr
+		}
+		return nil, err
 	}
 }
 
 // buildLLMStreamFuncFactory는 messages를 갱신하여 새 LLMStreamFunc를 생성하는 factory를 반환한다.
 // S4 after_tool_results continue site에서 tool_result를 포함한 다음 LLM 호출 클로저를 만들 때 사용된다.
+// S9: FallbackModels 및 TeammateIdentity systemHeader 주입 포함.
 func (e *QueryEngine) buildLLMStreamFuncFactory() func(msgs []message.Message) loop.LLMStreamFunc {
 	llmCall := e.cfg.LLMCall
+	fallbackModels := e.cfg.FallbackModels
+	systemHeader := e.buildSystemHeader()
+	logger := e.cfg.Logger
+
 	return func(msgs []message.Message) loop.LLMStreamFunc {
-		// 전달받은 messages 스냅샷을 사용하는 LLMStreamFunc를 반환한다.
 		return func(ctx context.Context) (<-chan message.StreamEvent, error) {
 			req := LLMCallReq{
-				Messages: msgs,
+				Messages:     msgs,
+				SystemHeader: systemHeader,
 			}
-			return llmCall(ctx, req)
+			ch, err := llmCall(ctx, req)
+			if err == nil {
+				return ch, nil
+			}
+			for i, model := range fallbackModels {
+				fallbackReq := LLMCallReq{
+					Messages:     msgs,
+					SystemHeader: systemHeader,
+				}
+				fallbackReq.Route.Model = model
+				fCh, fErr := llmCall(ctx, fallbackReq)
+				if fErr == nil {
+					logger.Info("fallback used",
+						zap.String("fallback_model", model),
+						zap.Int("fallback_index", i),
+						zap.Error(err),
+					)
+					return fCh, nil
+				}
+				err = fErr
+			}
+			return nil, err
 		}
 	}
 }
@@ -250,6 +364,20 @@ func (e *QueryEngine) unregisterPendingPerm(toolUseID string) {
 	e.pendingPermsMu.Lock()
 	delete(e.pendingPerms, toolUseID)
 	e.pendingPermsMu.Unlock()
+}
+
+// buildPostSamplingHooks는 cfg.PostSamplingHooks를 loop.PostSamplingHookFunc 슬라이스로 변환한다.
+// REQ-QUERY-018: import cycle 방지를 위해 타입 변환만 수행.
+func (e *QueryEngine) buildPostSamplingHooks() []loop.PostSamplingHookFunc {
+	if len(e.cfg.PostSamplingHooks) == 0 {
+		return nil
+	}
+	hooks := make([]loop.PostSamplingHookFunc, len(e.cfg.PostSamplingHooks))
+	for i, h := range e.cfg.PostSamplingHooks {
+		h := h // loop variable capture
+		hooks[i] = loop.PostSamplingHookFunc(h)
+	}
+	return hooks
 }
 
 // validateConfig는 QueryEngineConfig 필수 필드를 검증한다.

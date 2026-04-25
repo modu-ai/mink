@@ -39,6 +39,11 @@ type LLMCallReq struct {
 	Thinking *ThinkingConfig
 	// FallbackModels는 primary 모델 실패 시 순서대로 시도할 모델 목록이다.
 	FallbackModels []string
+	// SystemHeader는 TeammateIdentity 주입을 위한 system 파트 구조화 헤더이다.
+	// REQ-QUERY-020: nil이면 주입 없음.
+	//
+	// @MX:NOTE: [AUTO] TeammateIdentity system header 경로 - engine이 주입, LLMCallFunc 구현이 소비.
+	SystemHeader map[string]any
 }
 
 // LLMCallFunc는 QUERY-001의 LLMCall 인터페이스 함수 타입이다.
