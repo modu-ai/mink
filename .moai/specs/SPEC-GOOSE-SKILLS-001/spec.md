@@ -1,7 +1,7 @@
 ---
 id: SPEC-GOOSE-SKILLS-001
-version: 0.3.0
-status: planned
+version: 0.3.1
+status: implemented
 created_at: 2026-04-21
 updated_at: 2026-04-25
 author: manager-spec
@@ -22,6 +22,7 @@ labels: [skills, progressive-disclosure, yaml-frontmatter, trigger-matching, sec
 | 0.1.0 | 2026-04-21 | 초안 작성 (claude-primitives §2 + ROADMAP v2.0 Phase 2 기반) | manager-spec |
 | 0.2.0 | 2026-04-25 | plan-auditor iteration 1 반영 (Score 0.58 → 재감사 대응): ① labels 채우기 ② §5 format declaration + AC Gherkin 유지 근거 명시 ③ REQ-SK-002/013/014-sec/016/017/018 AC 신설 (AC-SK-011~016) ④ REQ-SK-004 semantics 정정 (error slice / partial success) ⑤ REQ-SK-019 (YAML 15-key schema 승격) ⑥ REQ-SK-020 (L0-L3 effort vs MoAI 3-Level Progressive Disclosure 직교축 관계 명시) ⑦ REQ-SK-021 (4-trigger 스코프 확정 + keyword/agent/phase/language OUT) ⑧ REQ-SK-022 (shell injection threat model 확장) ⑨ §2.4 Standard Alignment (agentskills.io) 신설 ⑩ §5.1 Traceability 테이블 추가 | manager-spec |
 | 0.3.0 | 2026-04-25 | plan-auditor iteration 2 반영 (Score 0.78 FAIL → D3/MP-2 blocker 해소): ① 16개 AC 헤더 모두 EARS 5개 패턴 중 하나로 재작성 (Ubiquitous/Event-Driven/State-Driven/Unwanted/Optional). 기존 Given/When/Then 시나리오는 각 AC 내부의 "Test Scenario" 중첩 블록으로 보존 — EARS가 WHAT을, Gherkin이 HOW-TO-VERIFY를 담당. ② §5.1 Format Declaration을 "EARS 헤더 + Gherkin 하위 블록 공존 근거"로 재서술 (audit rubric contest 제거). ③ D11 minor 대응: §4 머리말에 "§4 REQ 문장은 §6.1-6.2의 Go API 계약을 정본으로 참조한다" 한 줄 추가. ④ D16 minor: Exclusions에 "v0.2.0 수준 이상의 registry memory upper-bound / body cache eviction / concurrent LoadSkillsDir re-entrancy / teardown·unload API는 PLUGIN-001로 연기"를 Open Item으로 명시. ⑤ D19 minor: REQ-SK-009 wording을 default/false/unknown-actor 3-branch matrix로 확장 + AC-SK-007 본문 scenario 확장. REQ 번호 재배치 없음. | manager-spec |
+| 0.3.1 | 2026-04-25 | Implementation 완료 반영. status: planned → implemented. 코드: `internal/skill/{schema,parser,runtime,conditional,loader,remote,registry}.go` + 6 테스트 파일 + testdata fixtures (29 테스트 함수, race-clean, coverage 86.7%). 외부 의존성 신규 1건: `github.com/denormal/go-gitignore` (paths gitignore 매칭, REQ-SK-007). 22 REQ + 16 AC 모두 GREEN. cross-pkg surface(`SkillRegistry.FileChangedConsumer`)는 메서드만 노출 — main.go wire-up은 daemon wire-up SPEC 후속 분리. SPEC 본문 변경 없음 — 문서 정합화. | manager-tdd |
 
 ---
 
