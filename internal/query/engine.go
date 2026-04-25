@@ -22,8 +22,12 @@ type QueryEngine struct {
 	// mu는 SubmitMessage 직렬화를 위한 뮤텍스이다.
 	// REQ-QUERY-001: 동일 인스턴스에서 동시 SubmitMessage 호출 방지.
 	mu sync.Mutex
-	// state는 loop goroutine이 단독 소유하는 상태이다.
-	// REQ-QUERY-015: 외부 goroutine이 직접 변경 금지.
+	// stateMu는 e.state 읽기/쓰기를 보호하는 전용 뮤텍스이다.
+	// S5: loop goroutine의 OnComplete와 SubmitMessage 간 race 방지.
+	// mu와 별도로 유지하여 loop goroutine이 mu 없이 state를 갱신할 수 있도록 한다.
+	stateMu sync.Mutex
+	// state는 SubmitMessage 호출 간 누적되는 대화 상태이다.
+	// REQ-QUERY-015: loop goroutine만 직접 변경. 외부는 stateMu로 보호.
 	state loop.State
 	// permInbox는 Ask permission 결정을 loop에 전달하는 채널이다.
 	// REQ-QUERY-013: 외부에서 ResolvePermission을 통해 전송.
@@ -64,13 +68,23 @@ func (e *QueryEngine) SubmitMessage(ctx context.Context, prompt string) (<-chan 
 	// unbuffered 채널: REQ-QUERY-002 - 송신 불가(receive-only) 계약
 	out := make(chan message.SDKMessage)
 
-	// 현재 state 스냅샷을 loop에 전달한다.
-	// loop goroutine이 완료되면 e.state 업데이트를 S5에서 구현한다.
+	// S5: user message를 state에 포함시킨 스냅샷을 loop에 전달한다.
+	// REQ-QUERY-004: messages 누적 보존. loop 완료 후 OnComplete로 갱신됨.
+	userMsg := message.Message{
+		Role: "user",
+		Content: []message.ContentBlock{
+			{Type: "text", Text: prompt},
+		},
+	}
+	e.stateMu.Lock()
 	currentState := e.state
+	e.stateMu.Unlock()
+	currentState.Messages = append(append([]message.Message(nil), currentState.Messages...), userMsg)
 
 	// LLM 호출 클로저: messages + tools를 바인딩하여 loop에 전달한다.
 	// REQ-QUERY-016: LLM 연결(dial) 비용은 goroutine 내부에서 처리한다.
-	callLLM := e.buildLLMStreamFunc(prompt)
+	// currentState.Messages는 이미 user message를 포함한 스냅샷이다.
+	callLLM := e.buildLLMStreamFuncFromMsgs(currentState.Messages)
 
 	cfg := loop.LoopConfig{
 		Out:          out,
@@ -84,6 +98,16 @@ func (e *QueryEngine) SubmitMessage(ctx context.Context, prompt string) (<-chan 
 		CanUseTool:     e.cfg.CanUseTool,
 		Execute:        e.cfg.Executor.Run,
 		ToolResultCap:  e.cfg.TaskBudget.ToolResultCap,
+		// S5: loop 종료 후 최종 State를 engine.state에 반영한다.
+		// REQ-QUERY-004: SubmitMessage 호출 간 messages/turnCount/budget 누적 보존.
+		//
+		// @MX:NOTE: [AUTO] OnComplete는 loop goroutine의 defer 체인에서 호출된다.
+		// stateMu로 e.state 쓰기를 보호하여 SubmitMessage의 e.state 읽기와의 경합을 방지한다.
+		OnComplete: func(finalState loop.State) {
+			e.stateMu.Lock()
+			e.state = finalState
+			e.stateMu.Unlock()
+		},
 	}
 
 	// loop.Run은 goroutine을 spawn하고 즉시 반환한다.
@@ -93,23 +117,10 @@ func (e *QueryEngine) SubmitMessage(ctx context.Context, prompt string) (<-chan 
 	return out, nil
 }
 
-// buildLLMStreamFunc는 현재 state와 config를 바인딩한 LLM 스트림 호출 클로저를 생성한다.
+// buildLLMStreamFuncFromMsgs는 주어진 messages 슬라이스를 사용하는 LLMStreamFunc를 생성한다.
 // REQ-QUERY-016: LLM 연결 비용이 이 클로저 호출 시점(goroutine 내부)에서 발생한다.
-func (e *QueryEngine) buildLLMStreamFunc(prompt string) loop.LLMStreamFunc {
-	// S3 범위: messages에 user prompt만 추가하는 최소 구현.
-	// S4+에서 tool definitions, message history 등이 추가된다.
-	userMsg := message.Message{
-		Role: "user",
-		Content: []message.ContentBlock{
-			{Type: "text", Text: prompt},
-		},
-	}
-
-	// state.Messages에 user message를 추가한 snapshot을 클로저에 캡처한다.
-	msgs := make([]message.Message, len(e.state.Messages)+1)
-	copy(msgs, e.state.Messages)
-	msgs[len(e.state.Messages)] = userMsg
-
+// S5: currentState.Messages (user message 포함)를 직접 전달하여 e.state 의존을 제거한다.
+func (e *QueryEngine) buildLLMStreamFuncFromMsgs(msgs []message.Message) loop.LLMStreamFunc {
 	llmCall := e.cfg.LLMCall
 
 	return func(ctx context.Context) (<-chan message.StreamEvent, error) {

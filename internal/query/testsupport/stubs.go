@@ -26,6 +26,11 @@ type StubLLMResponse struct {
 	Events []message.StreamEvent
 	// Err는 응답 채널 반환 시 발생할 에러이다 (nil이면 정상).
 	Err error
+	// UsageInputTokens는 이 응답이 소비한 입력 토큰 수이다.
+	// REQ-QUERY-011: budget 차감 시뮬레이션용. 0이면 차감 없음.
+	UsageInputTokens int
+	// UsageOutputTokens는 이 응답이 소비한 출력 토큰 수이다.
+	UsageOutputTokens int
 }
 
 // StubLLMCall은 LLMCallFunc 타입의 스텁 구현이다.
@@ -102,6 +107,25 @@ func MakeStopEvents(delta string) []message.StreamEvent {
 	return events
 }
 
+// MakeMaxOutputTokensEvents는 max_output_tokens StopReason으로 종료하는 이벤트 시퀀스를 생성한다.
+// AC-QUERY-005: max_output_tokens 재시도 시나리오용.
+func MakeMaxOutputTokensEvents(partial string) []message.StreamEvent {
+	events := []message.StreamEvent{}
+	if partial != "" {
+		events = append(events, message.StreamEvent{Type: message.TypeTextDelta, Delta: partial})
+	}
+	// TypeMessageDelta에 StopReason="max_output_tokens"로 종료 신호 전달
+	events = append(events, message.StreamEvent{
+		Type:       message.TypeMessageDelta,
+		StopReason: "max_output_tokens",
+	})
+	events = append(events, message.StreamEvent{
+		Type:       message.TypeMessageStop,
+		StopReason: "max_output_tokens",
+	})
+	return events
+}
+
 // Call은 LLMCallFunc 시그니처를 구현한다.
 func (s *StubLLMCall) Call(ctx context.Context, req query.LLMCallReq) (<-chan message.StreamEvent, error) {
 	// payload 기록
@@ -125,6 +149,16 @@ func (s *StubLLMCall) Call(ctx context.Context, req query.LLMCallReq) (<-chan me
 
 	events := make([]message.StreamEvent, len(resp.Events))
 	copy(events, resp.Events)
+
+	// usage가 설정된 경우 TypeMessageDelta 이벤트를 스트림 끝에 추가한다.
+	// REQ-QUERY-011: budget 차감을 위해 queryLoop이 이 이벤트를 소비한다.
+	if resp.UsageInputTokens > 0 || resp.UsageOutputTokens > 0 {
+		events = append(events, message.StreamEvent{
+			Type:         message.TypeMessageDelta,
+			InputTokens:  resp.UsageInputTokens,
+			OutputTokens: resp.UsageOutputTokens,
+		})
+	}
 
 	delay := time.Duration(s.InitialDelay)
 	ch := make(chan message.StreamEvent, len(events)+1)

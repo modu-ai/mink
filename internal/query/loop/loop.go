@@ -1,10 +1,17 @@
 // Package loop는 QueryEngine의 queryLoop goroutine과 상태 머신을 포함한다.
 // SPEC-GOOSE-QUERY-001 S3: 최소 구현 (tool 없는 단일 턴 시나리오).
 // SPEC-GOOSE-QUERY-001 S4: tool roundtrip, permission Allow/Deny 분기, tool_result budget 치환.
+// SPEC-GOOSE-QUERY-001 S5: 상태 기반 종료 조건.
+//   - budget_exceeded: TaskBudgetRemaining <= 0 (매 iteration 시작 시 검사)
+//   - max_turns: TurnCount >= MaxTurns (매 iteration 시작 시 검사)
+//   - max_output_tokens 재시도: ≤ 3회 retry (after_retry continue site)
 //
 // 상태 머신 경로 요약:
 //   - 경로 A: tool 없는 assistant turn → terminal{success:true}
 //   - 경로 B: tool_use → permission(Allow/Deny) → tool_result → after_tool_results → 다음 turn
+//   - 경로 C: budget_exceeded gate → terminal{success:false, error:"budget_exceeded"}
+//   - 경로 D: max_turns gate → terminal{success:true, error:"max_turns"}
+//   - 경로 E: max_output_tokens → retry (after_retry) → 최대 3회 후 exhausted
 package loop
 
 import (
@@ -56,6 +63,10 @@ type LoopConfig struct {
 	// ToolResultCap은 tool result content의 최대 바이트 수이다 (0이면 무제한).
 	// REQ-QUERY-007: 초과 시 요약 치환.
 	ToolResultCap int
+	// OnComplete는 loop 종료 시 최종 State를 engine에 반환하는 콜백이다.
+	// REQ-QUERY-004: SubmitMessage 호출 간 messages/turnCount/budget 누적 보존.
+	// nil이면 호출하지 않는다.
+	OnComplete func(State)
 }
 
 // PermissionDecision은 외부에서 Ask 권한 결정을 전달하는 타입이다.
@@ -85,9 +96,20 @@ type toolUseBlock struct {
 // @MX:WARN: [AUTO] goroutine spawn 지점 - State 단독 소유자
 // @MX:REASON: REQ-QUERY-015 - state ownership은 loop goroutine 단일. 외부 mutation 금지
 func queryLoop(ctx context.Context, cfg LoopConfig) {
-	defer close(cfg.Out)
-
 	state := cfg.InitialState
+
+	// S5: loop 종료 시 최종 State를 engine에 반환한다.
+	// defer는 LIFO이므로 close(cfg.Out) 이후에 OnComplete가 호출된다.
+	// (등록 순서: OnComplete 먼저 → close 나중 → 실행 순서: close 먼저 → OnComplete 나중)
+	//
+	// @MX:NOTE: [AUTO] defer 순서 보장: close(Out) 후 OnComplete 호출.
+	// engine의 다음 SubmitMessage 호출이 drain 완료 후 mu.Lock을 획득하므로 race 없음.
+	if cfg.OnComplete != nil {
+		defer func() {
+			cfg.OnComplete(state)
+		}()
+	}
+	defer close(cfg.Out)
 
 	// 1. user_ack yield: 사용자 요청 즉시 확인
 	if !send(ctx, cfg.Out, message.SDKMessage{
@@ -97,9 +119,34 @@ func queryLoop(ctx context.Context, cfg LoopConfig) {
 		return
 	}
 
-	// S4: tool roundtrip을 지원하는 main loop.
+	// S4+: tool roundtrip을 지원하는 main loop.
+	// S5: 상태 기반 종료 조건 (budget_exceeded, max_turns, max_output_tokens) 추가.
 	// tool 없는 경우 단일 턴으로 종료된다.
+
+	// @MX:WARN: [AUTO] 상태 게이트 순서 불변: budget_exceeded → max_turns → LLM 호출
+	// @MX:REASON: REQ-QUERY-011 - budget 소진이 max_turns보다 우선 (정책 결정)
 	for {
+		// --- S5: iteration 시작 시 종료 조건 검사 ---
+
+		// budget_exceeded gate: TaskBudgetRemaining <= 0이면 즉시 종료
+		if state.TaskBudgetRemaining <= 0 {
+			_ = send(ctx, cfg.Out, message.SDKMessage{
+				Type:    message.SDKMsgTerminal,
+				Payload: message.PayloadTerminal{Success: false, Error: "budget_exceeded"},
+			})
+			return
+		}
+
+		// max_turns gate: TurnCount >= MaxTurns이면 success:true 종료
+		// @MX:NOTE: [AUTO] max_turns는 bounded 도달 = 정상 종료이므로 success=true (REQ-QUERY-011)
+		if cfg.MaxTurns > 0 && state.TurnCount >= cfg.MaxTurns {
+			_ = send(ctx, cfg.Out, message.SDKMessage{
+				Type:    message.SDKMsgTerminal,
+				Payload: message.PayloadTerminal{Success: true, Error: "max_turns"},
+			})
+			return
+		}
+
 		// turn 카운트 증가 + stream_request_start yield
 		state.TurnCount++
 		if !send(ctx, cfg.Out, message.SDKMessage{
@@ -123,6 +170,7 @@ func queryLoop(ctx context.Context, cfg LoopConfig) {
 		var textBuf string
 		var toolBlocks []toolUseBlock
 		var curTool *toolUseBlock
+		var maxOutputTokensStop bool // S5: max_output_tokens StopReason 감지 플래그
 
 		for ev := range streamCh {
 			select {
@@ -182,6 +230,23 @@ func queryLoop(ctx context.Context, cfg LoopConfig) {
 					return
 				}
 
+			case message.TypeMessageDelta:
+				// S5: TypeMessageDelta에서 usage 추출 및 budget 차감
+				// StopReason="max_output_tokens" 감지
+				if ev.StopReason == "max_output_tokens" {
+					maxOutputTokensStop = true
+				}
+				if ev.InputTokens > 0 || ev.OutputTokens > 0 {
+					state.TaskBudgetRemaining -= ev.InputTokens + ev.OutputTokens
+				}
+				// stream_event로 전달 (downstream이 usage 정보 참고 가능)
+				if !send(ctx, cfg.Out, message.SDKMessage{
+					Type:    message.SDKMsgStreamEvent,
+					Payload: message.PayloadStreamEvent{Event: ev},
+				}) {
+					return
+				}
+
 			case message.TypeMessageStop:
 				// message_stop은 스트리밍 종료 신호. 별도 yield 없이 다음 단계로 진행.
 
@@ -194,6 +259,25 @@ func queryLoop(ctx context.Context, cfg LoopConfig) {
 					return
 				}
 			}
+		}
+
+		// --- S5: max_output_tokens 재시도 처리 (after_retry continue site) ---
+		// @MX:WARN: [AUTO] after_retry continue site: MaxOutputTokensRecoveryCount 상태 변이 발생
+		// @MX:REASON: REQ-QUERY-008 - ≤3이면 재시도, >3이면 max_output_tokens_exhausted terminal
+		if maxOutputTokensStop {
+			state.MaxOutputTokensRecoveryCount++
+			if state.MaxOutputTokensRecoveryCount > 3 {
+				// 재시도 한도 초과 → max_output_tokens_exhausted
+				_ = send(ctx, cfg.Out, message.SDKMessage{
+					Type:    message.SDKMsgTerminal,
+					Payload: message.PayloadTerminal{Success: false, Error: "max_output_tokens_exhausted"},
+				})
+				return
+			}
+			// 재시도: 동일 messages로 LLM 재호출 (continue site: after_retry)
+			// turn 카운트는 증가하지 않음 (재시도는 동일 turn의 연장)
+			state.TurnCount-- // turn 카운트 보정 (loop 시작 시 증가했으므로 되돌림)
+			continue
 		}
 
 		// assistant message 조립
