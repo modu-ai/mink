@@ -194,6 +194,12 @@ func (s *StubLLMCall) AsFunc() query.LLMCallFunc {
 	return s.Call
 }
 
+// RecordMu는 RecordedRequests 보호용 뮤텍스 포인터를 반환한다.
+// S6 테스트에서 payload recorder를 안전하게 읽을 때 사용한다.
+func (s *StubLLMCall) RecordMu() *sync.Mutex {
+	return &s.recordMu
+}
+
 // --- StubExecutor ---
 
 // StubExecutor는 Executor 인터페이스의 스텁 구현이다.

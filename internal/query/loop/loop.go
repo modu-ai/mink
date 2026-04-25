@@ -67,6 +67,14 @@ type LoopConfig struct {
 	// REQ-QUERY-004: SubmitMessage 호출 간 messages/turnCount/budget 누적 보존.
 	// nil이면 호출하지 않는다.
 	OnComplete func(State)
+	// OnAskPending은 Ask 분기에서 tool이 pending 상태가 될 때 호출하는 콜백이다.
+	// REQ-QUERY-013: engine이 pendingPerms에 toolUseID를 등록할 수 있도록 한다.
+	// nil이면 호출하지 않는다.
+	OnAskPending func(toolUseID string)
+	// OnAskResolved는 Ask 분기가 해결된 후(allow/deny 처리 완료) 호출하는 콜백이다.
+	// REQ-QUERY-013: engine이 pendingPerms에서 toolUseID를 제거할 수 있도록 한다.
+	// nil이면 호출하지 않는다.
+	OnAskResolved func(toolUseID string)
 }
 
 // PermissionDecision은 외부에서 Ask 권한 결정을 전달하는 타입이다.
@@ -425,28 +433,110 @@ func processToolUseBlocks(ctx context.Context, cfg LoopConfig, turn int, toolBlo
 			})
 
 		case permissions.Ask:
-			// S6에서 구현 예정 (Ask 분기는 S4 범위 외)
-			// 현재는 Deny와 동일하게 처리
+			// S6: Ask 분기 — permission_request yield → loop suspend → resolve 수신 후 처리.
+			// REQ-QUERY-013: permission_request를 yield하고 permInbox에서 결정을 기다린다.
+
+			// OnAskPending 콜백으로 engine에 pending 등록 알림
+			if cfg.OnAskPending != nil {
+				cfg.OnAskPending(tb.toolUseID)
+			}
+
+			// permission_request yield: 외부가 결정을 내릴 수 있도록 알림
 			if !send(ctx, cfg.Out, message.SDKMessage{
-				Type: message.SDKMsgPermissionCheck,
-				Payload: message.PayloadPermissionCheck{
+				Type: message.SDKMsgPermissionRequest,
+				Payload: message.PayloadPermissionRequest{
 					ToolUseID: tb.toolUseID,
-					Behavior:  "deny",
-					Reason:    "ask_not_supported_in_s4",
+					ToolName:  tb.toolName,
+					Input:     tpc.Input,
 				},
 			}) {
+				// ctx 취소 시 abort
+				if cfg.OnAskResolved != nil {
+					cfg.OnAskResolved(tb.toolUseID)
+				}
 				return nil, false
 			}
-			denied := permissions.SynthesizeDeniedResult(tb.toolUseID, decision)
-			deniedJSON, _ := json.Marshal(map[string]any{
-				"denied": true,
-				"reason": denied.Content,
-			})
-			resultBlocks = append(resultBlocks, message.ContentBlock{
-				Type:           "tool_result",
-				ToolUseID:      tb.toolUseID,
-				ToolResultJSON: string(deniedJSON),
-			})
+
+			// loop suspend: permInbox에서 결정을 수신하거나 ctx 취소를 기다린다.
+			// @MX:WARN: [AUTO] permInbox receive는 외부 ResolvePermission 없이 무한 대기 가능
+			// @MX:REASON: REQ-QUERY-013 - ctx 취소를 항상 우선 처리해 abort 보장 (REQ-010)
+			var resolved PermissionDecision
+			select {
+			case <-ctx.Done():
+				if cfg.OnAskResolved != nil {
+					cfg.OnAskResolved(tb.toolUseID)
+				}
+				return nil, false
+			case resolved = <-cfg.PermInbox:
+			}
+
+			// OnAskResolved 콜백으로 engine에 pending 해제 알림
+			if cfg.OnAskResolved != nil {
+				cfg.OnAskResolved(resolved.ToolUseID)
+			}
+
+			// resolved.Behavior에 따라 Allow/Deny 처리
+			switch permissions.PermissionBehavior(resolved.Behavior) {
+			case permissions.Allow:
+				// permission_check{allow} yield
+				if !send(ctx, cfg.Out, message.SDKMessage{
+					Type: message.SDKMsgPermissionCheck,
+					Payload: message.PayloadPermissionCheck{
+						ToolUseID: tb.toolUseID,
+						Behavior:  "allow",
+					},
+				}) {
+					return nil, false
+				}
+
+				// Executor.Run 호출
+				result, execErr := cfg.Execute(ctx, tb.toolUseID, tb.toolName, tpc.Input)
+				if execErr != nil {
+					errResult := fmt.Sprintf(`{"error":%q}`, execErr.Error())
+					resultBlocks = append(resultBlocks, message.ContentBlock{
+						Type:           "tool_result",
+						ToolUseID:      tb.toolUseID,
+						ToolResultJSON: errResult,
+					})
+					continue
+				}
+
+				toolResultJSON := applyToolResultCap(tb.toolUseID, result, cfg.ToolResultCap)
+				resultBlocks = append(resultBlocks, message.ContentBlock{
+					Type:           "tool_result",
+					ToolUseID:      tb.toolUseID,
+					ToolResultJSON: toolResultJSON,
+				})
+
+			default:
+				// Deny (또는 기타) 처리
+				denyDecision := permissions.Decision{
+					Behavior: permissions.Deny,
+					Reason:   resolved.Reason,
+				}
+				// permission_check{deny} yield
+				if !send(ctx, cfg.Out, message.SDKMessage{
+					Type: message.SDKMsgPermissionCheck,
+					Payload: message.PayloadPermissionCheck{
+						ToolUseID: tb.toolUseID,
+						Behavior:  "deny",
+						Reason:    resolved.Reason,
+					},
+				}) {
+					return nil, false
+				}
+
+				denied := permissions.SynthesizeDeniedResult(tb.toolUseID, denyDecision)
+				deniedJSON, _ := json.Marshal(map[string]any{
+					"denied": true,
+					"reason": denied.Content,
+				})
+				resultBlocks = append(resultBlocks, message.ContentBlock{
+					Type:           "tool_result",
+					ToolUseID:      tb.toolUseID,
+					ToolResultJSON: string(deniedJSON),
+				})
+			}
 		}
 	}
 

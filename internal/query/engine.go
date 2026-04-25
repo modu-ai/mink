@@ -4,12 +4,17 @@ package query
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
 	"github.com/modu-ai/goose/internal/message"
 	"github.com/modu-ai/goose/internal/query/loop"
 )
+
+// ErrUnknownPermissionRequest는 알 수 없는 toolUseID로 ResolvePermission 호출 시 반환된다.
+// REQ-QUERY-013: silent drop 금지.
+var ErrUnknownPermissionRequest = errors.New("unknown permission request: toolUseID not pending")
 
 // QueryEngine는 단일 대화 세션 = 단일 인스턴스의 agentic core 런타임이다.
 // REQ-QUERY-001: 인스턴스 하나가 대화 세션 하나에 1:1 대응한다.
@@ -33,8 +38,17 @@ type QueryEngine struct {
 	// REQ-QUERY-013: 외부에서 ResolvePermission을 통해 전송.
 	//
 	// @MX:WARN: [AUTO] 여러 goroutine에서 send, loop만 receive
-	// @MX:REASON: REQ-QUERY-013 - Ask 분기 재개 단일 경로. buffering 정책 주의
+	// @MX:REASON: REQ-QUERY-013 - Ask 분기 재개 단일 경로. cap 4 buffering으로 backpressure 방지
 	permInbox chan loop.PermissionDecision
+	// pendingPermsMu는 pendingPerms 맵 보호용 뮤텍스이다.
+	pendingPermsMu sync.Mutex
+	// pendingPerms는 현재 loop에서 Ask 대기 중인 toolUseID 집합이다.
+	// REQ-QUERY-013: ResolvePermission에서 unknown ID silent drop 방지를 위해 추적한다.
+	// loop goroutine이 등록/해제, ResolvePermission이 조회한다.
+	//
+	// @MX:WARN: [AUTO] pendingPerms는 loop goroutine(등록) + 외부 goroutine(조회) 공유 상태
+	// @MX:REASON: REQ-QUERY-013 - unknown ID 감지. pendingPermsMu로 보호 필수
+	pendingPerms map[string]struct{}
 }
 
 // New는 QueryEngineConfig로 새 QueryEngine을 생성한다.
@@ -44,8 +58,10 @@ func New(cfg QueryEngineConfig) (*QueryEngine, error) {
 		return nil, fmt.Errorf("invalid QueryEngineConfig: %w", err)
 	}
 	return &QueryEngine{
-		cfg:       cfg,
-		permInbox: make(chan loop.PermissionDecision, 1),
+		cfg: cfg,
+		// REQ-QUERY-013: cap 4로 buffering — 동일 turn 내 최대 4개의 Ask tool까지 backpressure 없이 처리.
+		permInbox:    make(chan loop.PermissionDecision, 4),
+		pendingPerms: make(map[string]struct{}),
 		state: loop.State{
 			TaskBudgetRemaining: cfg.TaskBudget.Remaining,
 		},
@@ -108,6 +124,10 @@ func (e *QueryEngine) SubmitMessage(ctx context.Context, prompt string) (<-chan 
 			e.state = finalState
 			e.stateMu.Unlock()
 		},
+		// S6: Ask permission pending 등록/해제 콜백 — ResolvePermission의 unknown ID 감지에 사용.
+		// REQ-QUERY-013: loop goroutine이 Ask 분기 진입/해제 시 engine에 알린다.
+		OnAskPending:  e.registerPendingPerm,
+		OnAskResolved: e.unregisterPendingPerm,
 	}
 
 	// loop.Run은 goroutine을 spawn하고 즉시 반환한다.
@@ -148,9 +168,51 @@ func (e *QueryEngine) buildLLMStreamFuncFactory() func(msgs []message.Message) l
 
 // ResolvePermission은 Ask permission 대기 중인 loop에 결정을 전달한다.
 // REQ-QUERY-013: 외부 결정을 permInbox 채널을 통해 loop에 전달.
-func (e *QueryEngine) ResolvePermission(toolUseID string, behavior int, reason string) {
-	// @MX:TODO: [AUTO] S8 T8.2에서 구현 필요.
-	panic("not implemented: ResolvePermission")
+// unknown toolUseID 전달 시 ErrUnknownPermissionRequest 반환 (silent drop 금지).
+//
+// @MX:ANCHOR: [AUTO] Ask permission 외부 결정 단일 진입점
+// @MX:REASON: REQ-QUERY-013 - fan_in >= 3 (CLI, test, future SDK client). unknown ID 감지 필수
+func (e *QueryEngine) ResolvePermission(toolUseID string, behavior int, reason string) error {
+	e.pendingPermsMu.Lock()
+	_, ok := e.pendingPerms[toolUseID]
+	e.pendingPermsMu.Unlock()
+
+	if !ok {
+		return fmt.Errorf("%w: %s", ErrUnknownPermissionRequest, toolUseID)
+	}
+
+	decision := loop.PermissionDecision{
+		ToolUseID: toolUseID,
+		Behavior:  behavior,
+		Reason:    reason,
+	}
+
+	// permInbox에 non-blocking 전송 시도.
+	// 채널이 가득 찬 경우(cap 4 초과)는 설계상 발생하지 않아야 하나,
+	// ctx 취소로 loop가 이미 종료된 경우에도 pending은 이미 해제되어 이 분기에 도달하지 않는다.
+	select {
+	case e.permInbox <- decision:
+		return nil
+	default:
+		// permInbox 포화: 이미 종료된 loop에 전송 시도하는 비정상 상황
+		return fmt.Errorf("%w: permInbox full, loop may have terminated: %s", ErrUnknownPermissionRequest, toolUseID)
+	}
+}
+
+// registerPendingPerm은 loop goroutine이 Ask 분기 진입 시 호출한다.
+// pendingPerms에 toolUseID를 등록한다.
+func (e *QueryEngine) registerPendingPerm(toolUseID string) {
+	e.pendingPermsMu.Lock()
+	e.pendingPerms[toolUseID] = struct{}{}
+	e.pendingPermsMu.Unlock()
+}
+
+// unregisterPendingPerm은 loop goroutine이 Ask 분기 해결 후 호출한다.
+// pendingPerms에서 toolUseID를 제거한다.
+func (e *QueryEngine) unregisterPendingPerm(toolUseID string) {
+	e.pendingPermsMu.Lock()
+	delete(e.pendingPerms, toolUseID)
+	e.pendingPermsMu.Unlock()
 }
 
 // validateConfig는 QueryEngineConfig 필수 필드를 검증한다.
