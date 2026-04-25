@@ -35,8 +35,6 @@ type QueryEngine struct {
 
 // New는 QueryEngineConfig로 새 QueryEngine을 생성한다.
 // REQ-QUERY-001: 유효성 검증 실패 시 에러 반환.
-//
-// @MX:TODO: [AUTO] S3 T3.1에서 유효성 검증 구현 필요.
 func New(cfg QueryEngineConfig) (*QueryEngine, error) {
 	if err := validateConfig(cfg); err != nil {
 		return nil, fmt.Errorf("invalid QueryEngineConfig: %w", err)
@@ -54,12 +52,67 @@ func New(cfg QueryEngineConfig) (*QueryEngine, error) {
 // REQ-QUERY-005: 10ms 이내 반환 필수.
 // REQ-QUERY-016: LLM 연결은 goroutine 내부에서 수행.
 //
+// @MX:ANCHOR: [AUTO] 모든 상위 레이어의 단일 스트리밍 진입점
+// @MX:REASON: REQ-QUERY-001/005 - 10ms 마감 + 세션 1:1 대응. fan_in >= 3
 // @MX:WARN: [AUTO] goroutine spawn 지점 - State 단독 소유
 // @MX:REASON: REQ-QUERY-015 - spawned goroutine이 State를 단독 소유. 외부 mutation 금지
-// @MX:TODO: [AUTO] S3 T3.5에서 queryLoop 호출 구현 필요.
 func (e *QueryEngine) SubmitMessage(ctx context.Context, prompt string) (<-chan message.SDKMessage, error) {
-	// @MX:TODO: [AUTO] 최소 구현 필요. S3 T3.2에서 GREEN.
-	panic("not implemented: SubmitMessage")
+	// REQ-QUERY-004: SubmitMessage 호출을 직렬화하여 동시 실행 방지.
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	// unbuffered 채널: REQ-QUERY-002 - 송신 불가(receive-only) 계약
+	out := make(chan message.SDKMessage)
+
+	// 현재 state 스냅샷을 loop에 전달한다.
+	// loop goroutine이 완료되면 e.state 업데이트를 S5에서 구현한다.
+	currentState := e.state
+
+	// LLM 호출 클로저: messages + tools를 바인딩하여 loop에 전달한다.
+	// REQ-QUERY-016: LLM 연결(dial) 비용은 goroutine 내부에서 처리한다.
+	callLLM := e.buildLLMStreamFunc(prompt)
+
+	cfg := loop.LoopConfig{
+		Out:          out,
+		InitialState: currentState,
+		Prompt:       prompt,
+		MaxTurns:     e.cfg.MaxTurns,
+		PermInbox:    e.permInbox,
+		CallLLM:      callLLM,
+	}
+
+	// loop.Run은 goroutine을 spawn하고 즉시 반환한다.
+	// out 채널 close 책임은 queryLoop 단독.
+	loop.Run(ctx, cfg)
+
+	return out, nil
+}
+
+// buildLLMStreamFunc는 현재 state와 config를 바인딩한 LLM 스트림 호출 클로저를 생성한다.
+// REQ-QUERY-016: LLM 연결 비용이 이 클로저 호출 시점(goroutine 내부)에서 발생한다.
+func (e *QueryEngine) buildLLMStreamFunc(prompt string) loop.LLMStreamFunc {
+	// S3 범위: messages에 user prompt만 추가하는 최소 구현.
+	// S4+에서 tool definitions, message history 등이 추가된다.
+	userMsg := message.Message{
+		Role: "user",
+		Content: []message.ContentBlock{
+			{Type: "text", Text: prompt},
+		},
+	}
+
+	// state.Messages에 user message를 추가한 snapshot을 클로저에 캡처한다.
+	msgs := make([]message.Message, len(e.state.Messages)+1)
+	copy(msgs, e.state.Messages)
+	msgs[len(e.state.Messages)] = userMsg
+
+	llmCall := e.cfg.LLMCall
+
+	return func(ctx context.Context) (<-chan message.StreamEvent, error) {
+		req := LLMCallReq{
+			Messages: msgs,
+		}
+		return llmCall(ctx, req)
+	}
 }
 
 // ResolvePermission은 Ask permission 대기 중인 loop에 결정을 전달한다.
@@ -72,16 +125,16 @@ func (e *QueryEngine) ResolvePermission(toolUseID string, behavior int, reason s
 // validateConfig는 QueryEngineConfig 필수 필드를 검증한다.
 func validateConfig(cfg QueryEngineConfig) error {
 	if cfg.LLMCall == nil {
-		return fmt.Errorf("LLMCall is required")
+		return fmt.Errorf("field LLMCall is required")
 	}
 	if cfg.CanUseTool == nil {
-		return fmt.Errorf("CanUseTool is required")
+		return fmt.Errorf("field CanUseTool is required")
 	}
 	if cfg.Executor == nil {
-		return fmt.Errorf("Executor is required")
+		return fmt.Errorf("field Executor is required")
 	}
 	if cfg.Logger == nil {
-		return fmt.Errorf("Logger is required")
+		return fmt.Errorf("field Logger is required")
 	}
 	return nil
 }

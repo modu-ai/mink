@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/modu-ai/goose/internal/message"
 	"github.com/modu-ai/goose/internal/permissions"
@@ -89,9 +90,19 @@ func (s *StubLLMCall) Call(ctx context.Context, req query.LLMCallReq) (<-chan me
 	events := make([]message.StreamEvent, len(resp.Events))
 	copy(events, resp.Events)
 
+	delay := time.Duration(s.InitialDelay)
 	ch := make(chan message.StreamEvent, len(events)+1)
 	go func() {
 		defer close(ch)
+		// InitialDelay가 설정된 경우 goroutine 내부에서 지연한다.
+		// SubmitMessage 10ms 마감 테스트(T3.3)에서 dial 비용 시뮬레이션용.
+		if delay > 0 {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(delay):
+			}
+		}
 		for _, ev := range events {
 			select {
 			case <-ctx.Done():
