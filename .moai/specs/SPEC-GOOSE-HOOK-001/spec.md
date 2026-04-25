@@ -1,7 +1,7 @@
 ---
 id: SPEC-GOOSE-HOOK-001
-version: 0.3.0
-status: planned
+version: 0.3.1
+status: implemented
 created_at: 2026-04-21
 updated_at: 2026-04-25
 author: manager-spec
@@ -22,6 +22,7 @@ labels: [hook, dispatcher, permission, phase-2, goose-agent]
 | 0.1.0 | 2026-04-21 | 초안 작성 (claude-primitives §5 + QUERY-001/SKILLS-001 합의 기반) | manager-spec |
 | 0.2.0 | 2026-04-25 | plan-auditor 2차 감사 반영 — D1 (iter-1, critical) AC-HK-001 24개 일관화 (§5), D2 (iter-1, critical) frontmatter `created_at`/`labels` 채움 (MP-3), D6 (iter-1, major) REQ-HK-006에 exit code 2 compatibility 조항 추가 (§4.2), D10 (iter-1, minor → upgraded) `DispatchPermissionDenied` 공식화 및 REQ-HK-009 확장 (§3.1 / §4.2 / §6.2), D8 (iter-1, major) REQ-HK-021 shell hook subprocess isolation 신설 (§4.4), D9 (iter-1, minor) REQ-HK-022 4 MiB payload cap 신설 (§4.4) + §6.5 stdin goroutine write 정합. 미해결: D3 (iter-1, critical, MP-2 EARS), D4 (iter-1, major, traceability), D5 (iter-1, major, implementation leaks), D7 (iter-1, major, Unwanted EARS labeling), D11/D12/D13 (iter-1, minor). | manager-spec |
 | 0.3.0 | 2026-04-25 | plan-auditor 3차 감사 반영 (RITUAL iter3 패턴) — **D3 (iter-2, critical, MP-2)** Format Declaration 제거 + 모든 AC를 EARS 패턴으로 직접 변환 (§5), **D4 (iter-2, major)** uncovered 12 REQ에 AC-HK-011~024 신설 (§5), **D5 (iter-2, major)** REQ 본문에서 구현 식별자(zap, ErrRegistryLocked, ErrInvalidHookInput, GOOSE_HOOK_TRACE, 정규식, env-var 리스트, rlimit 상수, ErrHookPayloadTooLarge) 제거하여 §6/§6.11로 이동, **D7 (iter-2, major)** REQ-HK-014/015/016/017/018/022 Unwanted EARS 패턴(`If ... then ... shall`) 적용, **D11 (iter-1, minor)** §6.2 Registry에 `SetSkillsFileChangedConsumer` API 정의, **D12 (iter-1, minor)** §6.2에 `Role` enum 정의, **D13 (iter-1, minor)** AC-HK-014로 PluginLoader 상태 검증 (DispatchPermissionRequest 분기는 AC-HK-008과 함께 묶음), **D14 (iter-2, minor)** §4.4와 §4.5 경계에 REQ 번호 비단조 배치 사유 명시 (재배치 금지 제약), **D15 (iter-2, minor)** REQ-HK-021(b) `WorkspaceRoot` resolver 책임을 CORE-001로 명시 + fallback 동작 정의, **D16 (iter-2, minor)** REQ-HK-022 "exceeds 4 MiB"를 "JSON byte length is strictly greater than 4 MiB" 명시, **D17 (iter-2, minor)** REQ-HK-021(c) `cfg.Timeout ≤ 0` 엣지케이스 정의 (default 30s), **D18 (iter-2, minor)** v0.2.0 HISTORY 결함번호 매핑 정정. | manager-spec |
+| 0.3.1 | 2026-04-25 | Status sync — `internal/hook/` 패키지 구현 완료를 frontmatter에 반영. PR #11 (commit 6ac25c8): `dispatchers.go` (Dispatcher + 24 hook events), `registry.go` (HookRegistry + SetSkillsFileChangedConsumer), `handlers.go` (InlineCommandHandler with WorkspaceRootResolver field), `permission.go` (DefaultPermissionQueue), `isolation_*.go` (REQ-HK-021 4 isolation guarantees: env scrub / cwd pin / rlimit / FD hygiene), `types.go` (24 events + Role enum + ErrHookSessionUnresolved/ErrHookPayloadTooLarge), `plugin_loader.go` (PluginLoader stub). status: planned → implemented. SPEC 본문 변경 없음. | manager-spec |
 
 ---
 
