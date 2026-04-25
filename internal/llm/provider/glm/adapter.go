@@ -66,7 +66,7 @@ func New(opts Options) (*Adapter, error) {
 		Capabilities: provider.Capabilities{
 			Streaming:        true,
 			Tools:            true,
-			Vision:           true,  // GLM-4.6+ 멀티모달 지원
+			Vision:           true, // GLM-4.6+ 멀티모달 지원
 			Embed:            false,
 			AdaptiveThinking: true, // GLM thinking mode 지원 (glm-4.5, 4.6, 4.7, 5)
 			MaxContextTokens: 200000,

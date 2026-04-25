@@ -5,6 +5,7 @@
 package kimi
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"github.com/modu-ai/goose/internal/llm/provider"
 	"github.com/modu-ai/goose/internal/llm/provider/openai"
 	"github.com/modu-ai/goose/internal/llm/ratelimit"
+	"github.com/modu-ai/goose/internal/message"
 	"go.uber.org/zap"
 )
 
@@ -58,10 +60,18 @@ type Options struct {
 	Logger *zap.Logger
 }
 
-// New는 Kimi Moonshot AI용 OpenAIAdapter를 생성한다.
+// Adapter는 Kimi Moonshot OpenAIAdapter 래퍼이다.
+// openai.OpenAIAdapter를 embedding하여 Provider 인터페이스를 상속하고,
+// Stream/Complete를 override하여 long-context advisory(OI-3, REQ-ADP2-022)를 주입한다.
+type Adapter struct {
+	*openai.OpenAIAdapter
+	logger *zap.Logger
+}
+
+// New는 Kimi Moonshot AI용 Adapter를 생성한다.
 // Region → GOOSE_KIMI_REGION 환경변수 → intl(기본값) 순으로 URL 결정.
 // AC-ADP2-013, AC-ADP2-014
-func New(opts Options) (*openai.OpenAIAdapter, error) {
+func New(opts Options) (*Adapter, error) {
 	baseURL := opts.BaseURL
 	if baseURL == "" {
 		resolvedURL, err := resolveBaseURL(string(opts.Region))
@@ -71,7 +81,7 @@ func New(opts Options) (*openai.OpenAIAdapter, error) {
 		baseURL = resolvedURL
 	}
 
-	return openai.New(openai.OpenAIOptions{
+	inner, err := openai.New(openai.OpenAIOptions{
 		Name:        "kimi",
 		BaseURL:     baseURL,
 		Pool:        opts.Pool,
@@ -81,7 +91,7 @@ func New(opts Options) (*openai.OpenAIAdapter, error) {
 		Capabilities: provider.Capabilities{
 			Streaming:        true,
 			Tools:            true,
-			Vision:           true,  // Kimi K2.6 1T MoE: 멀티모달 지원
+			Vision:           true, // Kimi K2.6 1T MoE: 멀티모달 지원
 			Embed:            false,
 			AdaptiveThinking: false,
 			MaxContextTokens: 262144, // K2.6 262K context
@@ -89,7 +99,33 @@ func New(opts Options) (*openai.OpenAIAdapter, error) {
 		},
 		Logger: opts.Logger,
 	})
+	if err != nil {
+		return nil, err
+	}
+	return &Adapter{
+		OpenAIAdapter: inner,
+		logger:        opts.Logger,
+	}, nil
 }
+
+// Name은 provider 이름을 반환한다.
+func (a *Adapter) Name() string { return "kimi" }
+
+// Stream은 long-context advisory를 INFO 로깅한 후 openai.Stream에 위임한다.
+// REQ-ADP2-022 (OI-3 v0.3): moonshot-v1-128k 클래스 모델 + 64K 초과 입력 시 INFO 1건.
+func (a *Adapter) Stream(ctx context.Context, req provider.CompletionRequest) (<-chan message.StreamEvent, error) {
+	applyAdvisory(a.logger, req)
+	return a.OpenAIAdapter.Stream(ctx, req)
+}
+
+// Complete은 long-context advisory를 INFO 로깅한 후 openai.Complete에 위임한다.
+func (a *Adapter) Complete(ctx context.Context, req provider.CompletionRequest) (*provider.CompletionResponse, error) {
+	applyAdvisory(a.logger, req)
+	return a.OpenAIAdapter.Complete(ctx, req)
+}
+
+// Ensure Adapter implements provider.Provider at compile time.
+var _ provider.Provider = (*Adapter)(nil)
 
 // resolveBaseURL은 Region 문자열로 Moonshot AI BaseURL을 결정한다.
 // 빈 region이면 GOOSE_KIMI_REGION 환경변수를 참조하고, 없으면 intl을 사용한다.

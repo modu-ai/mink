@@ -2,7 +2,9 @@ package openrouter_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -152,4 +154,95 @@ func TestOpenRouter_OmitsHeadersWhenEmpty(t *testing.T) {
 		"HTTPReferer 미설정 시 헤더가 없어야 함")
 	assert.Empty(t, handler.capturedReq.Header.Get("X-Title"),
 		"XTitle 미설정 시 헤더가 없어야 함")
+}
+
+// TestOpenRouter_InjectsPreferredProviders는 REQ-ADP2-020 (OI-1 v0.3)를 검증한다.
+// PreferredProviders가 비어있지 않으면 request body에 `provider: {order:[...], allow_fallbacks:true}` 주입.
+func TestOpenRouter_InjectsPreferredProviders(t *testing.T) {
+	t.Parallel()
+	type capturedBody struct {
+		Provider map[string]any `json:"provider"`
+	}
+	var capturedJSON []byte
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		buf, _ := io.ReadAll(r.Body)
+
+		capturedJSON = buf
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprint(w, minimalSSEBody())
+	}))
+	defer srv.Close()
+
+	pool := testhelper.FakePool(t, []string{"cred-a"})
+	secretStore := provider.NewMemorySecretStore(map[string]string{"kr-cred-a": "sk-openrouter-test"})
+
+	adapter, err := openrouter.New(openrouter.Options{
+		Pool:               pool,
+		SecretStore:        secretStore,
+		BaseURL:            srv.URL,
+		HTTPClient:         srv.Client(),
+		PreferredProviders: []string{"anthropic", "openai", "deepseek"},
+	})
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	req := provider.CompletionRequest{
+		Route:    router.Route{Provider: "openrouter", Model: "deepseek/deepseek-r1:free"},
+		Messages: []message.Message{{Role: "user", Content: []message.ContentBlock{{Type: "text", Text: "Hello"}}}},
+	}
+	ch, err := adapter.Stream(ctx, req)
+	require.NoError(t, err)
+	testhelper.DrainStream(ctx, ch, 0)
+
+	require.NotEmpty(t, capturedJSON, "request body가 캡처되어야 함")
+	var body capturedBody
+	require.NoError(t, json.Unmarshal(capturedJSON, &body), "JSON 파싱 가능: %s", string(capturedJSON))
+	require.NotNil(t, body.Provider, "provider 필드가 주입되어야 함")
+	assert.Equal(t, true, body.Provider["allow_fallbacks"])
+	order, ok := body.Provider["order"].([]any)
+	require.True(t, ok, "order는 array여야 함")
+	require.Len(t, order, 3)
+	assert.Equal(t, "anthropic", order[0])
+	assert.Equal(t, "openai", order[1])
+	assert.Equal(t, "deepseek", order[2])
+}
+
+// TestOpenRouter_OmitsProviderRoutingWhenEmpty는 PreferredProviders 미설정 시 provider 키 부재를 검증한다.
+func TestOpenRouter_OmitsProviderRoutingWhenEmpty(t *testing.T) {
+	t.Parallel()
+	var capturedJSON []byte
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		buf, _ := io.ReadAll(r.Body)
+
+		capturedJSON = buf
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprint(w, minimalSSEBody())
+	}))
+	defer srv.Close()
+
+	pool := testhelper.FakePool(t, []string{"cred-a"})
+	secretStore := provider.NewMemorySecretStore(map[string]string{"kr-cred-a": "sk-openrouter-test"})
+
+	adapter, err := openrouter.New(openrouter.Options{
+		Pool:        pool,
+		SecretStore: secretStore,
+		BaseURL:     srv.URL,
+		HTTPClient:  srv.Client(),
+	})
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	req := provider.CompletionRequest{
+		Route:    router.Route{Provider: "openrouter", Model: "openai/gpt-4o"},
+		Messages: []message.Message{{Role: "user", Content: []message.ContentBlock{{Type: "text", Text: "Hello"}}}},
+	}
+	ch, err := adapter.Stream(ctx, req)
+	require.NoError(t, err)
+	testhelper.DrainStream(ctx, ch, 0)
+
+	require.NotEmpty(t, capturedJSON)
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(capturedJSON, &body))
+	_, hasProvider := body["provider"]
+	assert.False(t, hasProvider, "PreferredProviders 미설정 시 provider 키가 없어야 함")
 }
