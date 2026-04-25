@@ -2,7 +2,7 @@
 spec: SPEC-GOOSE-ADAPTER-002
 status: Completed
 updated: 2026-04-25
-version: 1.0.0
+version: 1.1.0
 ---
 
 # SPEC-GOOSE-ADAPTER-002 Run Phase Progress
@@ -91,7 +91,7 @@ version: 1.0.0
 | AC-ADP2-010 | Qwen 기본 intl region | GREEN |
 | AC-ADP2-011 | Qwen cn 환경변수 | GREEN |
 | AC-ADP2-012 | Qwen 잘못된 region 거부 | GREEN |
-| AC-ADP2-013 | Kimi 장문 context 경고 | N/A — `[PENDING v0.3]` (v1.0.0 감사 D3: REQ-ADP2-022 `[Optional]`이 미구현 상태로 SPEC에 명시됨. §11 Open Items OI-3 배정. token 추정 + INFO 로그는 후속 이터레이션.) |
+| AC-ADP2-013 | Kimi 장문 context 경고 | GREEN (v1.1.0 closure) — `kimi/advisory.go` + `kimi.Adapter` wrapper로 token 추정(4-byte/char heuristic) + INFO 로그(`kimi.long_context_advisory`) 구현. PR #12 / commit 011ff07. 단위 테스트: `kimi/advisory_test.go`. |
 | AC-ADP2-014 | Kimi cn region | GREEN |
 | AC-ADP2-015 | Vision 미지원 거부 (SPEC-001 ErrCapabilityUnsupported 재사용) | PARTIAL — 인프라 경로 GREEN (SPEC-001 공통 `llm_call.go:L57`에서 검증됨). Groq 특정 어댑터 테스트는 미작성이나 REQ-ADP2-013은 `Capabilities.Vision==false` 판정으로 충족. 기능 리스크 없음. |
 | AC-ADP2-016 | DefaultRegistry 15 provider AdapterReady | GREEN |
@@ -152,4 +152,15 @@ version: 1.0.0
 - PR 생성 (base: main, ready)
 - squash merge --delete-branch --admin
 - SPEC-001 + SPEC-002 worktree 정리 (`moai worktree done`)
+
+## Phase 5: v1.1.0 Doc Cleanup (2026-04-25)
+
+OI-1/2/3 코드 구현은 PR #12 (commit 011ff07) 에서 완료된 상태로 본 단계는 SPEC 문서를 v1.1.0으로 정합화하는 후속 PR.
+
+- [x] frontmatter `version: 1.0.0 → 1.1.0`, `updated_at: 2026-04-25`.
+- [x] HISTORY에 v1.1.0 엔트리 추가 (OI-1/2/3 closure 반영).
+- [x] REQ-ADP2-020/021/022 `[PENDING v0.3]` 마커 제거 + "v1.0.0: 미구현" 주석을 "v1.1.0: 구현 완료 (PR #12)" 로 갱신.
+- [x] AC-ADP2-013 `[PENDING v0.3]` 마커 제거 + GREEN 처리 (본 progress.md AC 표 동기화).
+- [x] §11 Open Items 표의 OI-1/2/3 상태 컬럼을 `**CLOSED in v1.1.0 (PR #12)**` 로 갱신 (행 자체는 traceability를 위해 유지).
+- [x] §11 처리 원칙 섹션을 v1.1.0 closure 시점 기준으로 보정.
 - 후속 SPEC(OI-1/OI-2/OI-3 처리): 별도 SPEC-GOOSE-ADAPTER-003 제안 또는 v0.3 milestone 통합 이터레이션
