@@ -1,7 +1,7 @@
 ---
 id: SPEC-GOOSE-CONFIG-001
-version: 0.3.0
-status: planned
+version: 0.3.1
+status: implemented
 created_at: 2026-04-21
 updated_at: 2026-04-25
 author: manager-spec
@@ -10,7 +10,7 @@ issue_number: null
 phase: 0
 size: 소(S)
 lifecycle: spec-anchored
-labels: []
+labels: [phase-0, area/config, area/runtime, type/feature, priority/p0-critical]
 ---
 
 # SPEC-GOOSE-CONFIG-001 — 계층형 설정 로더 (Hierarchical Config Loader)
@@ -22,6 +22,7 @@ labels: []
 | 0.1.0 | 2026-04-21 | 초안 작성 (ROADMAP Phase 0, CORE-001 확장) | manager-spec |
 | 0.2.0 | 2026-04-25 | 감사 결함 수정 (plan-audit mass-20260425). MP-2 FAIL 해소: REQ-CFG-011/012 Unwanted-EARS 재작성 (If/then). D18 critical 해소: §6.4 deep merge zero-value 버그 명시 + REQ-CFG-015 추가 + AC-CFG-009 추가. D15 major 해소: REQ-CFG-016 secret/CREDPOOL 연동 forward-reference 추가 + §3.2 OUT-OF-SCOPE 확장. D17 major 해소: AC-CFG-010 (int env overlay) + AC-CFG-011 (URL env overlay) + AC-CFG-012 (secret env overlay) 추가. D20 관련: §3.2 OUT-OF-SCOPE에 JSON Schema 미채택 명시. frontmatter `labels`, `created_at`는 Phase B에서 이미 수정됨 (검증만). | manager-spec |
 | 0.3.0 | 2026-04-25 | iter 3 감사 결함 수정 (CONFIG-001-review-2). **D22 critical 해소**: AC-CFG-001~008에 `Satisfies: REQ-CFG-XXX` 줄 추가 — AC 블록 traceability 100% 확보. **D23~D29 major (stagnation) 해소**: 7개 미커버 REQ(002/003/007/010/011/012/013)에 대응하는 AC-CFG-013~019 신설. **D33 major 해소**: `Config.Redacted()` 계약을 REQ-CFG-017 [Ubiquitous]로 승격, AC-CFG-012의 참조 REQ를 REQ-CFG-017로 교정. **D34 major 해소**: AC-CFG-010을 AC-CFG-010a (happy-path, `Satisfies: REQ-CFG-006`)과 AC-CFG-010b (env parse-failure fallback, `Satisfies: REQ-CFG-006` + R2 리스크 완화)로 분리. REQ 번호 재배치 없음 (015/016은 4.6 유지, 017은 새 4.7로 신설). | manager-spec |
+| 0.3.1 | 2026-04-25 | Implementation 완료를 frontmatter에 반영 (PR #20, commit da8d7f1). status: planned → implemented. labels 보강. 코드: `internal/config/{config,defaults,merge(inline),env,validate(via config),source,errors,redact(via config)}.go` + 41 테스트. AC-CFG-001~019 모두 GREEN, race detector clean, coverage 85.8%, 회귀 0건. 기존 `bootstrap_config.go` 흡수 + `cmd/goosed/main.go` 마이그레이션 완료. ShutdownTimeout은 30s 상수로 환원 (CORE-001 §11 R3 부합). SPEC 본문 변경 없음 — 문서 정합화 전용 엔트리. | manager-tdd |
 
 ---
 
