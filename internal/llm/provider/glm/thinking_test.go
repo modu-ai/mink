@@ -58,6 +58,39 @@ func TestGLM_BuildThinkingField_AirModel_GracefulDegradation(t *testing.T) {
 	assert.Nil(t, field)
 }
 
+// TestGLM_BuildThinkingField_BudgetTokens는 BudgetTokens > 0 시
+// thinking 필드가 {type:"enabled", budget_tokens:N} 형태로 생성되는지 검증한다.
+// REQ-ADP2-021 (OI-2 v0.3): budget-based thinking 지원.
+func TestGLM_BuildThinkingField_BudgetTokens(t *testing.T) {
+	t.Parallel()
+	cfg := &provider.ThinkingConfig{Enabled: true, BudgetTokens: 4096}
+	field, ok, reason := glm.BuildThinkingField(cfg, "glm-4.6")
+
+	require.True(t, ok)
+	assert.Empty(t, reason)
+	require.NotNil(t, field)
+
+	thinkingMap, isMap := field["thinking"].(map[string]any)
+	require.True(t, isMap)
+	assert.Equal(t, "enabled", thinkingMap["type"])
+	assert.Equal(t, 4096, thinkingMap["budget_tokens"])
+}
+
+// TestGLM_BuildThinkingField_BudgetTokensZero는 BudgetTokens=0이면
+// budget_tokens 키 없이 default enabled 형태를 유지하는지 검증한다.
+func TestGLM_BuildThinkingField_BudgetTokensZero(t *testing.T) {
+	t.Parallel()
+	cfg := &provider.ThinkingConfig{Enabled: true, BudgetTokens: 0}
+	field, ok, _ := glm.BuildThinkingField(cfg, "glm-4.6")
+
+	require.True(t, ok)
+	require.NotNil(t, field)
+
+	thinkingMap := field["thinking"].(map[string]any)
+	_, hasBudget := thinkingMap["budget_tokens"]
+	assert.False(t, hasBudget, "BudgetTokens=0 시 budget_tokens 키가 없어야 함")
+}
+
 // TestGLM_ThinkingCapableModels는 ThinkingCapableModels 맵이 올바른 모델을 포함하는지 검증한다.
 func TestGLM_ThinkingCapableModels(t *testing.T) {
 	t.Parallel()

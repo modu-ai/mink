@@ -37,9 +37,14 @@ func BuildThinkingField(cfg *provider.ThinkingConfig, model string) (field map[s
 		)
 	}
 
+	thinkingMap := map[string]any{
+		"type": "enabled",
+	}
+	// REQ-ADP2-021 (OI-2 v0.3): BudgetTokens > 0이면 budget_tokens 주입.
+	if cfg.BudgetTokens > 0 {
+		thinkingMap["budget_tokens"] = cfg.BudgetTokens
+	}
 	return map[string]any{
-		"thinking": map[string]any{
-			"type": "enabled",
-		},
+		"thinking": thinkingMap,
 	}, true, ""
 }
