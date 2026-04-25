@@ -215,6 +215,4 @@ dist-ssr/
 # User Custom Patterns (preserved by moai update)
 claude-code-source-map/
 hermes-agent-main/
-
-# Local-only Claude Code instructions (개발자별 설정)
 CLAUDE.local.md
