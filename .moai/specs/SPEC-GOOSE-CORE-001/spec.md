@@ -1,7 +1,7 @@
 ---
 id: SPEC-GOOSE-CORE-001
-version: 1.0.0
-status: implemented
+version: 1.1.0
+status: amended
 created_at: 2026-04-21
 updated_at: 2026-04-25
 author: manager-spec
@@ -22,6 +22,7 @@ labels: [phase-0, area/core, area/runtime, area/health, type/feature]
 | 0.1.0 | 2026-04-21 | 초안 작성 (프로젝트 문서 9종 기반) | manager-spec |
 | 0.1.1 | 2026-04-24 | Phase C1 코드 수정 반영: `signal.NotifyContext` 도입(REQ-CORE-004 b절 강화), `RunAllHooks` parentCtx 만료 감시 추가(REQ-CORE-004 c절 보강). 신규 테스트 `TestGoosedMain_SIGTERM_CancelsRootContext`, `TestRunAllHooks_ParentCtxCanceled_StopsIteration` 추가 (commit `79d92ff`). | manager-spec |
 | 1.0.0 | 2026-04-25 | iter 1·2 감사 결함 18건 정합화: REQ-CORE-008/011/012 AC 신설(AC-CORE-007/008/009), REQ-CORE-011 EARS 패턴 정정([Unwanted] If…then…), REQ-CORE-003 `atomic.Int32` 표기 정렬, Go 1.26 버전 단일화, §11 번호링 `11.x` 정정, §6.3 Phase 0 OUT OF SCOPE 마킹, §7.1 미생성 테스트 파일 마킹, AC-CORE-001 50ms 단속 강화, AC-CORE-005 stack trace 검증 메커니즘 명시. status: planned→implemented (Phase C1 코드 반영). | manager-spec |
+| 1.1.0 | 2026-04-25 | Cross-package interface contract 추가 (cross-pkg audit `REPORT-CROSS-PKG-IFACE-AUDIT-2026-04-25` 반영) — (1) REQ-CORE-013 `[Pending Implementation v1.1]` 신설: HOOK-001 REQ-HK-021(b)이 의존하는 `WorkspaceRoot(sessionID string) string` resolver. (2) REQ-CORE-014 `[Pending Implementation v1.1]` 신설: TOOLS-001 REQ-TOOLS-011 `Registry.Drain()`을 graceful shutdown sequence에 등록. (3) AC-CORE-010/011 신설. (4) §3.1 IN SCOPE에 (9)/(10) 항목 추가. (5) §7.2 핵심 타입에 `WorkspaceRootResolver`/`DrainConsumer` 시그니처 추가. (6) §9 의존성 표에 HOOK-001/TOOLS-001 후속 SPEC 추가. (7) §12 Open Items 섹션 신설(OI-CORE-1/2 등재). status: implemented→amended (v1.0.0 표면은 구현됨, v1.1.0 신규 REQ는 후속 implementation 필요). | manager-spec |
 
 ---
 
@@ -70,6 +71,8 @@ GOOSE-AGENT의 모든 후속 기능이 붙어야 할 **Go 데몬 프로세스 `g
 6. `SIGINT` 또는 `SIGTERM` 수신 시 30초 이내 cleanup + exit 0.
 7. 최소 HTTP 헬스체크 서버: `GET /healthz` → `200 OK` + JSON `{"status":"ok","version":"..."}`. 기본 포트 `:17890`.
 8. Exit code 계약 (아래 §7).
+9. `WorkspaceRoot(sessionID string) string` cross-package resolver 노출 — HOOK-001(`REQ-HK-021(b)`)이 shell hook 격리에 사용 (v1.1.0 신규, `[Pending Implementation v1.1]`).
+10. `Registry.Drain()` 등 외부 등록형 drain consumer를 graceful shutdown sequence에 fan-out 처리 — TOOLS-001(`REQ-TOOLS-011`)이 의존 (v1.1.0 신규, `[Pending Implementation v1.1]`).
 
 ### 3.2 OUT OF SCOPE (명시적 제외)
 
@@ -122,6 +125,14 @@ GOOSE-AGENT의 모든 후속 기능이 붙어야 할 **Go 데몬 프로세스 `g
 
 **REQ-CORE-012 [Optional]** — **Where** environment variable `GOOSE_HEALTH_PORT` is defined, the health server **shall** bind to that port instead of the default `17890`.
 
+### 4.6 Cross-Package Contracts (v1.1.0 신규 — `[Pending Implementation v1.1]`)
+
+> 본 섹션의 두 REQ는 v1.1.0 amendment에서 추가되었으며, 모두 후속 implementation 작업으로 분리됨. v1.0.0 GREEN 판정에는 영향 없음. cross-pkg audit `REPORT-CROSS-PKG-IFACE-AUDIT-2026-04-25` D-CORE-IF-1/2 대응.
+
+**REQ-CORE-013 [Event-Driven]** `[Pending Implementation v1.1]` — **When** an external consumer (typically the HOOK-001 dispatcher fulfilling `REQ-HK-021(b)`) invokes `core.WorkspaceRoot(sessionID string) string`, the runtime **shall** return the absolute project workspace root path mapped to that session, or an empty string if no mapping exists for the given `sessionID`. The resolver **shall** be safe for concurrent invocation from multiple goroutines and **shall not** block on I/O for cached entries. The session-to-workspace mapping is registered via `core.SessionRegistry.Register(sessionID, workspaceRoot)` during session start; mappings persist for the session lifetime. (v1.1.0: 미구현 — `internal/core/`에 `SessionRegistry`/`WorkspaceRoot` 미정의. §12 Open Items OI-CORE-1 참조.)
+
+**REQ-CORE-014 [Event-Driven]** `[Pending Implementation v1.1]` — **When** the process state transitions to `draining` (REQ-CORE-004 (a)), the runtime **shall** invoke all registered `DrainConsumer` callbacks (registered via `core.RegisterDrainConsumer(name string, fn func(ctx context.Context) error)`) before fanning out the existing `CleanupHook` chain. `DrainConsumer` invocations **shall** run sequentially in registration order with a per-consumer timeout of 10s; consumer errors **shall** be logged at WARN level but **shall not** abort the drain sequence. This contract supports TOOLS-001 `Registry.Drain()` (REQ-TOOLS-011) and similar registry-style consumers that must reject new work before in-flight operations complete. (v1.1.0: 미구현 — 현 `internal/core/shutdown.go`는 `RegisterHook`/`RunAllHooks`만 노출, 별도 `DrainConsumer` 단계 부재. §12 Open Items OI-CORE-2 참조.)
+
 ---
 
 ## 5. 수용 기준 (Acceptance Criteria)
@@ -172,6 +183,18 @@ GOOSE-AGENT의 모든 후속 기능이 붙어야 할 **Go 데몬 프로세스 `g
 - **Given** 환경변수 `GOOSE_HEALTH_PORT=18999` 설정 후 `goosed` 시작
 - **When** `curl http://127.0.0.1:18999/healthz` 200ms 이내 호출
 - **Then** 200 + `{"status":"ok","state":"serving",...}` 반환. 동시에 기본 포트 `:17890`에는 어떤 listener도 바인딩되어 있지 않아야 한다(`net.Dial("tcp", "127.0.0.1:17890")` → `connection refused`).
+
+**AC-CORE-010 — WorkspaceRoot resolver (REQ-CORE-013)** `[Pending Implementation v1.1]`
+- **Given** `goosed`가 `serving` 상태이고, 두 세션 `sess-A`/`sess-B`에 대해 각각 `core.SessionRegistry.Register("sess-A", "/tmp/work-a")`, `Register("sess-B", "/tmp/work-b")` 호출됨
+- **When** 100개의 goroutine이 동시에 `core.WorkspaceRoot("sess-A")` / `core.WorkspaceRoot("sess-B")` / `core.WorkspaceRoot("sess-unknown")`을 임의 순서로 호출
+- **Then** `sess-A`는 항상 `/tmp/work-a`, `sess-B`는 항상 `/tmp/work-b`, `sess-unknown`은 항상 `""`을 반환하며, 100개 goroutine 모두 race detector(`-race`) 환경에서 data race 없음. 단일 호출 latency는 메모리 캐시 hit 기준 1ms 이내.
+- **v1.1.0 상태**: 미구현. §12 Open Items OI-CORE-1.
+
+**AC-CORE-011 — DrainConsumer fan-out (REQ-CORE-014)** `[Pending Implementation v1.1]`
+- **Given** 3개의 `DrainConsumer`가 `core.RegisterDrainConsumer`로 등록됨 — 첫 번째는 정상 반환, 두 번째는 `errors.New("drain failed")` 반환, 세 번째는 정상 반환. 추가로 1개의 `CleanupHook`이 `core.RegisterHook`으로 등록됨
+- **When** `SIGTERM` 송신
+- **Then** (1) 3개 `DrainConsumer`가 등록 순서대로 모두 호출되고(두 번째 에러는 WARN 로그만 기록, 후속 consumer 진행), (2) 모든 `DrainConsumer` 완료 후 `CleanupHook`이 호출되며, (3) exit code 0으로 종료. 호출 순서는 zap observer로 캡처한 로그 시퀀스로 검증.
+- **v1.1.0 상태**: 미구현. §12 Open Items OI-CORE-2.
 
 ---
 
@@ -262,6 +285,37 @@ type CleanupHook struct {
     Fn      func(ctx context.Context) error
     Timeout time.Duration // per-hook; default 10s
 }
+
+// === v1.1.0 신규 (Pending Implementation) ===
+
+// internal/core/session.go (REQ-CORE-013, AC-CORE-010)
+//
+// SessionRegistry는 sessionID → workspace root 매핑을 관리한다.
+// HOOK-001 dispatcher가 shell hook subprocess의 working directory를 결정할 때
+// WorkspaceRoot(sessionID) 형태로 호출한다.
+type SessionRegistry interface {
+    Register(sessionID, workspaceRoot string)
+    Unregister(sessionID string)
+    WorkspaceRoot(sessionID string) string // empty string if unmapped
+}
+
+// 패키지 레벨 헬퍼 (HOOK-001이 직접 호출하는 표면)
+func WorkspaceRoot(sessionID string) string
+
+// internal/core/drain.go (REQ-CORE-014, AC-CORE-011)
+//
+// DrainConsumer는 graceful shutdown 시 CleanupHook 이전에 fan-out 호출되는
+// registry-style consumer를 지원한다. TOOLS-001 Registry.Drain(), 후속 SPEC의
+// SessionRegistry/SubagentSpawner 등이 등록 대상.
+type DrainConsumer struct {
+    Name    string
+    Fn      func(ctx context.Context) error
+    Timeout time.Duration // per-consumer; default 10s
+}
+
+func RegisterDrainConsumer(c DrainConsumer)
+// 내부 호출 — REQ-CORE-014: 등록 순서대로 sequential 실행, 에러는 WARN 로그
+func runDrainConsumers(ctx context.Context) error
 ```
 
 ### 7.3 의존성 (최소)
@@ -323,6 +377,8 @@ iter 1 감사에서 도출된 Major 결함 B4-1·B4-2(root context 미전파, Ru
 | 선행 SPEC | (없음) | 본 SPEC이 Phase 0의 최초 SPEC |
 | 후속 SPEC | SPEC-GOOSE-CONFIG-001 | 계층형 설정으로 확장 |
 | 후속 SPEC | SPEC-GOOSE-TRANSPORT-001 | 동일 process 내 gRPC 등록 |
+| 후속 SPEC | SPEC-GOOSE-HOOK-001 | `core.WorkspaceRoot(sessionID string) string` consumer (REQ-HK-021(b)) — v1.1.0 신규 의존 |
+| 후속 SPEC | SPEC-GOOSE-TOOLS-001 | `core.RegisterDrainConsumer(...)` consumer (REQ-TOOLS-011 `Registry.Drain()`) — v1.1.0 신규 의존 |
 | 외부 | Go 1.26+ toolchain | `go build`, `go test` (go.mod = `go 1.26`) |
 | 외부 | `go.uber.org/zap` | 구조화 로깅 |
 
@@ -359,6 +415,28 @@ iter 1 감사에서 도출된 Major 결함 B4-1·B4-2(root context 미전파, Ru
 
 - `./research.md` — MoAI-ADK-Go 상속 가능 영역, Hermes/Claude Code 분석 결과
 - `../ROADMAP.md` — 전체 Phase 계획
+- `.moai/reports/cross-package-interface-audit-2026-04-25.md` — cross-pkg interface stub audit (v1.1.0 amendment 근거)
+
+---
+
+## 12. Open Items (v1.1.0 amendment — 후속 implementation 배정)
+
+> 본 섹션은 v1.1.0 amendment에서 신설됨. cross-pkg audit `REPORT-CROSS-PKG-IFACE-AUDIT-2026-04-25` D-CORE-IF-1/2 대응. 모두 `[Pending Implementation v1.1]` 마킹 상태이며, 후속 `/moai run SPEC-GOOSE-CORE-001` 또는 별도 minor 이터레이션에서 구현 후 본 표를 CLOSED로 마킹한다(traceability 보존을 위해 행은 삭제하지 않음).
+
+| OI ID | 대응 REQ | 대응 AC | 결함 | 구현 범위 | 우선순위 | 목표 버전 |
+|-------|---------|--------|------|---------|---------|---------|
+| OI-CORE-1 | REQ-CORE-013 | AC-CORE-010 | D-CORE-IF-1 (Major). HOOK-001 REQ-HK-021(b)이 의존하는 `WorkspaceRoot(sessionID string) string` resolver가 v1.0.0 시점에 미정의. HOOK-001 단독 구현 시 fail-closed로 동작(session-resolution error 반환)하나, 정상 동작을 위해 CORE-001 export 필요. | `internal/core/session.go` 신규 (`SessionRegistry` interface + 동시성 안전 map 기반 구현체) + 패키지 레벨 `WorkspaceRoot(sessionID)` 헬퍼 + `runtime.go`에서 `SessionRegistry`를 `Runtime`에 wire-up. 단위 테스트: 동시 100 goroutine race detection (AC-CORE-010). | High (HOOK-001 정상 동작 차단) | v1.1.x 또는 후속 minor |
+| OI-CORE-2 | REQ-CORE-014 | AC-CORE-011 | D-CORE-IF-2 (Minor). TOOLS-001 REQ-TOOLS-011 `Registry.Drain()`을 호출할 graceful shutdown 단계가 미명시. 현 `shutdown.go`는 `RegisterHook`/`RunAllHooks`만 노출. | `internal/core/drain.go` 신규 (`DrainConsumer` 타입 + `RegisterDrainConsumer` API + `runDrainConsumers` 내부 fan-out) + `runtime.go` SIGTERM 경로에서 (1) state→draining, (2) `runDrainConsumers`, (3) `RunAllHooks` 순서로 호출하도록 수정. 단위 테스트: 3 consumer 순서/에러 격리 (AC-CORE-011). | Medium (TOOLS-001 in-flight 보호) | v1.1.x 또는 후속 minor |
+
+### 처리 원칙
+
+- OI-CORE-1/2는 v1.0.0 수락 기준(`AC-CORE-001~009`)에 영향 없음. 단 **cross-package consumer SPEC들(HOOK-001/TOOLS-001)이 정상 동작하려면 CORE 측 implementation 필요**.
+- 후속 `/moai run` 진입 시 RED phase 첫 테스트로 본 OI의 AC를 변환하여 시작할 것을 권고.
+- 처리 완료 시 본 §12의 해당 행을 `**CLOSED in v1.1.x (commit/PR)**` 로 마킹하고 유지 (삭제 금지 — traceability).
+
+### 감사 참조
+
+- `.moai/reports/cross-package-interface-audit-2026-04-25.md` D-CORE-IF-1, D-CORE-IF-2
 
 ---
 
