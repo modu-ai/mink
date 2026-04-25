@@ -31,6 +31,9 @@ type StubLLMResponse struct {
 	UsageInputTokens int
 	// UsageOutputTokens는 이 응답이 소비한 출력 토큰 수이다.
 	UsageOutputTokens int
+	// ChunkDelay는 각 이벤트 전송 전에 삽입할 지연 시간이다 (0이면 지연 없음).
+	// AC-QUERY-008: ctx deadline abort 테스트에서 chunk 간 200ms 지연 시뮬레이션용.
+	ChunkDelay time.Duration
 }
 
 // StubLLMCall은 LLMCallFunc 타입의 스텁 구현이다.
@@ -161,6 +164,7 @@ func (s *StubLLMCall) Call(ctx context.Context, req query.LLMCallReq) (<-chan me
 	}
 
 	delay := time.Duration(s.InitialDelay)
+	chunkDelay := resp.ChunkDelay
 	ch := make(chan message.StreamEvent, len(events)+1)
 	go func() {
 		defer close(ch)
@@ -174,6 +178,15 @@ func (s *StubLLMCall) Call(ctx context.Context, req query.LLMCallReq) (<-chan me
 			}
 		}
 		for _, ev := range events {
+			// ChunkDelay가 설정된 경우 각 이벤트 전송 전에 지연한다.
+			// AC-QUERY-008: ctx deadline abort 테스트에서 chunk 간 200ms 지연 시뮬레이션용.
+			if chunkDelay > 0 {
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(chunkDelay):
+				}
+			}
 			select {
 			case <-ctx.Done():
 				return

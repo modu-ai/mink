@@ -6,12 +6,23 @@
 //   - max_turns: TurnCount >= MaxTurns (매 iteration 시작 시 검사)
 //   - max_output_tokens 재시도: ≤ 3회 retry (after_retry continue site)
 //
+// SPEC-GOOSE-QUERY-001 S7: Compactor 통합.
+//   - after_compact continue site: ShouldCompact 검사 → Compact 호출 → CompactBoundary yield → 재할당
+//   - REQ-008 reset: after_compact 시 MaxOutputTokensRecoveryCount=0
+//
+// SPEC-GOOSE-QUERY-001 S8: ctx.Done abort 처리.
+//   - ctx 취소 시 모든 blocking point에서 abort 감지
+//   - abort 감지 순서 (REQ-QUERY-010): (a) LLM chunk 중단 → (b) pendingPerms cleanup →
+//     (c) Terminal{success:false,error:"aborted"} yield → (d) close(out)
+//
 // 상태 머신 경로 요약:
 //   - 경로 A: tool 없는 assistant turn → terminal{success:true}
 //   - 경로 B: tool_use → permission(Allow/Deny) → tool_result → after_tool_results → 다음 turn
 //   - 경로 C: budget_exceeded gate → terminal{success:false, error:"budget_exceeded"}
 //   - 경로 D: max_turns gate → terminal{success:true, error:"max_turns"}
 //   - 경로 E: max_output_tokens → retry (after_retry) → 최대 3회 후 exhausted
+//   - 경로 F: ShouldCompact==true → Compact → compact_boundary yield → after_compact continue
+//   - 경로 G: ctx.Done → abort → terminal{success:false, error:"aborted"}
 package loop
 
 import (
@@ -75,6 +86,14 @@ type LoopConfig struct {
 	// REQ-QUERY-013: engine이 pendingPerms에서 toolUseID를 제거할 수 있도록 한다.
 	// nil이면 호출하지 않는다.
 	OnAskResolved func(toolUseID string)
+	// ShouldCompact는 현재 상태에서 compaction이 필요한지 판단한다.
+	// nil이면 compaction이 비활성화된다 (AC-QUERY-011).
+	// @MX:NOTE: [AUTO] S7 after_compact continue site — import cycle 방지를 위해 함수 타입으로 주입.
+	ShouldCompact func(state State) bool
+	// Compact는 현재 상태를 압축하고 새 상태와 경계 정보(compact_boundary payload)를 반환한다.
+	// ShouldCompact가 nil이면 호출되지 않는다.
+	// 반환: (새 State, message.PayloadCompactBoundary, error)
+	Compact func(state State) (State, message.PayloadCompactBoundary, error)
 }
 
 // PermissionDecision은 외부에서 Ask 권한 결정을 전달하는 타입이다.
@@ -100,24 +119,48 @@ type toolUseBlock struct {
 // SubmitMessage에서 goroutine으로 spawn되며, out 채널 close 책임을 단독으로 진다.
 //
 // @MX:ANCHOR: [AUTO] agentic core 상태 머신 본체 - continue site 재할당 불변식의 중심
-// @MX:REASON: REQ-QUERY-003 - 오직 3개의 continue site(after_compact/after_retry/after_tool_results)에서만 State 변경
-// @MX:WARN: [AUTO] goroutine spawn 지점 - State 단독 소유자
-// @MX:REASON: REQ-QUERY-015 - state ownership은 loop goroutine 단일. 외부 mutation 금지
+// @MX:REASON: REQ-QUERY-003 - 4개의 continue site(after_compact/after_retry/after_tool_results/after_compact)에서만 State 변경
+// @MX:WARN: [AUTO] goroutine spawn 지점 - State 단독 소유자, abort path에 Terminal{aborted} yield 포함
+// @MX:REASON: REQ-QUERY-015/010 - state ownership 단일, ctx 취소 시 500ms 내 abort 보장
 func queryLoop(ctx context.Context, cfg LoopConfig) {
 	state := cfg.InitialState
 
-	// S5: loop 종료 시 최종 State를 engine에 반환한다.
-	// defer는 LIFO이므로 close(cfg.Out) 이후에 OnComplete가 호출된다.
-	// (등록 순서: OnComplete 먼저 → close 나중 → 실행 순서: close 먼저 → OnComplete 나중)
+	// S8: ctx 취소 시 Terminal{aborted} yield를 보장하는 플래그.
+	// send()의 반환값(bool)으로 설정: 정상 Terminal이 실제로 전달된 경우만 true.
+	terminated := false // 정상 경로에서 Terminal이 이미 yield되었는지 추적
+
+	// defer 등록 순서 (LIFO 실행 역순):
+	// 등록 순서 1: OnComplete — 마지막에 실행 (close 완료 후)
+	// 등록 순서 2: close(Out)  — 두 번째로 실행 (abort terminal yield 후)
+	// 등록 순서 3: abort defer — 첫 번째로 실행 (Terminal{aborted} yield 후 close 진행)
 	//
-	// @MX:NOTE: [AUTO] defer 순서 보장: close(Out) 후 OnComplete 호출.
-	// engine의 다음 SubmitMessage 호출이 drain 완료 후 mu.Lock을 획득하므로 race 없음.
+	// 실행 순서: abort → close → OnComplete
+	//
+	// @MX:NOTE: [AUTO] defer LIFO 순서 계약: abort(3번째 등록) → close(2번째) → OnComplete(1번째).
+	// OnComplete가 engine의 다음 SubmitMessage mu.Lock 전에 완료됨을 보장.
 	if cfg.OnComplete != nil {
 		defer func() {
 			cfg.OnComplete(state)
 		}()
 	}
+	// close(Out): S8 abort defer 이후에 실행되어야 한다.
 	defer close(cfg.Out)
+	// S8: abort defer — close(out) 이전에 실행되어 Terminal{aborted}를 yield한다.
+	// LIFO: 마지막에 등록 → 첫 번째로 실행.
+	//
+	// @MX:NOTE: [AUTO] unbuffered out 채널에 blocking 전송 — context.Background()로 소비자 drain을 기다림.
+	// 소비자가 range out으로 drain 중이면 반드시 받을 수 있으므로 deadlock 없음.
+	defer func() {
+		if !terminated && ctx.Err() != nil {
+			// ctx가 취소되었고 정상 Terminal이 yield되지 않았으면 abort terminal을 전송한다.
+			// 소비자가 range out으로 drain 중이므로 blocking 전송은 안전하다.
+			// context.Background()를 사용해 이미 취소된 ctx의 영향을 받지 않는다.
+			send(context.Background(), cfg.Out, message.SDKMessage{
+				Type:    message.SDKMsgTerminal,
+				Payload: message.PayloadTerminal{Success: false, Error: "aborted"},
+			})
+		}
+	}()
 
 	// 1. user_ack yield: 사용자 요청 즉시 확인
 	if !send(ctx, cfg.Out, message.SDKMessage{
@@ -134,11 +177,34 @@ func queryLoop(ctx context.Context, cfg LoopConfig) {
 	// @MX:WARN: [AUTO] 상태 게이트 순서 불변: budget_exceeded → max_turns → LLM 호출
 	// @MX:REASON: REQ-QUERY-011 - budget 소진이 max_turns보다 우선 (정책 결정)
 	for {
+		// --- S7: iteration 시작 시 compaction 검사 (after_compact continue site) ---
+		// @MX:NOTE: [AUTO] after_compact continue site — budget/max_turns 게이트보다 먼저 실행.
+		// Compact가 실패해도 loop를 중단하지 않고 원래 state로 계속 진행한다.
+		if cfg.ShouldCompact != nil && cfg.ShouldCompact(state) {
+			if cfg.Compact != nil {
+				newState, boundary, compactErr := cfg.Compact(state)
+				if compactErr == nil {
+					// REQ-008 reset: after_compact 시 MaxOutputTokensRecoveryCount=0
+					newState.MaxOutputTokensRecoveryCount = 0
+					// compact_boundary yield (채널 close 안 함)
+					if !send(ctx, cfg.Out, message.SDKMessage{
+						Type:    message.SDKMsgCompactBoundary,
+						Payload: boundary,
+					}) {
+						return
+					}
+					// state 재할당 (after_compact continue site)
+					state = newState
+				}
+				// compactErr != nil이면 compaction 실패 — 원래 state로 계속 진행
+			}
+		}
+
 		// --- S5: iteration 시작 시 종료 조건 검사 ---
 
 		// budget_exceeded gate: TaskBudgetRemaining <= 0이면 즉시 종료
 		if state.TaskBudgetRemaining <= 0 {
-			_ = send(ctx, cfg.Out, message.SDKMessage{
+			terminated = send(ctx, cfg.Out, message.SDKMessage{
 				Type:    message.SDKMsgTerminal,
 				Payload: message.PayloadTerminal{Success: false, Error: "budget_exceeded"},
 			})
@@ -148,7 +214,7 @@ func queryLoop(ctx context.Context, cfg LoopConfig) {
 		// max_turns gate: TurnCount >= MaxTurns이면 success:true 종료
 		// @MX:NOTE: [AUTO] max_turns는 bounded 도달 = 정상 종료이므로 success=true (REQ-QUERY-011)
 		if cfg.MaxTurns > 0 && state.TurnCount >= cfg.MaxTurns {
-			_ = send(ctx, cfg.Out, message.SDKMessage{
+			terminated = send(ctx, cfg.Out, message.SDKMessage{
 				Type:    message.SDKMsgTerminal,
 				Payload: message.PayloadTerminal{Success: true, Error: "max_turns"},
 			})
@@ -167,7 +233,7 @@ func queryLoop(ctx context.Context, cfg LoopConfig) {
 		// LLM 스트림 호출
 		streamCh, err := cfg.CallLLM(ctx)
 		if err != nil {
-			_ = send(ctx, cfg.Out, message.SDKMessage{
+			terminated = send(ctx, cfg.Out, message.SDKMessage{
 				Type:    message.SDKMsgTerminal,
 				Payload: message.PayloadTerminal{Success: false, Error: err.Error()},
 			})
@@ -276,7 +342,7 @@ func queryLoop(ctx context.Context, cfg LoopConfig) {
 			state.MaxOutputTokensRecoveryCount++
 			if state.MaxOutputTokensRecoveryCount > 3 {
 				// 재시도 한도 초과 → max_output_tokens_exhausted
-				_ = send(ctx, cfg.Out, message.SDKMessage{
+				terminated = send(ctx, cfg.Out, message.SDKMessage{
 					Type:    message.SDKMsgTerminal,
 					Payload: message.PayloadTerminal{Success: false, Error: "max_output_tokens_exhausted"},
 				})
@@ -306,7 +372,7 @@ func queryLoop(ctx context.Context, cfg LoopConfig) {
 
 		// tool_use 블록이 없으면 terminal{success:true} 후 종료
 		if len(toolBlocks) == 0 {
-			_ = send(ctx, cfg.Out, message.SDKMessage{
+			terminated = send(ctx, cfg.Out, message.SDKMessage{
 				Type:    message.SDKMsgTerminal,
 				Payload: message.PayloadTerminal{Success: true},
 			})
@@ -594,8 +660,7 @@ func parseInputJSON(s string) map[string]any {
 // send는 채널로 SDKMessage를 전송한다.
 // ctx가 취소되면 false를 반환한다.
 //
-// @MX:WARN: [AUTO] out 채널 전송 시 ctx.Done() 경합 처리
-// @MX:REASON: REQ-QUERY-010 - abort 시 500ms 내 정상 종료
+// @MX:NOTE: [AUTO] out 채널 전송 시 ctx.Done() 경합 처리 — abort defer가 Terminal{aborted}를 yield함.
 func send(ctx context.Context, out chan<- message.SDKMessage, msg message.SDKMessage) bool {
 	select {
 	case <-ctx.Done():

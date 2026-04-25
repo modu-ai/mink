@@ -128,6 +128,10 @@ func (e *QueryEngine) SubmitMessage(ctx context.Context, prompt string) (<-chan 
 		// REQ-QUERY-013: loop goroutine이 Ask 분기 진입/해제 시 engine에 알린다.
 		OnAskPending:  e.registerPendingPerm,
 		OnAskResolved: e.unregisterPendingPerm,
+		// S7: Compactor 주입 — import cycle 방지를 위해 함수 타입으로 래핑.
+		// cfg.Compactor가 nil이면 compaction 비활성.
+		ShouldCompact: e.buildShouldCompactFunc(),
+		Compact:       e.buildCompactFunc(),
 	}
 
 	// loop.Run은 goroutine을 spawn하고 즉시 반환한다.
@@ -196,6 +200,39 @@ func (e *QueryEngine) ResolvePermission(toolUseID string, behavior int, reason s
 	default:
 		// permInbox 포화: 이미 종료된 loop에 전송 시도하는 비정상 상황
 		return fmt.Errorf("%w: permInbox full, loop may have terminated: %s", ErrUnknownPermissionRequest, toolUseID)
+	}
+}
+
+// buildShouldCompactFunc는 cfg.Compactor.ShouldCompact를 loop 패키지용 함수 타입으로 래핑한다.
+// cfg.Compactor가 nil이면 nil을 반환한다 (compaction 비활성).
+func (e *QueryEngine) buildShouldCompactFunc() func(loop.State) bool {
+	if e.cfg.Compactor == nil {
+		return nil
+	}
+	c := e.cfg.Compactor
+	return func(state loop.State) bool {
+		return c.ShouldCompact(state)
+	}
+}
+
+// buildCompactFunc는 cfg.Compactor.Compact를 loop 패키지용 함수 타입으로 래핑한다.
+// cfg.Compactor가 nil이면 nil을 반환한다.
+// CompactBoundary → message.PayloadCompactBoundary로 변환하여 import cycle 없이 전달한다.
+func (e *QueryEngine) buildCompactFunc() func(loop.State) (loop.State, message.PayloadCompactBoundary, error) {
+	if e.cfg.Compactor == nil {
+		return nil
+	}
+	c := e.cfg.Compactor
+	return func(state loop.State) (loop.State, message.PayloadCompactBoundary, error) {
+		newState, boundary, err := c.Compact(state)
+		if err != nil {
+			return state, message.PayloadCompactBoundary{}, err
+		}
+		return newState, message.PayloadCompactBoundary{
+			Turn:           boundary.Turn,
+			MessagesBefore: boundary.MessagesBefore,
+			MessagesAfter:  boundary.MessagesAfter,
+		}, nil
 	}
 }
 
