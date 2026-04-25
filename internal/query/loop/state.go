@@ -4,6 +4,14 @@ package loop
 
 import "github.com/modu-ai/goose/internal/message"
 
+// AutoCompactTracking은 compaction 트리거 추적 상태이다.
+// SPEC-GOOSE-CONTEXT-001 REQ-CTX-007/017/018
+type AutoCompactTracking struct {
+	// ReactiveTriggered는 QueryEngine이 다음 메시지 예측 기반으로 사전 압축을 요청한 경우 true이다.
+	// REQ-CTX-017: true이면 Compact에서 ReactiveCompact 전략을 최우선 선택한다.
+	ReactiveTriggered bool
+}
+
 // State는 queryLoop가 단독으로 소유하는 가변 상태이다.
 // REQ-QUERY-015: 외부 goroutine이 직접 변경해서는 안 된다.
 type State struct {
@@ -19,6 +27,17 @@ type State struct {
 	// TaskBudgetRemaining는 남은 task budget 수이다.
 	// REQ-QUERY-011: ≤0이면 budget_exceeded terminal.
 	TaskBudgetRemaining int
+	// TokenLimit는 context window token 한도이다.
+	// SPEC-GOOSE-CONTEXT-001 REQ-CTX-007: ShouldCompact 80% 임계 판단 기준.
+	// 0이면 DefaultCompactor.TokenLimit 필드를 fallback으로 사용.
+	TokenLimit int64
+	// MaxMessageCount는 허용 최대 메시지 수이다.
+	// SPEC-GOOSE-CONTEXT-001 REQ-CTX-007: len(Messages) > MaxMessageCount이면 ShouldCompact==true.
+	// 0이면 DefaultCompactor.MaxMessageCount 필드를 fallback으로 사용.
+	MaxMessageCount int
+	// AutoCompactTracking은 자동 compaction 트리거 추적 상태이다.
+	// SPEC-GOOSE-CONTEXT-001 REQ-CTX-007/017/018
+	AutoCompactTracking AutoCompactTracking
 }
 
 // Continue는 queryLoop이 다음 iteration을 계속할 때의 신호 타입이다.

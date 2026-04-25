@@ -64,13 +64,25 @@ type Compactor interface {
 }
 
 // CompactBoundary는 Compactor.Compact 반환 타입이다.
+// SPEC-GOOSE-CONTEXT-001 §6.2
 type CompactBoundary struct {
 	// Turn은 compaction이 발생한 turn 번호이다.
 	Turn int
+	// Strategy는 선택된 compaction 전략이다 ("AutoCompact" | "ReactiveCompact" | "Snip").
+	Strategy string
 	// MessagesBefore는 compaction 전 메시지 수이다.
 	MessagesBefore int
 	// MessagesAfter는 compaction 후 메시지 수이다.
 	MessagesAfter int
+	// TokensBefore는 compaction 전 추정 token 수이다.
+	TokensBefore int64
+	// TokensAfter는 compaction 후 추정 token 수이다.
+	TokensAfter int64
+	// TaskBudgetPreserved는 compaction 전후 TaskBudgetRemaining 값이다 (불변 검증용).
+	// REQ-CTX-010: compaction 자체는 task budget을 소비하지 않는다.
+	TaskBudgetPreserved int64
+	// DroppedThinkingCount는 보존된 redacted_thinking 블록 수이다.
+	DroppedThinkingCount int
 }
 
 // MessageHook는 LLM 응답 샘플링 후 호출되는 훅 함수 타입이다.
