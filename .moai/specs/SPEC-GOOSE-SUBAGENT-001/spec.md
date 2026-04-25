@@ -1,6 +1,6 @@
 ---
 id: SPEC-GOOSE-SUBAGENT-001
-version: 0.2.0
+version: 0.3.0
 status: planned
 created_at: 2026-04-21
 updated_at: 2026-04-25
@@ -21,6 +21,7 @@ labels: [subagent, runtime, isolation, memory, phase-2]
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-21 | 초안 작성 (claude-primitives §4 + QUERY-001/SKILLS-001/HOOK-001 합의 기반) | manager-spec |
 | 0.2.0 | 2026-04-25 | plan-auditor iter1 FAIL 결함 수정: D13(ResumeAgent 시그니처 통일) / D15(memory update REQ-SA-021 신설) / D17(PlanModeRequired REQ-SA-022 신설) / D18(goroutine lifecycle Unwanted REQ-SA-023 신설) / D7(REQ-SA-012 peer sub-agent 동시 쓰기 semantics 명확화) / D1(REQ-SA-004/012/015/018/019/020 AC 커버리지 AC-SA-013~018 신설) | manager-spec |
+| 0.3.0 | 2026-04-25 | plan-auditor iter2 FAIL 결함 수정: N2(§6.2 AgentDefinition.MemoryScopes 필드 신설 — REQ-SA-021/AC-SA-019 구현 가능성 확보) / N3(§6.2 PlanModeApprove API 시그니처 신설) / N1(§4 REQ ID 카테고리 그룹화 정책 명시 — informational) / D4(REQ-SA-001 atomic spawnIndex 명시) / D5(REQ-SA-007 DefaultBackgroundIdleThreshold 명명 상수 참조) / D8(REQ-SA-016 settings.json 경로 명시) / D9(REQ-SA-015 HOOK-001 SessionEnd 의존성 conditional framing) / D10(REQ-SA-008 (d)→(c) 순서 명시) / D11(REQ-SA-018 agentName 문자 집합에서 `-` 제외 + AgentID delimiter 명시) / D12(REQ-SA-005 failure path 신설) | manager-spec |
 
 ---
 
@@ -106,9 +107,11 @@ GOOSE-AGENT의 **Sub-agent 런타임**을 정의한다. Claude Code의 `runAgent
 
 ## 4. EARS 요구사항 (Requirements)
 
+> **REQ ID 정렬 정책 (informational, N1)**: REQ-SA-NNN 식별자는 EARS 카테고리(§4.1 Ubiquitous → §4.2 Event-Driven → §4.3 State-Driven → §4.4 Unwanted → §4.5 Optional) 그룹으로 배치한다. iter2 추가분(REQ-SA-022, 023)은 §4.4 Unwanted에 카테고리-결합 우선으로 배치되어 문서 라인 순서 상으로는 §4.5 Optional의 REQ-SA-019/020/021보다 먼저 등장한다. 식별자는 단조 증가(001..023)이며 중복·결번 없음(MP-1 통과). 카테고리 그룹화 일관성을 ID 단조성보다 우선한 의도적 결정이다.
+
 ### 4.1 Ubiquitous (시스템 상시 불변)
 
-**REQ-SA-001 [Ubiquitous]** — Every spawned `Subagent` **shall** have a unique `AgentID` composed as `{agentName}@{sessionId}-{spawnIndex}`; collisions **shall not** occur within a single parent session's lifetime.
+**REQ-SA-001 [Ubiquitous]** — Every spawned `Subagent` **shall** have a unique `AgentID` composed as `{agentName}@{sessionId}-{spawnIndex}`; collisions **shall not** occur within a single parent session's lifetime. The `spawnIndex` **shall** be allocated atomically per parent session via `atomic.AddInt64(&parentSpawnCounter, 1)` so concurrent `RunAgent` calls from the same parent receive monotonically increasing, non-overlapping indices. The delimiter `@` separates `agentName` from `{sessionId}-{spawnIndex}` and is reserved; agent names are constrained by REQ-SA-018 to exclude `-` and `@`, eliminating round-trip parsing ambiguity.
 
 **REQ-SA-002 [Ubiquitous]** — The `Subagent.Transcript` **shall** be persisted to `{memoryDir}/transcript-{agentId}/` regardless of isolation mode; persistence is independent of completion status (in-progress, completed, failed).
 
@@ -120,11 +123,13 @@ GOOSE-AGENT의 **Sub-agent 런타임**을 정의한다. Claude Code의 `runAgent
 
 **REQ-SA-005 [Event-Driven]** — **When** `RunAgent(ctx, def, input)` is invoked with `def.Isolation == "fork"`, the spawner **shall** (a) create a new `QueryEngine` instance with override config(inherited tools, independent `TaskBudget`, new `AgentID`), (b) inject `TeammateIdentity{AgentId, AgentName, TeamName, ParentSessionId}` into the engine's `ctx` via `context.WithValue`, (c) invoke `DispatchSubagentStart(ctx, input)` (HOOK-001), (d) spawn a background goroutine to call `engine.SubmitMessage(input.Prompt)`, (e) return `Subagent` + output channel + nil error.
 
+**REQ-SA-005-F [Event-Driven, Failure Path]** — **When** any step of REQ-SA-005 fails, the spawner **shall** unwind in reverse order and surface a typed error: (i) if QueryEngine creation fails, return `(nil, nil, ErrEngineInitFailed)` and **shall not** dispatch `SubagentStart`; (ii) if `DispatchSubagentStart` returns an error, the spawner **shall** abort, release the partially constructed engine, return `(nil, nil, ErrHookDispatchFailed)`; (iii) if goroutine spawn fails (e.g., `ctx` already cancelled), the spawner **shall** dispatch `DispatchSubagentStop` with `Terminal{Success: false, Reason: "spawn_aborted"}` to maintain hook-pair invariant, close the output channel, and return `(nil, nil, ErrSpawnAborted)`. In all failure modes the partially allocated `AgentID` and `spawnIndex` **shall not** be reused.
+
 **REQ-SA-006 [Event-Driven]** — **When** `def.Isolation == "worktree"`, the spawner **shall** additionally (before step b of REQ-SA-005) execute `git worktree add ./.claude/worktrees/{agent-slug}` with a branch derived from `HEAD`, set the new engine's `cfg.Cwd` to that worktree path, invoke `DispatchWorktreeCreate` (HOOK-001), and on subagent completion invoke `DispatchWorktreeRemove`.
 
-**REQ-SA-007 [Event-Driven]** — **When** `def.Isolation == "background"`, the spawner **shall** spawn the goroutine with non-blocking semantics — the returned channel **shall** receive messages asynchronously, and `DispatchTeammateIdle` **shall** be invoked after a 5-second inactivity period without new messages.
+**REQ-SA-007 [Event-Driven]** — **When** `def.Isolation == "background"`, the spawner **shall** spawn the goroutine with non-blocking semantics — the returned channel **shall** receive messages asynchronously, and `DispatchTeammateIdle` **shall** be invoked after an inactivity period equal to `DefaultBackgroundIdleThreshold` (default 5 s, configurable via `subagent.background.idle_threshold` in `settings.json`) without new messages. AC-SA-003 verifies the same configurable constant.
 
-**REQ-SA-008 [Event-Driven]** — **When** a sub-agent's `QueryEngine` returns a terminal `Terminal{...}` (see QUERY-001 REQ-QUERY-011), the spawner **shall** (a) write the final transcript to `transcript-{agentId}/`, (b) invoke `DispatchSubagentStop(ctx, result)` (HOOK-001), (c) close the output channel, (d) mark the `Subagent.State == Completed|Failed` based on `Terminal.Success`.
+**REQ-SA-008 [Event-Driven]** — **When** a sub-agent's `QueryEngine` returns a terminal `Terminal{...}` (see QUERY-001 REQ-QUERY-011), the spawner **shall** execute the following ordered steps: (a) write the final transcript to `transcript-{agentId}/`, (b) invoke `DispatchSubagentStop(ctx, result)` (HOOK-001), (d) **before** step (c), mark `Subagent.State == Completed|Failed` based on `Terminal.Success` (state mutation **shall** happen-before channel close), (c) close the output channel. The (d)→(c) ordering **shall** be enforced so that any consumer observing the channel close via `range` or `<-` receives a committed `Subagent.State` (no transient `Running` observation post-close). The Go memory model guarantee is provided by `sync/atomic` store on `State` followed by `close(ch)` in the same goroutine.
 
 **REQ-SA-009 [Event-Driven]** — **When** `ResumeAgent(agentId)` is invoked, the function **shall** (a) load `transcript-{agentId}/` and `metadata.json` from the matching memory scope, (b) reconstruct `AgentDefinition` from metadata, (c) reconstruct parent `ctx` (new one, but with the agent's original `TeammateIdentity` restored), (d) call `RunAgent` with `input.Prompt = "[[RESUME]]"` so the model receives a resume cue.
 
@@ -145,13 +150,13 @@ GOOSE-AGENT의 **Sub-agent 런타임**을 정의한다. Claude Code의 `runAgent
 
 **REQ-SA-014 [Unwanted]** — The spawner **shall not** allow cyclic agent spawning (A spawns B, B spawns A); the spawner maintains a `spawnDepth` counter in `ctx`, and if depth exceeds `MaxSpawnDepth` (default 5), `RunAgent` **shall** return `ErrSpawnDepthExceeded`.
 
-**REQ-SA-015 [Unwanted]** — Worktree isolation **shall not** leave orphan worktrees on crash; a `SessionEnd` hook handler (HOOK-001) **shall** invoke `git worktree prune` + `os.RemoveAll` on the worktree path.
+**REQ-SA-015 [Unwanted]** — Worktree isolation **shall not** leave orphan worktrees on crash. **Given** HOOK-001 emits a `SessionEnd` event (see SPEC-GOOSE-HOOK-001 REQ-HK-SESSIONEND, treated here as a precondition dependency), the registered `SessionEnd` hook handler **shall** invoke `git worktree prune` followed by `os.RemoveAll` on the orphaned worktree path. If HOOK-001 does not emit `SessionEnd` for any reason (process crash, hook subsystem disabled), the SUBAGENT runtime **shall** additionally run an idempotent startup-time scan during `RunAgent` initialization that prunes any `./.claude/worktrees/*` orphan whose corresponding agent is not active in the current parent session — providing defense-in-depth.
 
-**REQ-SA-016 [Unwanted]** — Background-isolated sub-agents **shall not** consume Write/Edit permissions that the parent has not pre-approved; if `def.Isolation == "background"` and `def.PermissionMode == "bubble"` and a Write tool is requested, the permission flow **shall** default to `Deny` with reason `"background_agent_write_denied"` unless an explicit allow rule is present.
+**REQ-SA-016 [Unwanted]** — Background-isolated sub-agents **shall not** consume Write/Edit permissions that the parent has not pre-approved; if `def.Isolation == "background"` and `def.PermissionMode == "bubble"` and a Write tool is requested, the permission flow **shall** default to `Deny` with reason `"background_agent_write_denied"` unless an explicit allow rule is present in `settings.json` at the path `subagent.permissions.allow` (an array of tool-name patterns matched against the requested `toolName`). AC-SA-011 verifies the same `settings.json` source.
 
 **REQ-SA-017 [Unwanted]** — The memory directory **shall not** be created with permissions broader than `0700` for directories or `0600` for files; on existing directories with wider permissions, a zap WARN is logged and permissions are **not** changed (sysadmin's responsibility).
 
-**REQ-SA-018 [Unwanted]** — `LoadAgentsDir` **shall not** load agents whose name starts with `_` (reserved for internal namespaces) or contains characters outside `[a-zA-Z0-9-_]`; violations **shall** produce `ErrInvalidAgentName`.
+**REQ-SA-018 [Unwanted]** — `LoadAgentsDir` **shall not** load agents whose name starts with `_` (reserved for internal namespaces) or contains characters outside `[a-zA-Z0-9_]`; violations **shall** produce `ErrInvalidAgentName`. Note: `-` (hyphen) and `@` (at-sign) **shall** be excluded from the agent-name character set because they are reserved as `AgentID` delimiters in REQ-SA-001's format `{agentName}@{sessionId}-{spawnIndex}`. This exclusion guarantees unambiguous round-trip parsing of `AgentID` strings (split first on `@`, then split the right side on the last `-` for `spawnIndex`). Existing agent definitions with hyphens (e.g., `manager-spec`, `expert-backend`) **shall** be migrated by the legacy compatibility scanner (see R7) to use underscores or be loaded with `source: "legacy"` tag and a deprecation WARN.
 
 **REQ-SA-022 [Unwanted]** — **If** a sub-agent is spawned with `def.PermissionMode == "plan"` (indicated internally by `TeammateIdentity.PlanModeRequired == true`), **then** the spawner **shall not** execute any Write/Edit/Bash tool invocations until an explicit approval signal is received. The approval protocol is:
 (a) `PlanModeRequired` **shall** be set to `true` by the loader when `def.PermissionMode == "plan"`;
@@ -328,10 +333,13 @@ type AgentDefinition struct {
     UseExactTools  bool
     Model          string           // "inherit" | alias
     MaxTurns       int
-    PermissionMode string           // "bubble" | "isolated"
+    PermissionMode string           // "bubble" | "isolated" | "plan"
     Effort         string           // L0/L1/L2/L3
     SystemPrompt   string           // markdown body
     MCPServers     []string         // MCP-001 ConnectToServer 호출 대상
+    MemoryScopes   []MemoryScope    // REQ-SA-021: enabled scopes for memory.append tool;
+                                    //   non-empty triggers built-in memory.append registration;
+                                    //   loader-time default: [ScopeProject] when frontmatter omits it
     Isolation      IsolationMode
     Source         string           // "user" | "plugin" | "builtin"
     Background     bool             // shortcut for Isolation=Background
@@ -404,6 +412,18 @@ func ResumeAgent(
     agentID string,
     opts ...RunOption,
 ) (*Subagent, <-chan message.SDKMessage, error)
+
+// PlanModeApprove (REQ-SA-022, AC-SA-020)는 plan-mode로 spawn된 sub-agent의
+// PlanModeRequired 게이트를 해제하는 부모-측 승인 API.
+// 호출 후 해당 agent의 TeammateIdentity.PlanModeRequired = false 가 되어
+// write-class tool 호출이 진행된다.
+//
+// 반환:
+//   - nil:                  승인 성공
+//   - ErrAgentNotFound:     agentID에 해당하는 활성 sub-agent 없음
+//   - ErrAgentNotInPlanMode: 해당 agent가 plan mode가 아님
+//   - ctx.Err():            parentCtx가 cancel/deadline-exceeded 상태
+func PlanModeApprove(parentCtx context.Context, agentID string) error
 
 // 3-scope memory.
 type MemdirManager struct {

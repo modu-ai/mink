@@ -1,6 +1,6 @@
 ---
 id: SPEC-GOOSE-CONTEXT-001
-version: 0.1.1
+version: 0.1.2
 status: planned
 created_at: 2026-04-21
 updated_at: 2026-04-25
@@ -21,6 +21,7 @@ labels: [area/runtime, type/feature, priority/p0-critical]
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-21 | 초안 작성 (claude-core §7 + QUERY-001 인터페이스 합의 기반) | manager-spec |
 | 0.1.1 | 2026-04-25 | plan-auditor iteration 1 결함 수정: (1) 고아 REQ 5건(CTX-007/011/013/015/016)에 대응하는 AC-CTX-011~015 신설, (2) State/CompactBoundary 타입 소속을 `loop.State`/`loop.CompactBoundary`로 통일 (§3.1/§6.2/§6.3), (3) AutoCompact/ReactiveCompact trigger 분리 REQ-CTX-017/018 추가, (4) REQ-CTX-013 라벨 [Unwanted]→[Ubiquitous] 정정, (5) frontmatter labels 보강 | manager-spec |
+| 0.1.2 | 2026-04-25 | plan-auditor iteration 2 결함 수정: (D10) §3.1 #9 L75 Strategy 우선순위 문자열을 REQ-CTX-008/017/018 일관화하여 `ReactiveCompact > AutoCompact > Snip` 으로 정정, (D11) REQ-CTX-017 전용 AC-CTX-016 신설 (ReactiveTriggered 강제 ReactiveCompact 선택 검증), (D12) §6.2 `DefaultCompactor.MaxMessageCount` 주석에 state vs compactor owner 구분 명시, (D13) AC-CTX-003 fixture 경로(`internal/context/testdata/tokens/ko_en_mixed.json`) 명시, (D14) REQ-CTX-013 섹션 §4.4 Unwanted → §4.1 Ubiquitous 재배치 (라벨↔섹션 일관화), (D15) REQ-CTX-009 `<moai-snip-marker>` auxiliary content schema 계약을 SPEC-GOOSE-ADAPTER-001 위임 명시, AC-CTX-005에 REQ-CTX-018 covers 명시 (ReactiveTriggered=false 선조건) | manager-spec |
 
 ---
 
@@ -72,7 +73,7 @@ labels: [area/runtime, type/feature, priority/p0-critical]
 9. `Compactor` 인터페이스 구현체 `DefaultCompactor` (QUERY-001 계약 준수; `loop.State`/`loop.CompactBoundary`는 `internal/query/loop/` 패키지 소유):
    - `ShouldCompact(s loop.State) bool`
    - `Compact(s loop.State) (loop.State, loop.CompactBoundary, error)`
-   - 내부에서 `Strategy` 선택 (`AutoCompact` > `ReactiveCompact` > `Snip` 우선순위).
+   - 내부에서 `Strategy` 선택 (`ReactiveCompact` > `AutoCompact` > `Snip` 우선순위; 상세 분기 조건은 REQ-CTX-008/017/018 참조).
 10. `Snip` 전략 완전 구현 (protected head N=3, protected tail M=5, redacted_thinking 블록 절대 보존).
 11. `AutoCompact`, `ReactiveCompact`는 `Summarizer` 인터페이스 호출로 위임 (본 SPEC은 orchestration + fallback만 구현; Summarizer가 주입되지 않으면 `Snip`으로 fallback).
 12. `loop.CompactBoundary` payload struct 생성 (turn, strategy, messages_before, messages_after, tokens_before, tokens_after, task_budget_preserved). 정의는 QUERY-001 `internal/query/loop/` 소유이며, 본 SPEC은 consumer/producer. (Circular import 방지 및 Compactor 인터페이스 contract 일관성 확보.)
@@ -103,6 +104,8 @@ labels: [area/runtime, type/feature, priority/p0-critical]
 
 **REQ-CTX-004 [Ubiquitous]** — The `TokenCountWithEstimation` function **shall** produce a deterministic integer for a fixed messages input (no randomness, no time-of-day dependence).
 
+**REQ-CTX-013 [Ubiquitous]** — The `DefaultCompactor.Compact` **shall** always return a `State` whose `Messages` length is greater than or equal to `ProtectedTail + 1` (the `<moai-snip-marker>` plus `ProtectedTail` messages at minimum); an empty or shorter `Messages` slice is prohibited under all conditions. (Ubiquitous prohibition: invariant post-condition without conditional trigger.)
+
 ### 4.2 Event-Driven (이벤트 기반)
 
 **REQ-CTX-005 [Event-Driven]** — **When** `GetSystemContext(ctx)` is called for the first time in a session, the function **shall** invoke `git branch --show-current`, `git status --porcelain`, and `git log -1 --format=%h %s` with a combined timeout of 2 seconds, concatenate the results, truncate to 4096 bytes, and cache the result under the session's `SystemContext`.
@@ -113,7 +116,7 @@ labels: [area/runtime, type/feature, priority/p0-critical]
 
 **REQ-CTX-008 [Event-Driven]** — **When** `Compactor.Compact(state)` is invoked, the compactor **shall** (a) select a strategy by evaluating trigger conditions in the priority order `ReactiveCompact` > `AutoCompact` > `Snip` (detailed trigger conditions for each strategy are specified in REQ-CTX-017 and REQ-CTX-018), (b) if the selected strategy requires `Summarizer` but `Summarizer == nil`, fall back to `Snip`, (c) produce a new `loop.State` with mutated `Messages` and preserved `TaskBudget.Remaining`, (d) return a `loop.CompactBoundary` struct containing before/after metrics.
 
-**REQ-CTX-009 [Event-Driven]** — **When** `Snip` executes, the strategy **shall** keep the first `ProtectedHead` messages (default 3) and the last `ProtectedTail` messages (default 5), drop messages in between, insert a single synthetic `<moai-snip-marker>` `Message` with `role:"system"` describing the number of dropped messages, and preserve every content block of type `redacted_thinking` from dropped messages by attaching them to the snip marker as auxiliary content.
+**REQ-CTX-009 [Event-Driven]** — **When** `Snip` executes, the strategy **shall** keep the first `ProtectedHead` messages (default 3) and the last `ProtectedTail` messages (default 5), drop messages in between, insert a single synthetic `<moai-snip-marker>` `Message` with `role:"system"` describing the number of dropped messages, and preserve every content block of type `redacted_thinking` from dropped messages by attaching them to the snip marker as auxiliary content. The structural schema of the auxiliary content (block ordering, role values, `type` field nomenclature, and Anthropic API wire-format compatibility) is contracted by SPEC-GOOSE-ADAPTER-001 (provider request/response schema owner); 본 SPEC은 schema 정의를 중복하지 않으며 ADAPTER-001 의 schema invariant를 consumer로 준수만 한다.
 
 **REQ-CTX-010 [Event-Driven]** — **When** compaction completes, the new `State.TaskBudget.Remaining` **shall** equal the pre-compaction `State.TaskBudget.Remaining` (unchanged); compaction itself **shall not** debit task budget, only LLM-summary calls performed by `Summarizer` may (and those are accounted by ADAPTER-001 in the surrounding turn).
 
@@ -128,8 +131,6 @@ labels: [area/runtime, type/feature, priority/p0-critical]
 **REQ-CTX-012 [State-Driven]** — **While** `Summarizer` interface is registered (`Compactor.Summarizer != nil`), the `AutoCompact` and `ReactiveCompact` strategies **shall** be eligible for selection; otherwise only `Snip` is selected.
 
 ### 4.4 Unwanted Behavior (방지)
-
-**REQ-CTX-013 [Ubiquitous]** — The `DefaultCompactor.Compact` **shall** always return a `State` whose `Messages` length is greater than or equal to `ProtectedTail + 1` (the `<moai-snip-marker>` plus `ProtectedTail` messages at minimum); an empty or shorter `Messages` slice is prohibited under all conditions. (Ubiquitous prohibition: invariant post-condition without conditional trigger.)
 
 **REQ-CTX-014 [Unwanted]** — **If** `Summarizer.Summarize` returns an error, **then** `AutoCompact` or `ReactiveCompact` **shall** log the error and fall back to `Snip` without surfacing the error to the caller (compaction must always succeed in some form).
 
@@ -154,17 +155,17 @@ labels: [area/runtime, type/feature, priority/p0-critical]
 - **Then** 결과 `UserContext.ClaudeMd`는 두 파일 내용을 문서 순서대로 포함, `currentDate`는 `time.Now().UTC()` 근사(±1초), 두 번째 호출은 파일 IO 없이 캐시 반환
 
 **AC-CTX-003 — Token estimation 근사 정확도**
-- **Given** 알려진 문자열(예: 4,000자 영문 + 100자 한글 혼합) 1개 user message
+- **Given** 알려진 문자열(예: 4,000자 영문 + 100자 한글 혼합) 1개 user message; ground truth fixture는 `internal/context/testdata/tokens/ko_en_mixed.json` (utf-8 인코딩) — 필드: `{"input": "<문자열>", "ground_truth_tokens": <int>, "source": "<provider 명 + 응답 캡처 일자>"}`. fixture 갱신 시 ADAPTER-001 의 실제 provider response `usage.input_tokens` 값을 캡처해 PR로 동기화.
 - **When** `TokenCountWithEstimation([]Message{msg})`
-- **Then** 반환값이 `providerGroundTruth ± 5%` 범위 (ground truth는 테스트 fixture에 cp949/utf-8 영/한 혼합 기준값)
+- **Then** 반환값이 `providerGroundTruth ± 5%` 범위. fixture 외 추가 케이스 (영문-only, 한글-only, tool_use 포함) 도 동일 디렉터리 하위 별도 JSON 으로 reproducibility 보장.
 
 **AC-CTX-004 — Warning state 80% 임계값 트리거**
 - **Given** `limit=100_000`
 - **When** `CalculateTokenWarningState(used=80_001, limit=100_000)`
 - **Then** `WarningLevel == Orange` (80-92% 구간); `used=92_001` → `Red`; `used=60_001` → `Yellow`; `used=59_999` → `Green`
 
-**AC-CTX-005 — AutoCompact 인터페이스 호출 (Summarizer mock)**
-- **Given** `DefaultCompactor{Summarizer: stubSummarizer}`, stub이 항상 `SummaryMessage{Content:"...summary..."}`를 반환. State에 25개 message + token 사용량 90_000/100_000
+**AC-CTX-005 — AutoCompact 인터페이스 호출 (Summarizer mock) (covers REQ-CTX-018)**
+- **Given** `DefaultCompactor{Summarizer: stubSummarizer, HistorySnipOnly: false}`, stub이 항상 `SummaryMessage{Content:"...summary..."}`를 반환. State에 25개 message + token 사용량 90_000/100_000 (≥80% 임계 충족), `state.AutoCompactTracking.ReactiveTriggered = false` (AutoCompact 분기 선조건; REQ-CTX-018 trigger 정확 일치)
 - **When** `Compactor.Compact(state)`
 - **Then** 결과 State의 messages는 `[snipMarker OR summary, ...ProtectedTail 5개]` 형태, `CompactBoundary.Strategy == "AutoCompact"`, Summarizer가 1회 호출됨
 
@@ -217,6 +218,11 @@ labels: [area/runtime, type/feature, priority/p0-critical]
 - **Given** `DefaultCompactor{Summarizer: stubSummarizer, HistorySnipOnly: true}` (해당 필드는 CONFIG-001이 `GOOSE_HISTORY_SNIP=1` env에서 로드한 값), state가 AutoCompact trigger 조건 충족 (token >=80%)
 - **When** `Compactor.Compact(state)` 실행
 - **Then** `CompactBoundary.Strategy == "Snip"`, `Summarizer.Summarize` 호출 횟수 = 0, ReactiveCompact/AutoCompact 미선택. `HistorySnipOnly = false` 로 바꾼 뒤 같은 state로 재호출 시 `CompactBoundary.Strategy == "AutoCompact"` 확인(대조군).
+
+**AC-CTX-016 — ReactiveTriggered 강제 ReactiveCompact 선택 (covers REQ-CTX-017)**
+- **Given** `DefaultCompactor{Summarizer: stubSummarizer, HistorySnipOnly: false}`, `state.AutoCompactTracking.ReactiveTriggered = true`, token usage 40_000/100_000 (= 40%, <80% 임계 미만 — AutoCompact 자가 trigger 조건 불충족), `len(state.Messages) < state.MaxMessageCount`, `CalculateTokenWarningState` 가 Red 미만
+- **When** `Compactor.Compact(state)` 실행
+- **Then** `CompactBoundary.Strategy == "ReactiveCompact"`, Summarizer 1회 호출됨. **대조군**: 같은 state에 `ReactiveTriggered = false` 로 바꿔 호출 시 (token 40% 인 상태에서) `CompactBoundary.Strategy` 가 `AutoCompact` 가 아닌 `Snip` 으로 떨어짐 (40% < 80% 임계 미충족) — 즉 `ReactiveTriggered` flag가 token-ratio-기반 AutoCompact 분기를 우회하여 ReactiveCompact 를 강제하는 유일 조건임을 검증. 또한 ReactiveCompact 선택이 REQ-CTX-008 의 우선순위 (`ReactiveCompact > AutoCompact > Snip`) 와 일치함을 확정.
 
 ---
 
@@ -322,7 +328,7 @@ type DefaultCompactor struct {
     Summarizer         Summarizer          // optional; nil일 경우 Snip only
     ProtectedHead      int                 // default 3
     ProtectedTail      int                 // default 5
-    MaxMessageCount    int                 // default 500
+    MaxMessageCount    int                 // default 500; default applied when state.MaxMessageCount == 0; otherwise loop.State.MaxMessageCount value wins (state는 source-of-truth, compactor 필드는 fallback default)
     TokenLimit         int64               // session token window
     HistorySnipOnly    bool                // REQ-CTX-016 feature gate
     Logger             *zap.Logger
@@ -417,8 +423,8 @@ tokens(message) =
 14. **RED #14**: `TestCompactor_MinimumMessagesInvariant` — AC-CTX-013 (REQ-CTX-013 커버).
 15. **RED #15**: `TestGetSystemContext_NoGit_Graceful` — AC-CTX-014 (REQ-CTX-015 커버).
 16. **RED #16**: `TestCompactor_HistorySnipOnly_PrefersSnip` — AC-CTX-015 (REQ-CTX-016 커버).
-17. **RED #17**: `TestCompactor_ReactiveTriggered_SelectsReactive` — REQ-CTX-017 trigger 분기.
-18. **RED #18**: `TestCompactor_Over80Percent_SelectsAutoCompact` — REQ-CTX-018 trigger 분기.
+17. **RED #17**: `TestCompactor_ReactiveTriggered_SelectsReactive` — AC-CTX-016 (REQ-CTX-017 커버) trigger 분기.
+18. **RED #18**: `TestCompactor_Over80Percent_SelectsAutoCompact` — AC-CTX-005 (REQ-CTX-018 커버) trigger 분기.
 19. **GREEN**: 최소 구현.
 20. **REFACTOR**: strategy 모듈 분리(snip/auto/reactive 각 파일), Summarizer 인터페이스 seam 정리.
 
