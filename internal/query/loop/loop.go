@@ -1,10 +1,28 @@
 // Package loop는 QueryEngine의 queryLoop goroutine과 상태 머신을 포함한다.
 // SPEC-GOOSE-QUERY-001 S3: 최소 구현 (tool 없는 단일 턴 시나리오).
 // SPEC-GOOSE-QUERY-001 S4: tool roundtrip, permission Allow/Deny 분기, tool_result budget 치환.
+// SPEC-GOOSE-QUERY-001 S5: 상태 기반 종료 조건.
+//   - budget_exceeded: TaskBudgetRemaining <= 0 (매 iteration 시작 시 검사)
+//   - max_turns: TurnCount >= MaxTurns (매 iteration 시작 시 검사)
+//   - max_output_tokens 재시도: ≤ 3회 retry (after_retry continue site)
+//
+// SPEC-GOOSE-QUERY-001 S7: Compactor 통합.
+//   - after_compact continue site: ShouldCompact 검사 → Compact 호출 → CompactBoundary yield → 재할당
+//   - REQ-008 reset: after_compact 시 MaxOutputTokensRecoveryCount=0
+//
+// SPEC-GOOSE-QUERY-001 S8: ctx.Done abort 처리.
+//   - ctx 취소 시 모든 blocking point에서 abort 감지
+//   - abort 감지 순서 (REQ-QUERY-010): (a) LLM chunk 중단 → (b) pendingPerms cleanup →
+//     (c) Terminal{success:false,error:"aborted"} yield → (d) close(out)
 //
 // 상태 머신 경로 요약:
 //   - 경로 A: tool 없는 assistant turn → terminal{success:true}
 //   - 경로 B: tool_use → permission(Allow/Deny) → tool_result → after_tool_results → 다음 turn
+//   - 경로 C: budget_exceeded gate → terminal{success:false, error:"budget_exceeded"}
+//   - 경로 D: max_turns gate → terminal{success:true, error:"max_turns"}
+//   - 경로 E: max_output_tokens → retry (after_retry) → 최대 3회 후 exhausted
+//   - 경로 F: ShouldCompact==true → Compact → compact_boundary yield → after_compact continue
+//   - 경로 G: ctx.Done → abort → terminal{success:false, error:"aborted"}
 package loop
 
 import (
@@ -56,7 +74,36 @@ type LoopConfig struct {
 	// ToolResultCap은 tool result content의 최대 바이트 수이다 (0이면 무제한).
 	// REQ-QUERY-007: 초과 시 요약 치환.
 	ToolResultCap int
+	// OnComplete는 loop 종료 시 최종 State를 engine에 반환하는 콜백이다.
+	// REQ-QUERY-004: SubmitMessage 호출 간 messages/turnCount/budget 누적 보존.
+	// nil이면 호출하지 않는다.
+	OnComplete func(State)
+	// OnAskPending은 Ask 분기에서 tool이 pending 상태가 될 때 호출하는 콜백이다.
+	// REQ-QUERY-013: engine이 pendingPerms에 toolUseID를 등록할 수 있도록 한다.
+	// nil이면 호출하지 않는다.
+	OnAskPending func(toolUseID string)
+	// OnAskResolved는 Ask 분기가 해결된 후(allow/deny 처리 완료) 호출하는 콜백이다.
+	// REQ-QUERY-013: engine이 pendingPerms에서 toolUseID를 제거할 수 있도록 한다.
+	// nil이면 호출하지 않는다.
+	OnAskResolved func(toolUseID string)
+	// ShouldCompact는 현재 상태에서 compaction이 필요한지 판단한다.
+	// nil이면 compaction이 비활성화된다 (AC-QUERY-011).
+	// @MX:NOTE: [AUTO] S7 after_compact continue site — import cycle 방지를 위해 함수 타입으로 주입.
+	ShouldCompact func(state State) bool
+	// Compact는 현재 상태를 압축하고 새 상태와 경계 정보(compact_boundary payload)를 반환한다.
+	// ShouldCompact가 nil이면 호출되지 않는다.
+	// 반환: (새 State, message.PayloadCompactBoundary, error)
+	Compact func(state State) (State, message.PayloadCompactBoundary, error)
+	// PostSamplingHooks는 LLM 응답 assistant message 조립 후 FIFO 순으로 적용되는 훅 목록이다.
+	// REQ-QUERY-018: nil 또는 빈 슬라이스이면 적용 없음.
+	//
+	// @MX:NOTE: [AUTO] PostSamplingHooks FIFO chain 진입점 - hook 적용 후 State.Messages에 저장됨.
+	PostSamplingHooks []PostSamplingHookFunc
 }
+
+// PostSamplingHookFunc는 LLM 응답 후 assistant message에 적용되는 훅 함수 타입이다.
+// REQ-QUERY-018: FIFO 순으로 적용. hook이 새 Message를 반환하면 chain에 전달된다.
+type PostSamplingHookFunc func(ctx context.Context, msg message.Message) (message.Message, error)
 
 // PermissionDecision은 외부에서 Ask 권한 결정을 전달하는 타입이다.
 // REQ-QUERY-013: ResolvePermission API를 통해 전달된다.
@@ -81,13 +128,48 @@ type toolUseBlock struct {
 // SubmitMessage에서 goroutine으로 spawn되며, out 채널 close 책임을 단독으로 진다.
 //
 // @MX:ANCHOR: [AUTO] agentic core 상태 머신 본체 - continue site 재할당 불변식의 중심
-// @MX:REASON: REQ-QUERY-003 - 오직 3개의 continue site(after_compact/after_retry/after_tool_results)에서만 State 변경
-// @MX:WARN: [AUTO] goroutine spawn 지점 - State 단독 소유자
-// @MX:REASON: REQ-QUERY-015 - state ownership은 loop goroutine 단일. 외부 mutation 금지
+// @MX:REASON: REQ-QUERY-003 - 4개의 continue site(after_compact/after_retry/after_tool_results/after_compact)에서만 State 변경
+// @MX:WARN: [AUTO] goroutine spawn 지점 - State 단독 소유자, abort path에 Terminal{aborted} yield 포함
+// @MX:REASON: REQ-QUERY-015/010 - state ownership 단일, ctx 취소 시 500ms 내 abort 보장
 func queryLoop(ctx context.Context, cfg LoopConfig) {
-	defer close(cfg.Out)
-
 	state := cfg.InitialState
+
+	// S8: ctx 취소 시 Terminal{aborted} yield를 보장하는 플래그.
+	// send()의 반환값(bool)으로 설정: 정상 Terminal이 실제로 전달된 경우만 true.
+	terminated := false // 정상 경로에서 Terminal이 이미 yield되었는지 추적
+
+	// defer 등록 순서 (LIFO 실행 역순):
+	// 등록 순서 1: OnComplete — 마지막에 실행 (close 완료 후)
+	// 등록 순서 2: close(Out)  — 두 번째로 실행 (abort terminal yield 후)
+	// 등록 순서 3: abort defer — 첫 번째로 실행 (Terminal{aborted} yield 후 close 진행)
+	//
+	// 실행 순서: abort → close → OnComplete
+	//
+	// @MX:NOTE: [AUTO] defer LIFO 순서 계약: abort(3번째 등록) → close(2번째) → OnComplete(1번째).
+	// OnComplete가 engine의 다음 SubmitMessage mu.Lock 전에 완료됨을 보장.
+	if cfg.OnComplete != nil {
+		defer func() {
+			cfg.OnComplete(state)
+		}()
+	}
+	// close(Out): S8 abort defer 이후에 실행되어야 한다.
+	defer close(cfg.Out)
+	// S8: abort defer — close(out) 이전에 실행되어 Terminal{aborted}를 yield한다.
+	// LIFO: 마지막에 등록 → 첫 번째로 실행.
+	//
+	// @MX:NOTE: [AUTO] unbuffered out 채널에 blocking 전송 — context.Background()로 소비자 drain을 기다림.
+	// 소비자가 range out으로 drain 중이면 반드시 받을 수 있으므로 deadlock 없음.
+	defer func() {
+		if !terminated && ctx.Err() != nil {
+			// ctx가 취소되었고 정상 Terminal이 yield되지 않았으면 abort terminal을 전송한다.
+			// 소비자가 range out으로 drain 중이므로 blocking 전송은 안전하다.
+			// context.Background()를 사용해 이미 취소된 ctx의 영향을 받지 않는다.
+			send(context.Background(), cfg.Out, message.SDKMessage{
+				Type:    message.SDKMsgTerminal,
+				Payload: message.PayloadTerminal{Success: false, Error: "aborted"},
+			})
+		}
+	}()
 
 	// 1. user_ack yield: 사용자 요청 즉시 확인
 	if !send(ctx, cfg.Out, message.SDKMessage{
@@ -97,9 +179,57 @@ func queryLoop(ctx context.Context, cfg LoopConfig) {
 		return
 	}
 
-	// S4: tool roundtrip을 지원하는 main loop.
+	// S4+: tool roundtrip을 지원하는 main loop.
+	// S5: 상태 기반 종료 조건 (budget_exceeded, max_turns, max_output_tokens) 추가.
 	// tool 없는 경우 단일 턴으로 종료된다.
+
+	// @MX:WARN: [AUTO] 상태 게이트 순서 불변: budget_exceeded → max_turns → LLM 호출
+	// @MX:REASON: REQ-QUERY-011 - budget 소진이 max_turns보다 우선 (정책 결정)
 	for {
+		// --- S7: iteration 시작 시 compaction 검사 (after_compact continue site) ---
+		// @MX:NOTE: [AUTO] after_compact continue site — budget/max_turns 게이트보다 먼저 실행.
+		// Compact가 실패해도 loop를 중단하지 않고 원래 state로 계속 진행한다.
+		if cfg.ShouldCompact != nil && cfg.ShouldCompact(state) {
+			if cfg.Compact != nil {
+				newState, boundary, compactErr := cfg.Compact(state)
+				if compactErr == nil {
+					// REQ-008 reset: after_compact 시 MaxOutputTokensRecoveryCount=0
+					newState.MaxOutputTokensRecoveryCount = 0
+					// compact_boundary yield (채널 close 안 함)
+					if !send(ctx, cfg.Out, message.SDKMessage{
+						Type:    message.SDKMsgCompactBoundary,
+						Payload: boundary,
+					}) {
+						return
+					}
+					// state 재할당 (after_compact continue site)
+					state = newState
+				}
+				// compactErr != nil이면 compaction 실패 — 원래 state로 계속 진행
+			}
+		}
+
+		// --- S5: iteration 시작 시 종료 조건 검사 ---
+
+		// budget_exceeded gate: TaskBudgetRemaining <= 0이면 즉시 종료
+		if state.TaskBudgetRemaining <= 0 {
+			terminated = send(ctx, cfg.Out, message.SDKMessage{
+				Type:    message.SDKMsgTerminal,
+				Payload: message.PayloadTerminal{Success: false, Error: "budget_exceeded"},
+			})
+			return
+		}
+
+		// max_turns gate: TurnCount >= MaxTurns이면 success:true 종료
+		// @MX:NOTE: [AUTO] max_turns는 bounded 도달 = 정상 종료이므로 success=true (REQ-QUERY-011)
+		if cfg.MaxTurns > 0 && state.TurnCount >= cfg.MaxTurns {
+			terminated = send(ctx, cfg.Out, message.SDKMessage{
+				Type:    message.SDKMsgTerminal,
+				Payload: message.PayloadTerminal{Success: true, Error: "max_turns"},
+			})
+			return
+		}
+
 		// turn 카운트 증가 + stream_request_start yield
 		state.TurnCount++
 		if !send(ctx, cfg.Out, message.SDKMessage{
@@ -112,7 +242,7 @@ func queryLoop(ctx context.Context, cfg LoopConfig) {
 		// LLM 스트림 호출
 		streamCh, err := cfg.CallLLM(ctx)
 		if err != nil {
-			_ = send(ctx, cfg.Out, message.SDKMessage{
+			terminated = send(ctx, cfg.Out, message.SDKMessage{
 				Type:    message.SDKMsgTerminal,
 				Payload: message.PayloadTerminal{Success: false, Error: err.Error()},
 			})
@@ -123,6 +253,7 @@ func queryLoop(ctx context.Context, cfg LoopConfig) {
 		var textBuf string
 		var toolBlocks []toolUseBlock
 		var curTool *toolUseBlock
+		var maxOutputTokensStop bool // S5: max_output_tokens StopReason 감지 플래그
 
 		for ev := range streamCh {
 			select {
@@ -182,6 +313,23 @@ func queryLoop(ctx context.Context, cfg LoopConfig) {
 					return
 				}
 
+			case message.TypeMessageDelta:
+				// S5: TypeMessageDelta에서 usage 추출 및 budget 차감
+				// StopReason="max_output_tokens" 감지
+				if ev.StopReason == "max_output_tokens" {
+					maxOutputTokensStop = true
+				}
+				if ev.InputTokens > 0 || ev.OutputTokens > 0 {
+					state.TaskBudgetRemaining -= ev.InputTokens + ev.OutputTokens
+				}
+				// stream_event로 전달 (downstream이 usage 정보 참고 가능)
+				if !send(ctx, cfg.Out, message.SDKMessage{
+					Type:    message.SDKMsgStreamEvent,
+					Payload: message.PayloadStreamEvent{Event: ev},
+				}) {
+					return
+				}
+
 			case message.TypeMessageStop:
 				// message_stop은 스트리밍 종료 신호. 별도 yield 없이 다음 단계로 진행.
 
@@ -196,12 +344,36 @@ func queryLoop(ctx context.Context, cfg LoopConfig) {
 			}
 		}
 
+		// --- S5: max_output_tokens 재시도 처리 (after_retry continue site) ---
+		// @MX:WARN: [AUTO] after_retry continue site: MaxOutputTokensRecoveryCount 상태 변이 발생
+		// @MX:REASON: REQ-QUERY-008 - ≤3이면 재시도, >3이면 max_output_tokens_exhausted terminal
+		if maxOutputTokensStop {
+			state.MaxOutputTokensRecoveryCount++
+			if state.MaxOutputTokensRecoveryCount > 3 {
+				// 재시도 한도 초과 → max_output_tokens_exhausted
+				terminated = send(ctx, cfg.Out, message.SDKMessage{
+					Type:    message.SDKMsgTerminal,
+					Payload: message.PayloadTerminal{Success: false, Error: "max_output_tokens_exhausted"},
+				})
+				return
+			}
+			// 재시도: 동일 messages로 LLM 재호출 (continue site: after_retry)
+			// turn 카운트는 증가하지 않음 (재시도는 동일 turn의 연장)
+			state.TurnCount-- // turn 카운트 보정 (loop 시작 시 증가했으므로 되돌림)
+			continue
+		}
+
 		// assistant message 조립
 		assistantBlocks := buildAssistantBlocks(textBuf, toolBlocks)
 		assistantMsg := message.Message{
 			Role:    "assistant",
 			Content: assistantBlocks,
 		}
+
+		// S9: PostSamplingHooks FIFO chain 적용 (REQ-QUERY-018)
+		// @MX:NOTE: [AUTO] PostSamplingHooks FIFO 적용 - tool 파싱 전 단계에서 assistantMsg에 순서대로 적용.
+		assistantMsg = applyPostSamplingHooks(ctx, assistantMsg, cfg.PostSamplingHooks)
+
 		state.Messages = append(state.Messages, assistantMsg)
 
 		// assistant message yield
@@ -214,7 +386,7 @@ func queryLoop(ctx context.Context, cfg LoopConfig) {
 
 		// tool_use 블록이 없으면 terminal{success:true} 후 종료
 		if len(toolBlocks) == 0 {
-			_ = send(ctx, cfg.Out, message.SDKMessage{
+			terminated = send(ctx, cfg.Out, message.SDKMessage{
 				Type:    message.SDKMsgTerminal,
 				Payload: message.PayloadTerminal{Success: true},
 			})
@@ -341,28 +513,110 @@ func processToolUseBlocks(ctx context.Context, cfg LoopConfig, turn int, toolBlo
 			})
 
 		case permissions.Ask:
-			// S6에서 구현 예정 (Ask 분기는 S4 범위 외)
-			// 현재는 Deny와 동일하게 처리
+			// S6: Ask 분기 — permission_request yield → loop suspend → resolve 수신 후 처리.
+			// REQ-QUERY-013: permission_request를 yield하고 permInbox에서 결정을 기다린다.
+
+			// OnAskPending 콜백으로 engine에 pending 등록 알림
+			if cfg.OnAskPending != nil {
+				cfg.OnAskPending(tb.toolUseID)
+			}
+
+			// permission_request yield: 외부가 결정을 내릴 수 있도록 알림
 			if !send(ctx, cfg.Out, message.SDKMessage{
-				Type: message.SDKMsgPermissionCheck,
-				Payload: message.PayloadPermissionCheck{
+				Type: message.SDKMsgPermissionRequest,
+				Payload: message.PayloadPermissionRequest{
 					ToolUseID: tb.toolUseID,
-					Behavior:  "deny",
-					Reason:    "ask_not_supported_in_s4",
+					ToolName:  tb.toolName,
+					Input:     tpc.Input,
 				},
 			}) {
+				// ctx 취소 시 abort
+				if cfg.OnAskResolved != nil {
+					cfg.OnAskResolved(tb.toolUseID)
+				}
 				return nil, false
 			}
-			denied := permissions.SynthesizeDeniedResult(tb.toolUseID, decision)
-			deniedJSON, _ := json.Marshal(map[string]any{
-				"denied": true,
-				"reason": denied.Content,
-			})
-			resultBlocks = append(resultBlocks, message.ContentBlock{
-				Type:           "tool_result",
-				ToolUseID:      tb.toolUseID,
-				ToolResultJSON: string(deniedJSON),
-			})
+
+			// loop suspend: permInbox에서 결정을 수신하거나 ctx 취소를 기다린다.
+			// @MX:WARN: [AUTO] permInbox receive는 외부 ResolvePermission 없이 무한 대기 가능
+			// @MX:REASON: REQ-QUERY-013 - ctx 취소를 항상 우선 처리해 abort 보장 (REQ-010)
+			var resolved PermissionDecision
+			select {
+			case <-ctx.Done():
+				if cfg.OnAskResolved != nil {
+					cfg.OnAskResolved(tb.toolUseID)
+				}
+				return nil, false
+			case resolved = <-cfg.PermInbox:
+			}
+
+			// OnAskResolved 콜백으로 engine에 pending 해제 알림
+			if cfg.OnAskResolved != nil {
+				cfg.OnAskResolved(resolved.ToolUseID)
+			}
+
+			// resolved.Behavior에 따라 Allow/Deny 처리
+			switch permissions.PermissionBehavior(resolved.Behavior) {
+			case permissions.Allow:
+				// permission_check{allow} yield
+				if !send(ctx, cfg.Out, message.SDKMessage{
+					Type: message.SDKMsgPermissionCheck,
+					Payload: message.PayloadPermissionCheck{
+						ToolUseID: tb.toolUseID,
+						Behavior:  "allow",
+					},
+				}) {
+					return nil, false
+				}
+
+				// Executor.Run 호출
+				result, execErr := cfg.Execute(ctx, tb.toolUseID, tb.toolName, tpc.Input)
+				if execErr != nil {
+					errResult := fmt.Sprintf(`{"error":%q}`, execErr.Error())
+					resultBlocks = append(resultBlocks, message.ContentBlock{
+						Type:           "tool_result",
+						ToolUseID:      tb.toolUseID,
+						ToolResultJSON: errResult,
+					})
+					continue
+				}
+
+				toolResultJSON := applyToolResultCap(tb.toolUseID, result, cfg.ToolResultCap)
+				resultBlocks = append(resultBlocks, message.ContentBlock{
+					Type:           "tool_result",
+					ToolUseID:      tb.toolUseID,
+					ToolResultJSON: toolResultJSON,
+				})
+
+			default:
+				// Deny (또는 기타) 처리
+				denyDecision := permissions.Decision{
+					Behavior: permissions.Deny,
+					Reason:   resolved.Reason,
+				}
+				// permission_check{deny} yield
+				if !send(ctx, cfg.Out, message.SDKMessage{
+					Type: message.SDKMsgPermissionCheck,
+					Payload: message.PayloadPermissionCheck{
+						ToolUseID: tb.toolUseID,
+						Behavior:  "deny",
+						Reason:    resolved.Reason,
+					},
+				}) {
+					return nil, false
+				}
+
+				denied := permissions.SynthesizeDeniedResult(tb.toolUseID, denyDecision)
+				deniedJSON, _ := json.Marshal(map[string]any{
+					"denied": true,
+					"reason": denied.Content,
+				})
+				resultBlocks = append(resultBlocks, message.ContentBlock{
+					Type:           "tool_result",
+					ToolUseID:      tb.toolUseID,
+					ToolResultJSON: string(deniedJSON),
+				})
+			}
 		}
 	}
 
@@ -417,11 +671,30 @@ func parseInputJSON(s string) map[string]any {
 	return m
 }
 
+// applyPostSamplingHooks는 PostSamplingHooks slice를 FIFO 순으로 assistantMsg에 적용한다.
+// 훅이 에러를 반환하면 해당 훅 이후 체인을 중단하고 현재까지 적용된 msg를 반환한다.
+// REQ-QUERY-018: FIFO 순 적용, hook 에러 처리는 HOOK-001 책임.
+//
+// @MX:NOTE: [AUTO] PostSamplingHooks FIFO chain 구현 - queryLoop 내 assistantMsg에만 적용.
+func applyPostSamplingHooks(ctx context.Context, msg message.Message, hooks []PostSamplingHookFunc) message.Message {
+	for _, hook := range hooks {
+		if hook == nil {
+			continue
+		}
+		result, err := hook(ctx, msg)
+		if err != nil {
+			// 에러 시 체인 중단, 현재까지의 msg 반환 (HOOK-001에서 상세 처리)
+			break
+		}
+		msg = result
+	}
+	return msg
+}
+
 // send는 채널로 SDKMessage를 전송한다.
 // ctx가 취소되면 false를 반환한다.
 //
-// @MX:WARN: [AUTO] out 채널 전송 시 ctx.Done() 경합 처리
-// @MX:REASON: REQ-QUERY-010 - abort 시 500ms 내 정상 종료
+// @MX:NOTE: [AUTO] out 채널 전송 시 ctx.Done() 경합 처리 — abort defer가 Terminal{aborted}를 yield함.
 func send(ctx context.Context, out chan<- message.SDKMessage, msg message.SDKMessage) bool {
 	select {
 	case <-ctx.Done():

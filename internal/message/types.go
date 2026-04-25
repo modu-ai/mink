@@ -65,10 +65,17 @@ type StreamEvent struct {
 	BlockType string
 	// ToolUseID는 tool_use 관련 이벤트의 tool use ID이다.
 	ToolUseID string
-	// StopReason은 message_delta 이벤트의 종료 이유이다.
+	// StopReason은 message_delta/message_stop 이벤트의 종료 이유이다.
+	// "end_turn" | "tool_use" | "max_output_tokens" 등.
 	StopReason string
 	// Error는 error 이벤트의 메시지이다.
 	Error string
+	// InputTokens는 TypeMessageDelta 이벤트의 입력 토큰 수이다.
+	// REQ-QUERY-011: budget 차감에 사용된다.
+	InputTokens int
+	// OutputTokens는 TypeMessageDelta 이벤트의 출력 토큰 수이다.
+	// REQ-QUERY-011: budget 차감에 사용된다.
+	OutputTokens int
 	// Raw는 원본 이벤트 데이터이다 (디버깅용).
 	Raw any
 }

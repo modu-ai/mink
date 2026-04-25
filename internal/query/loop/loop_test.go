@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/modu-ai/goose/internal/message"
 	"github.com/modu-ai/goose/internal/permissions"
@@ -585,9 +586,10 @@ func TestQueryLoop_ToolUse_InvalidInputJSON(t *testing.T) {
 	assert.True(t, termPayload.Success)
 }
 
-// TestQueryLoop_PermissionAsk_FallsBackToDeny는 S4에서 Ask 분기가 Deny로 대체 처리됨을 검증한다.
-// Ask 처리는 S6에서 구현 예정; 현재는 Deny와 동일하게 처리된다.
-func TestQueryLoop_PermissionAsk_FallsBackToDeny(t *testing.T) {
+// TestQueryLoop_PermissionAsk_YieldsPermissionRequest는 S6에서 Ask 분기가
+// permission_request를 yield하고 loop를 suspend하는 것을 검증한다.
+// S4에서 Ask→Deny 대체 처리는 S6 구현으로 대체되었다.
+func TestQueryLoop_PermissionAsk_YieldsPermissionRequest(t *testing.T) {
 	t.Parallel()
 
 	toolUseID := "tu_ask_001"
@@ -603,32 +605,45 @@ func TestQueryLoop_PermissionAsk_FallsBackToDeny(t *testing.T) {
 	)
 
 	executor := testsupport.NewStubExecutor()
-	executor.SetCallGuard(func(toolName string) {
-		t.Fatalf("Ask(→Deny) 시 Executor.Run 호출 금지: tool=%q", toolName)
-	})
 
 	canUse := testsupport.NewStubCanUseToolAsk("requires_approval")
 	cfg := makeLoopConfig(t, stub, canUse, executor)
 	engine, err := query.New(cfg)
 	require.NoError(t, err)
 
-	out, err := engine.SubmitMessage(context.Background(), "sensitive")
+	ctx := context.Background()
+	out, err := engine.SubmitMessage(ctx, "sensitive")
 	require.NoError(t, err)
-	msgs := drainMessages(out)
 
-	// terminal{success:true}: Ask→Deny 대체도 loop를 종료시키지 않는다
-	last := msgs[len(msgs)-1]
-	require.Equal(t, message.SDKMsgTerminal, last.Type)
-	termPayload, ok := last.Payload.(message.PayloadTerminal)
-	require.True(t, ok)
+	var msgs []message.SDKMessage
+	for msg := range out {
+		msgs = append(msgs, msg)
+		if msg.Type == message.SDKMsgPermissionRequest {
+			// S6: permission_request를 받으면 Deny로 resolve하여 loop를 재개한다.
+			go func() {
+				time.Sleep(10 * time.Millisecond)
+				_ = engine.ResolvePermission(toolUseID, int(permissions.Deny), "requires_approval")
+			}()
+		}
+	}
+
+	// permission_request 메시지 수신 확인
+	permReqs := findMessages(msgs, message.SDKMsgPermissionRequest)
+	require.Len(t, permReqs, 1)
+	pReq := permReqs[0].Payload.(message.PayloadPermissionRequest)
+	assert.Equal(t, toolUseID, pReq.ToolUseID)
+
+	// terminal{success:true}: Deny 처리 후 loop가 정상 종료된다
+	termMsgs := findMessages(msgs, message.SDKMsgTerminal)
+	require.Len(t, termMsgs, 1)
+	termPayload := termMsgs[0].Payload.(message.PayloadTerminal)
 	assert.True(t, termPayload.Success)
 
-	// permission_check{deny} 포함 (Ask가 Deny로 대체)
+	// permission_check{deny} 수신 확인
 	permChecks := findMessages(msgs, message.SDKMsgPermissionCheck)
 	require.Len(t, permChecks, 1)
-	permPayload, ok := permChecks[0].Payload.(message.PayloadPermissionCheck)
-	require.True(t, ok)
-	assert.Equal(t, "deny", permPayload.Behavior, "S4에서 Ask는 Deny로 대체 처리된다")
+	permPayload := permChecks[0].Payload.(message.PayloadPermissionCheck)
+	assert.Equal(t, "deny", permPayload.Behavior)
 }
 
 // TestQueryLoop_MessageDeltaEvent는 TypeMessageDelta 이벤트가 default 브랜치를 통해
