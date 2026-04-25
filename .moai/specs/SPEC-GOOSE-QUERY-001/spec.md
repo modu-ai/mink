@@ -1,7 +1,7 @@
 ---
 id: SPEC-GOOSE-QUERY-001
-version: 0.1.2
-status: planned
+version: 0.1.3
+status: implemented
 created_at: 2026-04-21
 updated_at: 2026-04-25
 author: manager-spec
@@ -10,7 +10,7 @@ issue_number: 5
 phase: 0
 size: 대(L)
 lifecycle: spec-anchored
-labels: []
+labels: [phase-0, area/query, area/runtime, type/feature, priority/p0-critical]
 ---
 
 # SPEC-GOOSE-QUERY-001 — QueryEngine 및 Query Loop (Async Streaming Agentic Core)
@@ -22,6 +22,7 @@ labels: []
 | 0.1.0 | 2026-04-21 | 초안 작성 (claude-core §1-6 + ROADMAP v2.0 Phase 0 기반) | manager-spec |
 | 0.1.1 | 2026-04-25 | 감사 리포트 review-1 Must-Pass 결함 D1~D9 수정: AC-013~016 신설, REQ-010 순서 교정, REQ-015/016 Ubiquitous 재분류, turnCount 증분 모델 정의, `SDKMsgPermissionCheck` enum 추가, §6.1 `state.go` 추가, L417 공백 오타 수정, REQ-008 `after_compact` reset 조항 추가 | manager-spec |
 | 0.1.2 | 2026-04-25 | 감사 리포트 review-2 결함 D10'~D12' 수정: frontmatter version 0.1.1→0.1.2, plan.md enum 개수 10/integration test 16 갱신, AC-003 permission_check{deny} 관찰 추가, AC-006 budget gate 시나리오 REQ-011과 정합화 | manager-spec |
+| 0.1.3 | 2026-04-25 | Status sync — `internal/query/` 패키지 구현 완료를 frontmatter에 반영. PR #6 (commit 586b44c, mass audit Phase A/B/C remediation) + PR #7 (commit 8c49ab7, S5~S9 — 16/16 AC GREEN). 코드: `engine.go` (QueryEngine + streaming), `loop/loop.go` (Query Loop with permission/budget/compact), `loop/state.go`, `config.go`, `types.go`. status: planned → implemented. labels 보강 (phase-0/area/query/runtime). SPEC 본문 변경 없음. | manager-spec |
 
 ---
 
