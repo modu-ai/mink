@@ -92,6 +92,11 @@ func run() int {
 		logger.Warn("health server shutdown error", zap.Error(err))
 	}
 
+	// 9.5 DrainConsumer fan-out (REQ-CORE-014)
+	// CleanupHook 체인 이전에 외부 등록 drain consumer를 호출하여
+	// TOOLS-001 Registry.Drain() 등 in-flight 작업을 마감한다.
+	rt.Drain.RunAllDrainConsumers(shutdownCtx)
+
 	// 10. cleanup hook 실행 (REQ-CORE-004, REQ-CORE-009)
 	panicOccurred := rt.Shutdown.RunAllHooks(shutdownCtx)
 
