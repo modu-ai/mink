@@ -167,7 +167,7 @@ func (a *GoogleAdapter) Stream(ctx context.Context, req provider.CompletionReque
 	// genai SDK는 raw HTTP 헤더를 노출하지 않으므로 빈 헤더로 호출한다.
 	// RATELIMIT-001 구현 시 SDK 메타데이터에서 limit 정보를 추출할 예정이다.
 	if a.tracker != nil {
-		a.tracker.Parse("google", http.Header{}, time.Now())
+		a.tracker.ParseHTTPHeader("google", http.Header{}, time.Now())
 	}
 
 	// 429 응답 시 credential rotation (REQ-ADAPTER-005).
