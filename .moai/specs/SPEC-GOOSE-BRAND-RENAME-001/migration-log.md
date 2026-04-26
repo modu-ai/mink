@@ -337,6 +337,33 @@ research.md §6 Phase 3에서 추정한 4파일 6건은 도메인 용어(`SPEC-G
 
 ---
 
+## Phase 5 — 코드 내 user-facing 문자열 brand 통일
+
+완료일: 2026-04-26
+
+### 검색 방법
+
+```
+grep -rn "GOOSE-AGENT|Goose 프로젝트|goose 프로젝트|..." --include="*.go" .
+```
+
+### 변경 파일 목록
+
+| 파일 | 라인 | 변경 내용 |
+|------|------|---------|
+| `cmd/goosed/main.go` | L1 | doc-comment: `GOOSE-AGENT의 핵심 데몬` → `AI.GOOSE의 핵심 데몬` |
+| `internal/skill/schema.go` | L1 | package doc: `GOOSE-AGENT의 Skill 시스템` → `AI.GOOSE의 Skill 시스템` |
+| `internal/hook/types.go` | L1 | package doc: `GOOSE-AGENT의 24개 lifecycle hook` → `AI.GOOSE의 24개 lifecycle hook` |
+
+**총 변경: 3 파일, 3 라인 — 모두 doc-comment (package-level godoc)**
+
+AC-BR-008 재검증:
+- `grep -rh "^package " --include="*.go"` 카운트: baseline과 동일
+- `grep -rh "^type Goose" --include="*.go"` 카운트: 0 (baseline과 동일)
+- `ls cmd/`: `goosed` (baseline과 동일)
+
+---
+
 ## Phase 6 — 최종 검증 결과
 
 ### AC-BR-007 — go list -m 재실행

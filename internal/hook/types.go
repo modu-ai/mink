@@ -1,4 +1,4 @@
-// Package hook는 GOOSE-AGENT의 24개 lifecycle hook 이벤트 디스패처와
+// Package hook는 AI.GOOSE의 24개 lifecycle hook 이벤트 디스패처와
 // useCanUseTool 권한 결정 플로우를 구현한다.
 // SPEC-GOOSE-HOOK-001
 package hook
