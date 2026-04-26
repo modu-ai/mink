@@ -1,0 +1,107 @@
+name: Bug Report
+description: Report a defect in GOOSE so the maintainer team can reproduce and fix it.
+title: "[bug] "
+labels: ["type/bug", "priority/p2-medium"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a defect report. Clear reproduction steps make the difference between a fast fix and a long back-and-forth.
+
+        Before submitting, please:
+        - Search [existing issues](https://github.com/modu-ai/goose/issues?q=is%3Aissue) — your finding may already be tracked.
+        - For security-sensitive issues, please use the [private advisory channel](https://github.com/modu-ai/goose/security/advisories/new) instead.
+
+  - type: input
+    id: version
+    attributes:
+      label: GOOSE version / commit
+      description: Output of `goose --version` or the commit SHA you built from.
+      placeholder: "v0.0.1-alpha.3 or 560d856"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Linux (x86_64)
+        - Linux (ARM64)
+        - Windows (x86_64)
+        - Windows (ARM64)
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: go-version
+    attributes:
+      label: Go version
+      description: Output of `go version`. Leave blank if you used a prebuilt binary.
+      placeholder: "go1.26.0 darwin/arm64"
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One or two sentences describing what went wrong.
+      placeholder: "When I run `goose ask 'hello'` against Anthropic, the daemon panics on first response."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps that reliably trigger the issue. Include commands, configuration, and inputs.
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened? Include error messages and stack traces.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Output from `~/.goose/audit.log` or daemon stderr, with secrets redacted. Drag-and-drop large files as attachments.
+      render: shell
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Anything else that would help — related SPEC IDs, recent config changes, hardware quirks.
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I have searched existing issues and found no duplicate.
+          required: true
+        - label: This is not a security vulnerability (those go through the private advisory channel).
+          required: true
+        - label: I have removed credentials and personally identifying information from the report.
+          required: true
