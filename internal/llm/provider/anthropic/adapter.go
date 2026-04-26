@@ -160,9 +160,9 @@ func (a *AnthropicAdapter) stream(ctx context.Context, req provider.CompletionRe
 	}
 
 	// 3. prompt cache 계획
-	var plan cache.CachePlan
+	var plan *cache.CachePlan
 	if a.cachePlanner != nil {
-		plan = a.cachePlanner.Plan(req.Messages, a.cacheStrategy, a.cacheTTL)
+		plan, _ = a.cachePlanner.Plan(req.Messages, a.cacheStrategy, a.cacheTTL)
 	}
 
 	// 4. 메시지 변환
@@ -173,7 +173,9 @@ func (a *AnthropicAdapter) stream(ctx context.Context, req provider.CompletionRe
 		}
 		return nil, fmt.Errorf("anthropic: 메시지 변환 실패: %w", err)
 	}
-	msgs = ApplyCacheMarkers(msgs, plan)
+	if plan != nil {
+		msgs = ApplyCacheMarkers(msgs, *plan)
+	}
 
 	// 5. tools 변환
 	tools := ConvertTools(req.Tools)
