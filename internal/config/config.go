@@ -65,13 +65,58 @@ type LLMConfig struct {
 	Providers map[string]ProviderConfig `yaml:"providers"`
 }
 
-// ProviderConfig는 개별 LLM 프로바이더 설정이다.
+// ProviderConfig is the per-provider LLM configuration.
 type ProviderConfig struct {
-	// Host는 프로바이더 호스트 URL이다 (예: ollama).
+	// Host is the provider host URL (for example, ollama).
 	Host string `yaml:"host"`
-	// APIKey는 프로바이더 API 키다 (secret-typed).
-	// REQ-CFG-016: 향후 credential-pool forward-reference hook
+	// APIKey is the provider API key (secret-typed).
+	// REQ-CFG-016: forward-reference hook for the future credential pool.
 	APIKey string `yaml:"api_key"`
+	// Credentials enumerates pooled credential sources for this provider.
+	// SPEC-GOOSE-CREDPOOL-001 OI-06: consumed by credential.NewPoolsFromConfig
+	// to build per-provider credential pools. An empty slice keeps existing
+	// configs valid (backwards compatibility).
+	Credentials []CredentialConfig `yaml:"credentials"`
+}
+
+// CredentialConfig describes a single credential source entry inside a
+// provider's pool. SPEC-GOOSE-CREDPOOL-001 OI-06.
+//
+// @MX:NOTE: [AUTO] Schema for ProviderConfig.Credentials. The Type enum
+// is validated by Config.Validate(); see credential.NewPoolsFromConfig
+// for the matching factory dispatch table.
+// @MX:SPEC: SPEC-GOOSE-CREDPOOL-001 OI-06
+type CredentialConfig struct {
+	// Type identifies the credential source kind. Known values:
+	//   "anthropic_claude_file" — ~/.claude/.credentials.json reader
+	//   "openai_codex_file"     — ~/.codex/auth.json reader
+	//   "nous_hermes_file"      — ~/.hermes/auth.json reader
+	// Future kinds (env, OS keyring, vault) extend this enum.
+	Type string `yaml:"type"`
+	// Path is the absolute filesystem path to the vendor credential file.
+	// An empty string means "use the default path for this Type" — resolution
+	// is delegated to the source factory.
+	Path string `yaml:"path"`
+	// KeyringRef is the opaque identifier the future credential proxy
+	// (SPEC-GOOSE-CREDENTIAL-PROXY-001) will use to look up the actual secret
+	// material. Source implementations forward this verbatim into
+	// PooledCredential.KeyringID.
+	KeyringRef string `yaml:"keyring_ref"`
+}
+
+// knownCredentialTypes lists every accepted CredentialConfig.Type value.
+// SPEC-GOOSE-CREDPOOL-001 OI-06.
+var knownCredentialTypes = map[string]struct{}{
+	"anthropic_claude_file": {},
+	"openai_codex_file":     {},
+	"nous_hermes_file":      {},
+}
+
+// IsKnownCredentialType reports whether t is a recognized credential source
+// kind. The credential factory uses the same table for dispatch.
+func IsKnownCredentialType(t string) bool {
+	_, ok := knownCredentialTypes[t]
+	return ok
 }
 
 // LearningConfig는 학습 기능 설정이다.
@@ -343,6 +388,27 @@ func (c *Config) Validate() error {
 				Path: "ui.locale",
 				Msg:  fmt.Sprintf("must be one of en|ko|ja|zh, got %q", c.UI.Locale),
 			})
+		}
+	}
+
+	// SPEC-GOOSE-CREDPOOL-001 OI-06: every CredentialConfig.Type must be
+	// a known credential source kind. Unknown values are rejected up-front
+	// so the credential factory never sees a bogus dispatch key.
+	for providerName, provider := range c.LLM.Providers {
+		for idx, cred := range provider.Credentials {
+			if cred.Type == "" {
+				errs = append(errs, ErrInvalidField{
+					Path: fmt.Sprintf("llm.providers.%s.credentials[%d].type", providerName, idx),
+					Msg:  "type must be a non-empty credential source kind",
+				})
+				continue
+			}
+			if !IsKnownCredentialType(cred.Type) {
+				errs = append(errs, ErrInvalidField{
+					Path: fmt.Sprintf("llm.providers.%s.credentials[%d].type", providerName, idx),
+					Msg:  fmt.Sprintf("unknown credential source kind %q", cred.Type),
+				})
+			}
 		}
 	}
 
@@ -633,8 +699,46 @@ func applyProviderNode(node *yaml.Node, p *ProviderConfig, sources sourceMap, sr
 		case "api_key":
 			p.APIKey = v.Value
 			sources.set(fmt.Sprintf("llm.providers.%s.api_key", name), src)
+		case "credentials":
+			// SPEC-GOOSE-CREDPOOL-001 OI-06: parse the credentials sequence.
+			if err := applyCredentialsNode(v, p, sources, src, name); err != nil {
+				return err
+			}
 		}
 	}
+	return nil
+}
+
+// applyCredentialsNode parses a "credentials" sequence node into
+// ProviderConfig.Credentials. Order is preserved as the YAML document
+// declares it. Unknown keys inside an entry are silently ignored.
+// SPEC-GOOSE-CREDPOOL-001 OI-06.
+func applyCredentialsNode(node *yaml.Node, p *ProviderConfig, sources sourceMap, src Source, providerName string) error {
+	if node.Kind != yaml.SequenceNode {
+		return nil
+	}
+	entries := make([]CredentialConfig, 0, len(node.Content))
+	for _, entryNode := range node.Content {
+		if entryNode.Kind != yaml.MappingNode {
+			continue
+		}
+		var entry CredentialConfig
+		for i := 0; i+1 < len(entryNode.Content); i += 2 {
+			k := entryNode.Content[i].Value
+			v := entryNode.Content[i+1]
+			switch k {
+			case "type":
+				entry.Type = v.Value
+			case "path":
+				entry.Path = v.Value
+			case "keyring_ref":
+				entry.KeyringRef = v.Value
+			}
+		}
+		entries = append(entries, entry)
+	}
+	p.Credentials = entries
+	sources.set(fmt.Sprintf("llm.providers.%s.credentials", providerName), src)
 	return nil
 }
 
