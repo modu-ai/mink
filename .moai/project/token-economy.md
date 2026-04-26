@@ -18,7 +18,7 @@
 
 ### 1.2 GOOSE 토큰 경제 철학
 
-- **Open Source 지속가능성**: 코어 MIT + 선택 유료 서비스
+- **Open Source 지속가능성**: 코어 Apache 2.0 + 선택 유료 서비스
 - **Fair Revenue Share**: 개발자 70%, 플랫폼 30%
 - **BYOK 우선**: 자체 API 키 = **무료**
 - **No Vendor Lock-in**: 언제든 데이터 export
@@ -367,7 +367,7 @@ $10 user payment
 **"Pay for what you use. Own what you create."**
 
 GOOSE 토큰 경제의 원칙:
-1. 오픈소스 지속가능성 (코어 MIT)
+1. 오픈소스 지속가능성 (코어 Apache 2.0)
 2. Fair Revenue Share (70/30)
 3. BYOK 우선 (자체 키 무료)
 4. Global + Local 결제
@@ -375,6 +375,6 @@ GOOSE 토큰 경제의 원칙:
 
 Version: 4.0.0 GLOBAL EDITION
 Created: 2026-04-21
-License: MIT (core), Commercial (cloud)
+License: Apache-2.0 (core), Commercial (cloud)
 
 > **"Sustainable open source is a marathon."**

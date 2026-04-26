@@ -1,0 +1,15 @@
+GOOSE — Personal AI Companion that hatches from an egg and grows with you
+Copyright 2026 modu-ai (https://github.com/modu-ai)
+
+This product includes software developed by modu-ai
+and the GOOSE contributors.
+
+This product is licensed under the Apache License, Version 2.0
+(http://www.apache.org/licenses/LICENSE-2.0).
+
+==============================================================================
+Third-party components are listed in language-specific manifests (e.g.,
+go.mod / go.sum, package.json / pnpm-lock.yaml, Cargo.toml / Cargo.lock,
+crates/*/Cargo.toml) and are distributed under their respective licenses.
+See the individual project repositories for details.
+==============================================================================

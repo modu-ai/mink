@@ -139,7 +139,7 @@ Geese mate for life. So does GOOSE.
 | Waits for you to ask | **Morning/meals/evening rituals, unprompted** |
 | Your data powers their product | **Your data stays yours. Local-first. Forever.** |
 | One vendor's API | **ANY LLM via API or OAuth (Anthropic/OpenAI/Google/xAI/DeepSeek/Ollama/...)** |
-| Closed source | **MIT License. Self-host. Own it.** |
+| Closed source | **Apache 2.0. Self-host. Own it.** |
 
 ### Five Pillars
 
@@ -227,9 +227,9 @@ Note: This project is distinct from [block/goose](https://github.com/block/goose
 
 ## 📜 License
 
-**MIT License** — GOOSE is open forever. Every GOOSE that hatches imprints on its own person. No two GOOSEs are alike.
+**Apache License 2.0** — GOOSE is open forever. Every GOOSE that hatches imprints on its own person. No two GOOSEs are alike.
 
-See [LICENSE](LICENSE).
+See [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
 ---
 

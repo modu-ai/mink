@@ -3,7 +3,7 @@
 **Version**: 4.0.0 GLOBAL EDITION  
 **Language**: Go + TypeScript (영문 기술 문서, 한국어 주석)  
 **Base**: MoAI-ADK-Go 직접 계승 및 확장  
-**License**: MIT  
+**License**: Apache-2.0  
 **Status**: 글로벌 오픈소스 (Global Open Source)  
 
 ---
@@ -21,7 +21,7 @@
 | 메모리 시스템 | Hermes 맞춤 | **SQLite FTS + Qdrant + Graphiti** |
 | LSP 통합 | 별도 구현 | **MoAI-ADK powernap 재사용** (18개 언어) |
 | 플랫폼 | Linux/macOS/Windows | **모든 플랫폼 + 크로스컴파일** |
-| 커뮤니티 | 폐쇄 (KT) | **오픈소스 (MIT 라이센스)** |
+| 커뮤니티 | 폐쇄 (KT) | **오픈소스 (Apache 2.0)** |
 
 ### v4.0 핵심 혁신 (3가지)
 
@@ -46,7 +46,8 @@ goose-agent/
 ├── README.ko.md                # 한국어 버전
 ├── README.ja.md                # 日本語版
 ├── README.zh.md                # 中文版本
-├── LICENSE                     # MIT License
+├── LICENSE                     # Apache License 2.0
+├── NOTICE                      # Apache 2.0 attribution
 ├── CONTRIBUTING.md             # 글로벌 기여 가이드
 ├── SECURITY.md                 # 보안 정책
 │
@@ -1089,4 +1090,4 @@ pnpm --filter goose-web dev
 **Last Updated**: 2026-04-21  
 **Author**: MoAI Strategic Orchestrator  
 **Status**: 글로벌 오픈소스  
-**License**: MIT
+**License**: Apache-2.0
