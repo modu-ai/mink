@@ -8,7 +8,8 @@ This product is licensed under the Apache License, Version 2.0
 (http://www.apache.org/licenses/LICENSE-2.0).
 
 ==============================================================================
-Third-party components are listed in go.mod / go.sum (Go modules) and are
-distributed under their respective licenses. See the individual project
-repositories for details.
+Third-party components are listed in language-specific manifests (e.g.,
+go.mod / go.sum, package.json / pnpm-lock.yaml, Cargo.toml / Cargo.lock,
+crates/*/Cargo.toml) and are distributed under their respective licenses.
+See the individual project repositories for details.
 ==============================================================================

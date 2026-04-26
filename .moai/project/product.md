@@ -797,7 +797,7 @@ GOOSE: ✅ 완전 데이터 익스포트
 
 ### 7.2 GitHub 전략
 
-**Repository**: github.com/gooseagent/goose
+**Repository**: github.com/modu-ai/goose
 
 **Stars 로드맵:**
 - 6개월: 1K stars

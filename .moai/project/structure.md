@@ -47,6 +47,7 @@ goose-agent/
 ├── README.ja.md                # 日本語版
 ├── README.zh.md                # 中文版本
 ├── LICENSE                     # Apache License 2.0
+├── NOTICE                      # Apache 2.0 attribution
 ├── CONTRIBUTING.md             # 글로벌 기여 가이드
 ├── SECURITY.md                 # 보안 정책
 │

@@ -605,7 +605,7 @@ sequenceDiagram
 ## 14. 결론
 
 GOOSE 생태계의 약속:
-1. **Open Source Forever**: MIT, 인수 X
+1. **Open Source Forever**: Apache-2.0, 인수 X
 2. **Fair Revenue**: 70/30 개발자 우대
 3. **Transparent Governance**: RFC, 공개 결정
 4. **Global Community**: 다국어, 다문화
