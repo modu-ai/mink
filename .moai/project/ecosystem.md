@@ -1,4 +1,4 @@
-# GOOSE-AGENT - Ecosystem Document v4.0 GLOBAL EDITION
+# AI.GOOSE - Ecosystem Document v4.0 GLOBAL EDITION
 
 > **비전:** 글로벌 오픈소스 AI 에이전트 생태계 (MIT) + 자기진화 플러그인/스킬 마켓
 

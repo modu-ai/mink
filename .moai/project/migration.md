@@ -1,4 +1,4 @@
-# GOOSE-AGENT - Migration Guide & Pivot Journey v4.0
+# AI.GOOSE - Migration Guide & Pivot Journey v4.0
 
 > **문서 목적:** 5번의 피벗을 거쳐 GOOSE에 도착한 여정을 기록. 새 팀원, 기여자, 이해관계자를 위한 프로젝트 스토리.
 

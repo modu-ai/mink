@@ -1,6 +1,6 @@
 # Claude Code Agentic Core 심층 분석
 
-> **분석일**: 2026-04-21 · **대상**: `claude-code-source-map/` · **수준**: Very Thorough · **용도**: GOOSE-AGENT SPEC-GOOSE-QUERY-001 / TASK-001 / CONTEXT-001 근거
+> **분석일**: 2026-04-21 · **대상**: `claude-code-source-map/` · **수준**: Very Thorough · **용도**: AI.GOOSE SPEC-GOOSE-QUERY-001 / TASK-001 / CONTEXT-001 근거
 
 ## 1. Core Loop 구조
 

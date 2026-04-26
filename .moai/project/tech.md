@@ -1,4 +1,4 @@
-# GOOSE-AGENT - Technology Document v4.1 POLYGLOT HYBRID
+# AI.GOOSE - Technology Document v4.1 POLYGLOT HYBRID
 
 > **비전:** 글로벌 오픈소스 AI 에이전트 - Polyglot 3-언어 하이브리드 아키텍처
 > **핵심:** Rust (크리티컬 20%) + Go (오케스트레이션 70%) + TypeScript (UI 10%)

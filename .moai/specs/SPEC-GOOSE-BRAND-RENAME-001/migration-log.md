@@ -231,6 +231,41 @@ bea5df1 feat(adapter): SPEC-GOOSE-ADAPTER-001 — 6 LLM Provider + skeleton + CR
 
 ---
 
+## Phase 2 — 핵심 user-facing 문서 brand 통일
+
+완료일: 2026-04-26
+
+### 변경 파일 목록
+
+| 파일 | 변경 라인 수 | 변경 내용 요약 |
+|------|------------|--------------|
+| `.moai/project/product.md` | 2 | 제목 + 프로젝트명 필드: `GOOSE-AGENT` → `AI.GOOSE` |
+| `.moai/project/branding.md` | 1 | 제목: `GOOSE-AGENT` → `AI.GOOSE` |
+| `.moai/project/adaptation.md` | 1 | 제목: `GOOSE-AGENT` → `AI.GOOSE` |
+| `.moai/project/ecosystem.md` | 1 | 제목: `GOOSE-AGENT` → `AI.GOOSE` |
+| `.moai/project/learning-engine.md` | 1 | 제목: `GOOSE-AGENT` → `AI.GOOSE` |
+| `.moai/project/migration.md` | 1 | 제목: `GOOSE-AGENT` → `AI.GOOSE` |
+| `.moai/project/structure.md` | 1 | 제목: `GOOSE-AGENT` → `AI.GOOSE` |
+| `.moai/project/tech.md` | 1 | 제목: `GOOSE-AGENT` → `AI.GOOSE` |
+| `.moai/project/token-economy.md` | 1 | 제목: `GOOSE-AGENT` → `AI.GOOSE` |
+| `.moai/project/research/claude-core.md` | 1 | 용도 메타 주석: `GOOSE-AGENT` → `AI.GOOSE` |
+
+**총 변경: 10 파일, 11 라인**
+
+README.md, CHANGELOG.md, CLAUDE.md — brand 위반 없음 (정정 불요).
+
+### before/after 샘플
+
+```diff
+- # GOOSE-AGENT - 제품 문서 v4.0 GLOBAL EDITION
++ # AI.GOOSE - 제품 문서 v4.0 GLOBAL EDITION
+
+- - **프로젝트명:** GOOSE-AGENT (거위 에이전트)
++ - **프로젝트명:** AI.GOOSE (거위 에이전트)
+```
+
+---
+
 ## Phase 4 — SPEC 본문 정정 결과
 
 아래 표는 Phase 4 완료 후 업데이트됨.
