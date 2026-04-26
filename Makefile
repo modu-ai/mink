@@ -1,4 +1,4 @@
-.PHONY: proto-generate proto-lint proto-breaking test test-race vet
+.PHONY: proto-generate proto-lint proto-breaking test test-race vet brand-lint
 
 # buf 바이너리가 PATH에 없어도 go run으로 실행한다.
 BUF := go run github.com/bufbuild/buf/cmd/buf
@@ -24,3 +24,8 @@ test-race:
 
 vet:
 	go vet ./...
+
+# brand-lint: AI.GOOSE 브랜드 표기 규범 검증 (SPEC-GOOSE-BRAND-RENAME-001)
+# 위반 발견 시 exit 1, 위반 없으면 exit 0
+brand-lint:
+	bash scripts/check-brand.sh

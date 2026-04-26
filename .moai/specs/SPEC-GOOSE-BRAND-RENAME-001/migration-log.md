@@ -364,27 +364,80 @@ AC-BR-008 재검증:
 
 ---
 
-## Phase 6 — 최종 검증 결과
+## Phase 6 — CI gate 신설 + 최종 검증 결과
 
-### AC-BR-007 — go list -m 재실행
+완료일: 2026-04-26
 
-```
-(Phase 6 완료 후 기록)
-```
+### 신설 파일
 
-### AC-BR-008 — Go package/type 카운트 재실행
+| 파일 | 설명 |
+|------|------|
+| `scripts/check-brand.sh` | brand-lint 메인 스크립트 (Python 마크다운 파서 기반) |
+| `.github/workflows/brand-lint.yml` | PR trigger GitHub Actions workflow |
+| `Makefile` | `brand-lint` target 추가 |
 
-```
-(Phase 6 완료 후 기록)
-```
-
-### AC-BR-009 — SPEC 디렉토리 목록 재실행
+### AC-BR-007 — go list -m 재실행 (Phase 6 검증)
 
 ```
-(Phase 6 완료 후 기록)
+github.com/modu-ai/goose
 ```
+
+Baseline과 byte-level 일치. Go module path 변경 0건.
+
+### AC-BR-008 — Go package/type 카운트 재실행 (Phase 6 검증)
+
+```
+top packages (unchanged):
+  16 package skill
+  11 package hook
+   9 package tools
+   9 package context
+   ...
+
+type Goose* count: 0
+cmd/ directories: goosed
+```
+
+Baseline과 동일. Go package/type/binary 식별자 변경 0건.
+
+### AC-BR-009 — SPEC 디렉토리 목록 재실행 (Phase 6 검증)
+
+SPEC 디렉토리 64개 — baseline과 동일.
+SPEC-AI-GOOSE-* 형태 새 디렉토리 0건.
+기존 SPEC-GOOSE-* 디렉토리 이름 변경 0건.
+
+### brand-lint 최종 실행 결과
+
+```
+$ bash scripts/check-brand.sh
+brand-lint: OK — 0 violations found.
+exit=0
+
+$ make brand-lint
+bash scripts/check-brand.sh
+brand-lint: OK — 0 violations found.
+exit=0
+```
+
+### AC-BR-001..012 검증 테이블
+
+| AC | 설명 | 증거 |
+|----|------|------|
+| AC-BR-001 | Brand Style Guide 존재 | Phase 1에서 `.moai/project/brand/style-guide.md` 신설 (commit d64d016) |
+| AC-BR-002 | README/CHANGELOG/CLAUDE.md brand 통일 | Phase 2 검사 결과 위반 0건 (이미 AI.GOOSE 표기 or brand 언급 없음) |
+| AC-BR-003 | `.moai/project/` brand 위반 0건 | Phase 2 정정 + Phase 6 brand-lint exit 0 |
+| AC-BR-004 | `.claude/` brand 위반 0건 | Phase 3 검사 결과 위반 0건 |
+| AC-BR-005 | SPEC 본문 정정 결과 기록 | Phase 4 migration-log 기록: 25파일, spot-check 5/5 Pass |
+| AC-BR-006 | 코드 user-facing 문자열 brand 통일 | Phase 5: 3개 doc-comment 정정 (cmd/goosed, skill, hook) |
+| AC-BR-007 | Go module path 미변경 | Phase 6: `go list -m` = `github.com/modu-ai/goose` (baseline 일치) |
+| AC-BR-008 | Go package/struct/binary 미변경 | Phase 6: package count baseline 일치, `type Goose*` 0건, `cmd/goosed` 유지 |
+| AC-BR-009 | SPEC ID 네이밍 미변경 | Phase 6: SPEC 디렉토리 64개 — baseline과 동일 |
+| AC-BR-010 | `make brand-lint` 통과 + brand-lint.yml 존재 | Phase 6: exit 0, `.github/workflows/brand-lint.yml` 생성 |
+| AC-BR-011 | Immutable history 보존 | HISTORY 섹션 diff = 0 (git diff로 확인), CHANGELOG 기존 entry 미변경 |
+| AC-BR-012 | SPEC template style-guide 참조 | Phase 1에서 style-guide.md 신설, manager-spec agent가 참조 (AC 조건 충족) |
 
 ---
 
-Version: 0.1.0 (Phase 1 baseline 캡처)
+Version: 0.1.1 (Phase 1~6 완료)
 Created: 2026-04-26
+Updated: 2026-04-26

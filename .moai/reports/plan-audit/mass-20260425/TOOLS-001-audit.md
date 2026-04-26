@@ -22,7 +22,7 @@ Reasoning context ignored per M1 Context Isolation. Audited against `spec.md` an
   - Additional observation (not a MP-3 failure but noted): `status: Planned` is not one of the four status strings commonly enumerated (`draft|active|implemented|deprecated`). Consider normalizing.
 
 - [N/A] MP-4 Section 22 language neutrality
-  - Evidence: This SPEC is scoped to `internal/tools/` (Go implementation for GOOSE-AGENT). spec.md:L238–273 (package layout) and §6.8 (dependencies: Go 1.22+, doublestar, jsonschema/v6) are unambiguously single-language. MP-4 criterion does not apply.
+  - Evidence: This SPEC is scoped to `internal/tools/` (Go implementation for AI.GOOSE). spec.md:L238–273 (package layout) and §6.8 (dependencies: Go 1.22+, doublestar, jsonschema/v6) are unambiguously single-language. MP-4 criterion does not apply.
 
 ---
 
