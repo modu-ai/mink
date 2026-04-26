@@ -15,10 +15,6 @@ harness:
                     - security_keywords OR payment_keywords present
                     - spec_priority == critical
                     - domain in [auth, payment, migration, public_api]
-                    # Bulk SPEC generation guard — added 2026-04-25 after SPEC-GOOSE mass audit found
-                    # 386 defects in 30 SPECs created outside `/moai plan`. Any batch creating 3 or more
-                    # SPEC directories in a single workflow invocation MUST escalate to thorough, forcing
-                    # plan-auditor execution on every SPEC and blocking bypass paths like `/moai project`.
                     - spec_batch_size >= 3
                     - command_origin in [moai_project_scope_creep, bulk_roadmap_generation]
     default_profile: default
