@@ -4,12 +4,12 @@ package grpc_test
 // SPEC-GOOSE-TRANSPORT-001 §5 수용 기준
 //
 // 테스트 하네스 설계:
-// - bufconn 또는 ephemeral TCP (:0)로 실제 gRPC 연결 수립
+// - ephemeral TCP (:0)로 실제 gRPC 연결 수립
 // - goleak으로 goroutine 누수 검증
 // - t.Parallel()로 독립적 테스트 병렬 실행
+// - Config 필드를 통해 환경변수 의존성 최소화 (race condition 방지)
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"net"
@@ -56,25 +56,11 @@ type serverHarness struct {
 }
 
 // newHarness는 테스트용 gRPC 서버를 시작하고 클라이언트 연결을 반환한다.
-// envOverrides는 환경변수 오버라이드 맵이다 (nil이면 적용 없음).
-func newHarness(t *testing.T, envOverrides map[string]string) *serverHarness {
+func newHarness(t *testing.T, cfg grpcserver.Config) *serverHarness {
 	t.Helper()
 
-	// 임시 환경변수 설정
-	for k, v := range envOverrides {
-		old, exists := os.LookupEnv(k)
-		t.Cleanup(func() {
-			if exists {
-				os.Setenv(k, old)
-			} else {
-				os.Unsetenv(k)
-			}
-		})
-		if v == "" {
-			os.Unsetenv(k)
-		} else {
-			os.Setenv(k, v)
-		}
+	if cfg.BindAddr == "" {
+		cfg.BindAddr = "127.0.0.1:0"
 	}
 
 	state := &core.StateHolder{}
@@ -82,9 +68,7 @@ func newHarness(t *testing.T, envOverrides map[string]string) *serverHarness {
 
 	rootCtx, cancel := context.WithCancel(context.Background())
 
-	srv, err := grpcserver.NewServer(grpcserver.Config{
-		BindAddr: "127.0.0.1:0",
-	}, zap.NewNop(), state, rootCtx)
+	srv, err := grpcserver.NewServer(cfg, zap.NewNop(), state, rootCtx)
 	require.NoError(t, err)
 
 	addr := srv.Addr()
@@ -109,24 +93,12 @@ func newHarness(t *testing.T, envOverrides map[string]string) *serverHarness {
 	}
 }
 
-// newHarnessWithObserver는 zap observer와 함께 서버를 시작한다.
-func newHarnessWithObserver(t *testing.T, envOverrides map[string]string) (*serverHarness, *observer.ObservedLogs) {
+// newHarnessWithLogger는 커스텀 logger와 함께 서버를 시작한다.
+func newHarnessWithLogger(t *testing.T, cfg grpcserver.Config, logger *zap.Logger) *serverHarness {
 	t.Helper()
 
-	for k, v := range envOverrides {
-		old, exists := os.LookupEnv(k)
-		t.Cleanup(func() {
-			if exists {
-				os.Setenv(k, old)
-			} else {
-				os.Unsetenv(k)
-			}
-		})
-		if v == "" {
-			os.Unsetenv(k)
-		} else {
-			os.Setenv(k, v)
-		}
+	if cfg.BindAddr == "" {
+		cfg.BindAddr = "127.0.0.1:0"
 	}
 
 	state := &core.StateHolder{}
@@ -134,12 +106,7 @@ func newHarnessWithObserver(t *testing.T, envOverrides map[string]string) (*serv
 
 	rootCtx, cancel := context.WithCancel(context.Background())
 
-	core2, logs := observer.New(zap.InfoLevel)
-	logger := zap.New(core2)
-
-	srv, err := grpcserver.NewServer(grpcserver.Config{
-		BindAddr: "127.0.0.1:0",
-	}, logger, state, rootCtx)
+	srv, err := grpcserver.NewServer(cfg, logger, state, rootCtx)
 	require.NoError(t, err)
 
 	addr := srv.Addr()
@@ -161,13 +128,13 @@ func newHarnessWithObserver(t *testing.T, envOverrides map[string]string) (*serv
 		health: grpc_health_v1.NewHealthClient(conn),
 		state:  state,
 		cancel: cancel,
-	}, logs
+	}
 }
 
 // AC-TR-001: Ping RPC 정상 응답
 func TestPingRPC_ReturnsVersionAndState(t *testing.T) {
 	t.Parallel()
-	h := newHarness(t, nil)
+	h := newHarness(t, grpcserver.Config{})
 
 	resp, err := h.client.Ping(context.Background(), &goosev1.PingRequest{})
 	require.NoError(t, err)
@@ -180,7 +147,7 @@ func TestPingRPC_ReturnsVersionAndState(t *testing.T) {
 // AC-TR-002: Health Check
 func TestHealthCheck_ServiceServing(t *testing.T) {
 	t.Parallel()
-	h := newHarness(t, nil)
+	h := newHarness(t, grpcserver.Config{})
 
 	// serving 상태에서 SERVING 반환
 	resp, err := h.health.Check(context.Background(), &grpc_health_v1.HealthCheckRequest{
@@ -191,6 +158,7 @@ func TestHealthCheck_ServiceServing(t *testing.T) {
 
 	// draining 상태로 전이 후 NOT_SERVING 반환
 	h.state.Store(core.StateDraining)
+	h.srv.ForceHealthUpdate() // 즉시 health 상태 동기화
 	resp, err = h.health.Check(context.Background(), &grpc_health_v1.HealthCheckRequest{
 		Service: "goose.v1.DaemonService",
 	})
@@ -201,8 +169,8 @@ func TestHealthCheck_ServiceServing(t *testing.T) {
 // AC-TR-003: Shutdown 토큰 없이 거부 (토큰 설정됨 + 헤더 누락)
 func TestShutdownWithoutToken_Unauthenticated(t *testing.T) {
 	t.Parallel()
-	h := newHarness(t, map[string]string{
-		"GOOSE_SHUTDOWN_TOKEN": "secret",
+	h := newHarness(t, grpcserver.Config{
+		ShutdownToken: "secret",
 	})
 
 	_, err := h.client.Shutdown(context.Background(), &goosev1.ShutdownRequest{})
@@ -227,19 +195,9 @@ func TestShutdownWithToken_Accepted(t *testing.T) {
 		close(cancelCalled)
 	}
 
-	// 환경변수 설정
-	old, exists := os.LookupEnv("GOOSE_SHUTDOWN_TOKEN")
-	t.Cleanup(func() {
-		if exists {
-			os.Setenv("GOOSE_SHUTDOWN_TOKEN", old)
-		} else {
-			os.Unsetenv("GOOSE_SHUTDOWN_TOKEN")
-		}
-	})
-	os.Setenv("GOOSE_SHUTDOWN_TOKEN", "secret")
-
 	srv, err := grpcserver.NewServerWithCancel(grpcserver.Config{
-		BindAddr: "127.0.0.1:0",
+		BindAddr:      "127.0.0.1:0",
+		ShutdownToken: "secret",
 	}, zap.NewNop(), state, rootCtx, wrappedCancel)
 	require.NoError(t, err)
 
@@ -302,20 +260,18 @@ func TestGetInfo_DrainingState_Unavailable(t *testing.T) {
 func TestPanicHandler_Recovered(t *testing.T) {
 	t.Parallel()
 
+	// zap observer로 패닉 로그를 캡처
+	core2, logs := observer.New(zap.ErrorLevel)
+	logger := zap.New(core2)
+
 	state := &core.StateHolder{}
 	state.Store(core.StateServing)
 	rootCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// stderr 캡처를 위한 pipe
-	oldStderr := os.Stderr
-	r, w, err := os.Pipe()
-	require.NoError(t, err)
-	os.Stderr = w
-
 	srv, err := grpcserver.NewServer(grpcserver.Config{
 		BindAddr: "127.0.0.1:0",
-	}, zap.NewNop(), state, rootCtx)
+	}, logger, state, rootCtx)
 	require.NoError(t, err)
 
 	// PanicTest RPC 서비스 등록
@@ -328,39 +284,41 @@ func TestPanicHandler_Recovered(t *testing.T) {
 	t.Cleanup(func() {
 		conn.Close()
 		srv.Stop()
-		os.Stderr = oldStderr
-		w.Close()
-		r.Close()
 	})
 
-	// PanicTest 클라이언트 호출
+	// PanicTest 클라이언트 호출 → codes.Internal 기대
 	panicClient := grpcserver.NewPanicTestClient(conn)
 	_, err = panicClient.TriggerPanic(context.Background(), &goosev1.PingRequest{})
 	require.Error(t, err)
 	assert.Equal(t, codes.Internal, status.Code(err))
 
-	// 프로세스가 계속 서빙 중인지 확인
+	// 프로세스가 계속 서빙 중인지 확인 (프로세스 생존)
 	pingClient := goosev1.NewDaemonServiceClient(conn)
-	_, err = pingClient.Ping(context.Background(), &goosev1.PingRequest{})
-	assert.NoError(t, err, "panic 이후에도 서버가 계속 동작해야 함")
+	_, pingErr := pingClient.Ping(context.Background(), &goosev1.PingRequest{})
+	assert.NoError(t, pingErr, "panic 이후에도 서버가 계속 동작해야 함")
 
-	// stderr에 panic stack trace가 기록됐는지 확인 (비동기이므로 잠시 대기)
-	w.Close()
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(r)
-	os.Stderr = oldStderr
-	// zap logger가 nop이므로 stderr 직접 기록 여부는 선택적 확인
+	// zap logger에 panic 로그가 ERROR 레벨로 기록됐는지 확인
+	allLogs := logs.All()
+	var foundPanicLog bool
+	for _, entry := range allLogs {
+		if entry.Level == zap.ErrorLevel {
+			if msg := entry.Message; msg == "grpc handler panicked" {
+				foundPanicLog = true
+			}
+		}
+	}
+	assert.True(t, foundPanicLog, "panic 발생 시 ERROR 레벨 로그가 기록되어야 함")
 }
 
 // AC-TR-007: Reflection off by default
 func TestReflection_OffByDefault(t *testing.T) {
 	t.Parallel()
-	h := newHarness(t, map[string]string{
-		"GOOSE_GRPC_REFLECTION": "",
+	// GOOSE_GRPC_REFLECTION 미설정 상태, Config.EnableReflection=false
+	h := newHarness(t, grpcserver.Config{
+		EnableReflection: false,
 	})
 
 	// reflection 서비스 호출 시 unknown service 에러
-	// ServerReflectionInfo는 스트리밍이라 grpc.Invoke로 직접 확인
 	ctx := context.Background()
 	err := h.conn.Invoke(ctx, "/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo", nil, nil)
 	require.Error(t, err)
@@ -371,51 +329,25 @@ func TestReflection_OffByDefault(t *testing.T) {
 func TestLoggingInterceptor_RecordsFields(t *testing.T) {
 	t.Parallel()
 
-	// INFO 레벨 이하도 캡처하도록 zaptest observer
+	// DEBUG 레벨 이하도 캡처하도록 zaptest observer
 	core2, logs := observer.New(zap.DebugLevel)
 	logger := zap.New(core2)
 
-	state := &core.StateHolder{}
-	state.Store(core.StateServing)
-	rootCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	h := newHarnessWithLogger(t, grpcserver.Config{
+		ShutdownToken: "testsecret",
+	}, logger)
 
-	old, exists := os.LookupEnv("GOOSE_SHUTDOWN_TOKEN")
-	t.Cleanup(func() {
-		if exists {
-			os.Setenv("GOOSE_SHUTDOWN_TOKEN", old)
-		} else {
-			os.Unsetenv("GOOSE_SHUTDOWN_TOKEN")
-		}
-	})
-	os.Setenv("GOOSE_SHUTDOWN_TOKEN", "testsecret")
-
-	srv, err := grpcserver.NewServer(grpcserver.Config{
-		BindAddr: "127.0.0.1:0",
-	}, logger, state, rootCtx)
-	require.NoError(t, err)
-
-	conn, err := grpc.NewClient(srv.Addr(),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		conn.Close()
-		srv.Stop()
-	})
-
-	client := goosev1.NewDaemonServiceClient(conn)
+	client := h.client
 
 	// (a) Ping 정상 호출
-	_, err = client.Ping(context.Background(), &goosev1.PingRequest{})
+	_, err := client.Ping(context.Background(), &goosev1.PingRequest{})
 	require.NoError(t, err)
 
 	// (b) Shutdown 토큰 누락으로 실패
 	_, err = client.Shutdown(context.Background(), &goosev1.ShutdownRequest{})
 	require.Error(t, err)
 
-	// 로그 엔트리 확인
-	_ = logs
+	// 로그 엔트리 확인 (최소 2개)
 	allLogs := logs.All()
 	require.GreaterOrEqual(t, len(allLogs), 2, "최소 2개 로그 엔트리 필요")
 
@@ -480,32 +412,25 @@ func TestGracefulStop_WithTimeout(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	// stuck hook 등록: GracefulStop이 10s 후 Stop() fallback을 부를 것
+	// normal graceful stop: 빠르게 완료되어야 함
 	start := time.Now()
 	srv.GracefulStopWithTimeout(10 * time.Second)
 	elapsed := time.Since(start)
 
-	// 10s ± 2s 범위에서 완료 (normal case는 빠름)
+	// 정상 케이스에서는 10s보다 훨씬 빠르게 완료
 	assert.Less(t, elapsed, 12*time.Second)
 
-	// WARN 로그가 기록됐는지 (hung이 없으면 WARN 없음 - 정상)
+	// 정상 완료 시 WARN 로그 없음
 	_ = logs
 }
 
-// AC-TR-012: Shutdown 토큰 미설정 시 Unimplemented
-func TestShutdownTokenUnset_Unimplemented(t *testing.T) {
+// TestGracefulStop_FallbackOnTimeout은 Stop() fallback + WARN 로그를 검증한다.
+// AC-TR-011 (b) stuck hook 시나리오
+func TestGracefulStop_FallbackOnTimeout(t *testing.T) {
 	t.Parallel()
 
-	// GOOSE_SHUTDOWN_TOKEN을 명시적으로 unset
-	old, exists := os.LookupEnv("GOOSE_SHUTDOWN_TOKEN")
-	t.Cleanup(func() {
-		if exists {
-			os.Setenv("GOOSE_SHUTDOWN_TOKEN", old)
-		} else {
-			os.Unsetenv("GOOSE_SHUTDOWN_TOKEN")
-		}
-	})
-	os.Unsetenv("GOOSE_SHUTDOWN_TOKEN")
+	core2, logs := observer.New(zap.WarnLevel)
+	logger := zap.New(core2)
 
 	state := &core.StateHolder{}
 	state.Store(core.StateServing)
@@ -514,61 +439,95 @@ func TestShutdownTokenUnset_Unimplemented(t *testing.T) {
 
 	srv, err := grpcserver.NewServer(grpcserver.Config{
 		BindAddr: "127.0.0.1:0",
-	}, zap.NewNop(), state, rootCtx)
+	}, logger, state, rootCtx)
 	require.NoError(t, err)
 
 	conn, err := grpc.NewClient(srv.Addr(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		conn.Close()
-		srv.Stop()
+	defer conn.Close()
+
+	// blocker 채널로 GracefulStop을 블로킹 → 매우 짧은 timeout으로 강제 fallback 유도
+	blocker := make(chan struct{}) // 닫히지 않아서 GracefulStop이 영원히 대기
+	srv.SetGracefulStopBlocker(blocker)
+	// 테스트 종료 시 blocker를 닫아 goroutine 누수 방지
+	t.Cleanup(func() { close(blocker) })
+
+	start := time.Now()
+	srv.GracefulStopWithTimeout(50 * time.Millisecond)
+	elapsed := time.Since(start)
+
+	// 50ms + 여유 시간 이내 완료 (Stop fallback)
+	assert.Less(t, elapsed, 2*time.Second, "fallback이 2s 이내에 완료되어야 함")
+
+	// WARN 로그 확인
+	allLogs := logs.All()
+	var foundWarn bool
+	for _, entry := range allLogs {
+		if entry.Level == zap.WarnLevel && entry.Message == "grpc server stop fallback after graceful timeout" {
+			foundWarn = true
+		}
+	}
+	assert.True(t, foundWarn, "GracefulStop timeout 시 WARN 로그 기록 필요")
+}
+
+// AC-TR-012: Shutdown 토큰 미설정 시 Unimplemented
+func TestShutdownTokenUnset_Unimplemented(t *testing.T) {
+	t.Parallel()
+
+	// ShutdownTokenOverride=true + ShutdownToken="" → 환경변수 무시, 완전히 미설정
+	h := newHarness(t, grpcserver.Config{
+		ShutdownToken:         "", // 의도적으로 미설정
+		ShutdownTokenOverride: true,
 	})
 
-	client := goosev1.NewDaemonServiceClient(conn)
 	// 어떤 metadata를 넣어도 Unimplemented 반환
 	md := metadata.Pairs("auth_token", "anything")
 	ctx := metadata.NewOutgoingContext(context.Background(), md)
 
-	_, err = client.Shutdown(ctx, &goosev1.ShutdownRequest{})
+	_, err := h.client.Shutdown(ctx, &goosev1.ShutdownRequest{})
 	require.Error(t, err)
 	assert.Equal(t, codes.Unimplemented, status.Code(err),
 		"GOOSE_SHUTDOWN_TOKEN 미설정 시 반드시 Unimplemented 반환")
 
 	// daemon은 계속 serving
-	assert.Equal(t, core.StateServing, state.Load())
+	assert.Equal(t, core.StateServing, h.state.Load())
 }
 
 // AC-TR-013: RecoveryInterceptor가 chain outermost(인덱스 0)
 func TestInterceptorChainOrder_RecoveryOutermost(t *testing.T) {
 	t.Parallel()
-	// grpcserver.NewServer()가 성공하면 interceptor chain이 올바른 것
-	// (잘못된 경우 서버 초기화가 FailedPrecondition으로 abort됨)
-	state := &core.StateHolder{}
-	state.Store(core.StateServing)
-	rootCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	srv, err := grpcserver.NewServer(grpcserver.Config{
-		BindAddr: "127.0.0.1:0",
-	}, zap.NewNop(), state, rootCtx)
-	require.NoError(t, err, "올바른 interceptor 순서로 서버 초기화 성공해야 함")
+	h := newHarness(t, grpcserver.Config{})
 
 	// 체인 순서 검증: Recovery가 index 0
-	chain := srv.InterceptorChain()
+	chain := h.srv.InterceptorChain()
 	require.GreaterOrEqual(t, len(chain), 2, "최소 2개 interceptor 필요")
 	assert.Equal(t, "recovery", chain[0], "chain[0]은 recovery이어야 함")
 	assert.Equal(t, "logging", chain[1], "chain[1]은 logging이어야 함")
-
-	srv.Stop()
 }
 
 // AC-TR-014: MaxRecvMsgSize 환경변수 override
 func TestMaxRecvMsgSize_Override(t *testing.T) {
 	t.Parallel()
 
-	// GOOSE_GRPC_MAX_RECV_MSG_BYTES=1024 설정
+	// Config.MaxRecvMsgBytes=1024로 설정
+	h := newHarness(t, grpcserver.Config{
+		MaxRecvMsgBytes: 1024,
+	})
+
+	// 2048 byte 페이로드: reason 필드를 패딩
+	bigReason := string(make([]byte, 2048))
+	_, err := h.client.Shutdown(context.Background(), &goosev1.ShutdownRequest{Reason: bigReason})
+	require.Error(t, err)
+	assert.Equal(t, codes.ResourceExhausted, status.Code(err))
+	assert.Contains(t, err.Error(), "received message larger than max")
+}
+
+// TestMaxRecvMsgSize_EnvOverride는 환경변수로 MaxRecvMsgBytes를 override하는 케이스를 검증한다.
+// AC-TR-014 추가 검증
+func TestMaxRecvMsgSize_EnvOverride(t *testing.T) {
+	// 이 테스트는 환경변수를 사용하므로 병렬 실행 불가
 	old, exists := os.LookupEnv("GOOSE_GRPC_MAX_RECV_MSG_BYTES")
 	t.Cleanup(func() {
 		if exists {
@@ -584,6 +543,7 @@ func TestMaxRecvMsgSize_Override(t *testing.T) {
 	rootCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// Config.MaxRecvMsgBytes=0이면 환경변수에서 읽음
 	srv, err := grpcserver.NewServer(grpcserver.Config{
 		BindAddr: "127.0.0.1:0",
 	}, zap.NewNop(), state, rootCtx)
@@ -599,13 +559,10 @@ func TestMaxRecvMsgSize_Override(t *testing.T) {
 	})
 
 	client := goosev1.NewDaemonServiceClient(conn)
-
-	// 2048 byte 페이로드: reason 필드를 패딩
 	bigReason := string(make([]byte, 2048))
 	_, err = client.Shutdown(context.Background(), &goosev1.ShutdownRequest{Reason: bigReason})
 	require.Error(t, err)
 	assert.Equal(t, codes.ResourceExhausted, status.Code(err))
-	assert.Contains(t, err.Error(), "received message larger than max")
 }
 
 // AC-TR-008: Non-loopback bind 거부 (linux/amd64에서만 실행)
@@ -627,7 +584,7 @@ func TestNonLoopbackBind_Rejected(t *testing.T) {
 	require.NoError(t, err)
 	defer srv.Stop()
 
-	// non-loopback IP로 연결 시도 — 실제 포트를 찾아야 함
+	// non-loopback IP로 연결 시도
 	_, portStr, _ := net.SplitHostPort(srv.Addr())
 	nonLoopbackAddr := fmt.Sprintf("0.0.0.0:%s", portStr)
 
@@ -644,7 +601,3 @@ func TestNonLoopbackBind_Rejected(t *testing.T) {
 	// loopback에만 bind했으므로 non-loopback에서는 실패해야 함
 	require.Error(t, err)
 }
-
-// newHarnessWithObserver는 이미 위에서 정의됨 (observer.New 사용)
-// 이 패키지 수준에서 재사용
-var _ = newHarnessWithObserver
