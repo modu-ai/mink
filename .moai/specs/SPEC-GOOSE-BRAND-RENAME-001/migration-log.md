@@ -266,6 +266,22 @@ README.md, CHANGELOG.md, CLAUDE.md — brand 위반 없음 (정정 불요).
 
 ---
 
+## Phase 3 — .claude/ rules/agents/skills/commands brand 통일
+
+완료일: 2026-04-26
+
+### 검사 결과
+
+`.claude/rules/**/*.md`, `.claude/agents/**/*.md`, `.claude/skills/**/*.md`, `.claude/commands/**/*.md` 전체 검사 결과:
+
+**brand 위반 건수: 0건** (정정 불요)
+
+research.md §6 Phase 3에서 추정한 4파일 6건은 도메인 용어(`SPEC-GOOSE-XXX-NNN` 참조 등) 또는 백틱 인용이었으며 실제 brand 표기 위반에 해당하지 않음.
+
+변경 파일: 없음.
+
+---
+
 ## Phase 4 — SPEC 본문 정정 결과
 
 아래 표는 Phase 4 완료 후 업데이트됨.
