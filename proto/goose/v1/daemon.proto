@@ -1,0 +1,62 @@
+// Package goose.v1은 goosed 데몬의 메타-RPC unary 3종 계약을 정의한다.
+// SPEC-GOOSE-TRANSPORT-001 REQ-TR-003
+syntax = "proto3";
+
+package goose.v1;
+
+option go_package = "github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1;goosev1";
+
+// DaemonService는 goosed 데몬 lifecycle 및 메타데이터 RPC를 제공한다.
+// When a client invokes Ping, shall respond with version/uptime/state.
+// When a client invokes GetInfo, shall respond with build metadata.
+// When a client invokes Shutdown with valid auth, shall initiate graceful shutdown.
+service DaemonService {
+  // Ping은 데몬 상태를 확인하는 기본 RPC다.
+  // REQ-TR-005: version, uptime_ms, state 반환
+  rpc Ping(PingRequest) returns (PingResponse);
+
+  // GetInfo는 빌드 메타데이터를 반환한다.
+  rpc GetInfo(GetInfoRequest) returns (GetInfoResponse);
+
+  // Shutdown은 인증된 클라이언트로부터 graceful shutdown을 트리거한다.
+  // REQ-TR-006: auth_token 헤더 필요
+  // REQ-TR-010: 토큰 누락 시 Unauthenticated
+  // REQ-TR-011: GOOSE_SHUTDOWN_TOKEN 미설정 시 Unimplemented
+  rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
+}
+
+// PingRequest는 Ping RPC 요청 메시지다.
+message PingRequest {}
+
+// PingResponse는 Ping RPC 응답 메시지다.
+// state는 CORE-001 ProcessState.String() 값과 일치한다 (init|bootstrap|serving|draining|stopped).
+message PingResponse {
+  string version   = 1;
+  int64  uptime_ms = 2;
+  string state     = 3;
+}
+
+// GetInfoRequest는 GetInfo RPC 요청 메시지다.
+message GetInfoRequest {}
+
+// GetInfoResponse는 GetInfo RPC 응답 메시지다.
+message GetInfoResponse {
+  string version    = 1;
+  string git_commit = 2;
+  string go_version = 3;
+  string build_time = 4;
+  string os         = 5;
+  string arch       = 6;
+}
+
+// ShutdownRequest는 Shutdown RPC 요청 메시지다.
+message ShutdownRequest {
+  // reason은 선택적 감사 추적 메시지다.
+  string reason = 1;
+}
+
+// ShutdownResponse는 Shutdown RPC 응답 메시지다.
+message ShutdownResponse {
+  bool   accepted = 1;
+  string message  = 2;
+}
