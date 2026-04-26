@@ -49,6 +49,21 @@ func applyRlimitIfSupported(cmd *exec.Cmd, timeout time.Duration, _ *zap.Logger)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: true,
 	}
+	// Override the default exec.CommandContext cancel (which only signals the
+	// leader PID): when ctx fires, kill the entire process group so descendants
+	// like a shell-spawned `sleep` don't keep the inherited stdout pipe open and
+	// hang cmd.Wait(). WaitDelay is the backstop if the kernel is slow to
+	// deliver the signal.
+	cmd.Cancel = func() error {
+		if cmd.Process == nil {
+			return nil
+		}
+		// Negative PID targets the process group (Setpgid above made the child
+		// the leader of its own group, so PGID == child PID).
+		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		return nil
+	}
+	cmd.WaitDelay = 2 * time.Second
 	rlimitsByCmd.store(cmd, computeRlimits(timeout))
 }
 

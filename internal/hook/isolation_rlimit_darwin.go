@@ -36,4 +36,15 @@ func applyRlimitIfSupported(cmd *exec.Cmd, timeout time.Duration, logger *zap.Lo
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: true,
 	}
+	// Same rationale as the Linux variant: with Setpgid, the default cancel
+	// only kills the leader and orphan grandchildren keep the inherited stdout
+	// pipe open, which hangs cmd.Wait. Kill the entire process group instead.
+	cmd.Cancel = func() error {
+		if cmd.Process == nil {
+			return nil
+		}
+		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		return nil
+	}
+	cmd.WaitDelay = 2 * time.Second
 }
