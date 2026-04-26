@@ -1,9 +1,9 @@
 ---
 id: SPEC-GOOSE-TRANSPORT-001
-version: 0.1.1
+version: 0.1.2
 status: planned
 created_at: 2026-04-21
-updated_at: 2026-04-25
+updated_at: 2026-04-26
 author: manager-spec
 priority: P0
 issue_number: null
@@ -21,6 +21,7 @@ labels: []
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-21 | 초안 작성 (ROADMAP Phase 0 row 03 + tech ADR-002) | manager-spec |
 | 0.1.1 | 2026-04-25 | 감사 리포트(mass-20260425/TRANSPORT-001-audit.md) 결함 수정: (a) §1 scope-clarity 문장 추가(D8), (b) §3.2 streaming BRIDGE-001 위임 명시(D8), (c) REQ-TR-001 vs REQ-TR-012 모순 일관화(D5), (d) REQ-TR-012/013 [Unwanted] 라벨 If/then 구조 수정(D6), (e) 고아 REQ 6건(REQ-TR-002/003/007/011/013/014)에 AC-TR-009~014 신설(D3), (f) AC-TR-002에 REQ-TR-015 추가(D4). REQ 번호 재배치 없음. | manager-spec |
+| 0.1.2 | 2026-04-26 | 구현 직전 sanity check: 실제 go.mod module path가 `github.com/modu-ai/goose`임이 확인되어, REQ-TR-003 / §6.2 proto 스키마 / AC-TR-010 세 곳의 Go 패키지 경로 레퍼런스를 (구) `github.com/gooseagent/goose/...` → (신) `github.com/modu-ai/goose/...`로 정정. proto package 이름(`goose.v1`) 및 그 외 SPEC 의미는 변경 없음. AC 번호 재배치 없음. | claude(orchestrator) |
 
 ---
 
@@ -106,7 +107,7 @@ labels: []
 
 **REQ-TR-002 [Ubiquitous]** — All gRPC requests **shall** pass through the `LoggingInterceptor`, which records `{method, peer, status_code, duration_ms}` at INFO level for success and ERROR level for non-OK responses.
 
-**REQ-TR-003 [Ubiquitous]** — The proto package name **shall** be `goose.v1` and the Go package path **shall** be `github.com/gooseagent/goose/internal/transport/grpc/gen/goosev1`.
+**REQ-TR-003 [Ubiquitous]** — The proto package name **shall** be `goose.v1` and the Go package path **shall** be `github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1`.
 
 ### 4.2 Event-Driven
 
@@ -194,7 +195,7 @@ labels: []
 **AC-TR-010 — proto 패키지 및 Go 패키지 경로 (REQ-TR-003 커버, v0.1.1 추가)**
 - **Given** `buf generate` 결과로 생성된 `internal/transport/grpc/gen/goosev1/` 디렉토리
 - **When** 생성된 `.pb.go` 파일을 static 검사
-- **Then** (a) proto `package` 선언이 `goose.v1`이고, (b) `option go_package`가 `github.com/gooseagent/goose/internal/transport/grpc/gen/goosev1;goosev1`이며, (c) Go 패키지 `import` 경로가 동일한 경로에서 resolve된다. 컴파일 단계(테스트: `go vet ./internal/transport/grpc/gen/...`)에서 경로 불일치가 없어야 한다.
+- **Then** (a) proto `package` 선언이 `goose.v1`이고, (b) `option go_package`가 `github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1;goosev1`이며, (c) Go 패키지 `import` 경로가 동일한 경로에서 resolve된다. 컴파일 단계(테스트: `go vet ./internal/transport/grpc/gen/...`)에서 경로 불일치가 없어야 한다.
 
 **AC-TR-011 — GracefulStop 10s 준수 및 fallback (REQ-TR-007 커버, v0.1.1 추가)**
 - **Given** 테스트용 cleanup hook 2종 등록: (a) 200ms 내 완료되는 정상 hook, (b) 30s sleep하는 stuck hook (명시적 가짜 timeout 조건)
@@ -244,7 +245,7 @@ buf.gen.yaml                    # protoc-gen-go + protoc-gen-go-grpc
 ```proto
 syntax = "proto3";
 package goose.v1;
-option go_package = "github.com/gooseagent/goose/internal/transport/grpc/gen/goosev1;goosev1";
+option go_package = "github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1;goosev1";
 
 service DaemonService {
   rpc Ping(PingRequest) returns (PingResponse);
