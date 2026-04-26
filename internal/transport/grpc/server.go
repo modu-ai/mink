@@ -47,6 +47,12 @@ type Config struct {
 	// false이면 환경변수 GOOSE_GRPC_REFLECTION=true 시 활성화.
 	// REQ-TR-009
 	EnableReflection bool
+
+	// RegisterPanicTestService is a test-only flag that registers the internal
+	// PanicTestService BEFORE Serve is started. This must be set via Config
+	// because gRPC fatals on RegisterService-after-Serve.
+	// AC-TR-006: integration test only.
+	RegisterPanicTestService bool
 }
 
 // Server는 goosed gRPC 서버의 래퍼 타입이다.
@@ -164,6 +170,12 @@ func newServerInternal(cfg Config, logger *zap.Logger, state *core.StateHolder, 
 		reflection.Register(s.grpcSrv)
 	}
 
+	// PanicTestService registration (test-only, AC-TR-006).
+	// Must register before Serve — gRPC fatals on RegisterService-after-Serve.
+	if cfg.RegisterPanicTestService {
+		registerPanicTestService(s.grpcSrv)
+	}
+
 	// Serve 시작
 	go func() {
 		if err := s.grpcSrv.Serve(lis); err != nil {
@@ -253,12 +265,6 @@ func (s *Server) InterceptorChain() []string {
 // 테스트에서 state 전환 직후 health 상태를 즉시 확인할 때 사용한다.
 func (s *Server) ForceHealthUpdate() {
 	s.updateHealthState()
-}
-
-// RegisterPanicTestService는 테스트 전용 PanicTest RPC를 등록한다.
-// AC-TR-006: integration test에서만 호출되며, 프로덕션 코드에서는 사용하지 않음.
-func (s *Server) RegisterPanicTestService() {
-	registerPanicTestService(s.grpcSrv)
 }
 
 // resolveMaxRecvBytes는 gRPC 최대 수신 메시지 크기를 결정한다.
