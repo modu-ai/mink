@@ -1,6 +1,6 @@
 # AI.GOOSE - Ecosystem Document v4.0 GLOBAL EDITION
 
-> **비전:** 글로벌 오픈소스 AI 에이전트 생태계 (MIT) + 자기진화 플러그인/스킬 마켓
+> **비전:** 글로벌 오픈소스 AI 에이전트 생태계 (Apache 2.0) + 자기진화 플러그인/스킬 마켓
 
 ---
 
@@ -27,7 +27,7 @@
 
 ### 1.3 GOOSE 생태계 철학
 
-- **MIT License**: 완전 자유 (상업, 수정, 재배포)
+- **Apache License 2.0**: 완전 자유 (상업, 수정, 재배포, 특허 grant 포함)
 - **Meritocratic**: 기여 = 영향력
 - **Transparent**: 모든 결정 공개
 - **Sustainable**: 개발자 수익 가능 (70/30)
@@ -49,7 +49,7 @@ name: daily-briefing-morning
 version: 1.0.0
 description: Personalized morning briefing
 author: "dev@example.com"
-license: MIT
+license: Apache-2.0
 price: 0
 languages: [en, ko, ja, zh]
 triggers:
@@ -407,11 +407,12 @@ goose publish
 
 ### 8.1 라이선스 & 거버넌스
 
-**MIT License**:
+**Apache License 2.0**:
 - 완전 자유
 - 상업 이용 OK
 - 수정/재배포 OK
-- Attribution 필요 (MIT 조건)
+- Attribution + NOTICE 보존 필요 (Apache 2.0 조건)
+- 특허 grant 포함 (contributor가 명시적으로 patent license 부여)
 
 **거버넌스 구조**:
 - Core Team (5-7명) - 창립 팀 + 주요 기여자
@@ -614,7 +615,7 @@ GOOSE 생태계의 약속:
 
 Version: 5.0.0 ETERNAL EDITION
 Created: 2026-04-21
-License: MIT
-Community: github.com/gooseagent/goose
+License: Apache-2.0
+Community: github.com/modu-ai/goose
 
 > **"An Assembly of developers, building the future together."**

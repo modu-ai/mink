@@ -578,5 +578,5 @@ cd /Users/goos/MoAI/AgentOS
 ---
 
 **Version**: 6.2.0
-**License**: MIT
+**License**: Apache-2.0
 **Next action**: 선결 의사결정 6건 확정 → `SPEC-GOOSE-CORE-001` TDD RED → M0 진입 → v0.1 Alpha → v0.4 Public Beta → **v1.0 Release (Daily Companion + Telegram Remote Control + Zero-Knowledge Cloud)**

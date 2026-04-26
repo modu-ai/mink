@@ -1069,7 +1069,7 @@ Version: **4.1.0 POLYGLOT HYBRID** (v4.0 Go-only → v4.1 Rust+Go+TS)
 Language: **Rust 1.80+ + Go 1.26+ + TypeScript 5.x**
 Created: 2026-04-21
 Updated: 2026-04-21
-License: MIT
+License: Apache-2.0
 Base: MoAI-ADK-Go (38,700 LOC) + Rust security layer + TS UI
 Reference: Claude Code + Hermes Agent + MoAI-ADK + 2026 Industry patterns
 

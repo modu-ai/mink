@@ -22,7 +22,7 @@
 > **이전 버전**: v5.0 (47 SPEC) · v6.0 (48) · v6.1 (52) · v6.2 (58) · **v0.2 (54, 재편본)**
 > **대화 언어**: 한국어 · **코드 식별자**: 영어
 > **개발 방법론**: TDD (`development_mode: tdd`)
-> **라이선스**: MIT
+> **라이선스**: Apache-2.0
 > **상태**: 아키텍처 재설계 완료 (v0.2), M0 CORE-001 구현 완료
 
 ---
@@ -521,7 +521,7 @@ SCHEDULER → [WEATHER ∥ CALENDAR ∥ HEALTH]
 ---
 
 **Version**: 6.2.0
-**License**: MIT
+**License**: Apache-2.0
 **Next action**: 선결 의사결정 6건 확정 → `SPEC-GOOSE-CORE-001` TDD RED → v0.1 Alpha → v0.4 Beta → v1.0 Release (Daily Companion + Telegram Bridge)
 
 ## Change Log
