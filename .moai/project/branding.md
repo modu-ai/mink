@@ -608,13 +608,46 @@ GOOSE는 **당신의 감정을 판단하지 않는다.**
 - 타이포그래피 규칙
 - 금지 사항 (로고 왜곡 등)
 
-### 13.2 Third-party 브랜드 사용
+### 13.2 코드 라이선스 vs 브랜드 정책 (구분)
 
-- Apache 2.0 라이선스 조건
-- 플러그인 개발자 가이드
-- "Powered by GOOSE" 배지 (옵션)
+> **중요**: 코드 라이선스(Apache 2.0)와 브랜드/상표 정책은 **별개**다. Apache 2.0 §6은 명시적으로 *"This License does not grant permission to use the trade names, trademarks, service marks, or product names of the Licensor"* 라고 규정한다.
 
-### 13.3 미디어 키트
+| 영역 | 적용 규범 | 출처 |
+|------|----------|------|
+| **소스코드 / 문서 / 컴파일 산출물** | Apache License 2.0 | `LICENSE`, `NOTICE` |
+| **브랜드명 (AI.GOOSE), 로고, 비주얼 아이덴티티** | 본 브랜드 정책 (§13.3) | `.moai/project/branding.md` |
+
+- Apache 2.0 텍스트의 §6 (Trademarks) 조항은 **GOOSE/AI.GOOSE 브랜드 사용을 자동으로 허용하지 않는다.** 별도 brand policy를 따른다.
+- 플러그인/skill 개발자가 자기 작품에서 코드를 재사용할 때는 Apache 2.0 조건만 충족하면 충분하다.
+- 단, "GOOSE" 또는 "AI.GOOSE" 명칭을 사용한 파생 제품/서비스를 광고·마케팅하려면 §13.3 brand policy를 따라야 한다.
+
+### 13.3 브랜드/상표 정책 (Brand & Trademark Policy)
+
+**허용되는 브랜드 사용** (별도 허가 불요):
+- "Powered by AI.GOOSE" 배지 사용 (제공된 SVG 자산 사용 시)
+- 플러그인/skill 페이지에서 호환성 표시: "Compatible with AI.GOOSE 1.0+"
+- 블로그/뉴스레터/기술 문서에서 프로젝트 언급 (소속 명시: "AI.GOOSE by modu-ai")
+- 컨퍼런스 발표/튜토리얼에서 학술적 인용
+
+**사전 허가가 필요한 사용**:
+- "AI.GOOSE for ___" 형태의 파생 제품명/서비스명 (예: "AI.GOOSE for Healthcare")
+- 로고를 변형/재구성한 시각 자산
+- 상업 제품/SaaS의 marketing material에서 GOOSE 로고 사용
+- 도메인명에 "goose"/"ai-goose" 사용 (예: `goose-cloud.com`)
+
+**금지되는 사용**:
+- modu-ai 또는 AI.GOOSE와의 부속/제휴/승인 관계 오인을 유발하는 표시
+- 로고 비율/색상 왜곡, 부정적 맥락에서의 brand 사용
+- 동일 도메인(AI agent companion)의 경쟁 제품에서 "GOOSE/AI.GOOSE" 명칭 차용
+
+**문의 채널**: `brand@mo.ai.kr` 또는 [GitHub Discussion (community 카테고리)](https://github.com/modu-ai/goose/discussions). 사전 허가 요청은 의도/사용 범위/예시 자산을 첨부.
+
+### 13.4 Third-party 도구/배지
+
+- 공식 SVG 배지: "Powered by AI.GOOSE", "Built with AI.GOOSE" (제공 예정)
+- 플러그인 개발자 가이드: §13.2의 Apache 2.0 + §13.3의 brand policy 동시 준수
+
+### 13.5 미디어 키트
 
 - Press kit.zip (로고, 스크린샷, 팩트시트)
 - Blog mentions 템플릿
