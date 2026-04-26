@@ -50,6 +50,16 @@ goose-agent/
 ├── CONTRIBUTING.md             # 글로벌 기여 가이드
 ├── SECURITY.md                 # 보안 정책
 │
+├── scripts/                    # 빌드/배포 스크립트
+│   ├── check-brand.sh          # 신규: AI.GOOSE 브랜드 린트 (BRAND-RENAME-001)
+│   └── build.sh                # 통합 빌드 스크립트
+│
+├── .github/                    # GitHub 설정
+│   └── workflows/              # CI/CD 워크플로우
+│       ├── brand-lint.yml      # 신규: 브랜드 린트 CI gate (BRAND-RENAME-001)
+│       ├── test.yml
+│       └── release.yml
+│
 ├── cmd/                        # ⭐ Go CLI 진입점 (MoAI 패턴)
 │   ├── goose/                  # 메인 CLI 클라이언트
 │   │   ├── main.go
@@ -167,7 +177,21 @@ goose-agent/
 │   │   ├── google.go           # Google Gemini
 │   │   ├── cost_tracker.go     # 비용 추적 및 최적화
 │   │   ├── cache.go            # Prompt caching (Claude)
-│   │   └── fallback.go         # Fallback logic
+│   │   ├── fallback.go         # Fallback logic
+│   │   │
+│   │   ├── credential/         # 신규: Zero-Knowledge 크레덴셜 풀 (CREDPOOL-001)
+│   │   │   ├── pool.go         # 크레덴셜 풀 인터페이스
+│   │   │   ├── zk_proof.go     # Zero-Knowledge proof 생성
+│   │   │   ├── vault.go        # 암호화된 크레덴셜 저장소
+│   │   │   ├── rotation.go     # 자동 로테이션
+│   │   │   └── audit.go        # 감시 로깅
+│   │   │
+│   │   └── ratelimit/          # 신규: 4-Bucket Rate Limiter (RATELIMIT-001)
+│   │       ├── tracker.go      # RPM/TPM/RPH/TPH 추적기
+│   │       ├── bucket.go       # Token bucket 알고리즘
+│   │       ├── parser.go       # Provider 헤더 파싱 (Anthropic/OpenAI/Google)
+│   │       ├── handler.go      # 80% 경고 및 거절 처리
+│   │       └── metrics.go      # 메트릭 수집
 │   │
 │   ├── tools/                  # 내장 도구 (Claude Code 계승)
 │   │   ├── registry.go         # Auto-registration (inventory)
@@ -223,7 +247,33 @@ goose-agent/
 │   │   ├── client.go           # MCP 클라이언트
 │   │   ├── resource.go         # 리소스 프로토콜
 │   │   ├── tool_mcp.go         # 도구 프로토콜
-│   │   └── oauth.go            # OAuth 2.0 (MCP 통합)
+│   │   │
+│   │   └── transport/          # 신규: 3-Transport 전략 (MCP-001)
+│   │       ├── stdio.go        # Stdio transport
+│   │       ├── websocket.go    # WebSocket transport
+│   │       ├── sse.go          # Server-Sent Events
+│   │       ├── oauth.go        # OAuth 2.1 협상
+│   │       └── capability.go   # Capability 네고시에이션
+│   │
+│   ├── subagent/               # 신규: Sub-agent 격리 & 메모리 스코프 (SUBAGENT-001)
+│   │   ├── fork.go             # fork 격리 (독립 프로세스)
+│   │   ├── worktree.go         # worktree 격리 (git worktree)
+│   │   ├── background.go       # background 격리 (async, no return)
+│   │   ├── memory_scope.go     # 3-memory scope (none/session/persistent)
+│   │   ├── plan_mode.go        # PlanModeApprove 퍼미션 체크
+│   │   ├── agent_id.go         # 원자적 AgentID 생성
+│   │   └── lifecycle.go        # 생명주기 관리
+│   │
+│   ├── permission/             # 신규: Declared Permission + First-Call Confirm (PERMISSION-001)
+│   │   ├── permission.go       # Permission 타입 정의
+│   │   ├── store/              # Permission 저장소
+│   │   │   ├── store.go        # 저장소 인터페이스
+│   │   │   ├── memory.go       # 메모리 저장소
+│   │   │   └── sqlite.go       # SQLite 저장소
+│   │   ├── lock.go             # Per-triple 잠금 (user/tool/resource)
+│   │   ├── first_call.go       # First-call 확인 로직
+│   │   ├── declared.go         # Declared 권한 캐싱
+│   │   └── audit.go            # 권한 감시 로깅
 │   │
 │   ├── transport/              # Transport Layer (gRPC, WS, SSE, Relay)
 │   │   ├── transport.go        # Transport 인터페이스
@@ -681,9 +731,14 @@ graph TD
 | `internal/learning/safety` | 안전 게이트 | - | ✅ MoAI 계승 |
 | `internal/memory` | 다중 백엔드 | sqlite, qdrant, graphiti | ✅ Hermes 계승 |
 | `internal/llm` | LLM 라우팅 | transport | ✅ MoAI 계승 |
+| `internal/llm/credential` | Zero-Knowledge 크레덴셜 풀 | vault, zk_proof | 🆕 CREDPOOL-001 |
+| `internal/llm/ratelimit` | 4-bucket RPM/TPM/RPH/TPH 추적 | provider headers | 🆕 RATELIMIT-001 |
 | `internal/tools` | 도구 레지스트리 | file, terminal, web, code | ✅ Claude Code 계승 |
 | `internal/world` | A2A 레지스트리 | mcp, transport | ✅ MoAI 계승 |
 | `internal/mcp` | MCP 서버/클라이언트 | transport | ✅ MoAI 계승 |
+| `internal/mcp/transport` | stdio/WS/SSE 3-transport | oauth, capability | 🆕 MCP-001 |
+| `internal/subagent` | fork/worktree/background 격리 | agent, memory | 🆕 SUBAGENT-001 |
+| `internal/permission` | Declared + First-Call 권한 | permission/store | 🆕 PERMISSION-001 |
 | `internal/transport` | gRPC/WS/SSE | - | ✅ MoAI 계승 |
 | `internal/gateway` | 플랫폼 메시징 | transport | 🆕 신규 |
 | `internal/plugin` | WASM 플러그인 | sandbox | 🆕 신규 |
