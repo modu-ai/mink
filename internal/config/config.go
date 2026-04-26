@@ -25,11 +25,15 @@ import (
 // 불변(immutable) — Load() 반환 후 필드 변경 금지.
 // REQ-CFG-003: concurrent reads safe (effectively frozen pointer)
 type Config struct {
-	Log       LogConfig      `yaml:"log"`
+	Log       LogConfig       `yaml:"log"`
 	Transport TransportConfig `yaml:"transport"`
-	LLM       LLMConfig      `yaml:"llm"`
-	Learning  LearningConfig `yaml:"learning"`
-	UI        UIConfig       `yaml:"ui"`
+	LLM       LLMConfig       `yaml:"llm"`
+	Learning  LearningConfig  `yaml:"learning"`
+	UI        UIConfig        `yaml:"ui"`
+	// SkillsRoot는 skill SKILL.md 파일을 탐색할 루트 디렉토리다.
+	// 빈 문자열이면 Load() 시 GOOSE_HOME/skills 로 설정된다.
+	// SPEC-GOOSE-DAEMON-WIRE-001 REQ-WIRE-002 step 7
+	SkillsRoot string `yaml:"skills_root"`
 	// Unknown은 최상위 알 수 없는 키를 보존한다.
 	// REQ-CFG-008: unknown top-level keys 보존
 	Unknown map[string]any `yaml:",inline"`
@@ -186,6 +190,17 @@ func Load(opts LoadOptions) (*Config, error) {
 			}
 			return nil, &StrictUnknownError{Keys: keys}
 		}
+	}
+
+	// 5단계: SkillsRoot 기본값 설정
+	// yaml 또는 env에서 명시적으로 지정되지 않은 경우에만 적용.
+	// SPEC-GOOSE-DAEMON-WIRE-001 REQ-WIRE-002 step 7
+	if cfg.SkillsRoot == "" {
+		gh := opts.GooseHome
+		if gh == "" {
+			gh = resolveGooseHome()
+		}
+		cfg.SkillsRoot = filepath.Join(gh, "skills")
 	}
 
 	cfg.sources = sources

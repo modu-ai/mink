@@ -25,8 +25,9 @@ type HookRegistry struct {
 	// skillsConsumer는 DispatchFileChanged 완료 후 호출되는 외부 consumer이다.
 	// nil-safe: 등록 전까지 호출 생략.
 	// D11 resolution
-	consumerMu     sync.RWMutex
-	skillsConsumer SkillsFileChangedConsumer
+	consumerMu        sync.RWMutex
+	skillsConsumer    SkillsFileChangedConsumer
+	workspaceResolver WorkspaceRootResolver // SPEC-GOOSE-DAEMON-WIRE-001 REQ-WIRE-002 step 8
 
 	// loader는 PluginHookLoader 참조이다.
 	// REQ-HK-013: loader.IsLoading() == true면 Register 거부.
@@ -147,12 +148,39 @@ func (r *HookRegistry) HandlerBindings(event HookEvent) []HookBinding {
 }
 
 // SetSkillsFileChangedConsumer는 FileChanged 이벤트 후 호출할 외부 consumer를 등록한다.
-// REQ-HK-008 / D11 resolution: nil 인자는 등록 해제.
+// REQ-HK-008 / D11 resolution.
+// nil 인자는 ErrInvalidConsumer를 반환한다 (SPEC-GOOSE-DAEMON-WIRE-001 REQ-WIRE-008).
 // thread-safe.
-func (r *HookRegistry) SetSkillsFileChangedConsumer(fn SkillsFileChangedConsumer) {
+func (r *HookRegistry) SetSkillsFileChangedConsumer(fn SkillsFileChangedConsumer) error {
+	if fn == nil {
+		return ErrInvalidConsumer
+	}
 	r.consumerMu.Lock()
 	defer r.consumerMu.Unlock()
 	r.skillsConsumer = fn
+	return nil
+}
+
+// SetWorkspaceRootResolver는 shell hook subprocess의 CWD 결정에 사용할
+// WorkspaceRootResolver를 등록한다.
+// SPEC-GOOSE-DAEMON-WIRE-001 REQ-WIRE-002 step 8.
+// nil resolver는 ErrInvalidConsumer를 반환한다 (REQ-WIRE-008).
+// thread-safe.
+func (r *HookRegistry) SetWorkspaceRootResolver(resolver WorkspaceRootResolver) error {
+	if resolver == nil {
+		return ErrInvalidConsumer
+	}
+	r.consumerMu.Lock()
+	defer r.consumerMu.Unlock()
+	r.workspaceResolver = resolver
+	return nil
+}
+
+// WorkspaceResolver는 현재 등록된 WorkspaceRootResolver를 반환한다.
+func (r *HookRegistry) WorkspaceResolver() WorkspaceRootResolver {
+	r.consumerMu.RLock()
+	defer r.consumerMu.RUnlock()
+	return r.workspaceResolver
 }
 
 // SkillsConsumer는 현재 등록된 SkillsFileChangedConsumer를 반환한다.
