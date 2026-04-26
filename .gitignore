@@ -218,3 +218,6 @@ hermes-agent-main/
 CLAUDE.local.md
 .moai/reports/session-*.md
 .tmp-hotfix/
+coverage.out
+coverage.html
+goosed

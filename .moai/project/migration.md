@@ -41,7 +41,7 @@
 2026-04-21 ━━━ v4.0 GOOSE Global ⭐
                 ├─ 자기진화 개인화 AI
                 ├─ Go + TypeScript
-                └─ 글로벌 오픈소스 (MIT)
+                └─ 글로벌 오픈소스 (Apache-2.0)
 
 2026-04-21 ━━━ v5.0 GOOSE Tamagotchi Edition 🐣
                 ├─ 거위 메타포 복귀 + 다마고치 육성
@@ -180,7 +180,7 @@
 - 3개 소스 프로젝트 통합 (Claude Code + Hermes + MoAI-ADK)
 - 자기진화 학습 엔진 (SPEC-REFLECT-001 계승)
 - 100% 사용자 개인화 (User LoRA)
-- 글로벌 오픈소스 (MIT)
+- 글로벌 오픈소스 (Apache-2.0)
 - 거위 메타포 (평생 동반자)
 
 **Why this is DIFFERENT (실제로 최종 방향):**
@@ -390,7 +390,7 @@ v0.2부터 이 세 프로젝트 분석이 기반.
 **v1.0-v2.0**: 마켓플레이스 + 구독 (BYOK 옵션)
 **v3.0**: KT 매각 (One-time exit, 500-800억원)
 **v4.0**: 
-- 완전 오픈소스 MIT
+- 완전 오픈소스 Apache-2.0
 - 선택적 Cloud 호스팅 서비스
 - Enterprise 지원 계약
 - GitHub Sponsors
@@ -516,7 +516,7 @@ v0.2부터 이 세 프로젝트 분석이 기반.
 
 **GOOSE의 불변 핵심** (변경 X):
 - ✅ 자기진화 개인화 AI
-- ✅ 오픈소스 MIT
+- ✅ 오픈소스 Apache-2.0
 - ✅ Go + TypeScript
 - ✅ 글로벌 커뮤니티
 - ✅ 거위 메타포
@@ -613,7 +613,7 @@ v4.0 이후 모든 중대 변경은 RFC 필요:
 **브랜드**:
 - GOOSE 메타포 (새로움, 장기 가능)
 - 거위 심볼리즘
-- MIT 라이선스 정체성
+- Apache 2.0 라이선스 정체성
 
 **커뮤니티**:
 - MoAI 기존 지지자
@@ -664,10 +664,10 @@ v4.0 이후 모든 중대 변경은 RFC 필요:
 
 ### 10.2 새로운 v4.0 지지자
 
-"안녕하세요, GOOSE 커뮤니티에 오신 것을 환영합니다.
-MIT 라이선스의 완전 오픈소스 AI 에이전트입니다.
+"안녕하세요, AI.GOOSE 커뮤니티에 오신 것을 환영합니다.
+Apache License 2.0의 완전 오픈소스 AI 에이전트입니다.
 자기진화 + 100% 개인화 = 평생 동반자 AI.
-참여 방법은 github.com/gooseagent/goose."
+참여 방법은 github.com/modu-ai/goose."
 
 ### 10.3 코드 기여자
 
@@ -720,7 +720,7 @@ ICLR 2026 Lifelong Agents Workshop 참여 예정.
 
 이제는 확고한 비전:
 - **자기진화 개인화 AI**
-- **글로벌 오픈소스 (MIT)**
+- **글로벌 오픈소스 (Apache-2.0)**
 - **Go + TypeScript**
 - **거위 메타포 (평생 동반자)**
 - **사용자 데이터 소유권**
