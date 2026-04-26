@@ -1,0 +1,71 @@
+# CodeRabbit configuration — modu-ai/goose
+# Reference: https://docs.coderabbit.ai/guides/configure-coderabbit
+# JSON Schema: https://storage.googleapis.com/coderabbit_public_assets/schema.v2.json
+
+language: ko-KR
+early_access: false
+tone_instructions: |
+  - 한국어로 리뷰. 기술 용어와 코드 식별자는 영어 원문 유지.
+  - 코드의 의도를 추측하기 전에 SPEC/REQ/AC 트레일러(.moai/specs/) 를 참고.
+  - 사소한 nit은 한 줄로 묶고, 보안/동시성/리소스 누수/공개 API 안정성은 별도 코멘트로 강조.
+
+reviews:
+  profile: chill              # CHILL: signal-focused, less nit; matches Free plan default
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false                 # 시 생성 비활성 (시그널 노이즈 감소)
+  review_status: true
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    drafts: false             # draft PR 은 자동 리뷰하지 않음 (수동 트리거 가능)
+    base_branches:
+      - main                  # main 은 default branch — auto-review 명시적 허용
+  # PR-level path filters: vendor/generated 는 리뷰 대상에서 제외해 노이즈 감소
+  path_filters:
+    - "!**/vendor/**"
+    - "!**/gen/**"
+    - "!**/*_generated.go"
+    - "!**/*.pb.go"
+    - "!**/mock_*.go"
+    - "!**/*.pb.gw.go"
+    - "!go.sum"
+  # Path-specific 추가 지침
+  path_instructions:
+    - path: "internal/**/*.go"
+      instructions: |
+        - 에러는 반드시 wrap (fmt.Errorf("...: %w", err)) 또는 명시적 무시 사유 코멘트.
+        - context.Context 는 첫 번째 파라미터.
+        - 새 exported 함수/타입은 godoc 필수.
+        - goroutine 은 종료 경로/취소 경로 명시 (context cancel, done channel 등).
+        - 리소스 (file, net.Conn, *exec.Cmd, sql.Rows) 는 defer close 또는 명시적 cleanup.
+        - test-only 코드가 production 코드에 노출될 때는 godoc 에 "test-only" 표시.
+    - path: "internal/llm/provider/**/*.go"
+      instructions: |
+        - 시크릿 (API key, token) 은 절대 로그/에러 메시지에 포함 금지.
+        - rate limit / retry 정책은 .moai/config/sections/llm.yaml 과 일관되어야 함.
+    - path: "internal/transport/grpc/**/*.go"
+      instructions: |
+        - SPEC-GOOSE-TRANSPORT-001 의 REQ-TR-* 트레이서빌리티 유지.
+        - listener bind 는 loopback 기본 — 외부 노출은 명시적 옵트인 필요.
+    - path: "internal/hook/**/*.go"
+      instructions: |
+        - SPEC-GOOSE-HOOK-001 의 REQ-HK-021 isolation (env scrub, CWD pin, rlimit, FD close-on-exec) 4종 모두 적용 여부 검증.
+    - path: "**/*_test.go"
+      instructions: |
+        - t.Parallel() 호출 가능한 곳은 호출 (race 검출 강화).
+        - table-driven 패턴 권장.
+        - 외부 네트워크 / 외부 바이너리 의존은 t.Skip 으로 환경 부재 시 우회.
+  auto_title_instructions: |
+    제목은 70자 이내, conventional commits (feat|fix|chore|docs|refactor|perf|test|ci|build): scope: subject 형식.
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  learnings:
+    scope: local
+  issues:
+    scope: local
+  pull_requests:
+    scope: local
