@@ -37,9 +37,9 @@ func TestFileChangedConsumer_GitignoreMatching(t *testing.T) {
 	})
 
 	changedPaths := []string{
-		"src/foo/bar.ts",      // positive 매칭
-		"src/test/baz.ts",    // 부정 패턴으로 제외
-		"README.md",           // 미매칭
+		"src/foo/bar.ts",  // positive 매칭
+		"src/test/baz.ts", // 부정 패턴으로 제외
+		"README.md",       // 미매칭
 	}
 
 	result := reg.FileChangedConsumer(changedPaths)
@@ -66,10 +66,10 @@ func TestFileChangedConsumer_GitignoreMatching(t *testing.T) {
 // RED #6 — AC-SK-005, REQ-SK-008
 func TestIsForked_ContextFork(t *testing.T) {
 	tests := []struct {
-		name          string
-		context       string
-		expectForked  bool
-		expectInline  bool
+		name         string
+		context      string
+		expectForked bool
+		expectInline bool
 	}{
 		{"fork context", "fork", true, false},
 		{"inline context", "inline", false, true},

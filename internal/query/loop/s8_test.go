@@ -4,11 +4,12 @@
 // T8.1: ctx.Done → 500ms 마감 abort (AC-QUERY-008)
 //
 // 검증 항목 (REQ-QUERY-010 순서):
-//   (a) stop consuming LLM chunks
-//   (b) release any pending tool permissions (S6 pendingPerms cleanup)
-//   (c) yield Terminal{success:false, error:"aborted"} SDKMessage
-//   (d) close output channel
-//   — 모든 (a)~(d) within 500ms
+//
+//	(a) stop consuming LLM chunks
+//	(b) release any pending tool permissions (S6 pendingPerms cleanup)
+//	(c) yield Terminal{success:false, error:"aborted"} SDKMessage
+//	(d) close output channel
+//	— 모든 (a)~(d) within 500ms
 //
 // 4개 subtest:
 //   - abort_during_llm_stream: chunk 수신 중간에 abort
@@ -349,7 +350,7 @@ func TestQueryLoop_AbortsOnContextCancel(t *testing.T) {
 //   - (a) stop consuming LLM chunks
 //   - (c) yield Terminal{success:false, error:"aborted"}
 //   - (d) close output channel
-//   — 모든 (a)~(c) within 1초 (race detector 여유)
+//     — 모든 (a)~(c) within 1초 (race detector 여유)
 func TestQueryLoop_AbortYieldsTerminalAborted(t *testing.T) {
 	t.Parallel()
 

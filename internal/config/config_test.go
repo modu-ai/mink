@@ -266,7 +266,7 @@ func TestLoad_EnvOverlay_StringAndBool(t *testing.T) {
 		GooseHome: t.TempDir(),
 		WorkDir:   t.TempDir(),
 		EnvOverrides: map[string]string{
-			"GOOSE_LOG_LEVEL":       "error",
+			"GOOSE_LOG_LEVEL":        "error",
 			"GOOSE_LEARNING_ENABLED": "false",
 		},
 	})
@@ -1076,6 +1076,212 @@ func TestSource_NilSources(t *testing.T) {
 		EnvOverrides: map[string]string{},
 	})
 	require.NoError(t, err)
-	// 미설정 경로는 SourceDefault 반환
+	// SourceDefault is returned for unset paths.
 	assert.Equal(t, config.SourceDefault, cfg.Source("nonexistent.path"))
+}
+
+// ---- SPEC-GOOSE-CREDPOOL-001 OI-06: ProviderConfig.Credentials schema ----
+
+// TestLoad_ProviderCredentials_Empty_BackwardsCompat verifies that legacy
+// configs without a credentials field still load and the slice is nil/empty.
+// REQ-CREDPOOL-001 OI-06 backwards-compat constraint.
+func TestLoad_ProviderCredentials_Empty_BackwardsCompat(t *testing.T) {
+	t.Parallel()
+
+	userYAML := `llm:
+  providers:
+    openai:
+      api_key: sk-x
+`
+	gooseHome := t.TempDir()
+	memFS := fstest.MapFS{
+		filepath.Join(gooseHome[1:], "config.yaml"): &fstest.MapFile{Data: []byte(userYAML)},
+	}
+
+	cfg, err := config.Load(config.LoadOptions{
+		FS:           memFS,
+		GooseHome:    gooseHome,
+		WorkDir:      t.TempDir(),
+		EnvOverrides: map[string]string{},
+	})
+	require.NoError(t, err)
+	p := cfg.LLM.Providers["openai"]
+	assert.Empty(t, p.Credentials, "legacy config without credentials key must remain valid")
+}
+
+// TestLoad_ProviderCredentials_Single_Parses verifies a single credential
+// entry is parsed with all three fields (Type, Path, KeyringRef).
+func TestLoad_ProviderCredentials_Single_Parses(t *testing.T) {
+	t.Parallel()
+
+	userYAML := `llm:
+  providers:
+    anthropic:
+      credentials:
+        - type: anthropic_claude_file
+          path: /home/u/.claude/.credentials.json
+          keyring_ref: anthropic-default
+`
+	gooseHome := t.TempDir()
+	memFS := fstest.MapFS{
+		filepath.Join(gooseHome[1:], "config.yaml"): &fstest.MapFile{Data: []byte(userYAML)},
+	}
+
+	cfg, err := config.Load(config.LoadOptions{
+		FS:           memFS,
+		GooseHome:    gooseHome,
+		WorkDir:      t.TempDir(),
+		EnvOverrides: map[string]string{},
+	})
+	require.NoError(t, err)
+
+	creds := cfg.LLM.Providers["anthropic"].Credentials
+	require.Len(t, creds, 1)
+	assert.Equal(t, "anthropic_claude_file", creds[0].Type)
+	assert.Equal(t, "/home/u/.claude/.credentials.json", creds[0].Path)
+	assert.Equal(t, "anthropic-default", creds[0].KeyringRef)
+}
+
+// TestLoad_ProviderCredentials_Multiple_PreservesOrder verifies that multiple
+// credentials per provider are parsed and order is preserved.
+func TestLoad_ProviderCredentials_Multiple_PreservesOrder(t *testing.T) {
+	t.Parallel()
+
+	userYAML := `llm:
+  providers:
+    openai:
+      credentials:
+        - type: openai_codex_file
+          path: /a
+          keyring_ref: kr-a
+        - type: openai_codex_file
+          path: /b
+          keyring_ref: kr-b
+        - type: openai_codex_file
+          path: /c
+          keyring_ref: kr-c
+`
+	gooseHome := t.TempDir()
+	memFS := fstest.MapFS{
+		filepath.Join(gooseHome[1:], "config.yaml"): &fstest.MapFile{Data: []byte(userYAML)},
+	}
+
+	cfg, err := config.Load(config.LoadOptions{
+		FS:           memFS,
+		GooseHome:    gooseHome,
+		WorkDir:      t.TempDir(),
+		EnvOverrides: map[string]string{},
+	})
+	require.NoError(t, err)
+
+	creds := cfg.LLM.Providers["openai"].Credentials
+	require.Len(t, creds, 3)
+	assert.Equal(t, "/a", creds[0].Path)
+	assert.Equal(t, "/b", creds[1].Path)
+	assert.Equal(t, "/c", creds[2].Path)
+}
+
+// TestValidate_ProviderCredentials_UnknownType_Rejected verifies that an
+// unknown credential Type fails Validate().
+func TestValidate_ProviderCredentials_UnknownType_Rejected(t *testing.T) {
+	t.Parallel()
+
+	userYAML := `llm:
+  providers:
+    anthropic:
+      credentials:
+        - type: bogus_kind
+          path: /tmp/x
+          keyring_ref: x
+`
+	gooseHome := t.TempDir()
+	memFS := fstest.MapFS{
+		filepath.Join(gooseHome[1:], "config.yaml"): &fstest.MapFile{Data: []byte(userYAML)},
+	}
+
+	cfg, err := config.Load(config.LoadOptions{
+		FS:           memFS,
+		GooseHome:    gooseHome,
+		WorkDir:      t.TempDir(),
+		EnvOverrides: map[string]string{},
+	})
+	require.NoError(t, err)
+
+	valErr := cfg.Validate()
+	require.Error(t, valErr)
+	var fieldErr config.ErrInvalidField
+	require.True(t, errors.As(valErr, &fieldErr), "want ErrInvalidField, got %T: %v", valErr, valErr)
+	assert.Contains(t, fieldErr.Path, "credentials")
+	assert.Contains(t, fieldErr.Msg, "bogus_kind")
+}
+
+// TestValidate_ProviderCredentials_KnownTypes_Accepted verifies that all
+// three known credential Types pass Validate().
+func TestValidate_ProviderCredentials_KnownTypes_Accepted(t *testing.T) {
+	t.Parallel()
+
+	userYAML := `llm:
+  providers:
+    anthropic:
+      credentials:
+        - type: anthropic_claude_file
+          path: /a
+          keyring_ref: ka
+    openai:
+      credentials:
+        - type: openai_codex_file
+          path: /b
+          keyring_ref: kb
+    nous:
+      credentials:
+        - type: nous_hermes_file
+          path: /c
+          keyring_ref: kc
+`
+	gooseHome := t.TempDir()
+	memFS := fstest.MapFS{
+		filepath.Join(gooseHome[1:], "config.yaml"): &fstest.MapFile{Data: []byte(userYAML)},
+	}
+
+	cfg, err := config.Load(config.LoadOptions{
+		FS:           memFS,
+		GooseHome:    gooseHome,
+		WorkDir:      t.TempDir(),
+		EnvOverrides: map[string]string{},
+	})
+	require.NoError(t, err)
+	require.NoError(t, cfg.Validate())
+}
+
+// TestRedacted_CredentialFields_NotMasked verifies that Path and KeyringRef
+// are not treated as secrets (they are reference labels). The redacted
+// output should still preserve them so operators can audit credential wiring.
+func TestRedacted_CredentialFields_NotMasked(t *testing.T) {
+	t.Parallel()
+
+	userYAML := `llm:
+  providers:
+    anthropic:
+      credentials:
+        - type: anthropic_claude_file
+          path: /home/u/.claude/.credentials.json
+          keyring_ref: anthropic-prod
+`
+	gooseHome := t.TempDir()
+	memFS := fstest.MapFS{
+		filepath.Join(gooseHome[1:], "config.yaml"): &fstest.MapFile{Data: []byte(userYAML)},
+	}
+
+	cfg, err := config.Load(config.LoadOptions{
+		FS:           memFS,
+		GooseHome:    gooseHome,
+		WorkDir:      t.TempDir(),
+		EnvOverrides: map[string]string{},
+	})
+	require.NoError(t, err)
+
+	out := cfg.Redacted()
+	// Reference labels are non-secret and should remain visible for audit.
+	assert.Contains(t, out, "anthropic-prod")
+	assert.Contains(t, out, "anthropic_claude_file")
 }

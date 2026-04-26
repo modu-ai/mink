@@ -2,7 +2,9 @@
 //
 // REQ-ERRCLASS-002: 각 reason의 기본 FlagProfile을 코드에 명시한다.
 // REQ-ERRCLASS-021: retryable=true AND should_fallback=true 동시 설정은
-//                   Overloaded, ServerError 두 reason에서만 허용.
+//
+//	Overloaded, ServerError 두 reason에서만 허용.
+//
 // init()에서 불변식을 검증하여 위반 시 panic을 발생시킨다.
 package errorclass
 
@@ -18,8 +20,8 @@ var defaultFlagsTable = map[FailoverReason]FlagProfile{
 	AuthPermanent:     {false, false, true, true},
 	Billing:           {false, false, true, true},
 	RateLimit:         {true, false, true, false},
-	Overloaded:        {true, false, false, true},  // REQ-021 예외
-	ServerError:       {true, false, false, true},  // REQ-021 예외
+	Overloaded:        {true, false, false, true}, // REQ-021 예외
+	ServerError:       {true, false, false, true}, // REQ-021 예외
 	ContextOverflow:   {true, true, false, false},
 	PayloadTooLarge:   {true, true, false, false},
 	ModelNotFound:     {false, false, false, true},
