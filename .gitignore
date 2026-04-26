@@ -216,3 +216,6 @@ dist-ssr/
 claude-code-source-map/
 hermes-agent-main/
 CLAUDE.local.md
+
+# Session reports (ephemeral per-session, not for sharing)
+.moai/reports/session-*.md
