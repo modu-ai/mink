@@ -217,3 +217,4 @@ claude-code-source-map/
 hermes-agent-main/
 CLAUDE.local.md
 .moai/reports/session-*.md
+.tmp-hotfix/
