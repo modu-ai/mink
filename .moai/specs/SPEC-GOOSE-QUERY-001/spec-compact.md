@@ -14,7 +14,7 @@ labels: []
 
 > **용도**: `/moai run` 단계에서 token 절약을 위해 spec.md 에서 Requirements / AC / 파일 목록 / Exclusions 만 추출한 압축본. 서술형 배경·기술적 접근·의존성·리스크 상세는 `spec.md` / `plan.md` / `research.md` 를 조회.
 
-**한 줄 요약**: GOOSE-AGENT agentic 코어 런타임 — 하나의 대화 세션 = 하나의 `QueryEngine` 인스턴스 위에서 streaming 응답, tool 실행, permission gating, budget tracking, compaction trigger yield 를 통합한다.
+**한 줄 요약**: AI.GOOSE agentic 코어 런타임 — 하나의 대화 세션 = 하나의 `QueryEngine` 인스턴스 위에서 streaming 응답, tool 실행, permission gating, budget tracking, compaction trigger yield 를 통합한다.
 
 ---
 

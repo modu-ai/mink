@@ -29,7 +29,7 @@ labels: ["llm-provider", "phase-1", "adapter", "credpool-extension", "anthropic"
 
 ## 1. 개요 (Overview)
 
-GOOSE-AGENT Phase 1의 **LLM HTTP 호출 경계**를 정의한다. QUERY-001의 `LLMCallFunc` 인터페이스에 대한 6개 provider 구현(Anthropic, OpenAI, Google Gemini, xAI Grok, DeepSeek, Ollama)을 공통 `Provider` interface 아래 통합하는 `internal/llm/provider` 패키지를 구현한다.
+AI.GOOSE Phase 1의 **LLM HTTP 호출 경계**를 정의한다. QUERY-001의 `LLMCallFunc` 인터페이스에 대한 6개 provider 구현(Anthropic, OpenAI, Google Gemini, xAI Grok, DeepSeek, Ollama)을 공통 `Provider` interface 아래 통합하는 `internal/llm/provider` 패키지를 구현한다.
 
 본 SPEC이 Plan·Run을 통과한 시점에서:
 

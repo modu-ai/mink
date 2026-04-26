@@ -25,7 +25,7 @@ labels: []
 
 ## 1. 개요 (Overview)
 
-GOOSE-AGENT **자기진화 파이프라인의 Layer 3**를 정의한다. TRAJECTORY-001이 기록한 `.jsonl` 궤적 파일 + MEMORY-001의 `facts` 테이블을 입력으로, **4개 다차원 집계(overview / models / tools / activity)**와 **4개 질적 분류(Pattern / Preference / Error / Opportunity)**를 생성한다. 각 분류 항목은 **신뢰도 점수**(관찰 횟수 + 분산 기반)를 달며, REFLECT-001(Phase 5)의 5단계 승격 파이프라인 입력이자 사용자 주간/월간 리포트의 데이터 소스로 사용된다.
+AI.GOOSE **자기진화 파이프라인의 Layer 3**를 정의한다. TRAJECTORY-001이 기록한 `.jsonl` 궤적 파일 + MEMORY-001의 `facts` 테이블을 입력으로, **4개 다차원 집계(overview / models / tools / activity)**와 **4개 질적 분류(Pattern / Preference / Error / Opportunity)**를 생성한다. 각 분류 항목은 **신뢰도 점수**(관찰 횟수 + 분산 기반)를 달며, REFLECT-001(Phase 5)의 5단계 승격 파이프라인 입력이자 사용자 주간/월간 리포트의 데이터 소스로 사용된다.
 
 본 SPEC이 통과한 시점에서:
 

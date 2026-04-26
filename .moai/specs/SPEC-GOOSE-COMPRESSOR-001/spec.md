@@ -26,7 +26,7 @@ labels: [learning, compressor, trajectory, llm-summary]
 
 ## 1. 개요 (Overview)
 
-GOOSE-AGENT **자기진화 파이프라인의 Layer 2**를 정의한다. SPEC-GOOSE-TRAJECTORY-001이 기록한 긴 궤적을, **첫 N턴(head)과 마지막 M턴(tail)을 그대로 보존**하고 **중간 영역만 LLM에게 요약**시키는 방식으로 목표 토큰 예산(기본 15,250) 이하로 압축한다. 압축 결과와 과정 메트릭(`TrajectoryMetrics`)을 모두 기록하여 INSIGHTS-001의 토큰 절감률 통계와 REFLECT-001의 품질 회귀 분석에 사용한다.
+AI.GOOSE **자기진화 파이프라인의 Layer 2**를 정의한다. SPEC-GOOSE-TRAJECTORY-001이 기록한 긴 궤적을, **첫 N턴(head)과 마지막 M턴(tail)을 그대로 보존**하고 **중간 영역만 LLM에게 요약**시키는 방식으로 목표 토큰 예산(기본 15,250) 이하로 압축한다. 압축 결과와 과정 메트릭(`TrajectoryMetrics`)을 모두 기록하여 INSIGHTS-001의 토큰 절감률 통계와 REFLECT-001의 품질 회귀 분석에 사용한다.
 
 본 SPEC이 통과한 시점에서:
 

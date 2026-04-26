@@ -28,7 +28,7 @@ labels: [hook, dispatcher, permission, phase-2, goose-agent]
 
 ## 1. 개요 (Overview)
 
-GOOSE-AGENT의 **24개 lifecycle hook 이벤트 디스패처**와 **권한 결정 플로우(`useCanUseTool`)**을 정의한다. Claude Code의 hook 시스템을 Go로 포팅하여, `QueryEngine`(QUERY-001)이 tool 실행 전후·컨텍스트 변화·권한 요청·세션 종료 시점에서 사용자 정의 핸들러(plugin hook + inline shell 명령)를 동기/비동기적으로 실행하고, `PreToolUse` 블로킹(`continue=false`)으로 도구 호출을 차단하며, `useCanUseTool`의 3-분기(allow/deny/ask)를 결정한다.
+AI.GOOSE의 **24개 lifecycle hook 이벤트 디스패처**와 **권한 결정 플로우(`useCanUseTool`)**을 정의한다. Claude Code의 hook 시스템을 Go로 포팅하여, `QueryEngine`(QUERY-001)이 tool 실행 전후·컨텍스트 변화·권한 요청·세션 종료 시점에서 사용자 정의 핸들러(plugin hook + inline shell 명령)를 동기/비동기적으로 실행하고, `PreToolUse` 블로킹(`continue=false`)으로 도구 호출을 차단하며, `useCanUseTool`의 3-분기(allow/deny/ask)를 결정한다.
 
 본 SPEC이 통과한 시점에서 `internal/hook` 패키지는:
 

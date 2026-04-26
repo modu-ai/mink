@@ -11,7 +11,7 @@
 
 ### 1.1 배경
 
-GOOSE 프로젝트(`module github.com/modu-ai/goose`)의 LLM provider 생태계를 **6개에서 15개로 확장**하기 위한 조사이다. SPEC-GOOSE-ADAPTER-001이 OpenAI-compatible 기반의 `internal/llm/provider/openai/` 어댑터를 완성하는 시점(main merge 후), 동일한 어댑터를 **BaseURL override + Capabilities 주입** 패턴으로 9개 provider에 재사용하여 구현 비용을 극단적으로 낮춘다.
+AI.GOOSE(`module github.com/modu-ai/goose`)의 LLM provider 생태계를 **6개에서 15개로 확장**하기 위한 조사이다. SPEC-GOOSE-ADAPTER-001이 OpenAI-compatible 기반의 `internal/llm/provider/openai/` 어댑터를 완성하는 시점(main merge 후), 동일한 어댑터를 **BaseURL override + Capabilities 주입** 패턴으로 9개 provider에 재사용하여 구현 비용을 극단적으로 낮춘다.
 
 ### 1.2 사용자 의사 결정의 문맥
 

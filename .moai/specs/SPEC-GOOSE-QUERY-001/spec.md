@@ -28,7 +28,7 @@ labels: [phase-0, area/query, area/runtime, type/feature, priority/p0-critical]
 
 ## 1. 개요 (Overview)
 
-GOOSE-AGENT의 **agentic 코어 런타임**을 정의한다. Claude Code의 async generator 기반 query loop를 Go로 포팅하여, 하나의 대화 세션 = 하나의 `QueryEngine` 인스턴스라는 생명주기 계약 위에서 streaming 응답, tool 실행, permission gating, budget tracking, compaction trigger yield를 통합한다.
+AI.GOOSE의 **agentic 코어 런타임**을 정의한다. Claude Code의 async generator 기반 query loop를 Go로 포팅하여, 하나의 대화 세션 = 하나의 `QueryEngine` 인스턴스라는 생명주기 계약 위에서 streaming 응답, tool 실행, permission gating, budget tracking, compaction trigger yield를 통합한다.
 
 본 SPEC이 통과한 시점에서 `QueryEngine`은:
 

@@ -26,7 +26,7 @@ labels: [rate-limit, llm, provider, tracker, phase-1]
 
 ## 1. 개요 (Overview)
 
-GOOSE-AGENT Phase 1의 **provider 응답 헤더 기반 rate limit 추적 레이어**를 정의한다. Hermes Agent의 `rate_limit_tracker.py`(~243 LoC)를 Go로 포팅하여, 각 provider의 HTTP 응답 헤더(`x-ratelimit-*`)를 파싱하고 4-bucket(`requests_min/hour`, `tokens_min/hour`) 상태를 유지하며 80% 임계치 초과 시 경고를 발화하는 `internal/llm/ratelimit` 패키지를 구현한다.
+AI.GOOSE Phase 1의 **provider 응답 헤더 기반 rate limit 추적 레이어**를 정의한다. Hermes Agent의 `rate_limit_tracker.py`(~243 LoC)를 Go로 포팅하여, 각 provider의 HTTP 응답 헤더(`x-ratelimit-*`)를 파싱하고 4-bucket(`requests_min/hour`, `tokens_min/hour`) 상태를 유지하며 80% 임계치 초과 시 경고를 발화하는 `internal/llm/ratelimit` 패키지를 구현한다.
 
 본 SPEC이 통과한 시점에서 `RateLimitTracker`는:
 

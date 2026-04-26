@@ -1,4 +1,4 @@
-# GOOSE-AGENT - Structure Document v4.0 GLOBAL EDITION
+# AI.GOOSE - Structure Document v4.0 GLOBAL EDITION
 
 **Version**: 4.0.0 GLOBAL EDITION  
 **Language**: Go + TypeScript (영문 기술 문서, 한국어 주석)  

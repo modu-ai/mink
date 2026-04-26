@@ -26,7 +26,7 @@ labels: [memory, storage, phase-4, pluggable, goose-agent]
 
 ## 1. 개요 (Overview)
 
-GOOSE-AGENT **자기진화 파이프라인의 Layer 4**를 정의한다. QueryEngine의 세션 경계를 넘어 **사용자 맥락·선호도·사실·과거 delegation 결과**를 유지하는 **Pluggable Memory Provider 인터페이스**를 정립하고, 항상 1순위로 동작하는 **Builtin Provider**(SQLite FTS5 + 파일 MEMORY.md/USER.md)와 **최대 1개의 외부 Plugin Provider**(Honcho / Hindsight / Mem0 등)를 `MemoryManager`가 조정한다.
+AI.GOOSE **자기진화 파이프라인의 Layer 4**를 정의한다. QueryEngine의 세션 경계를 넘어 **사용자 맥락·선호도·사실·과거 delegation 결과**를 유지하는 **Pluggable Memory Provider 인터페이스**를 정립하고, 항상 1순위로 동작하는 **Builtin Provider**(SQLite FTS5 + 파일 MEMORY.md/USER.md)와 **최대 1개의 외부 Plugin Provider**(Honcho / Hindsight / Mem0 등)를 `MemoryManager`가 조정한다.
 
 본 SPEC이 통과한 시점에서:
 

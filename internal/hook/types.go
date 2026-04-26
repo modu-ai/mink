@@ -1,4 +1,4 @@
-// Package hook는 GOOSE-AGENT의 24개 lifecycle hook 이벤트 디스패처와
+// Package hook는 AI.GOOSE의 24개 lifecycle hook 이벤트 디스패처와
 // useCanUseTool 권한 결정 플로우를 구현한다.
 // SPEC-GOOSE-HOOK-001
 package hook
@@ -264,7 +264,29 @@ var (
 	// ErrHookSessionUnresolved는 WorkspaceRoot resolver가 빈 경로/오류 반환 시 반환된다.
 	// REQ-HK-021 b clause / AC-HK-022
 	ErrHookSessionUnresolved = errors.New("hook: WorkspaceRoot resolver returned empty path or failed")
+
+	// ErrInvalidConsumer는 nil consumer/resolver를 등록하려 할 때 반환된다.
+	// SPEC-GOOSE-DAEMON-WIRE-001 REQ-WIRE-008
+	ErrInvalidConsumer = errors.New("hook: cannot register nil consumer or resolver")
 )
+
+// InteractiveOptsInternal은 InteractiveOpt 함수의 수신 타입이다.
+// wire-up 코드에서 opts 상태를 읽기 위해 export된다.
+// SPEC-GOOSE-DAEMON-WIRE-001 REQ-WIRE-009
+type InteractiveOptsInternal struct {
+	ExplicitNoOp bool
+}
+
+// InteractiveOpt는 wireInteractiveHandler의 옵션 타입이다.
+// SPEC-GOOSE-DAEMON-WIRE-001 REQ-WIRE-009
+type InteractiveOpt func(*InteractiveOptsInternal)
+
+// WithExplicitNoOp은 nil handler 등록이 의도된 placeholder임을 표시한다.
+// REQ-WIRE-008의 accidental-nil과 구분된다.
+// SPEC-GOOSE-DAEMON-WIRE-001 REQ-WIRE-009
+func WithExplicitNoOp() InteractiveOpt {
+	return func(o *InteractiveOptsInternal) { o.ExplicitNoOp = true }
+}
 
 // maxPayloadBytes는 HookInput JSON 최대 크기 (4 MiB).
 // REQ-HK-022 / D16: 정확히 4 MiB는 허용, 초과 시 에러.

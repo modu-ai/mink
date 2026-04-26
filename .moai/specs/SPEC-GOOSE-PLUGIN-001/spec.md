@@ -25,7 +25,7 @@ labels: []
 
 ## 1. 개요 (Overview)
 
-GOOSE-AGENT의 **Plugin Host**를 정의한다. Claude Code의 `manifest.json` 중심 플러그인 아키텍처를 Go로 포팅하여, 하나의 plugin 디렉토리(또는 MCPB 번들 파일)에 Skills + Agents + MCP Servers + Slash Commands + Hooks **4 primitive를 한꺼번에 패키징**하고, 3단계 discovery(user / project / marketplace)로 로드하며, `clearThenRegister` atomic swap으로 hot-reload를 지원한다.
+AI.GOOSE의 **Plugin Host**를 정의한다. Claude Code의 `manifest.json` 중심 플러그인 아키텍처를 Go로 포팅하여, 하나의 plugin 디렉토리(또는 MCPB 번들 파일)에 Skills + Agents + MCP Servers + Slash Commands + Hooks **4 primitive를 한꺼번에 패키징**하고, 3단계 discovery(user / project / marketplace)로 로드하며, `clearThenRegister` atomic swap으로 hot-reload를 지원한다.
 
 본 SPEC이 통과한 시점에서 `internal/plugin` 패키지는:
 

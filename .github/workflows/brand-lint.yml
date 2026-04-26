@@ -1,0 +1,37 @@
+name: Brand Lint
+
+# SPEC: SPEC-GOOSE-BRAND-RENAME-001
+# REQ:  REQ-BR-019
+# AC:   AC-BR-010
+#
+# PR이 main에 열리거나 업데이트될 때 brand-lint를 실행한다.
+# scripts/check-brand.sh가 exit 1을 반환하면 merge가 차단된다.
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+jobs:
+  brand-lint:
+    name: Brand Notation Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Run brand-lint
+        run: |
+          echo "Checking brand notation compliance..."
+          echo "See .moai/project/brand/style-guide.md for rules."
+          bash scripts/check-brand.sh

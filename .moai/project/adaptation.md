@@ -1,4 +1,4 @@
-# GOOSE-AGENT - User Adaptation Document v6.0 Daily Companion
+# AI.GOOSE - User Adaptation Document v6.0 Daily Companion
 
 > **문서 목적:** GOOSE가 사용자를 어떻게 이해하고 적응하는지 (learning-engine.md가 내부 엔진이라면, 이 문서는 사용자 관점). v6.0부터 일상 리추얼(아침/점심/저녁) 통합.
 

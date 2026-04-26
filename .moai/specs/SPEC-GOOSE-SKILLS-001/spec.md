@@ -28,7 +28,7 @@ labels: [skills, progressive-disclosure, yaml-frontmatter, trigger-matching, sec
 
 ## 1. 개요 (Overview)
 
-GOOSE-AGENT의 **Skill 시스템**을 정의한다. Claude Code의 Progressive Disclosure(L0~L3 effort 티어) + YAML frontmatter + 4-trigger 활성화 모델을 Go로 포팅하여, `QueryEngine`(SPEC-GOOSE-QUERY-001)이 매 iteration 직전 적절한 Skill을 로드·치환·권한 검증한 후 system/user prompt에 반영하게 한다.
+AI.GOOSE의 **Skill 시스템**을 정의한다. Claude Code의 Progressive Disclosure(L0~L3 effort 티어) + YAML frontmatter + 4-trigger 활성화 모델을 Go로 포팅하여, `QueryEngine`(SPEC-GOOSE-QUERY-001)이 매 iteration 직전 적절한 Skill을 로드·치환·권한 검증한 후 system/user prompt에 반영하게 한다.
 
 본 SPEC이 통과한 시점에서 `internal/skill` 패키지는:
 

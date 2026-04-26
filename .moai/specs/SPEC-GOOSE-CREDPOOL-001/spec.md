@@ -39,7 +39,7 @@ labels: [credential, llm, oauth, phase-1, zero-knowledge]
 
 ## 1. 개요 (Overview)
 
-GOOSE-AGENT Phase 1의 **Multi-LLM Infrastructure 진입점**을 정의한다. Hermes Agent의 `credential_pool.py`(~1.3K LoC) 원형을 Go로 포팅하여, OAuth 토큰과 API key 자격을 하나의 풀에 통합하고, 선택 전략(4종)·자동 갱신·고갈 쿨다운·소프트 임대·외부 디스크 동기화를 제공하는 `internal/llm/credential` 패키지를 구현한다.
+AI.GOOSE Phase 1의 **Multi-LLM Infrastructure 진입점**을 정의한다. Hermes Agent의 `credential_pool.py`(~1.3K LoC) 원형을 Go로 포팅하여, OAuth 토큰과 API key 자격을 하나의 풀에 통합하고, 선택 전략(4종)·자동 갱신·고갈 쿨다운·소프트 임대·외부 디스크 동기화를 제공하는 `internal/llm/credential` 패키지를 구현한다.
 
 본 SPEC이 Plan·Run을 통과한 시점에서 `CredentialPool`은:
 

@@ -1,4 +1,4 @@
-# GOOSE-AGENT - Branding & UX Document v4.0 GLOBAL EDITION
+# AI.GOOSE - Branding & UX Document v4.0 GLOBAL EDITION
 
 > **브랜드 비전:** "GOOSE knows you. Every day, a little more."
 > 글로벌 오픈소스 AI 에이전트 - 평생 동반자 브랜드
