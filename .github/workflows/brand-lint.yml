@@ -16,6 +16,10 @@ on:
       - synchronize
       - reopened
 
+concurrency:
+  group: brand-lint-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   brand-lint:
     name: Brand Notation Check

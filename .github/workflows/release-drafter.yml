@@ -5,12 +5,16 @@ on:
     branches:
       - main
   pull_request:
-    types: [opened, reopened, synchronize, labeled, unlabeled]
+    types: [opened, reopened, synchronize]
     branches:
       - main
 
 permissions:
   contents: read
+
+concurrency:
+  group: release-drafter-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   update_release_draft:
