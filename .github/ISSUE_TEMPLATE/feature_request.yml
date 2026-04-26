@@ -1,0 +1,84 @@
+name: Feature Request
+description: Suggest a capability or improvement for GOOSE.
+title: "[feature] "
+labels: ["type/feature", "priority/p3-low"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for proposing a new capability. GOOSE follows a SPEC-First methodology — substantial features eventually become a `SPEC-GOOSE-XXX-NNN` document with EARS requirements, but a feature request like this is a great starting point for the conversation.
+
+        For open-ended ideas or design discussion, consider [GitHub Discussions](https://github.com/modu-ai/goose/discussions) instead.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What user need or scenario is currently unmet? Describe it without prescribing a solution.
+      placeholder: "When I travel across time zones, GOOSE's morning briefing arrives at the wrong local time."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed direction
+      description: A concrete sketch of how this could work. UX, API, configuration knob — whatever you have in mind.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you thought about and why they fall short.
+
+  - type: dropdown
+    id: layer
+    attributes:
+      label: Layer
+      description: Which architectural layer does this affect? (Roughly.)
+      options:
+        - Layer 1 — Agentic Core
+        - Layer 2 — Nurture Loop
+        - Layer 3 — Daily Rituals
+        - Layer 4 — Emotional Bond
+        - Cross-cutting (security, performance, DX)
+        - Tooling / Build / CI
+        - Documentation
+        - Not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: milestone
+    attributes:
+      label: Suggested milestone
+      description: Roughly when do you think this should land? See [ROADMAP](https://github.com/modu-ai/goose/blob/main/.moai/specs/ROADMAP.md).
+      options:
+        - M1 Multi-LLM
+        - M2 Primitives
+        - M3 Core Workflow
+        - M4 Self-Evolution
+        - M5 Safety
+        - M6 Channels
+        - M7 Daily Companion (v1.0)
+        - M8 Personalization
+        - M9 Ecosystem (v2.0)
+        - Not sure
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Who benefits, and how much? Concrete examples are more useful than estimates.
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I have searched existing issues and discussions for similar proposals.
+          required: true
+        - label: I understand this proposal may be deferred or declined; I'm open to alternative paths.
+          required: true

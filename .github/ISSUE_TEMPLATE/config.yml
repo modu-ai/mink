@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or Idea
+    url: https://github.com/modu-ai/goose/discussions
+    about: Use GitHub Discussions for questions, ideas, and design conversations.
+  - name: Security Vulnerability
+    url: https://github.com/modu-ai/goose/security/advisories/new
+    about: Please report security issues privately, not as public issues.
+  - name: Code of Conduct
+    url: https://github.com/modu-ai/goose/blob/main/CODE_OF_CONDUCT.md
+    about: Read the community standards before participating.
