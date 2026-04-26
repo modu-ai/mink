@@ -236,7 +236,7 @@ func (a *OpenAIAdapter) stream(ctx context.Context, req provider.CompletionReque
 
 	// 7. rate limit 헤더 전달
 	if a.tracker != nil {
-		a.tracker.Parse(a.providerName, resp.Header, time.Now())
+		a.tracker.ParseHTTPHeader(a.providerName, resp.Header, time.Now())
 	}
 
 	// 8. 429/402 처리 — 1회 재시도

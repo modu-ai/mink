@@ -222,7 +222,7 @@ func (a *AnthropicAdapter) stream(ctx context.Context, req provider.CompletionRe
 
 	// 10. rate limit 헤더 전달 (REQ-ADAPTER-004)
 	if a.tracker != nil {
-		a.tracker.Parse("anthropic", resp.Header, time.Now())
+		a.tracker.ParseHTTPHeader("anthropic", resp.Header, time.Now())
 	}
 
 	// 11. 429/402 처리 — 1회 재시도 (AC-ADAPTER-008)
