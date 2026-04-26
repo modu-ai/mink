@@ -110,48 +110,14 @@ func newServerInternal(cfg Config, logger *zap.Logger, state *core.StateHolder, 
 		return nil, fmt.Errorf("grpc listener bind 실패: %w", err)
 	}
 
-	// MaxRecvMsgSize 결정 (REQ-TR-014)
-	// 우선순위: Config.MaxRecvMsgBytes > 환경변수 > 기본값 4MiB
-	maxRecvBytes := cfg.MaxRecvMsgBytes
-	if maxRecvBytes <= 0 {
-		if v := os.Getenv("GOOSE_GRPC_MAX_RECV_MSG_BYTES"); v != "" {
-			n, parseErr := strconv.Atoi(v)
-			if parseErr == nil && n > 0 {
-				maxRecvBytes = n
-			}
-		}
-	}
-	if maxRecvBytes <= 0 {
-		maxRecvBytes = 4 * 1024 * 1024 // default 4MiB
-	}
+	maxRecvBytes := resolveMaxRecvBytes(cfg.MaxRecvMsgBytes)
+	shutdownToken := resolveShutdownToken(cfg.ShutdownToken, cfg.ShutdownTokenOverride)
 
-	// Shutdown 토큰 (REQ-TR-011)
-	// 우선순위: Config.ShutdownTokenOverride → Config.ShutdownToken > 환경변수
-	var shutdownToken string
-	if cfg.ShutdownTokenOverride {
-		// 환경변수 무시, Config 값 직접 사용 (테스트 격리용)
-		shutdownToken = cfg.ShutdownToken
-	} else {
-		shutdownToken = cfg.ShutdownToken
-		if shutdownToken == "" {
-			shutdownToken = os.Getenv("GOOSE_SHUTDOWN_TOKEN")
-		}
-	}
-
-	// rootCancel이 nil이면 rootCtx에서 추출
+	// rootCancel이 nil이면 rootCtx에서 파생 cancel 생성
+	// Shutdown RPC가 cancel을 호출하여 daemon을 종료한다.
 	cancel := rootCancel
 	if cancel == nil {
-		// rootCtx의 cancel을 직접 사용할 수 없으므로 래퍼 생성
-		// rootCtx가 cancel되면 GracefulStop 트리거
-		var innerCancel context.CancelFunc
-		_, innerCancel = context.WithCancel(rootCtx)
-		cancel = innerCancel
-	}
-
-	// shutdown 토큰이 있으면 rootCancel을 wrapping
-	if rootCancel == nil && shutdownToken != "" {
-		// rootCtx cancel을 래핑하기 위해 파생 context 생성
-		// 실제 cancel은 daemonService에 주입
+		_, cancel = context.WithCancel(rootCtx)
 	}
 
 	s := &Server{
@@ -172,8 +138,8 @@ func newServerInternal(cfg Config, logger *zap.Logger, state *core.StateHolder, 
 	}
 
 	chainedInterceptor := grpc.ChainUnaryInterceptor(
-		grpcmiddleware.UnaryServerInterceptor(recoveryOpts...),  // index 0: Recovery (outermost)
-		newLoggingInterceptor(logger),                           // index 1: Logging
+		grpcmiddleware.UnaryServerInterceptor(recoveryOpts...), // index 0: Recovery (outermost)
+		newLoggingInterceptor(logger),                          // index 1: Logging
 	)
 
 	grpcOpts := []grpc.ServerOption{
@@ -293,4 +259,34 @@ func (s *Server) ForceHealthUpdate() {
 // AC-TR-006: integration test에서만 호출되며, 프로덕션 코드에서는 사용하지 않음.
 func (s *Server) RegisterPanicTestService() {
 	registerPanicTestService(s.grpcSrv)
+}
+
+// resolveMaxRecvBytes는 gRPC 최대 수신 메시지 크기를 결정한다.
+// configured > 0이면 그 값을 사용, 아니면 GOOSE_GRPC_MAX_RECV_MSG_BYTES 환경변수,
+// 그것도 없으면 기본값 4MiB를 반환한다. (REQ-TR-014)
+func resolveMaxRecvBytes(configured int) int {
+	if configured > 0 {
+		return configured
+	}
+	if v := os.Getenv("GOOSE_GRPC_MAX_RECV_MSG_BYTES"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err == nil && n > 0 {
+			return n
+		}
+	}
+	return 4 * 1024 * 1024 // 4MiB
+}
+
+// resolveShutdownToken은 Shutdown RPC 인증 토큰을 결정한다.
+// override=true이면 configured 값을 그대로 사용 (빈 문자열도 허용).
+// override=false이면 configured가 빈 문자열일 때 GOOSE_SHUTDOWN_TOKEN 환경변수를 읽는다.
+// (REQ-TR-011, ShutdownTokenOverride 테스트 격리 패턴)
+func resolveShutdownToken(configured string, override bool) string {
+	if override {
+		return configured
+	}
+	if configured != "" {
+		return configured
+	}
+	return os.Getenv("GOOSE_SHUTDOWN_TOKEN")
 }
