@@ -374,21 +374,11 @@ Input: Approved plan from Phase 1B, validated SPEC ID from Phase 1.5.
 File generation (all three files created simultaneously):
 
 - .moai/specs/SPEC-{ID}/spec.md
-  - [HARD] Canonical YAML frontmatter with 9 required fields (exact names): `id`, `version`, `status`, `created_at`, `updated_at`, `author`, `priority`, `issue_number`, `labels`
-  - Schema rules (any violation = MP-3 FAIL in plan-auditor):
-    - `id`: string, matches directory
-    - `version`: string, SemVer (e.g., `0.1.0`)
-    - `status`: enum — `draft` | `planned` | `in_progress` | `implemented` | `completed` | `deprecated` (all lowercase)
-    - `created_at`: ISO date string (NOT `created`)
-    - `updated_at`: ISO date string (NOT `updated`)
-    - `author`: string (agent name or human)
-    - `priority`: enum — `P0` | `P1` | `P2` | `P3`
-    - `issue_number`: integer or `null` (0 is invalid — use `null` when `--no-issue`)
-    - `labels`: array of strings (empty `[]` allowed; field must be present)
+  - YAML frontmatter with 8 required fields (id, version, status, created, updated, author, priority, issue_number)
+  - issue_number: GitHub Issue number linked to this SPEC (0 if --no-issue or Issue creation skipped)
   - HISTORY section immediately after frontmatter
   - Complete EARS structure with all 5 requirement types
   - Content written in conversation_language
-  - AC format: EARS (preferred) OR Given/When/Then with explicit "Given/When/Then format" label. Mixed formats prohibited within one spec.
 
 - .moai/specs/SPEC-{ID}/plan.md
   - Implementation plan with task decomposition
