@@ -11,6 +11,14 @@ import (
 	"go.uber.org/zap"
 )
 
+// startSubprocess on darwin/freebsd/netbsd/openbsd has no rlimit application
+// step (Rlimit array is unsupported on these platforms; see WARN above), so it
+// simply delegates to cmd.Start(). Defined here to keep the cross-platform
+// startSubprocess contract.
+func startSubprocess(cmd *exec.Cmd, _ *zap.Logger) error {
+	return cmd.Start()
+}
+
 var rlimitWarnOnce sync.Once
 
 // applyRlimitIfSupported는 darwin/freebsd에서 Rlimit 배열 없이 Setpgid만 설정한다.

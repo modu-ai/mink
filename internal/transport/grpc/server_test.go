@@ -11,10 +11,8 @@ package grpc_test
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"os"
-	"runtime"
 	"testing"
 	"time"
 
@@ -269,13 +267,13 @@ func TestPanicHandler_Recovered(t *testing.T) {
 	rootCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// PanicTestService must be registered via Config (before Serve);
+	// gRPC fatals if RegisterService is called after Serve has started.
 	srv, err := grpcserver.NewServer(grpcserver.Config{
-		BindAddr: "127.0.0.1:0",
+		BindAddr:                 "127.0.0.1:0",
+		RegisterPanicTestService: true,
 	}, logger, state, rootCtx)
 	require.NoError(t, err)
-
-	// PanicTest RPC 서비스 등록
-	srv.RegisterPanicTestService()
 
 	conn, err := grpc.NewClient(srv.Addr(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -565,14 +563,18 @@ func TestMaxRecvMsgSize_EnvOverride(t *testing.T) {
 	assert.Equal(t, codes.ResourceExhausted, status.Code(err))
 }
 
-// AC-TR-008: Non-loopback bind 거부 (linux/amd64에서만 실행)
+// AC-TR-008: Default bind is restricted to loopback.
+//
+// REQ-TR-001: with GOOSE_GRPC_BIND unset (or set to "127.0.0.1:port"), the
+// listener address must be a loopback IP (127.0.0.1 or ::1).
+//
+// The original test dialled "0.0.0.0:<port>" and expected the call to fail,
+// but on Linux the kernel rewrites a client-side 0.0.0.0 to 127.0.0.1, so the
+// connection succeeds against a loopback-bound listener. We therefore assert
+// the bind address directly instead. See modu-ai/goose#40.
 func TestNonLoopbackBind_Rejected(t *testing.T) {
-	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
-		t.Skip("linux/amd64 전용 테스트")
-	}
 	t.Parallel()
 
-	// GOOSE_GRPC_BIND 미설정(127.0.0.1)에서 non-loopback 연결 거부
 	state := &core.StateHolder{}
 	state.Store(core.StateServing)
 	rootCtx, cancel := context.WithCancel(context.Background())
@@ -584,20 +586,10 @@ func TestNonLoopbackBind_Rejected(t *testing.T) {
 	require.NoError(t, err)
 	defer srv.Stop()
 
-	// non-loopback IP로 연결 시도
-	_, portStr, _ := net.SplitHostPort(srv.Addr())
-	nonLoopbackAddr := fmt.Sprintf("0.0.0.0:%s", portStr)
-
-	conn, err := grpc.NewClient(nonLoopbackAddr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	require.NoError(t, err)
-	defer conn.Close()
-
-	client := goosev1.NewDaemonServiceClient(conn)
-	ctx, cancelCtx := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancelCtx()
-	_, err = client.Ping(ctx, &goosev1.PingRequest{})
-	// loopback에만 bind했으므로 non-loopback에서는 실패해야 함
-	require.Error(t, err)
+	host, _, splitErr := net.SplitHostPort(srv.Addr())
+	require.NoError(t, splitErr)
+	ip := net.ParseIP(host)
+	require.NotNil(t, ip, "listener host must be a valid IP, got %q", host)
+	assert.True(t, ip.IsLoopback(),
+		"listener must bind to loopback only (got %s)", host)
 }

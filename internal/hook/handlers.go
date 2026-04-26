@@ -135,7 +135,7 @@ func (h *InlineCommandHandler) Handle(ctx context.Context, input HookInput) (Hoo
 	// GOOSE_HOOK_TRACE 활성화 시 DEBUG 로그 (REQ-HK-019)
 	traceEnabled := isTraceEnabled()
 
-	if err := cmd.Start(); err != nil {
+	if err := startSubprocess(cmd, logger); err != nil {
 		return HookJSONOutput{}, fmt.Errorf("start subprocess: %w", err)
 	}
 

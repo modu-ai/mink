@@ -83,3 +83,10 @@ func markExtraFDsCloseOnExec(logger *zap.Logger) {
 	_ = logger
 	// 미지원 OS에서는 no-op
 }
+
+// startSubprocess on unsupported OSes simply delegates to cmd.Start(); no
+// rlimit application is available. Defined here to keep the cross-platform
+// startSubprocess contract.
+func startSubprocess(cmd *exec.Cmd, _ *zap.Logger) error {
+	return cmd.Start()
+}
