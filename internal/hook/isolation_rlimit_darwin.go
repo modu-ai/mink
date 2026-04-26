@@ -11,6 +11,14 @@ import (
 	"go.uber.org/zap"
 )
 
+// startSubprocess on darwin/freebsd/netbsd/openbsd has no rlimit application
+// step (Rlimit array is unsupported on these platforms; see WARN above), so it
+// simply delegates to cmd.Start(). Defined here to keep the cross-platform
+// startSubprocess contract.
+func startSubprocess(cmd *exec.Cmd, _ *zap.Logger) error {
+	return cmd.Start()
+}
+
 var rlimitWarnOnce sync.Once
 
 // applyRlimitIfSupported는 darwin/freebsd에서 Rlimit 배열 없이 Setpgid만 설정한다.
@@ -28,4 +36,15 @@ func applyRlimitIfSupported(cmd *exec.Cmd, timeout time.Duration, logger *zap.Lo
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: true,
 	}
+	// Same rationale as the Linux variant: with Setpgid, the default cancel
+	// only kills the leader and orphan grandchildren keep the inherited stdout
+	// pipe open, which hangs cmd.Wait. Kill the entire process group instead.
+	cmd.Cancel = func() error {
+		if cmd.Process == nil {
+			return nil
+		}
+		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		return nil
+	}
+	cmd.WaitDelay = 2 * time.Second
 }
