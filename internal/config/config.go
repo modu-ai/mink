@@ -2,7 +2,8 @@
 // SPEC-GOOSE-CONFIG-001 — 계층형 설정 로더
 //
 // 로딩 우선순위 (낮음 → 높음):
-//   defaults → project(YAML) → user(YAML) → runtime(env)
+//
+//	defaults → project(YAML) → user(YAML) → runtime(env)
 //
 // @MX:ANCHOR: [AUTO] 모든 goosed 부트스트랩 + 후속 SPEC consumer가 호출하는 단일 진입점
 // @MX:REASON: Load()는 TRANSPORT/LLM/AGENT/CLI 등 모든 후속 SPEC의 시작점이므로 fan_in >= 5 예상
@@ -39,7 +40,7 @@ type Config struct {
 	Unknown map[string]any `yaml:",inline"`
 
 	// 내부 상태 — 외부에서 직접 접근 금지
-	sources  sourceMap
+	sources   sourceMap
 	validated bool
 }
 

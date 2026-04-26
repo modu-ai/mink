@@ -266,7 +266,7 @@ func TestLoad_EnvOverlay_StringAndBool(t *testing.T) {
 		GooseHome: t.TempDir(),
 		WorkDir:   t.TempDir(),
 		EnvOverrides: map[string]string{
-			"GOOSE_LOG_LEVEL":       "error",
+			"GOOSE_LOG_LEVEL":        "error",
 			"GOOSE_LEARNING_ENABLED": "false",
 		},
 	})

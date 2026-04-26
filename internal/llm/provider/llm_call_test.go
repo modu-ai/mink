@@ -224,8 +224,10 @@ type fallbackTrackingProvider struct {
 	streamFn func(req provider.CompletionRequest) (<-chan message.StreamEvent, error)
 }
 
-func (p *fallbackTrackingProvider) Name() string                        { return p.name }
-func (p *fallbackTrackingProvider) Capabilities() provider.Capabilities { return provider.Capabilities{} }
+func (p *fallbackTrackingProvider) Name() string { return p.name }
+func (p *fallbackTrackingProvider) Capabilities() provider.Capabilities {
+	return provider.Capabilities{}
+}
 func (p *fallbackTrackingProvider) Stream(_ context.Context, req provider.CompletionRequest) (<-chan message.StreamEvent, error) {
 	return p.streamFn(req)
 }

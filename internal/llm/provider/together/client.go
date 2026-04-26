@@ -53,8 +53,8 @@ func New(opts Options) (*openai.OpenAIAdapter, error) {
 		Capabilities: provider.Capabilities{
 			Streaming:        true,
 			Tools:            true,
-			Vision:           true,  // Together: Llama 3.2 Vision 등 multimodal 모델 포함
-			Embed:            true,  // M2-BERT 등 임베딩 모델 지원
+			Vision:           true, // Together: Llama 3.2 Vision 등 multimodal 모델 포함
+			Embed:            true, // M2-BERT 등 임베딩 모델 지원
 			AdaptiveThinking: false,
 			MaxContextTokens: 128000,
 			MaxOutputTokens:  32768,

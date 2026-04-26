@@ -21,7 +21,6 @@ import (
 	"go.uber.org/zap"
 )
 
-
 // makeTestHome은 AC 테스트용 임시 GOOSE_HOME을 생성하고 기본 디렉토리를 만든다.
 // config.yaml과 빈 skills 디렉토리, 선택적으로 추가 skill을 포함한다.
 func makeTestHome(t *testing.T) string {

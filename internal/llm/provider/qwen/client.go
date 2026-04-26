@@ -81,7 +81,7 @@ func New(opts Options) (*openai.OpenAIAdapter, error) {
 		Capabilities: provider.Capabilities{
 			Streaming:        true,
 			Tools:            true,
-			Vision:           true,  // Qwen-VL 멀티모달 모델 지원
+			Vision:           true, // Qwen-VL 멀티모달 모델 지원
 			Embed:            false,
 			AdaptiveThinking: false,
 			MaxContextTokens: 131072,

@@ -34,4 +34,3 @@ func (m sourceMap) get(path string) Source {
 	}
 	return SourceDefault
 }
-
