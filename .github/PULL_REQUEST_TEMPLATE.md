@@ -1,5 +1,5 @@
 <!--
-PR template for AI.GOOSE (modu-ai/goose-agent).
+PR template for AI.GOOSE (modu-ai/goose).
 Reference: CLAUDE.local.md §2.3 PR 생성 규약.
 - title: 70자 이내 영문 conventional + 한국어 설명
 - body: 한국어
