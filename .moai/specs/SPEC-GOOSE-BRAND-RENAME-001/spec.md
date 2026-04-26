@@ -1,6 +1,6 @@
 ---
 id: SPEC-GOOSE-BRAND-RENAME-001
-version: 0.1.0
+version: 0.1.1
 status: planned
 created_at: 2026-04-26
 updated_at: 2026-04-26
@@ -20,6 +20,7 @@ labels: [brand, meta, cross-cutting]
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
 | 0.1.0 | 2026-04-26 | manager-spec | 초안 작성. 사용자 합의 결정사항(Brand Style Guide, Scope IN/OUT, 6 phase 구현 계획) 반영. 12개 AC + 18 EARS 요구사항 정의. |
+| 0.1.1 | 2026-04-26 | claude(orchestrator) | plan-auditor v1 결과 반영: CRITICAL 2건(D4-1 SPEC 수 모순, D2-1 orphan REQ 3건) + HIGH 6건(D1-1/2, D2-2, D3-1, D5-1, D6-1, D6-2, D7-1) + MEDIUM 8건 + LOW 4건 일괄 정정. REQ-BR-019 신설(brand-lint CI gate 강제화). AC-BR-001/008/010 매핑 + Then 절 보강. §3.2 item 7 / REQ-BR-009 / AC-BR-011 / Phase 4 정책을 "모든 SPEC HISTORY 행 status 무관 보존"으로 broaden. §7.5 brand-lint 알고리즘 명시 추가. R8 신설 + R3/R4 보강. |
 
 ---
 
@@ -34,6 +35,7 @@ labels: [brand, meta, cross-cutting]
 - Scope IN/OUT 의 명확한 경계 (§3)
 - 6-phase 구현 계획 (§6)
 - 후속 SPEC 작성자가 표기 규범을 자동 참조할 수 있는 reference 위치 (§7.4)
+- brand-lint 검증 알고리즘 명세 (§7.5)
 
 ### 1.2 Goal
 
@@ -92,8 +94,8 @@ labels: [brand, meta, cross-cutting]
    - error message (예: `errors.New("goose: invalid config")` 의 prefix가 brand 표기로 보일 경우)
    - CLI help text (`cmd.Long`, `cmd.Short`)
    - doc-comment 의 brand 언급
-5. **기존 SPEC 70여 개 본문**
-   - "프로젝트 명칭"으로 goose를 언급한 부분만 선별 정정
+5. **기존 SPEC 98개 본문** (research.md §2.4 grep 기준, §6 Phase 4와 정합)
+   - "프로젝트 명칭"으로 goose를 언급한 부분만 선별 정정 (판정 절차는 research.md §3.2의 5단계 분류표를 inline 적용)
    - 결과는 `migration-log.md`에 기록 (변경된 SPEC 목록 + diff 카운트)
 
 ### 3.2 OUT Scope (반드시 보존)
@@ -109,7 +111,7 @@ labels: [brand, meta, cross-cutting]
 7. **Immutable 이력**:
    - 과거 CHANGELOG entry (이미 발행된 release section)
    - 과거 git commit message
-   - 종료된 SPEC HISTORY 표 entry (status가 implemented/closed인 SPEC의 기존 row)
+   - **모든** 기존 SPEC `## HISTORY` 표 entries — status(planned/draft/implemented/closed) 무관, brand 정정 대상에서 제외 (이유: HISTORY는 chronological record이므로 retroactive 수정 시 기록이 왜곡됨)
 8. **proto package / message 이름**: `goose.v1` 등
 9. **도메인 용어 인용 형태**: 백틱(`)으로 감싼 `goose CLI`, `goosed daemon`, `goose agent loop` 등 — research.md §3 분류 (D) 도메인 용어로 보존
 
@@ -117,7 +119,7 @@ labels: [brand, meta, cross-cutting]
 
 ## 4. EARS Requirements
 
-본 SPEC은 18개 EARS 요구사항을 정의한다. 각 요구사항은 spec-anchored이며 §5 AC와 1:1 또는 N:1 매핑된다.
+본 SPEC은 19개 EARS 요구사항을 정의한다. 각 요구사항은 spec-anchored이며 §5 AC와 1:1 또는 N:1 매핑된다.
 
 ### 4.1 Ubiquitous (보편 — 항상 성립)
 
@@ -129,32 +131,32 @@ labels: [brand, meta, cross-cutting]
 ### 4.2 Event-Driven (트리거 발생 시)
 
 - **REQ-BR-005 [Event-Driven]** **When** a SPEC author creates a new SPEC document, the SPEC template **shall** include a reference link to `.moai/project/brand/style-guide.md`.
-- **REQ-BR-006 [Event-Driven]** **When** a developer writes a new user-facing string (log, error, CLI help, doc-comment) referring to the project as a brand, the developer **shall** use `AI.GOOSE` (not `GOOSE`, `Goose`, or `GOOSE-AGENT`).
+- **REQ-BR-006 [Event-Driven]** **When** the brand-lint script runs against a user-facing string (log, error, CLI help, doc-comment) that refers to the project as a brand and does not use `AI.GOOSE`, the script **shall** flag the line as a brand violation (covers `GOOSE`, `Goose`, `GOOSE-AGENT` brand-position usage outside backticks).
 - **REQ-BR-007 [Event-Driven]** **When** a new CHANGELOG entry is added, the entry **shall** use `AI.GOOSE` for brand references; **prior** CHANGELOG entries are immutable and **shall not** be edited.
 - **REQ-BR-008 [Event-Driven]** **When** the brand-lint script runs, it **shall** report violations as a non-zero exit code with file path, line number, and offending pattern.
 
 ### 4.3 State-Driven (상태 조건)
 
-- **REQ-BR-009 [State-Driven]** **While** a `.moai/specs/SPEC-GOOSE-XXX-NNN/` directory exists with `status: implemented` or `status: closed`, the SPEC's `## HISTORY` table entries **shall not** be modified for brand normalization.
+- **REQ-BR-009 [State-Driven]** **While** any `.moai/specs/SPEC-GOOSE-XXX-NNN/` directory exists (regardless of `status`: planned/draft/implemented/closed), the SPEC's `## HISTORY` table entries **shall not** be modified for brand normalization.
 - **REQ-BR-010 [State-Driven]** **While** a string is enclosed in backticks (\`...\`) or fenced code blocks, the brand-lint script **shall** treat the content as code identifier or domain term and skip brand-naming validation.
-- **REQ-BR-011 [State-Driven]** **While** a SPEC author is in plan phase (`status: planned` or `status: draft`), the SPEC author **shall** consult `.moai/project/brand/style-guide.md` before writing brand references.
+- **REQ-BR-011 [State-Driven]** **While** a SPEC author is creating or saving a new SPEC document, the SPEC template **shall** present the style-guide reference link (`.moai/project/brand/style-guide.md`) at the top of the template before persistence completes.
 
 ### 4.4 Unwanted (금지 행동)
 
-- **IF** the brand-lint script detects `Goose 프로젝트`, `GOOSE-AGENT` (used as brand outside backticks), or `goose project` (English brand without backticks), **then** the script **shall** fail with exit code 1.
-  - **REQ-BR-012 [Unwanted]**
-- **IF** any modification attempts to change `github.com/modu-ai/goose` (Go module path), `package goose` (Go package), or any `Goose*` type identifier, **then** the change **shall** be rejected at code review and CI **shall** fail with a brand-rule violation message.
-  - **REQ-BR-013 [Unwanted]**
-- **IF** any modification attempts to alter a SPEC directory name from `SPEC-GOOSE-XXX-NNN` to `SPEC-AI-GOOSE-XXX-NNN`, **then** the change **shall** be rejected. SPEC ID naming is OUT of scope (§3.2 item 5).
-  - **REQ-BR-014 [Unwanted]**
-- **IF** any modification attempts to edit a closed SPEC's HISTORY entry or a published CHANGELOG entry for brand normalization, **then** the change **shall** be rejected on immutable-history grounds.
-  - **REQ-BR-015 [Unwanted]**
+- **REQ-BR-012 [Unwanted]** **If** the brand-lint script detects `Goose 프로젝트`, `GOOSE-AGENT` (used as brand outside backticks), or `goose project` (English brand without backticks), **then** the script **shall** fail with exit code 1.
+- **REQ-BR-013 [Unwanted]** **If** any commit or PR attempts to change `github.com/modu-ai/goose` (Go module path), `package goose` (Go package), or any `Goose*` type identifier, **then** CI **shall** fail with a brand-rule violation message and **shall** block merge. (Code review rejection is a complementary process note, not a system behavior.)
+- **REQ-BR-014 [Unwanted]** **If** any commit attempts to alter a SPEC directory name from `SPEC-GOOSE-XXX-NNN` to `SPEC-AI-GOOSE-XXX-NNN`, **then** the brand-lint CI gate **shall** reject the change. SPEC ID naming is OUT of scope (§3.2 item 5).
+- **REQ-BR-015 [Unwanted]** **If** any commit attempts to edit any existing SPEC's HISTORY entry (regardless of status) or a published CHANGELOG entry for brand normalization, **then** the brand-lint CI gate **shall** reject the change on immutable-history grounds.
 
 ### 4.5 Optional (해당 시)
 
 - **REQ-BR-016 [Optional]** **Where** a future domain is registered for the project, the domain slug **shall** use `ai-goose` (e.g., `ai-goose.dev`, `ai-goose.io`).
-- **REQ-BR-017 [Optional]** **Where** Korean and English mixed-language prose appears, the Brand Style Guide **shall** define examples for both `AI.GOOSE 프로젝트` (Korean) and `the AI.GOOSE project` (English) usage.
-- **REQ-BR-018 [Optional]** **Where** a CI environment supports pre-commit hooks, the brand-lint script **shall** be wired as a pre-commit hook to catch violations before commit.
+- **REQ-BR-017 [Optional]** **Where** Korean and English mixed-language prose appears, the Brand Style Guide **shall** define at least 4 example pairs covering both `AI.GOOSE 프로젝트` (Korean) and `the AI.GOOSE project` (English) usage.
+- **REQ-BR-018 [Optional]** **Where** a developer's local environment is configured with pre-commit hooks, the brand-lint script **shall** be wired as a pre-commit hook so that `git commit` fails before the commit object is created on a brand violation.
+
+### 4.6 Mandatory CI Gate (강제 검증)
+
+- **REQ-BR-019 [Event-Driven]** **When** a Pull Request is opened or updated against `main`, the GitHub Actions workflow `.github/workflows/brand-lint.yml` **shall** run `scripts/check-brand.sh` and **shall** block merge on non-zero exit code. (This requirement is mandatory and supersedes REQ-BR-018's optional pre-commit wiring.)
 
 ---
 
@@ -166,12 +168,13 @@ labels: [brand, meta, cross-cutting]
 
 **Given** SPEC-GOOSE-BRAND-RENAME-001 구현이 완료된 상태에서
 **When** `.moai/project/brand/style-guide.md` 파일을 확인하면
-**Then** 파일이 존재하며 다음 3가지 표기 규칙이 모두 명문화되어 있다.
-- 공식 브랜드: `AI.GOOSE`
-- 코드 식별자/약칭: `goose`
-- URL slug: `ai-goose`
+**Then** 파일이 존재하며 다음이 모두 명문화되어 있다.
+- 공식 브랜드: `AI.GOOSE` (REQ-BR-001)
+- 코드 식별자/약칭: `goose` 식별자 규칙 (REQ-BR-002)
+- URL slug: `ai-goose` 케밥 규칙 + 미래 도메인 예시 (`ai-goose.dev`) (REQ-BR-003, REQ-BR-016)
+- 한국어/영어 예시 4쌍 이상 (REQ-BR-017): `AI.GOOSE 프로젝트` ↔ `the AI.GOOSE project`, `AI.GOOSE는 ...입니다.` ↔ `AI.GOOSE is ...`, `` `goose CLI` 명령어 `` ↔ `` the `goose CLI` command ``, `Welcome to AI.GOOSE` (한/영 동일)
 
-REQ 매핑: REQ-BR-004
+REQ 매핑: REQ-BR-001, REQ-BR-002, REQ-BR-003, REQ-BR-004, REQ-BR-016, REQ-BR-017
 
 ### AC-BR-002 — README/CHANGELOG/CLAUDE.md brand 통일
 
@@ -184,10 +187,10 @@ REQ 매핑: REQ-BR-001, REQ-BR-007
 ### AC-BR-003 — `.moai/project/` user-facing brand naming 위반 0건
 
 **Given** Phase 2 정정이 완료된 상태에서
-**When** `.moai/project/` 하위 user-facing .md 파일에 대해 다음 grep 패턴을 실행하면
-- `grep -rE "goose 프로젝트|Goose 프로젝트|GOOSE 프로젝트"` (백틱 외부)
-- `grep -rE "goose project|Goose project"` (백틱 외부, 영문 brand 위치)
-**Then** 위반 건수가 0이다. 단, 백틱 인용 형태(`` `goose` ``, `` `goosed` ``, `` `goose CLI` ``)는 허용한다.
+**When** `.moai/project/` 하위 user-facing .md 파일에 대해 `scripts/check-brand.sh`를 실행하면 (검증 알고리즘은 §7.5 참조: 마크다운 inline code 파서 또는 PCRE2 negative lookbehind 기반으로 백틱 외부 위반 패턴만 검출)
+- 검출 대상 패턴: `goose 프로젝트`, `Goose 프로젝트`, `GOOSE 프로젝트`, `goose project`, `Goose project`
+- 인용 제외: `` `goose` ``, `` `goosed` ``, `` `goose CLI` ``, fenced code block 내부, inline code span 내부
+**Then** 위반 건수가 0이고 exit code가 0이다.
 
 REQ 매핑: REQ-BR-001, REQ-BR-010
 
@@ -203,10 +206,10 @@ REQ 매핑: REQ-BR-001
 
 **Given** Phase 4 정정이 완료된 상태에서
 **When** `.moai/specs/SPEC-GOOSE-BRAND-RENAME-001/migration-log.md` 파일을 확인하면
-**Then** 다음을 포함한다.
+**Then** 다음을 모두 포함한다 (binary 검증):
 - 변경된 SPEC 디렉토리 목록 (예: `SPEC-GOOSE-CLI-001/spec.md`, ...)
 - 각 SPEC 별 diff 카운트 (변경된 line 수)
-- spot-check QA 결과 (무작위 5건의 변경 적정성 검토 결과)
+- spot-check QA: 변경 SPEC 중 무작위 5건(또는 전체 변경 SPEC의 20% 중 큰 값; 변경 SPEC이 5건 미만이면 전수)을 추출하여 §7.5 brand-lint 알고리즘 분류(A) 정정 판정과 100% 일치함을 확인 (= 5건 중 5건 일치, binary)
 
 REQ 매핑: REQ-BR-009 (HISTORY 보존 검증 포함)
 
@@ -221,49 +224,52 @@ REQ 매핑: REQ-BR-006
 
 ### AC-BR-007 — Go module path 미변경 검증
 
-**Given** SPEC 구현 전후의 baseline 상태에서
-**When** `go list -m` 또는 `head -1 go.mod` 를 실행하면
-**Then** 출력이 정확히 `github.com/modu-ai/goose` 이다 (변경 없음).
+**Given** Phase 1 시작 시점에 `go list -m` 출력이 `migration-log.md`의 `## Baseline` 섹션에 캡처된 상태에서
+**When** Phase 6 검증 단계에서 동일 명령(`go list -m` 또는 `head -1 go.mod`)을 재실행하면
+**Then** 출력이 정확히 `github.com/modu-ai/goose` 이고 baseline과 byte-level 일치한다.
 
 REQ 매핑: REQ-BR-013
 
 ### AC-BR-008 — Go package/struct/binary 식별자 미변경 검증
 
-**Given** SPEC 구현 전후의 baseline 상태에서
-**When** 다음 grep을 실행하고 baseline과 비교하면
+**Given** Phase 1 시작 시점에 다음 명령 출력이 `migration-log.md`의 `## Baseline` 섹션에 캡처된 상태에서
 - `grep -rh "^package goose" --include="*.go"` 카운트
 - `grep -rh "^type Goose" --include="*.go"` 카운트
 - `ls cmd/` 디렉토리 출력
-**Then** 모든 카운트와 디렉토리 목록이 baseline과 일치한다 (변경 0건).
+**When** Phase 5 시작 시점 및 Phase 6 검증 단계에서 동일 명령을 재실행하고 baseline과 비교하면
+**Then** 모든 카운트와 디렉토리 목록이 baseline과 일치한다 (변경 0건). `goose` 식별자 규칙(REQ-BR-002) 준수가 baseline 비교로 검증된다.
 
-REQ 매핑: REQ-BR-013
+REQ 매핑: REQ-BR-002, REQ-BR-013
 
 ### AC-BR-009 — SPEC ID 네이밍 미변경
 
-**Given** SPEC 구현 전후의 baseline 상태에서
-**When** `ls .moai/specs/ | grep "^SPEC-"` 출력을 baseline과 비교하면
-**Then** SPEC 디렉토리 이름 목록이 정확히 일치한다. `SPEC-AI-GOOSE-*` 형태의 새 디렉토리 0건, 기존 `SPEC-GOOSE-*` 디렉토리 이름 변경 0건.
+**Given** Phase 1 시작 시점에 `ls .moai/specs/ | grep "^SPEC-"` 출력이 `migration-log.md`의 `## Baseline` 섹션에 캡처된 상태에서
+**When** Phase 4 정정 후 및 Phase 6 검증 단계에서 동일 명령을 재실행하고 baseline과 비교하면
+**Then** SPEC 디렉토리 이름 목록이 baseline과 정확히 일치한다. `SPEC-AI-GOOSE-*` 형태의 새 디렉토리 0건, 기존 `SPEC-GOOSE-*` 디렉토리 이름 변경 0건.
 
 REQ 매핑: REQ-BR-014
 
-### AC-BR-010 — `make brand-lint` 또는 `scripts/check-brand.sh` 통과
+### AC-BR-010 — `make brand-lint` 통과 + GitHub Actions 강제 gate
 
 **Given** Phase 6 검증 도구가 신설된 상태에서
-**When** `make brand-lint` 또는 `scripts/check-brand.sh` 를 실행하면
-**Then** 위반 0건으로 exit code 0 반환. (CI 또는 pre-commit hook으로 wiring 권장)
+**When** 다음을 모두 검증하면
+1. `make brand-lint` 또는 `scripts/check-brand.sh` 실행 → exit code 0, 위반 0건
+2. `.github/workflows/brand-lint.yml` 워크플로우 파일이 존재하고 PR trigger(`on: pull_request`)에 등록됨
+3. 의도적으로 brand 위반(`Goose 프로젝트` 추가)을 도입한 시험 PR이 brand-lint check 실패로 merge가 차단됨
+**Then** 세 조건 모두 만족한다 (binary). 단, REQ-BR-018(pre-commit hook wiring)은 [Optional]이므로 wiring 후 `git commit` 시 brand 위반에 한해 차단됨을 별도 시험으로 확인하면 통과로 인정한다.
 
-REQ 매핑: REQ-BR-008, REQ-BR-012, REQ-BR-018
+REQ 매핑: REQ-BR-008, REQ-BR-012, REQ-BR-018, REQ-BR-019
 
 ### AC-BR-011 — Immutable history 보존
 
-**Given** SPEC 구현 전후의 baseline 상태에서
-**When** 다음을 비교하면
-- 과거 CHANGELOG entry section (이미 발행된 release): byte-level diff
-- 종료된 SPEC HISTORY 표 (status: implemented/closed): byte-level diff
-- 과거 git commit message: `git log --oneline` 출력
-**Then** 모든 비교에서 변경 0건이다.
+**Given** Phase 1 시작 시점에 다음 baseline이 `migration-log.md`의 `## Baseline` 섹션에 캡처된 상태에서
+- 과거 CHANGELOG entry section (이미 발행된 release): byte-level snapshot
+- **모든** 기존 SPEC `## HISTORY` 표 entries (status 무관: planned/draft/implemented/closed): byte-level snapshot
+- 과거 git commit message: `git log --oneline` 출력 snapshot
+**When** Phase 4/5 정정 후 동일 항목을 다시 추출하여 baseline과 비교하면
+**Then** 모든 비교에서 변경 0건이다 (byte-level 일치).
 
-REQ 매핑: REQ-BR-015
+REQ 매핑: REQ-BR-009, REQ-BR-015
 
 ### AC-BR-012 — SPEC template에 style-guide 자동 참조 link 추가
 
@@ -283,7 +289,8 @@ REQ 매핑: REQ-BR-005
 
 - 본 SPEC 디렉토리 생성: `.moai/specs/SPEC-GOOSE-BRAND-RENAME-001/{spec.md, research.md}`
 - `.moai/project/brand/style-guide.md` 신설 (frozen reference, §7 Brand Style Guide의 표를 박제)
-- commit: `docs(spec): SPEC-GOOSE-BRAND-RENAME-001 v0.1.0 초안 작성 — AI.GOOSE 브랜드 통일`
+- `migration-log.md`의 `## Baseline` 섹션에 baseline 캡처 (`go list -m`, package/type grep counts, `ls cmd/`, `ls .moai/specs/`, CHANGELOG snapshot, 모든 SPEC HISTORY snapshot, `git log --oneline` snapshot)
+- commit: `docs(brand): SPEC-GOOSE-BRAND-RENAME-001 v0.1.0 초안 + style-guide.md 신설 + baseline 캡처`
 
 ### Phase 2 — 핵심 다큐먼트 일괄 정정
 
@@ -301,10 +308,10 @@ REQ 매핑: REQ-BR-005
 
 ### Phase 4 — 기존 SPEC 본문 선별 정정
 
-- 98개 SPEC 마크다운 중 brand 표기로 goose를 언급한 부분만 선별
-- SPEC ID, HISTORY 표 entries (status: implemented/closed), 코드 인용은 보존
+- 98개 SPEC 마크다운 중 brand 표기로 goose를 언급한 부분만 선별 (research.md §2.4 grep 카운트 기준)
+- SPEC ID, **모든** SPEC HISTORY 표 entries (status 무관: planned/draft/implemented/closed), 코드 인용은 보존
 - 결과를 `.moai/specs/SPEC-GOOSE-BRAND-RENAME-001/migration-log.md`에 기록
-- spot-check QA: 무작위 5건 직접 검토
+- spot-check QA: 변경 SPEC 중 무작위 5건(또는 전체 변경 SPEC의 20% 중 큰 값; 5건 미만이면 전수)을 §7.5 알고리즘 분류(A) 정정과 100% 일치 검증
 - commit: `docs(brand): SPEC-GOOSE-BRAND-RENAME-001 — Phase 4 SPEC 본문 brand 정정 (migration-log 포함)`
 
 ### Phase 5 — 코드 내 user-facing 문자열
@@ -312,7 +319,8 @@ REQ 매핑: REQ-BR-005
 - log/error message, CLI help text, doc-comment 의 brand 언급
 - 사전 baseline grep: `grep -rn "goose" --include="*.go" | grep -vE "package |type |func |var |import |//.*github.com"` 등
 - 식별자(`type Goose*`, `package goose`, `cmd/goose`)는 절대 변경 금지 — AC-BR-008로 검증
-- commit: `feat(brand): SPEC-GOOSE-BRAND-RENAME-001 — Phase 5 코드 내 user-facing 문자열 정정`
+- 분류 정책: 런타임 plaintext 출력의 "goose daemon" / "goose CLI" 등 brand 위치는 `AI.GOOSE daemon` / `AI.GOOSE CLI`로 정정. 단, 백틱 인용 코드 식별자(`` `goosed` ``, `` `goose` ``)는 보존 (§7.5 알고리즘 + research.md §3 분류 (A) vs (D) 참조)
+- commit: `docs(brand): SPEC-GOOSE-BRAND-RENAME-001 — Phase 5 코드 내 user-facing 문자열 정정` (commit type을 `docs(brand)`로 통일: user-facing 문자열은 동작 변경 없이 표기만 정정하므로 `feat`가 아닌 `docs`로 분류. Phase 6의 `chore(brand)`와 더불어 §6 전체에서 `feat` 사용 0건 유지)
 
 ### Phase 6 — 검증 도구 + CI gate
 
@@ -322,11 +330,12 @@ REQ 매핑: REQ-BR-005
 - (선택) pre-commit hook wiring
 - commit: `chore(brand): SPEC-GOOSE-BRAND-RENAME-001 — Phase 6 brand-lint 검증 도구 추가`
 
-### 6.7 Phase 의존성
+### Phase 의존성 및 PR 분량 정책
 
-- Phase 1은 모든 phase의 선행 작업 (style-guide.md가 다른 phase의 reference로 작동)
+- Phase 1은 모든 phase의 선행 작업 (style-guide.md가 다른 phase의 reference로 작동, baseline도 Phase 1에서 캡처)
 - Phase 2~5는 상호 독립적이므로 병렬 작업 가능 (다만 squash merge 시 순서 정렬 권장)
 - Phase 6은 Phase 2~5 검증을 위해 마지막 수행
+- **PR 분량 정책**: 기본은 단일 PR + multi-commit 구조이며 squash merge(CLAUDE.local.md §1.4) 시 모든 phase commit이 하나로 통합된다. 단, Phase 2(약 14파일) 또는 Phase 4(98 SPEC 분량)가 단일 squash로 review에 부담을 줄 만큼 비대해지면 해당 phase를 별도 squash PR로 분리할 수 있다. 분리 시 base branch는 `feature/SPEC-GOOSE-BRAND-RENAME-001-spec`을 그대로 사용하고, PR description에 split 사유와 후속 phase의 진행 순서를 명시한다.
 
 ---
 
@@ -350,7 +359,7 @@ REQ 매핑: REQ-BR-005
 - 좋은 예: `` AI.GOOSE는 `goose CLI`로 실행됩니다. ``
 - 나쁜 예: `` Goose는 goose CLI로 실행됩니다. `` (brand 표기 잘못, 식별자 백틱 누락)
 
-### 7.3 한/영 표기 예시
+### 7.3 한/영 표기 예시 (i18n 일반 정책 포함)
 
 | 한국어 | 영어 |
 |--------|------|
@@ -358,6 +367,8 @@ REQ 매핑: REQ-BR-005
 | `AI.GOOSE는 ...입니다.` | `AI.GOOSE is ...` |
 | `` `goose CLI` 명령어 `` | `` the `goose CLI` command `` |
 | `Welcome to AI.GOOSE` | `Welcome to AI.GOOSE` |
+
+i18n 일반 정책: 다른 언어(일본어, 중국어 등)가 추후 도입되더라도 동일 dual representation 원칙(brand=`AI.GOOSE` / 식별자=`goose` / slug=`ai-goose`)을 그대로 적용한다. 신규 언어 추가 자체는 본 SPEC OUT scope이며, 별도 SPEC에서 처리한다.
 
 ### 7.4 후속 SPEC 작성자 참조
 
@@ -367,6 +378,23 @@ REQ 매핑: REQ-BR-005
 - brand 표기 시 `AI.GOOSE` 사용 (REQ-BR-001)
 - 코드 식별자/도메인 용어는 `goose` (REQ-BR-002)
 - URL/도메인 slug는 `ai-goose` (REQ-BR-003)
+
+### 7.5 brand-lint 검증 알고리즘 (`scripts/check-brand.sh` 동작 명세)
+
+`scripts/check-brand.sh` 및 GitHub Actions workflow `brand-lint.yml`는 다음 알고리즘으로 동작한다 (AC-BR-003 / AC-BR-010 검증의 근거).
+
+1. **입력**: 검사 대상 .md 파일 목록 (default: `.moai/project/`, `.moai/specs/`, `.claude/`, `README.md`, `CHANGELOG.md`, `CLAUDE.md`)
+2. **마크다운 파싱**: 각 파일을 마크다운 inline code 파서(예: Python의 `markdown-it-py` 또는 Go의 `goldmark`)로 파싱하여 inline code span 및 fenced code block 영역의 byte offset을 식별
+3. **위반 검출**: 코드 영역 외부에서 다음 패턴을 검출 (PCRE2 negative lookbehind 대안 사용 시 `(?<!\`)goose 프로젝트(?!\`)` 형태)
+   - `goose 프로젝트`, `Goose 프로젝트`, `GOOSE 프로젝트`
+   - `goose project`, `Goose project`
+   - `GOOSE-AGENT` (백틱 외부, brand 위치)
+4. **분류 (A) vs (D) 판정**: 코드 영역 내부 `` `goose CLI` ``, `` `goosed daemon` ``, `` `goose agent loop` `` 등은 도메인 용어(D)로 보존하고 위반에서 제외
+5. **HISTORY 보존 검증**: 모든 SPEC의 `## HISTORY` 섹션 (status 무관) 안에서 brand 패턴 변경이 발생했는지 baseline과 byte-level diff. 변경 발견 시 즉시 fail
+6. **출력**: 위반이 0건이면 exit 0, 위반이 있으면 exit 1과 함께 file path/line number/offending pattern 보고
+7. **언어 선택**: Python 스크립트 우선 (마크다운 파서 활용 용이). bash + ripgrep PCRE2 (`rg -P --pcre2`) 대안도 허용하되 lookbehind 한계로 fenced code block 처리는 제한적 → 가능하면 Python 우선
+
+GitHub Actions workflow는 위 스크립트를 PR trigger에서 실행하며, exit 1 시 `merge_blocking` 상태로 등록되어 PR merge가 차단된다 (REQ-BR-019 강제화).
 
 ---
 
@@ -399,11 +427,12 @@ REQ 매핑: REQ-BR-005
 |---|--------|--------|------|------|
 | R1 | 코드 식별자 잘못 변경 (Go module path / package / type 손상) | 낮 | 매우 높 | AC-BR-007/008/009 baseline 비교 자동화. CI gate에서 차단. Phase 5 작업 시 수동 Edit만 허용, 자동 sed 금지. |
 | R2 | 도메인 용어("goose agent loop")의 brand 오인식 | 중 | 중 | Brand Style Guide §7.2 Dual Representation 원칙 명시. 정정 시 인간 리뷰 필수. brand-lint는 백틱 인용을 자동 제외 (REQ-BR-010). |
-| R3 | 70여 SPEC 본문 일괄 정정 시 누락/오변경 | 중 | 중 | migration-log.md로 추적 (AC-BR-005). spot-check QA 5건 무작위 검토. |
-| R4 | 기존 PR(예: #24)이 머지되면 base 변경 필요 | 중 | 낮 | feature/SPEC-GOOSE-BRAND-RENAME-001-spec branch는 main 기반. 구현 단계는 main rebase 후 진행. |
-| R5 | i18n / 번역 본문(특히 한국어/영어 혼용)에서 일관성 균열 | 중 | 낮 | Brand Style Guide §7.3 한/영 표기 예시 section 추가. |
-| R6 | brand-lint script가 false positive를 만들어 개발자 피로도 증가 | 중 | 낮 | 백틱 인용 자동 제외 (REQ-BR-010). 검증 패턴은 명백한 brand 위치(`Goose 프로젝트`, `GOOSE-AGENT` 외부)에 한정. |
+| R3 | 98개 SPEC 본문 일괄 정정 시 누락/오변경 | 중 | 중 | migration-log.md로 추적 (AC-BR-005). spot-check QA 표본 크기 정당화: 변경 SPEC의 20% 또는 5건 중 큰 값(전체 변경 SPEC이 5건 미만이면 전수). 분류(A) 정정 100% 일치 binary 확인. |
+| R4 | 진행 중인 모든 active feature/release branch에 대한 rebase 필요 (PR #24 등 merge 시 base 갱신) | 중 | 낮 | feature/SPEC-GOOSE-BRAND-RENAME-001-spec branch는 main 기반. 구현 시작 전 `git branch --list 'feature/*' 'release/*'`로 active branch 목록을 추출하고, brand 정정과 충돌 가능성이 있는 branch는 owner에게 main rebase 또는 본 SPEC merge 후 일괄 rebase 일정을 공지. PR #24는 1차 시범 사례. |
+| R5 | i18n / 번역 본문(특히 한국어/영어 혼용)에서 일관성 균열 | 중 | 낮 | Brand Style Guide §7.3 한/영 표기 예시 section 추가 + i18n 일반 정책 명시. |
+| R6 | brand-lint script가 false positive를 만들어 개발자 피로도 증가 | 중 | 낮 | 백틱 인용 자동 제외 (REQ-BR-010). 검증 패턴은 명백한 brand 위치(`Goose 프로젝트`, `GOOSE-AGENT` 외부)에 한정. §7.5 알고리즘에서 마크다운 파서 기반 정확한 코드 영역 식별. |
 | R7 | SPEC ID `SPEC-GOOSE-XXX-NNN` 잔존이 brand 통일 대비 어색해 보임 | 낮 | 낮 | OUT scope (§3.2 item 5)로 명시. 후속 별도 논의 (v0.2.0+ 검토). |
+| R8 | 표기 규범이 §7 Brand Style Guide(SPEC 본문)와 `.moai/project/brand/style-guide.md`(frozen reference) 두 곳에 존재하여 drift 발생 가능 | 중 | 중 | Phase 1에서 `.moai/project/brand/style-guide.md`를 §7.1~§7.5 표/내용의 캐노니컬 사본으로 박제. 본 SPEC §7은 "frozen reference 후보"임을 명시 (§7 도입부 참조). 후속 변경 시 양쪽을 동시 수정하는 PR 정책을 §10.1에 명시 + brand-lint workflow가 두 파일의 핵심 표(Section 7.1 표) byte-level 동일성을 추가 검증하는 옵션 검토. |
 
 ---
 
@@ -411,9 +440,10 @@ REQ 매핑: REQ-BR-005
 
 ### 10.1 본 SPEC 산출물
 
-- `.moai/specs/SPEC-GOOSE-BRAND-RENAME-001/spec.md` (이 문서, v0.1.0)
+- `.moai/specs/SPEC-GOOSE-BRAND-RENAME-001/spec.md` (이 문서, v0.1.1)
 - `.moai/specs/SPEC-GOOSE-BRAND-RENAME-001/research.md` (현황 조사 + 의사결정 근거)
-- `.moai/specs/SPEC-GOOSE-BRAND-RENAME-001/migration-log.md` (Phase 4 결과 기록, 구현 시점에 신설)
+- `.moai/specs/SPEC-GOOSE-BRAND-RENAME-001/migration-log.md` (Phase 1 baseline + Phase 4 결과 기록, 구현 시점에 신설)
+- `.moai/project/brand/style-guide.md` (frozen reference, §7 캐노니컬 사본). **Dual-source drift 방지 정책**: §7과 `style-guide.md` 중 하나가 변경되면 같은 PR 안에서 다른 쪽도 동시 수정해야 하며, brand-lint workflow가 §7.1 표의 byte-level 동일성을 검증한다 (R8).
 
 ### 10.2 산업 사례 (research.md §4 참조)
 
@@ -452,6 +482,6 @@ REQ 매핑: REQ-BR-005
 
 ---
 
-Version: 0.1.0
+Version: 0.1.1
 Status: planned
 Last Updated: 2026-04-26
