@@ -494,6 +494,183 @@ Rust 크리티컬 영역이 L4 (WASM), L7 (E2EE)을 강화:
 
 **Trade-off:** 복잡도 증가 but 10x 성능 향상.
 
+### ADR-017: Zero-Knowledge Credential Pool (v4.1 신규, CREDPOOL-001)
+
+**Decision:** 크레덴셜 저장소는 Zero-Knowledge proof 기반 암호화 저장소 사용
+
+**Rationale:**
+- API 키/토큰은 절대 메모리에 평문 보관 금지
+- ZK proof로 "이 크레덴셜은 유효함"을 증명하되 값은 encrypted vault에만
+- Vault rotation: 매 사용마다 새로운 ephemeral key 생성
+- Audit 로그: 누가 언제 어떤 provider credential 접근했는지 추적
+
+**Tradeoff:**
+- 암호화/복호화 오버헤드: ~1-2ms (무시할만)
+- Provider 폐기시 매우 간단 (vault key 폐기만)
+
+### ADR-018: 4-Bucket Rate Limiter (RATELIMIT-001)
+
+**Decision:** 4개 독립 bucket으로 RPM, TPM, RPH, TPH 각각 추적
+
+**Architecture:**
+```
+Bucket 1: RPM (Request Per Minute) — Anthropic/OpenAI RPM 제한
+Bucket 2: TPM (Token Per Minute) — 모든 provider TPM 제한  
+Bucket 3: RPH (Request Per Hour) — Groq 무료 30 RPM/1440 RPH
+Bucket 4: TPH (Token Per Hour) — 일일 할당량 제한
+```
+
+**Header Parsing:**
+- Anthropic: `anthropic-ratelimit-remaining-requests`, `anthropic-ratelimit-remaining-tokens`
+- OpenAI: `x-ratelimit-remaining-requests`, `x-ratelimit-remaining-tokens`
+- Google: `x-ratelimit-remaining` (TPM only)
+
+**경고 및 차단:**
+- 80% 도달 시 경고 (로그 + 사용자 알림)
+- 100% 도달 시 차단 + fallback provider로 라우팅
+- 메트릭 수집: Prometheus export for alerting
+
+**Trade-off:** 4개 bucket 동시 추적은 최소 오버헤드 (<100ns per call)
+
+### ADR-019: MCP 3-Transport Strategy (MCP-001)
+
+**Decision:** Model Context Protocol 지원 3가지 transport
+
+**Architectures:**
+```
+1. Stdio: 로컬 프로세스 통신 (클라이언트용)
+   - 보안: 자신의 프로세스 범위 내
+   - 지연: 0ms (IPC 오버헤드만)
+   
+2. WebSocket: 실시간 양방향 (서버용)
+   - 보안: TLS 필수
+   - 지연: 10-50ms (네트워크)
+   
+3. SSE (Server-Sent Events): 단방향 스트림 + 양방향 HTTP
+   - 보안: TLS 필수
+   - 지연: 50-100ms (Long-polling 효과)
+   - 사용: firewall 뒤 클라이언트 통신
+```
+
+**OAuth 2.1 협상:**
+- Capability claim in OAuth token
+- scope: "mcp:*" (모든 MCP 리소스 접근)
+- refresh_token으로 세션 유지
+
+**Trade-off:** 각 transport 별 다른 latency trade-off
+
+### ADR-020: Sub-agent 3-Isolation Strategy (SUBAGENT-001)
+
+**Decision:** 3가지 isolation 모드 지원: fork, worktree, background
+
+**Matrix:**
+```
+            fork              worktree         background
+Process     별도 프로세스     git worktree     비동기 태스크
+Memory      독립적           공유 파일시스템  메인 메모리
+Return      wait()           git clean        fire-and-forget
+Use case    무거운 작업      SPEC 개발        빠른 피드백
+Scope       none/session     session/persist  none
+```
+
+**Memory Scope (3개):**
+- `none`: 메모리 격리 (상호작용 로깅 없음)
+- `session`: 세션 메모리만 (이번 실행 맥락)
+- `persistent`: .claude/agent-memory/ 접근 가능
+
+**PlanModeApprove:**
+- Sub-agent가 plan mode로 생성되면 모든 쓰기 차단
+- 읽기만 허용 (codebase exploration)
+
+**Trade-off:**
+- fork: 가장 무겁지만 메모리 완전 격리
+- worktree: 중간 수준, 파일 편집 완벽 격리
+- background: 가장 빠르지만 메인 메모리 영향
+
+### ADR-021: Plugin Host Atomic ClearThenRegister (PLUGIN-001)
+
+**Decision:** Plugin registry는 원자적 clear-then-register 패턴
+
+**Architecture:**
+```go
+func RegisterPlugin(manifest *PluginManifest) error {
+    // 1. 새 plugin 로드 및 검증
+    plugin, err := loadPlugin(manifest.Path)
+    if err != nil {
+        return err
+    }
+    
+    // 2. 기존 모든 plugin 일괄 언로드
+    registry.ClearAll()
+    
+    // 3. 새 plugin 등록
+    registry.Register(plugin)
+    
+    // 4. 의존 plugin들 재등록 (topological order)
+    for _, dep := range dependencies {
+        registry.Register(dep)
+    }
+}
+```
+
+**3-Tier Discovery:**
+1. **Manifest tier**: plugin.json에 명시된 entry points
+2. **Capability tier**: 런타임 capability query (init() hook에서 선언)
+3. **Schema tier**: JSON schema from manifest 자동 로드
+
+**4 primitives:**
+- Load/Unload (lifecycle)
+- Query (capability discovery)
+- Call (invocation)
+- Monitor (health check)
+
+**Trade-off:** 원자성 보장 위해 clear-all이 필요 (≈50ms 다운타임)
+
+### ADR-022: Per-Triple Lock Permission (PERMISSION-001)
+
+**Decision:** 권한은 (user, tool, resource) 3-tuple별로 독립적 잠금
+
+**Architecture:**
+```
+Triple = (UserID, ToolName, ResourcePath)
+Example: ("alice@example.com", "exec-bash", "/etc/passwd")
+
+Lock states:
+  - None (미승인)
+  - Declared (메니페스트에서 선언)
+  - Approved (사용자가 수동 승인)
+  - FirstCall (첫 호출 시에만 확인)
+```
+
+**First-Call Confirm:**
+- 새로운 (user, tool, resource) triple은 첫 호출 시 사용자 확인
+- 확인 후: "Always Allow" / "This Time Only" / "Deny" 선택
+- "Always Allow" 선택 시 메모리에만 저장 (미지속)
+- 세션 종료 시 "Always Allow" 사라짐
+
+**Declared vs Runtime:**
+- Declared: 코드에 명시 (read-only, network URL 등)
+- Runtime: 동적 결정 (unknown resource path)
+
+**Trade-off:** per-triple 저장소는 큐리 많음 (수십만 rows), SQLite FTS 인덱싱 필수
+
+### ADR-023: Brand-Lint CI Gate (BRAND-RENAME-001)
+
+**Decision:** 모든 PR은 merge 전에 `scripts/check-brand.sh` 통과 필수
+
+**Rules:**
+- 모든 user-facing prose에 "AI.GOOSE" 사용 (대문자, 마침표 후)
+- 코드 식별자는 `goose` (소문자, 영어만)
+- 제외: `.moai/specs/SPEC-GOOSE-BRAND-RENAME-001/` (원본 보존)
+- Fallback: SPEC 파일의 HISTORY 섹션은 lint 제외
+
+**CI Integration:**
+- `.github/workflows/brand-lint.yml` 신규 추가
+- `scripts/check-brand.sh` 로컬 + CI에서 실행
+- Exit code 0 = pass, 1 = fail (PR 블로킹)
+
+**Trade-off:** 엄격한 규칙은 maintainer의 수동 요청 증가 가능
+
 ---
 
 ## 9. LLM Provider 생태계 (SPEC-GOOSE-ADAPTER-001, SPEC-GOOSE-ADAPTER-002)
