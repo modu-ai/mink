@@ -25,7 +25,7 @@ labels: []
 
 ## 1. 개요 (Overview)
 
-GOOSE-AGENT의 **Slash Command 파서 및 디스패처**를 정의한다. `SPEC-GOOSE-QUERY-001` §3.2는 `processUserInput(prompt)`를 "본 SPEC에서 noop (원문 그대로 반환). COMMAND-001이 확장"으로 위임한다. 본 SPEC이 그 훅 포인트를 채우며, Claude Code `commands/` 디렉토리의 slash command 시스템을 Go로 포팅한다.
+AI.GOOSE의 **Slash Command 파서 및 디스패처**를 정의한다. `SPEC-GOOSE-QUERY-001` §3.2는 `processUserInput(prompt)`를 "본 SPEC에서 noop (원문 그대로 반환). COMMAND-001이 확장"으로 위임한다. 본 SPEC이 그 훅 포인트를 채우며, Claude Code `commands/` 디렉토리의 slash command 시스템을 Go로 포팅한다.
 
 본 SPEC 수락 시점에서:
 

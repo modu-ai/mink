@@ -284,17 +284,56 @@ research.md §6 Phase 3에서 추정한 4파일 6건은 도메인 용어(`SPEC-G
 
 ## Phase 4 — SPEC 본문 정정 결과
 
-아래 표는 Phase 4 완료 후 업데이트됨.
+완료일: 2026-04-26
 
-| SPEC 파일 | 변경된 라인 수 | 변경 내용 요약 |
-|-----------|--------------|--------------|
-| (Phase 4 완료 후 기록) | | |
+### 변경 SPEC 목록 (21 spec.md + 1 research.md + 1 spec-compact.md + 2 non-SPEC .md)
 
-### Spot-check QA 결과
+| 파일 | 변경 라인 수 | 변경 내용 요약 |
+|------|------------|--------------|
+| `SPEC-GOOSE-ADAPTER-001/spec.md` | 1 | `GOOSE-AGENT Phase 1의 ...` → `AI.GOOSE Phase 1의 ...` |
+| `SPEC-GOOSE-AGENT-001/spec.md` | 1 | `GOOSE-AGENT 대화 루프의 ...` → `AI.GOOSE 대화 루프의 ...` |
+| `SPEC-GOOSE-CLI-001/spec.md` | 1 | `GOOSE-AGENT의 **사용자 대면 CLI**` → `AI.GOOSE의 **사용자 대면 CLI**` |
+| `SPEC-GOOSE-COMMAND-001/spec.md` | 1 | `GOOSE-AGENT의 **Slash Command...` → `AI.GOOSE의 **Slash Command...` |
+| `SPEC-GOOSE-COMPRESSOR-001/spec.md` | 1 | `GOOSE-AGENT **자기진화 파이프라인의 Layer 2**` → `AI.GOOSE **자기진화...` |
+| `SPEC-GOOSE-CORE-001/spec.md` | 1 | `GOOSE-AGENT의 모든 후속 기능` → `AI.GOOSE의 모든 후속 기능` |
+| `SPEC-GOOSE-CREDPOOL-001/spec.md` | 1 | `GOOSE-AGENT Phase 1의 **Multi-LLM...` → `AI.GOOSE Phase 1의 **Multi-LLM...` |
+| `SPEC-GOOSE-ERROR-CLASS-001/spec.md` | 1 | `GOOSE-AGENT **자기진화 파이프라인의 보조 레이어**` → `AI.GOOSE **자기진화...` |
+| `SPEC-GOOSE-HOOK-001/spec.md` | 1 | `GOOSE-AGENT의 **24개 lifecycle hook...` → `AI.GOOSE의 **24개...` |
+| `SPEC-GOOSE-INSIGHTS-001/spec.md` | 1 | `GOOSE-AGENT **자기진화 파이프라인의 Layer 3**` → `AI.GOOSE **자기진화...` |
+| `SPEC-GOOSE-LLM-001/spec.md` | 1 | `GOOSE-AGENT의 모든 LLM 호출` → `AI.GOOSE의 모든 LLM 호출` |
+| `SPEC-GOOSE-MCP-001/spec.md` | 1 | `GOOSE-AGENT의 **Model Context Protocol...` → `AI.GOOSE의 **MCP...` |
+| `SPEC-GOOSE-MEMORY-001/spec.md` | 1 | `GOOSE-AGENT **자기진화 파이프라인의 Layer 4**` → `AI.GOOSE **자기진화...` |
+| `SPEC-GOOSE-PLUGIN-001/spec.md` | 1 | `GOOSE-AGENT의 **Plugin Host**` → `AI.GOOSE의 **Plugin Host**` |
+| `SPEC-GOOSE-QUERY-001/spec.md` | 1 | `GOOSE-AGENT의 **agentic 코어 런타임**` → `AI.GOOSE의 **agentic 코어 런타임**` |
+| `SPEC-GOOSE-RATELIMIT-001/spec.md` | 1 | `GOOSE-AGENT Phase 1의 **provider 응답 헤더...` → `AI.GOOSE Phase 1의...` |
+| `SPEC-GOOSE-ROUTER-001/spec.md` | 1 | `GOOSE-AGENT의 **라우팅 결정 레이어**` → `AI.GOOSE의 **라우팅...` |
+| `SPEC-GOOSE-SKILLS-001/spec.md` | 1 | `GOOSE-AGENT의 **Skill 시스템**` → `AI.GOOSE의 **Skill 시스템**` |
+| `SPEC-GOOSE-SUBAGENT-001/spec.md` | 1 | `GOOSE-AGENT의 **Sub-agent 런타임**` → `AI.GOOSE의 **Sub-agent 런타임**` |
+| `SPEC-GOOSE-TOOLS-001/spec.md` | 1 | `GOOSE-AGENT의 **Tool 실행 인프라 계층**` → `AI.GOOSE의 **Tool...` |
+| `SPEC-GOOSE-TRAJECTORY-001/spec.md` | 1 | `GOOSE-AGENT **자기진화 파이프라인의 Layer 1**` → `AI.GOOSE **자기진화...` |
+| `SPEC-GOOSE-ADAPTER-002/research.md` | 1 | `GOOSE 프로젝트(module ...` → `AI.GOOSE(module ...` |
+| `SPEC-GOOSE-QUERY-001/spec-compact.md` | 1 | `GOOSE-AGENT agentic 코어 런타임` → `AI.GOOSE agentic 코어 런타임` |
+| `.moai/specs/IMPLEMENTATION-ORDER.md` | 1 | 제목: `GOOSE-AGENT 구현 순서 종합 보고서` → `AI.GOOSE 구현 순서 종합 보고서` |
+| `.moai/specs/ROADMAP.md` | 1 | 제목: `GOOSE-AGENT SPEC 로드맵` → `AI.GOOSE SPEC 로드맵` |
 
-| 점검 SPEC | 판정 | 비고 |
-|-----------|------|------|
-| (Phase 4 완료 후 기록) | | |
+**총 변경: 25 파일, 25 라인**
+
+보존 확인:
+- 모든 `## HISTORY` 섹션 내 항목: 변경 없음 (HISTORY 라인 포함 diff = 0)
+- `SPEC-GOOSE-AGENT-001` 등 SPEC ID 참조 형태: 변경 없음
+- `SPEC-DOC-REVIEW-2026-04-21.md`의 `SPEC-GOOSE-AGENT-001` 참조: SPEC ID이므로 보존
+
+### Spot-check QA 결과 (전체 변경 25건 중 5건 무작위 추출)
+
+| 점검 파일 | 변경 라인 | 판정 | 비고 |
+|-----------|----------|------|------|
+| `SPEC-GOOSE-CORE-001/spec.md` L32 | `GOOSE-AGENT의` → `AI.GOOSE의` | Pass | HISTORY 외부, brand 위치 정정 |
+| `SPEC-GOOSE-ADAPTER-002/research.md` L14 | `GOOSE 프로젝트(` → `AI.GOOSE(` | Pass | HISTORY 없는 파일, brand 위치 정정 |
+| `SPEC-GOOSE-QUERY-001/spec-compact.md` L17 | `GOOSE-AGENT agentic` → `AI.GOOSE agentic` | Pass | HISTORY 외부, brand 위치 정정 |
+| `SPEC-GOOSE-TRAJECTORY-001/spec.md` L29 | `GOOSE-AGENT **자기진화 파이프라인의 Layer 1**` → `AI.GOOSE **...` | Pass | HISTORY 외부, brand 위치 정정 |
+| `SPEC-GOOSE-ERROR-CLASS-001/spec.md` L29 | `GOOSE-AGENT **자기진화 파이프라인의 보조 레이어**` → `AI.GOOSE **...` | Pass | HISTORY 외부, brand 위치 정정 |
+
+5/5 Pass — §7.5 알고리즘 분류(A) 정정과 100% 일치.
 
 ---
 

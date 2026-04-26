@@ -26,7 +26,7 @@ labels: ["phase-4", "learning", "trajectory", "privacy", "sharegpt"]
 
 ## 1. 개요 (Overview)
 
-GOOSE-AGENT **자기진화 파이프라인의 Layer 1**을 정의한다. QueryEngine의 한 턴(turn)이 끝날 때마다 발생하는 대화 기록을 **ShareGPT 호환 JSON-L 포맷**으로 로컬 디스크에 유실 없이 적재하고, 저장 직전 **Redact 파이프라인**으로 이메일·API 키·신용카드·전화번호·경로상 PII를 제거하며, 성공(`completed=true`) vs 실패(`completed=false`) 궤적을 물리적으로 분리 저장하여 Layer 2(COMPRESSOR) · Layer 3(INSIGHTS)의 입력을 준비한다.
+AI.GOOSE **자기진화 파이프라인의 Layer 1**을 정의한다. QueryEngine의 한 턴(turn)이 끝날 때마다 발생하는 대화 기록을 **ShareGPT 호환 JSON-L 포맷**으로 로컬 디스크에 유실 없이 적재하고, 저장 직전 **Redact 파이프라인**으로 이메일·API 키·신용카드·전화번호·경로상 PII를 제거하며, 성공(`completed=true`) vs 실패(`completed=false`) 궤적을 물리적으로 분리 저장하여 Layer 2(COMPRESSOR) · Layer 3(INSIGHTS)의 입력을 준비한다.
 
 본 SPEC이 통과한 시점에서:
 

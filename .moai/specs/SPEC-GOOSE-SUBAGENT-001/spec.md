@@ -27,7 +27,7 @@ labels: [subagent, runtime, isolation, memory, phase-2]
 
 ## 1. 개요 (Overview)
 
-GOOSE-AGENT의 **Sub-agent 런타임**을 정의한다. Claude Code의 `runAgent()` 생명주기(3단계) + 3종 isolation(fork / worktree / background) + 3-scope memory(user / project / local) + role profile override를 Go로 포팅하여, 하나의 부모 `QueryEngine`(QUERY-001)에서 여러 sub-agent를 순차·병렬로 spawn하고, 각각의 tool budget·권한 정책·메모리 디렉토리를 독립적으로 유지한다.
+AI.GOOSE의 **Sub-agent 런타임**을 정의한다. Claude Code의 `runAgent()` 생명주기(3단계) + 3종 isolation(fork / worktree / background) + 3-scope memory(user / project / local) + role profile override를 Go로 포팅하여, 하나의 부모 `QueryEngine`(QUERY-001)에서 여러 sub-agent를 순차·병렬로 spawn하고, 각각의 tool budget·권한 정책·메모리 디렉토리를 독립적으로 유지한다.
 
 본 SPEC이 통과한 시점에서 `internal/subagent` 패키지는:
 

@@ -26,7 +26,7 @@ labels: [phase-2, primitive/mcp, transport/multi, security/oauth]
 
 ## 1. 개요 (Overview)
 
-GOOSE-AGENT의 **Model Context Protocol (MCP) 통합**을 정의한다. Claude Code와 동일하게 goosed는 **이중 역할**을 수행한다:
+AI.GOOSE의 **Model Context Protocol (MCP) 통합**을 정의한다. Claude Code와 동일하게 goosed는 **이중 역할**을 수행한다:
 
 1. **MCP 클라이언트** — 외부 MCP 서버(e.g., github, filesystem, playwright)에 연결하여 해당 서버가 노출한 tools/resources/prompts를 `QueryEngine`의 tool inventory에 동적 편입.
 2. **MCP 서버** — `createSdkMcpServer()` API로 사용자가 작성한 Go 프로그램이 MCP 서버로 동작하여 외부 호스트(Claude Desktop, Cursor 등)에 tools를 노출.

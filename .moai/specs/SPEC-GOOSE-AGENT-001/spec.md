@@ -25,7 +25,7 @@ labels: []
 
 ## 1. 개요 (Overview)
 
-GOOSE-AGENT 대화 루프의 **최소 Agent Runtime과 Persona 모델**을 정의한다. 본 SPEC은 Tool Registry(Tool-001), Memory(MEMORY-001), Learning Engine(REFLECT-001) 등 후속 SPEC의 consumer가 접속할 **인터페이스 계약**과 **단일 LLM 호출 루프**를 확정한다.
+AI.GOOSE 대화 루프의 **최소 Agent Runtime과 Persona 모델**을 정의한다. 본 SPEC은 Tool Registry(Tool-001), Memory(MEMORY-001), Learning Engine(REFLECT-001) 등 후속 SPEC의 consumer가 접속할 **인터페이스 계약**과 **단일 LLM 호출 루프**를 확정한다.
 
 수락 조건 통과 시점에서:
 

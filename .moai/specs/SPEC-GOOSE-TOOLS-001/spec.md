@@ -27,7 +27,7 @@ labels: [phase-3, tools, mcp, permission, security]
 
 ## 1. 개요 (Overview)
 
-GOOSE-AGENT의 **Tool 실행 인프라 계층**을 정의한다. `SPEC-GOOSE-QUERY-001` §3.2(OUT)에서 인터페이스만 선언한 `tools.Registry` 및 `tools.Executor`를 본 SPEC이 완성하며, Claude Code의 deferred-loading `ToolSearch` 메커니즘(`.moai/project/research/claude-primitives.md` §3.4)과 Hermes `cli.py` / `model_tools.py`의 **auto-registry inventory 패턴**을 Go로 포팅한다.
+AI.GOOSE의 **Tool 실행 인프라 계층**을 정의한다. `SPEC-GOOSE-QUERY-001` §3.2(OUT)에서 인터페이스만 선언한 `tools.Registry` 및 `tools.Executor`를 본 SPEC이 완성하며, Claude Code의 deferred-loading `ToolSearch` 메커니즘(`.moai/project/research/claude-primitives.md` §3.4)과 Hermes `cli.py` / `model_tools.py`의 **auto-registry inventory 패턴**을 Go로 포팅한다.
 
 본 SPEC 수락 시점에서:
 

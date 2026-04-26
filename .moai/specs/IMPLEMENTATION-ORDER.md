@@ -1,4 +1,4 @@
-# GOOSE-AGENT 구현 순서 종합 보고서 v6.2 (★ v0.2 재편 amendment 적용)
+# AI.GOOSE 구현 순서 종합 보고서 v6.2 (★ v0.2 재편 amendment 적용)
 
 > **⚠ v0.2 Amendment (2026-04-24)**
 > SPEC-GOOSE-ARCH-REDESIGN-v0.2 에 따라 Milestone 재정렬. 아래 본문(v6.2)은 **참조용**이며, 실제 구현은 v0.2 Milestone 순서를 따른다.

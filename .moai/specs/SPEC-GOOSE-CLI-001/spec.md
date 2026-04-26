@@ -26,7 +26,7 @@ labels: []
 
 ## 1. 개요 (Overview)
 
-GOOSE-AGENT의 **사용자 대면 CLI**를 정의한다. v0.1.0은 Phase 0에서 최소 cobra subcommand만 제공했으나, ROADMAP v2.0(2026-04-21)이 본 SPEC을 Phase 3으로 재배치하며 아래 3가지 축으로 확장한다:
+AI.GOOSE의 **사용자 대면 CLI**를 정의한다. v0.1.0은 Phase 0에서 최소 cobra subcommand만 제공했으나, ROADMAP v2.0(2026-04-21)이 본 SPEC을 Phase 3으로 재배치하며 아래 3가지 축으로 확장한다:
 
 1. **Transport**: gRPC-go `grpc.DialContext` → **Connect-gRPC (`connectrpc/connect-go`)** 교체. HTTP/2 plaintext 또는 HTTP/1.1 기반 유연 호출, gRPC-Web 기본 지원, deprecated `WithBlock` 회피.
 2. **Interactive Mode (TUI)**: `bubbletea` + `lipgloss` 기반 REPL 모드. 대화형 session, streaming 응답 렌더, keybindings (Ctrl-C 취소, Ctrl-D 종료), 상단 상태바(모델/세션/tokens), 하단 입력 편집.
