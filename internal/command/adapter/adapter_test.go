@@ -66,7 +66,7 @@ func TestContextAdapter_ResolveModelAlias(t *testing.T) {
 			aliasMap: nil,
 			input:    "nonexistent/foo",
 			wantID:   "",
-			wantErr:  command.ErrUnknownModel,
+			wantErr:  command.ErrUnknownProviderInAlias,
 		},
 		{
 			// AC-CMDCTX-003: unknown model (provider exists but model not in SuggestedModels)
@@ -75,7 +75,7 @@ func TestContextAdapter_ResolveModelAlias(t *testing.T) {
 			aliasMap: nil,
 			input:    "anthropic/not-a-model",
 			wantID:   "",
-			wantErr:  command.ErrUnknownModel,
+			wantErr:  command.ErrUnknownModelInAlias,
 		},
 		{
 			// AC-CMDCTX-011: nil registry returns ErrUnknownModel, no panic
@@ -93,7 +93,7 @@ func TestContextAdapter_ResolveModelAlias(t *testing.T) {
 			aliasMap: nil,
 			input:    "no-slash",
 			wantID:   "",
-			wantErr:  command.ErrUnknownModel,
+			wantErr:  command.ErrInvalidCanonical,
 		},
 		{
 			// empty alias
@@ -102,7 +102,7 @@ func TestContextAdapter_ResolveModelAlias(t *testing.T) {
 			aliasMap: nil,
 			input:    "",
 			wantID:   "",
-			wantErr:  command.ErrUnknownModel,
+			wantErr:  command.ErrInvalidCanonical,
 		},
 		{
 			// alias map resolves to another provider model (openai)
@@ -468,7 +468,7 @@ func TestResolveAlias_MultipleProviders(t *testing.T) {
 		{"google/gemini-2.0-flash", "google/gemini-2.0-flash", nil},
 		{"xai/grok-2", "xai/grok-2", nil},
 		{"deepseek/deepseek-chat", "deepseek/deepseek-chat", nil},
-		{"openai/unknown-model", "", command.ErrUnknownModel},
+		{"openai/unknown-model", "", command.ErrUnknownModelInAlias},
 	}
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("input_%s", tc.input), func(t *testing.T) {
