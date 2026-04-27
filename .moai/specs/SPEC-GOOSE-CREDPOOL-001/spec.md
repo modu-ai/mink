@@ -1,9 +1,9 @@
 ---
 id: SPEC-GOOSE-CREDPOOL-001
 version: 0.3.0
-status: planned
+status: implemented
 created_at: 2026-04-21
-updated_at: 2026-04-25
+updated_at: 2026-04-27
 author: manager-spec
 priority: P0
 issue_number: null
@@ -703,6 +703,18 @@ Select_with_refresh(ctx):
 - §6 State machine (Available → Using (leased) → Exhausted-Cooldown → Refreshing → Available)
 - §7 OAuth auto-refresh (Anthropic PKCE refresh_token rotation)
 - §8 Persistent state (영속 JSON 읽기/쓰기)
+
+---
+
+## Implementation Notes (sync 정합화 2026-04-27)
+
+- **Status Transition**: planned → implemented
+- **Package**: `internal/llm/credential/` (31 파일, 11 `_test.go`)
+- **Key Files**: `pool.go`, `pooled.go`(`KeyringID` 단일 reference 필드, secret 미포함), `lease.go`, `storage.go`, `state.go`, `stats.go`
+- **Refresher**: `refresher.go` — `Refresh(ctx, cred) error` 시그니처 (Zero-Knowledge: pool에 새 token 미반환). 실제 HTTP refresh는 SPEC-GOOSE-CREDENTIAL-PROXY-001 에 위임됨
+- **Sources**: `factory.go`, `source.go` + 4 구현 (`anthropic_source.go`, `openai_source.go`, `nous_source.go`, `dummy_source.go`)
+- **Verified REQs (spot-check)**: REQ-CP-004 metadata-only persist, `Refresher` interface 시그니처 일치, 4-strategy 선택, v0.3.0 Amendment(Tier 4 위임) 코드 일관
+- **Lifecycle**: spec-anchored Level 2 — 후속 동작 변경 시 SPEC 본문 갱신 필수
 
 ---
 
