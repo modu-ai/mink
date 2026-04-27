@@ -11,6 +11,18 @@
 
 ### Phase Log
 
+- 2026-04-27 run phase 완료 (TDD RED-GREEN-REFACTOR, manager-tdd)
+  - Branch: feature/SPEC-GOOSE-CMDCTX-001-impl
+  - 산출물: `internal/command/adapter/` 패키지 (7 파일)
+  - 구현 순서: T-001(타입 정의) → T-002(ResolveModelAlias) → T-003(SessionSnapshot) → T-004(PlanModeActive) → T-005(OnClear/OnCompactRequest) → T-006(OnModelChange) → T-007(race+nil paths)
+  - Coverage: 100.0% (statements)
+  - Race test: -count=10 PASS (100 goroutines × 1000 iter)
+  - golangci-lint: 0 issues
+  - gofmt: clean
+  - AC-CMDCTX-019 정적 분석: 0건 (loop.State 직접 할당 없음)
+  - 19 AC 전체 검증 완료
+  - SPEC frontmatter status: planned → implemented (별도 커밋)
+
 - 2026-04-27 plan phase 시작
   - 부모 SPEC: SPEC-GOOSE-COMMAND-001 (PR #50, c018ec5/6593705) 머지로 `SlashCommandContext` 인터페이스 노출
   - 위임 대상 SPEC 3종 (ROUTER-001, CONTEXT-001, SUBAGENT-001) 모두 implemented status, FROZEN — 변경하지 않음
