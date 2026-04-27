@@ -1,5 +1,5 @@
 ---
-id: AGENCY-ABSORB-001
+id: SPEC-AGENCY-ABSORB-001
 version: 1.0.1
 title: /agency를 /moai design으로 흡수·통합
 status: completed

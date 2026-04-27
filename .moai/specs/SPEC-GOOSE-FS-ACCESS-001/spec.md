@@ -19,6 +19,13 @@ labels: []
 > v0.2 신규. `security.yaml` 해석 엔진 + path resolution (Tier 2).
 > Parent: SPEC-GOOSE-ARCH-REDESIGN-v0.2 Tier 2
 
+## HISTORY
+
+| 버전 | 날짜 | 변경 사유 | 담당 |
+|------|------|-----------|------|
+| 0.1.0 | 2026-04-24 | SPEC 초안 작성 | manager-spec |
+| 0.1.0 | 2026-04-27 | HISTORY 섹션 추가 (감사) | GOOS행님 |
+
 ## Goal
 
 `./.goose/config/security.yaml` 의 write_paths / read_paths / blocked_always 선언을 파싱하여 agent의 모든 FS 접근 시도를 매칭하고 허용/거부/AskUser 흐름으로 분기한다.

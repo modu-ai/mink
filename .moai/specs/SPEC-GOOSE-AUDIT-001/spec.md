@@ -19,6 +19,13 @@ labels: []
 > v0.2 신규. 보안 이벤트 (write, permission grant/revoke, sandbox block, credential access) 추적.
 > Parent: SPEC-GOOSE-ARCH-REDESIGN-v0.2
 
+## HISTORY
+
+| 버전 | 날짜 | 변경 사유 | 담당 |
+|------|------|-----------|------|
+| 0.1.0 | 2026-04-24 | SPEC 초안 작성 | manager-spec |
+| 0.1.0 | 2026-04-27 | HISTORY 섹션 추가 (감사) | GOOS행님 |
+
 ## Goal
 
 Append-only 로그로 모든 보안 관련 이벤트를 기록하여 incident 분석과 forensic 추적을 가능하게 한다. `~/.goose/logs/audit.log` (전역) + `./.goose/logs/audit.local.log` (프로젝트).

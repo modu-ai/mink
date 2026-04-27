@@ -22,6 +22,13 @@ labels: []
 > **네이밍 주의**: 기존 CONTEXT-001 은 "Context Window 관리 및 Compaction 전략" (런타임 context window 제어)
 > 으로 별개 주제. 기존 IDENTITY-001 은 "Identity Graph (POLE+O, Kuzu)" (Phase 8 관계 그래프)로 또 다른 개념.
 
+## HISTORY
+
+| 버전 | 날짜 | 변경 사유 | 담당 |
+|------|------|-----------|------|
+| 0.1.0 | 2026-04-24 | SPEC 초안 작성 | manager-spec |
+| 0.1.0 | 2026-04-27 | HISTORY 섹션 추가 (감사) | GOOS행님 |
+
 ## Goal
 
 `./.goose/context/` 디렉토리에 11개 PAI identity 파일을 관리하고, Agent Core가 Plan phase에서 적절히 로드·참조하도록 한다.

@@ -22,6 +22,13 @@ labels: []
 > **네이밍 주의**: 기존 SPEC-GOOSE-REFLECT-001 은 "5단계 승격 파이프라인(Observation → Graduated)" 으로
 > 학습 엔진의 knowledge graduation 개념이다. 본 SPEC은 **Task 단위 self-critique** 로 별개 개념.
 
+## HISTORY
+
+| 버전 | 날짜 | 변경 사유 | 담당 |
+|------|------|-----------|------|
+| 0.1.0 | 2026-04-24 | SPEC 초안 작성 | manager-spec |
+| 0.1.0 | 2026-04-27 | HISTORY 섹션 추가 (감사) | GOOS행님 |
+
 ## Goal
 
 모든 Task 종료 후 LLM 자체 critique (gap / inconsistency / unsupported claim)를 실행하여 품질을 보장하고, score 미달 시 Plan 단계로 re-plan 한다 (최대 2회).

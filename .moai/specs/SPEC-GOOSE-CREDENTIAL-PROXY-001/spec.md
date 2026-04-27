@@ -19,6 +19,13 @@ labels: []
 > v0.2 신규. Agent 프로세스 메모리에 secret value가 절대 진입하지 않도록 transport-layer injection.
 > Parent: SPEC-GOOSE-ARCH-REDESIGN-v0.2 Tier 4
 
+## HISTORY
+
+| 버전 | 날짜 | 변경 사유 | 담당 |
+|------|------|-----------|------|
+| 0.1.0 | 2026-04-24 | SPEC 초안 작성 | manager-spec |
+| 0.1.0 | 2026-04-27 | HISTORY 섹션 추가 (감사) | GOOS행님 |
+
 ## Goal
 
 OS keyring에 저장된 secret을 별도 `goose-proxy` 프로세스가 네트워크 경계에서 Authorization header로 주입한다. GOOSE agent (LLM context 포함)는 secret value를 절대 보지 않는다. 프롬프트 인젝션으로 secret 노출 불가능.

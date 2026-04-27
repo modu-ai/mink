@@ -19,6 +19,13 @@ labels: []
 > v0.2 신규. path-string denylist 우회 방지를 위한 kernel-layer 격리.
 > Parent: SPEC-GOOSE-ARCH-REDESIGN-v0.2 Tier 3
 
+## HISTORY
+
+| 버전 | 날짜 | 변경 사유 | 담당 |
+|------|------|-----------|------|
+| 0.1.0 | 2026-04-24 | SPEC 초안 작성 | manager-spec |
+| 0.1.0 | 2026-04-27 | HISTORY 섹션 추가 (감사) | GOOS행님 |
+
 ## Goal
 
 OS 커널 레벨 sandbox (macOS Seatbelt / Linux Landlock+Seccomp / Windows AppContainer)를 통해 agent의 FS·network·process 접근을 구조적으로 제한한다. Path-string 기반 denylist가 bypass되어도 kernel이 차단한다.

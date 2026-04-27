@@ -1,4 +1,18 @@
-# SPEC-GOOSE-ARCH-REDESIGN-v0.2 — Runtime Architecture Redesign (Meta-SPEC)
+---
+id: SPEC-GOOSE-ARCH-REDESIGN-v0.2
+version: 0.1.0
+status: draft
+created_at: 2026-04-24
+updated_at: 2026-04-27
+author: GOOS행님
+priority: P0
+issue_number: null
+phase: 0
+size: 대(L)
+lifecycle: spec-as-source
+labels: [phase-0, area/runtime, area/core, type/refactor, priority/p0-critical]
+---
+
 
 - Status: Proposed (2026-04-24)
 - Type: Meta-SPEC (아키텍처 재편 계획)
@@ -6,6 +20,13 @@
 - Supersedes: v6.2 3-Tier × 5-Channel 아키텍처 일부 (58 SPEC 중 약 19개 영향)
 
 ---
+
+## HISTORY
+
+| 버전 | 날짜 | 변경 사유 | 담당 |
+|------|------|-----------|------|
+| 0.1.0 | 2026-04-24 | Meta-SPEC 초안 작성 | GOOS행님 |
+| 0.1.0 | 2026-04-27 | YAML frontmatter 및 HISTORY 추가 (감사) | GOOS행님 |
 
 ## Goal
 
