@@ -32,6 +32,11 @@ type HookRegistry struct {
 	// loader는 PluginHookLoader 참조이다.
 	// REQ-HK-013: loader.IsLoading() == true면 Register 거부.
 	loader PluginHookLoader
+
+	// aliasMap은 모델 별칭 맵핑 정보 (alias → provider/model).
+	// SPEC-GOOSE-ALIAS-CONFIG-001 — 데몬 부트스트랩 시 로드되어
+	// ContextAdapter를 통해 CLI/Command 시스템에 전달된다.
+	aliasMap map[string]string
 }
 
 // RegistryOption은 HookRegistry 생성 옵션이다.
@@ -188,6 +193,24 @@ func (r *HookRegistry) SkillsConsumer() SkillsFileChangedConsumer {
 	r.consumerMu.RLock()
 	defer r.consumerMu.RUnlock()
 	return r.skillsConsumer
+}
+
+// SetAliasMap은 모델 별칭 맵핑을 설정한다.
+// SPEC-GOOSE-ALIAS-CONFIG-001 — 데몬 부트스트랩 시 호출되어
+// CLI/Command 시스템에서 사용할 별칭 정보를 제공한다.
+// thread-safe.
+func (r *HookRegistry) SetAliasMap(aliasMap map[string]string) {
+	r.consumerMu.Lock()
+	defer r.consumerMu.Unlock()
+	r.aliasMap = aliasMap
+}
+
+// AliasMap은 현재 설정된 모델 별칭 맵핑을 반환한다.
+// nil-safe: 별칭 설정이 없으면 nil 반환.
+func (r *HookRegistry) AliasMap() map[string]string {
+	r.consumerMu.RLock()
+	defer r.consumerMu.RUnlock()
+	return r.aliasMap
 }
 
 // deepCopySnapshot은 snapshot의 deep copy를 반환한다.
