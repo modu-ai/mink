@@ -99,6 +99,13 @@ type LoopConfig struct {
 	//
 	// @MX:NOTE: [AUTO] PostSamplingHooks FIFO chain 진입점 - hook 적용 후 State.Messages에 저장됨.
 	PostSamplingHooks []PostSamplingHookFunc
+	// PreIteration은 loop iteration 시작 직후, ShouldCompact 검사 이전에 호출되는 훅이다.
+	// nil이면 무시된다. state의 in-place mutation을 허용한다 (loop goroutine 단독 소유 보장).
+	// SPEC-GOOSE-CMDLOOP-WIRE-001 REQ-CMDLOOP-008/009: RequestClear/RequestReactiveCompact 적용 지점.
+	//
+	// @MX:NOTE: [AUTO] PreIteration 훅 - LoopController의 applyPendingRequests가 주입됨.
+	// @MX:SPEC: SPEC-GOOSE-CMDLOOP-WIRE-001 §6.4 option C-i
+	PreIteration func(state *State)
 }
 
 // PostSamplingHookFunc는 LLM 응답 후 assistant message에 적용되는 훅 함수 타입이다.
@@ -186,6 +193,13 @@ func queryLoop(ctx context.Context, cfg LoopConfig) {
 	// @MX:WARN: [AUTO] 상태 게이트 순서 불변: budget_exceeded → max_turns → LLM 호출
 	// @MX:REASON: REQ-QUERY-011 - budget 소진이 max_turns보다 우선 (정책 결정)
 	for {
+		// --- PreIteration hook: Command adapter requests applied here ---
+		// SPEC-GOOSE-CMDLOOP-WIRE-001: RequestClear/RequestReactiveCompact 적용 지점.
+		// PreIteration 훅에서 state의 in-place mutation이 허용된다 (loop goroutine 단독 소유).
+		if cfg.PreIteration != nil {
+			cfg.PreIteration(&state)
+		}
+
 		// --- S7: iteration 시작 시 compaction 검사 (after_compact continue site) ---
 		// @MX:NOTE: [AUTO] after_compact continue site — budget/max_turns 게이트보다 먼저 실행.
 		// Compact가 실패해도 loop를 중단하지 않고 원래 state로 계속 진행한다.
