@@ -11,10 +11,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/modu-ai/goose/internal/command/adapter/aliasconfig"
 	"github.com/modu-ai/goose/internal/config"
 	"github.com/modu-ai/goose/internal/core"
 	"github.com/modu-ai/goose/internal/health"
 	"github.com/modu-ai/goose/internal/hook"
+	"github.com/modu-ai/goose/internal/llm/router"
 	"go.uber.org/zap"
 )
 
@@ -67,6 +69,42 @@ func runWithContext(ctx context.Context) int {
 
 	// 5~7. Registries wire-up (hook, tools, skill)
 	hookRegistry, toolsRegistry, skillRegistry := wireRegistries(cfg.SkillsRoot, logger)
+
+	// 5.5. Provider registry for model alias resolution
+	// SPEC-GOOSE-ALIAS-CONFIG-001 — 데몬 부트스트랩 시 router registry 생성
+	providerRegistry := router.DefaultRegistry()
+
+	// 5.6. Model alias map loading
+	// SPEC-GOOSE-ALIAS-CONFIG-001 — ~/.goose/aliases.yaml 로드 및 검증
+	aliasLoader := aliasconfig.New(aliasconfig.Options{Logger: logger})
+	aliasMap, err := aliasLoader.LoadDefault()
+	if err != nil {
+		logger.Warn("alias config load failed", zap.Error(err))
+		// 실패해도 데몬은 계속 실행 (별칭 없이 정상 작동)
+	}
+
+	// 5.7. Alias map validation (optional, strict mode)
+	// GOOSE_ALIAS_STRICT 환경변수로 제어 (default: true)
+	if aliasMap != nil {
+		strictStr := os.Getenv("GOOSE_ALIAS_STRICT")
+		strict := strictStr == "" || strictStr == "1" || strictStr == "true"
+		if validationErrs := aliasconfig.Validate(aliasMap, providerRegistry, strict); len(validationErrs) > 0 {
+			for _, e := range validationErrs {
+				logger.Warn("alias validation error", zap.Error(e))
+			}
+			// strict 모드에서는 실패 시 별칭 맵 무시
+			if strict {
+				logger.Info("strict mode: ignoring invalid alias map")
+				aliasMap = nil
+			}
+		}
+	}
+
+	// 5.8. Hook registry에 aliasMap 설정 (ContextAdapter가 사용)
+	if aliasMap != nil {
+		hookRegistry.SetAliasMap(aliasMap)
+		logger.Info("alias map loaded", zap.Int("aliases", len(aliasMap)))
+	}
 
 	// 8~10. Consumer wire-up (WorkspaceRoot adapter, Drain, FileChanged)
 	if err := wireConsumers(rt, hookRegistry, toolsRegistry, skillRegistry, logger); err != nil {
