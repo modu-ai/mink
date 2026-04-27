@@ -1,9 +1,9 @@
 ---
 id: SPEC-GOOSE-COMMAND-001
 version: 0.1.0
-status: planned
+status: implemented
 created_at: 2026-04-21
-updated_at: 2026-04-21
+updated_at: 2026-04-27
 author: manager-spec
 priority: P1
 issue_number: null
@@ -20,6 +20,7 @@ labels: []
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-21 | 초안 작성 (Phase 3 신규, Claude Code `commands/` 패턴 + QUERY-001 `processUserInput` 훅 포인트) | manager-spec |
+| 0.1.0 | 2026-04-27 | TDD 구현 완료. internal/command/ + 4개 서브패키지 25 파일, 13 AC 모두 충족, 전체 91.2% 커버리지(substitute 100%, custom 90.3%, parser 96.4%). evaluator-active 4축 PASS, TRUST 5 PASS×5. status: planned → implemented | manager-tdd / expert-backend / manager-quality |
 
 ---
 
