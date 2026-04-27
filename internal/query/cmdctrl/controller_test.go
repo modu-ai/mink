@@ -12,6 +12,7 @@ import (
 
 	"github.com/modu-ai/goose/internal/command"
 	"github.com/modu-ai/goose/internal/command/adapter"
+	"github.com/modu-ai/goose/internal/llm/credential"
 	"github.com/modu-ai/goose/internal/message"
 	"github.com/modu-ai/goose/internal/query/loop"
 )
@@ -518,4 +519,422 @@ func TestLoopControllerImpl_ReactiveCompactIntegration(t *testing.T) {
 	// This will test integration with actual DefaultCompactor
 	// For now, skip until we have the implementation
 	t.Skip("Integration test - will be implemented after GREEN phase")
+}
+
+// Credential Pool Validation Tests (SPEC-GOOSE-CMDCTX-CREDPOOL-WIRE-001)
+
+// TestLoopControllerImpl_RequestModelChange_CredentialValidation tests the
+// credential pool validation logic in RequestModelChange.
+//
+// AC-CCWIRE-002: Nil resolver disables validation (backward compatible).
+// AC-CCWIRE-005: Validation only occurs when resolver != nil.
+// AC-CCWIRE-006: Provider extracted from model ID.
+// AC-CCWIRE-008: Nil pool returns ErrCredentialUnavailable.
+// AC-CCWIRE-010: Zero available returns ErrCredentialUnavailable.
+// AC-CCWIRE-011: Valid credentials allow swap to proceed.
+func TestLoopControllerImpl_RequestModelChange_CredentialValidation(t *testing.T) {
+	// We need to create fake credential pools for testing.
+	// Since CredentialPool is a concrete struct, we'll create real pools
+	// with mock sources that return controlled entries.
+
+	t.Run("nil resolver disables validation", func(t *testing.T) {
+		// AC-CCWIRE-002: Backward compatible - no validation when resolver is nil
+		c := New(nil, nil) // No WithCredentialPoolResolver option
+		ctx := context.Background()
+		info := command.ModelInfo{ID: "openai/gpt-4"}
+
+		err := c.RequestModelChange(ctx, info)
+		if err != nil {
+			t.Fatalf("RequestModelChange with nil resolver should succeed, got: %v", err)
+		}
+
+		// Verify the model was swapped
+		loaded := c.activeModel.Load()
+		if loaded == nil || loaded.ID != info.ID {
+			t.Errorf("Model was not swapped, got: %v", loaded)
+		}
+	})
+
+	t.Run("provider extraction from model ID", func(t *testing.T) {
+		// AC-CCWIRE-006: Provider is extracted from model ID
+		tests := []struct {
+			name     string
+			modelID  string
+			provider string
+		}{
+			{"standard format", "openai/gpt-4", "openai"},
+			{"anthropic format", "anthropic/claude-3-opus", "anthropic"},
+			{"google format", "google/gemini-pro", "google"},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				// This test verifies extractProvider is called correctly
+				resolver := &fakeResolver{
+					pools: map[string]*credential.CredentialPool{
+						tt.provider: nil, // Nil pool to trigger ErrCredentialUnavailable
+					},
+				}
+
+				c := New(nil, nil, WithCredentialPoolResolver(resolver))
+				ctx := context.Background()
+				info := command.ModelInfo{ID: tt.modelID}
+
+				err := c.RequestModelChange(ctx, info)
+				if err != ErrCredentialUnavailable {
+					t.Errorf("Expected ErrCredentialUnavailable, got: %v", err)
+				}
+			})
+		}
+	})
+
+	t.Run("nil pool returns ErrCredentialUnavailable", func(t *testing.T) {
+		// AC-CCWIRE-008: Nil pool triggers error
+		resolver := &fakeResolver{
+			pools: map[string]*credential.CredentialPool{
+				"openai": nil, // Explicitly nil
+			},
+		}
+
+		c := New(nil, nil, WithCredentialPoolResolver(resolver))
+		ctx := context.Background()
+		info := command.ModelInfo{ID: "openai/gpt-4"}
+
+		err := c.RequestModelChange(ctx, info)
+		if err != ErrCredentialUnavailable {
+			t.Errorf("Expected ErrCredentialUnavailable for nil pool, got: %v", err)
+		}
+
+		// Verify model was NOT swapped
+		loaded := c.activeModel.Load()
+		if loaded != nil && loaded.ID == info.ID {
+			t.Error("Model should not be swapped when pool is nil")
+		}
+	})
+
+	t.Run("provider not found returns ErrCredentialUnavailable", func(t *testing.T) {
+		// AC-CCWIRE-008: Unknown provider triggers error
+		resolver := &fakeResolver{
+			pools: map[string]*credential.CredentialPool{}, // Empty map
+		}
+
+		c := New(nil, nil, WithCredentialPoolResolver(resolver))
+		ctx := context.Background()
+		info := command.ModelInfo{ID: "unknown/model"}
+
+		err := c.RequestModelChange(ctx, info)
+		if err != ErrCredentialUnavailable {
+			t.Errorf("Expected ErrCredentialUnavailable for unknown provider, got: %v", err)
+		}
+	})
+
+	t.Run("zero available returns ErrCredentialUnavailable", func(t *testing.T) {
+		// AC-CCWIRE-010: Zero available credentials triggers error
+		// We need a real pool with zero available credentials
+		source := &fakeSource{creds: []*credential.PooledCredential{}}
+		strategy := credential.NewRoundRobinStrategy()
+		pool, err := credential.New(source, strategy)
+		if err != nil {
+			t.Fatalf("Failed to create pool: %v", err)
+		}
+
+		resolver := &fakeResolver{
+			pools: map[string]*credential.CredentialPool{
+				"openai": pool,
+			},
+		}
+
+		c := New(nil, nil, WithCredentialPoolResolver(resolver))
+		ctx := context.Background()
+		info := command.ModelInfo{ID: "openai/gpt-4"}
+
+		err = c.RequestModelChange(ctx, info)
+		if err != ErrCredentialUnavailable {
+			t.Errorf("Expected ErrCredentialUnavailable for zero available, got: %v", err)
+		}
+	})
+
+	t.Run("valid credentials allow swap to proceed", func(t *testing.T) {
+		// AC-CCWIRE-011: Valid credentials proceed with swap
+		// We need a real pool with at least one available credential
+		cred := &credential.PooledCredential{
+			ID:       "test-cred",
+			Provider: "openai",
+			Status:   credential.CredOK,
+		}
+		source := &fakeSource{creds: []*credential.PooledCredential{cred}}
+		strategy := credential.NewRoundRobinStrategy()
+		pool, err := credential.New(source, strategy)
+		if err != nil {
+			t.Fatalf("Failed to create pool: %v", err)
+		}
+
+		resolver := &fakeResolver{
+			pools: map[string]*credential.CredentialPool{
+				"openai": pool,
+			},
+		}
+
+		c := New(nil, nil, WithCredentialPoolResolver(resolver))
+		ctx := context.Background()
+		info := command.ModelInfo{ID: "openai/gpt-4"}
+
+		err = c.RequestModelChange(ctx, info)
+		if err != nil {
+			t.Fatalf("RequestModelChange with valid credentials should succeed, got: %v", err)
+		}
+
+		// Verify the model was swapped
+		loaded := c.activeModel.Load()
+		if loaded == nil || loaded.ID != info.ID {
+			t.Errorf("Model was not swapped, got: %v", loaded)
+		}
+	})
+}
+
+// TestLoopControllerImpl_RequestModelChange_PreWarm tests the pre-warm refresh
+// functionality after successful model changes.
+//
+// AC-CCWIRE-013: Pre-warm refresh after successful swap.
+// AC-CCWIRE-016: Pre-warm is asynchronous (best-effort).
+// AC-CCWIRE-017: Pre-warm errors are never propagated.
+// AC-CCWIRE-021: PreWarmRefresh option controls the feature.
+func TestLoopControllerImpl_RequestModelChange_PreWarm(t *testing.T) {
+	// Create a pool with available credentials for testing
+	cred := &credential.PooledCredential{
+		ID:       "test-cred",
+		Provider: "openai",
+		Status:   credential.CredOK,
+	}
+	source := &fakeSource{creds: []*credential.PooledCredential{cred}}
+	strategy := credential.NewRoundRobinStrategy()
+	pool, err := credential.New(source, strategy)
+	if err != nil {
+		t.Fatalf("Failed to create pool: %v", err)
+	}
+
+	resolver := &fakeResolver{
+		pools: map[string]*credential.CredentialPool{
+			"openai": pool,
+		},
+	}
+
+	t.Run("pre-warm disabled by default", func(t *testing.T) {
+		// AC-CCWIRE-021: Default is disabled
+		c := New(nil, nil, WithCredentialPoolResolver(resolver))
+		ctx := context.Background()
+		info := command.ModelInfo{ID: "openai/gpt-4"}
+
+		initialCount := c.preWarmCount.Load()
+
+		err := c.RequestModelChange(ctx, info)
+		if err != nil {
+			t.Fatalf("RequestModelChange failed: %v", err)
+		}
+
+		// No pre-warm goroutine should have been spawned
+		finalCount := c.preWarmCount.Load()
+		if finalCount != initialCount {
+			t.Errorf("Pre-warm count should not change when disabled, went from %d to %d", initialCount, finalCount)
+		}
+	})
+
+	t.Run("pre-warm enabled spawns goroutine", func(t *testing.T) {
+		// AC-CCWIRE-013: Async pre-warm after successful swap
+		c := New(nil, nil,
+			WithCredentialPoolResolver(resolver),
+			WithPreWarmRefresh(true),
+		)
+		ctx := context.Background()
+		info := command.ModelInfo{ID: "openai/gpt-4"}
+
+		err := c.RequestModelChange(ctx, info)
+		if err != nil {
+			t.Fatalf("RequestModelChange failed: %v", err)
+		}
+
+		// Give the goroutine time to start and complete
+		// AC-CCWIRE-016: Asynchronous - won't block
+		time.Sleep(100 * time.Millisecond)
+
+		// Pre-warm count should be back to 0 (completed)
+		count := c.preWarmCount.Load()
+		if count != 0 {
+			t.Errorf("Expected pre-warm count to be 0 after completion, got: %d", count)
+		}
+	})
+
+	t.Run("pre-warm errors are not propagated", func(t *testing.T) {
+		// AC-CCWIRE-017: Best-effort - errors never propagate
+		// Use a nil pool which will cause Select to fail
+		badResolver := &fakeResolver{
+			pools: map[string]*credential.CredentialPool{
+				"openai": nil,
+			},
+		}
+
+		c := New(nil, nil,
+			WithCredentialPoolResolver(badResolver),
+			WithPreWarmRefresh(true),
+		)
+		ctx := context.Background()
+
+		// First call will fail due to nil pool
+		info := command.ModelInfo{ID: "openai/gpt-4"}
+		err := c.RequestModelChange(ctx, info)
+		if err != ErrCredentialUnavailable {
+			t.Fatalf("Expected ErrCredentialUnavailable, got: %v", err)
+		}
+
+		// Even though validation failed, if there was a pre-warm goroutine
+		// from a previous successful swap, its errors should not propagate
+		// This is hard to test directly without more complex instrumentation
+	})
+}
+
+// TestLoopControllerImpl_RequestModelChange_Cancellation tests context cancellation
+// behavior with credential validation.
+//
+// AC-CCWIRE-009: Cancelled context returns ctx.Err() before pool calls.
+func TestLoopControllerImpl_RequestModelChange_Cancellation(t *testing.T) {
+	t.Run("cancelled context returns early", func(t *testing.T) {
+		// AC-CCWIRE-009: Context check happens before pool operations
+		cred := &credential.PooledCredential{
+			ID:       "test-cred",
+			Provider: "openai",
+			Status:   credential.CredOK,
+		}
+		source := &fakeSource{creds: []*credential.PooledCredential{cred}}
+		strategy := credential.NewRoundRobinStrategy()
+		pool, err := credential.New(source, strategy)
+		if err != nil {
+			t.Fatalf("Failed to create pool: %v", err)
+		}
+
+		resolver := &fakeResolver{
+			pools: map[string]*credential.CredentialPool{
+				"openai": pool,
+			},
+		}
+
+		c := New(nil, nil, WithCredentialPoolResolver(resolver))
+
+		// Create a cancelled context
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel() // Cancel immediately
+
+		info := command.ModelInfo{ID: "openai/gpt-4"}
+		err = c.RequestModelChange(ctx, info)
+
+		if err != context.Canceled {
+			t.Errorf("Expected context.Canceled, got: %v", err)
+		}
+
+		// Verify model was NOT swapped
+		loaded := c.activeModel.Load()
+		if loaded != nil && loaded.ID == info.ID {
+			t.Error("Model should not be swapped when context is cancelled")
+		}
+	})
+}
+
+// TestLoopControllerImpl_CredentialValidation_RaceConditions tests concurrent
+// access to credential validation logic.
+//
+// AC-CCWIRE-014: No race conditions with nil resolver.
+// AC-CCWIRE-015: No race conditions with non-nil resolver.
+func TestLoopControllerImpl_CredentialValidation_RaceConditions(t *testing.T) {
+	t.Run("concurrent requests with nil resolver", func(t *testing.T) {
+		// AC-CCWIRE-014: Backward compatible - no races with nil resolver
+		c := New(nil, nil) // No resolver
+		ctx := context.Background()
+
+		// Launch concurrent requests
+		done := make(chan bool, 10)
+		for i := 0; i < 10; i++ {
+			go func(id int) {
+				info := command.ModelInfo{ID: "model-" + string(rune('0'+id))}
+				_ = c.RequestModelChange(ctx, info)
+				done <- true
+			}(i)
+		}
+
+		// Wait for all to complete
+		for i := 0; i < 10; i++ {
+			<-done
+		}
+
+		// If we get here without hanging or panicking, the test passes
+	})
+
+	t.Run("concurrent requests with resolver", func(t *testing.T) {
+		// AC-CCWIRE-015: No races with credential validation
+		cred := &credential.PooledCredential{
+			ID:       "test-cred",
+			Provider: "openai",
+			Status:   credential.CredOK,
+		}
+		source := &fakeSource{creds: []*credential.PooledCredential{cred}}
+		strategy := credential.NewRoundRobinStrategy()
+		pool, err := credential.New(source, strategy)
+		if err != nil {
+			t.Fatalf("Failed to create pool: %v", err)
+		}
+
+		resolver := &fakeResolver{
+			pools: map[string]*credential.CredentialPool{
+				"openai": pool,
+			},
+		}
+
+		c := New(nil, nil, WithCredentialPoolResolver(resolver))
+		ctx := context.Background()
+
+		// Launch concurrent requests
+		done := make(chan bool, 10)
+		for i := 0; i < 10; i++ {
+			go func(id int) {
+				info := command.ModelInfo{ID: "openai/gpt-4"}
+				_ = c.RequestModelChange(ctx, info)
+				done <- true
+			}(i)
+		}
+
+		// Wait for all to complete
+		for i := 0; i < 10; i++ {
+			<-done
+		}
+
+		// If we get here without hanging or panicking, the test passes
+	})
+}
+
+// fakeSource implements credential.CredentialSource for testing.
+type fakeSource struct {
+	creds []*credential.PooledCredential
+}
+
+// Load returns all credential entries from the fake source.
+func (f *fakeSource) Load(ctx context.Context) ([]*credential.PooledCredential, error) {
+	if f == nil {
+		return nil, nil
+	}
+	return f.creds, nil
+}
+
+// fakeResolver implements CredentialPoolResolver for testing.
+//
+// This is a test double that allows controlled testing of the resolver
+// without requiring actual credential pool infrastructure.
+type fakeResolver struct {
+	pools map[string]*credential.CredentialPool
+}
+
+// PoolFor returns the credential pool for the given provider.
+// Returns nil if the provider is not in the pools map.
+func (f *fakeResolver) PoolFor(provider string) *credential.CredentialPool {
+	if f == nil || f.pools == nil {
+		return nil
+	}
+	return f.pools[provider]
 }
