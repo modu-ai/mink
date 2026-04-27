@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/modu-ai/goose/internal/llm/router"
 	"go.uber.org/zap"
 )
@@ -159,28 +161,35 @@ func Validate(aliasMap map[string]string, registry *router.ProviderRegistry, str
 
 // parseModelTarget은 "provider/model" 형식의 문자열을 파싱한다.
 func parseModelTarget(target string) (provider, model string, ok bool) {
-	// 가장 간단한 형식: provider/model
+	// 슬래시가 하나여야 함 (provider/model)
+	slashCount := 0
+	slashIndex := -1
 	for i := 0; i < len(target); i++ {
 		if target[i] == '/' {
-			return target[:i], target[i+1:], true
+			slashCount++
+			if slashCount == 1 {
+				slashIndex = i
+			}
 		}
 	}
-	return "", "", false
+
+	// 슬래시가 정확히 하나가 아니면 invalid
+	if slashCount != 1 {
+		return "", "", false
+	}
+
+	provider = target[:slashIndex]
+	model = target[slashIndex+1:]
+
+	// provider나 model이 비어 있으면 invalid
+	if provider == "" || model == "" {
+		return "", "", false
+	}
+
+	return provider, model, true
 }
 
 // yamlUnmarshal는 YAML 언마샬링 함수이다.
-// yaml 패키지가 없으면 간단한 파싱만 수행.
 func yamlUnmarshal(data []byte, config *AliasConfig) error {
-	// 간단한 파싱: "aliases:" 키를 찾아서 맵핑
-	// 실제로는 gopkg.in/yaml.v3 패키지 사용 권장
-	lines := string(data)
-	if len(lines) == 0 {
-		config.Aliases = make(map[string]string)
-		return nil
-	}
-
-	// TODO: 실제 YAML 파싱 구현
-	// 현재는 빈 맵 반환
-	config.Aliases = make(map[string]string)
-	return nil
+	return yaml.Unmarshal(data, config)
 }
