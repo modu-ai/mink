@@ -5,6 +5,55 @@
 
 ## [Unreleased]
 
+### Added — SPEC-GOOSE-CMDCTX-001 v0.1.1 (Slash Command Context Adapter)
+
+PR #50 (SPEC-GOOSE-COMMAND-001 implemented) 머지로 노출된 `command.SlashCommandContext` 인터페이스의 어댑터 wiring을 신설. dispatcher가 빌트인 명령(`/clear`, `/compact`, `/model`, `/status`)을 실행할 때 SPEC-GOOSE-ROUTER-001 / CONTEXT-001 / SUBAGENT-001 에 위임하는 통합 어댑터 구현. SPEC PR #51 + 구현 PR #52에서 plan-auditor 1라운드 + TDD RED-GREEN-REFACTOR 완료.
+
+#### `internal/command/adapter/` 패키지 신규
+
+- `ContextAdapter` — `command.SlashCommandContext` 6개 메서드 구현체
+  - `OnClear` / `OnCompactRequest(target)` / `OnModelChange(info)` → `LoopController` 위임 (fire-and-forget)
+  - `ResolveModelAlias(alias)` → `*router.ProviderRegistry` + 선택적 alias map strict-mode lookup
+  - `SessionSnapshot()` → `LoopController.Snapshot()` + `os.Getwd()` (실패 시 `"<unknown>"` placeholder + best-effort logger Warn)
+  - `PlanModeActive()` → adapter local `*atomic.Bool` ⊕ ctx 기반 `subagent.TeammateIdentity.PlanModeRequired`
+- `LoopController` 인터페이스 — adapter ↔ query loop 통신 추상화. `loop.State` 단일-소유 invariant (REQ-QUERY-015) 보존
+- `LoopSnapshot` struct — read-only loop state view (`TurnCount` / `Model` / `TokenCount` / `TokenLimit`)
+- `Options` / `New(opts)` 생성자 — 의존성 주입 패턴 (registry / loopController / aliasMap / getwdFn / logger)
+- `WithContext(ctx)` — shallow copy + atomic.Bool 포인터 공유 패턴으로 자식 adapter들 간 plan flag invariant 유지 (`go vet copylocks` 위반 회피)
+- `SetPlanMode(active)` — top-level orchestrator plan flag setter (모든 WithContext 자식이 즉시 관찰)
+- `ErrLoopControllerUnavailable` sentinel — nil LoopController 의존성에 panic 대신 명시적 에러 반환
+- `Logger` 최소 인터페이스 (`Warn(msg, fields...)`)
+
+#### nil 의존성 graceful degradation (panic 금지)
+
+- nil `*router.ProviderRegistry` → `ResolveModelAlias` 모든 입력에 `command.ErrUnknownModel` 반환 (REQ-CMDCTX-014)
+- nil `LoopController` → `OnClear/OnCompactRequest/OnModelChange` 가 `ErrLoopControllerUnavailable` 반환, `SessionSnapshot()` 은 `{TurnCount:0, Model:"<unknown>", CWD:cwdOrFallback}` 반환 (REQ-CMDCTX-015)
+- `os.Getwd()` 실패 → `CWD = "<unknown>"` placeholder + 주입된 logger 의 best-effort `Warn` 호출 (REQ-CMDCTX-018)
+
+#### @MX 태그
+
+- `LoopController` interface → `@MX:ANCHOR` (command adapter ↔ query loop 경계, fan_in ≥ 7)
+- `ContextAdapter` struct → `@MX:ANCHOR` (단일 SlashCommandContext 구현, fan_in ≥ 3)
+- `WithContext` 의 `ctxHook` 필드 → `@MX:NOTE` (shallow copy + atomic.Bool 포인터 공유 invariant)
+
+#### 품질 게이트
+
+- 신규 테스트 19건 (`adapter_test.go` 18 + `race_test.go` 1)
+- Coverage: **100.0%** (statements)
+- `go test -race -count=10`: PASS (100 goroutine × 1000 iter)
+- `go vet` (copylocks 포함): 0 warnings
+- `golangci-lint`: 0 issues
+- `gofmt`: clean
+- AC-CMDCTX-019 정적 분석: `loop.State` 직접 할당 0건 (adapter 비-mutation invariant 입증)
+
+#### 의존 SPEC FROZEN 유지
+
+SPEC-GOOSE-COMMAND-001 / ROUTER-001 / CONTEXT-001 / SUBAGENT-001 의 spec 및 코드 미수정. `internal/command/{context,errors,dispatcher}.go`, `internal/command/builtin/`, `internal/llm/router/`, `internal/query/loop/`, `internal/subagent/` 모두 read-only 사용.
+
+#### 후속 SPEC (Exclusions)
+
+`SPEC-GOOSE-CMDLOOP-WIRE-001` (가칭, `LoopController` 구현체) / `SPEC-GOOSE-CLI-001` (진입점 wiring) / 모델 alias config 파일 로드 / OAuth refresh / plan mode setter / telemetry / permissive alias mode 등 10건은 본 SPEC §Exclusions 에 placeholder 명시.
+
 ### Added — SPEC-GOOSE-CORE-001 v1.1.0 (Cross-package interface contract)
 
 cross-pkg interface stub audit(`REPORT-CROSS-PKG-IFACE-AUDIT-2026-04-25`)에서 발견된 D-CORE-IF-1/2 결함을 v1.1.0 amendment(PR #15)로 SPEC에 추가하고, PR #16에서 TDD 사이클로 implementation 완료. 모든 `[Pending Implementation v1.1]` 마커는 GREEN 처리되어 §12 Open Items에서 CLOSED로 마킹됨.
