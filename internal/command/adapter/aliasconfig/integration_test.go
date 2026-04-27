@@ -20,10 +20,10 @@ func TestIntegration_FullFlow(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "aliases.yaml")
 	yamlContent := `aliases:
   # 단축 별칭
-  gpt4: openai/gpt-4
+  gpt4: openai/gpt-4o
   claude: anthropic/claude-sonnet-4-6
   gemini: google/gemini-2.0-flash
-  hyperclova: openai/gpt-4
+  hyperclova: openai/gpt-4o
 `
 	if err := os.WriteFile(configPath, []byte(yamlContent), 0o644); err != nil {
 		t.Fatalf("write config: %v", err)
@@ -52,8 +52,8 @@ func TestIntegration_FullFlow(t *testing.T) {
 	}
 
 	// 6. 특정 별칭 확인
-	if aliasMap["gpt4"] != "openai/gpt-4" {
-		t.Errorf("aliasMap[\"gpt4\"] = %s, want \"openai/gpt-4\"", aliasMap["gpt4"])
+	if aliasMap["gpt4"] != "openai/gpt-4o" {
+		t.Errorf("aliasMap[\"gpt4\"] = %s, want \"openai/gpt-4o\"", aliasMap["gpt4"])
 	}
 	if aliasMap["claude"] != "anthropic/claude-sonnet-4-6" {
 		t.Errorf("aliasMap[\"claude\"] = %s, want \"anthropic/claude-sonnet-4-6\"", aliasMap["claude"])
@@ -134,8 +134,8 @@ func TestIntegration_LenientMode(t *testing.T) {
 
 	configPath := filepath.Join(tmpDir, "aliases.yaml")
 	yamlContent := `aliases:
-  valid: openai/gpt-4
-  invalid: nonexistent/model
+  valid: openai/gpt-4o     # Fixed: gpt-4o is in SuggestedModels
+  invalid: badformat       # No slash - invalid format
 `
 	if err := os.WriteFile(configPath, []byte(yamlContent), 0o644); err != nil {
 		t.Fatalf("write config: %v", err)
@@ -160,8 +160,8 @@ func TestIntegration_LenientMode(t *testing.T) {
 	if len(aliasMap) != 2 {
 		t.Errorf("len(aliasMap) = %d, want 2", len(aliasMap))
 	}
-	if aliasMap["valid"] != "openai/gpt-4" {
-		t.Errorf("aliasMap[\"valid\"] = %s, want \"openai/gpt-4\"", aliasMap["valid"])
+	if aliasMap["valid"] != "openai/gpt-4o" {
+		t.Errorf("aliasMap[\"valid\"] = %s, want \"openai/gpt-4o\"", aliasMap["valid"])
 	}
 }
 

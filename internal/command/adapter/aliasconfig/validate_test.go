@@ -11,7 +11,7 @@ import (
 func TestValidate_ValidAliases(t *testing.T) {
 	registry := router.DefaultRegistry()
 	aliasMap := map[string]string{
-		"gpt4":   "openai/gpt-4",
+		"gpt4":   "openai/gpt-4o",     // Fixed: gpt-4o (not gpt-4) is in SuggestedModels
 		"claude": "anthropic/claude-sonnet-4-6",
 		"gemini": "google/gemini-2.0-flash",
 	}
@@ -77,13 +77,13 @@ func TestValidate_NoRegistry(t *testing.T) {
 func TestValidate_MixedErrors(t *testing.T) {
 	registry := router.DefaultRegistry()
 	aliasMap := map[string]string{
-		"":        "openai/gpt-4",      // empty alias
-		"bad":     "invalid",           // invalid target
-		"unknown": "nonexistent/model", // unknown provider
-		"good":    "openai/gpt-4",      // valid
+		"":        "openai/gpt-4o",      // empty alias
+		"bad":     "invalid",            // invalid target (no slash)
+		"unknown": "nonexistent/model",  // unknown provider
+		"good":    "openai/gpt-4o",      // valid
 	}
 
-	errs := Validate(aliasMap, registry, false)
+	errs := Validate(aliasMap, registry, true) // Changed to strict mode for provider/model validation
 	if len(errs) < 3 {
 		t.Fatalf("Validate() returned %d errors, want at least 3", len(errs))
 	}
@@ -93,8 +93,8 @@ func TestValidate_MixedErrors(t *testing.T) {
 func TestValidate_StrictMode(t *testing.T) {
 	registry := router.DefaultRegistry()
 	aliasMap := map[string]string{
-		"good":    "openai/gpt-4",
-		"unknown": "nonexistent/model",
+		"good":    "openai/gpt-4o",      // Fixed: gpt-4o is in SuggestedModels
+		"unknown": "nonexistent/model",  // unknown provider
 	}
 
 	// Strict mode: unknown provider는 에러
@@ -108,11 +108,12 @@ func TestValidate_StrictMode(t *testing.T) {
 func TestValidate_LenientMode(t *testing.T) {
 	registry := router.DefaultRegistry()
 	aliasMap := map[string]string{
-		"good":    "openai/gpt-4",
-		"unknown": "nonexistent/model",
+		"good":    "openai/gpt-4o",     // valid
+		"badfmt":  "invalid-format",    // invalid format (no slash)
 	}
 
 	// Lenient mode: 에러는 반환하지만 호출자가 무시할 수 있음
+	// strict=false이므로 provider/model 검증은 하지 않음
 	errs := Validate(aliasMap, registry, false)
 	if len(errs) != 1 {
 		t.Fatalf("Validate(lenient) returned %d errors, want 1", len(errs))
