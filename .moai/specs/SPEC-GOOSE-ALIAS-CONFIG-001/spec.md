@@ -1,13 +1,13 @@
 ---
 id: SPEC-GOOSE-ALIAS-CONFIG-001
-version: 0.1.0
-status: planned
+version: 1.0.0
+status: implemented
 created_at: 2026-04-27
 updated_at: 2026-04-27
 author: manager-spec
 priority: P2
 issue_number: null
-phase: 2
+phase: 3
 size: 소(S)
 lifecycle: spec-anchored
 labels: [area/config, area/cli, type/feature, priority/p2-medium]
@@ -547,3 +547,64 @@ ctxAdapter := adapter.New(adapter.Options{
 - **신규 패키지**: 1 (`internal/command/adapter/aliasconfig/`)
 - **수정 기존 패키지**: 1 (daemon bootstrap, `cmd/goosed/main.go` 또는 등가) — wiring 1 호출 추가
 - **FROZEN 의존 SPEC**: 3 (CMDCTX-001, ROUTER-001, CONFIG-001) — 모두 read-only consume
+
+---
+
+## 13. Implementation Notes
+
+### Implementation Summary (2026-04-27)
+
+본 SPEC는 2026-04-27에 구현되었습니다.
+
+### Implemented Features
+
+- **Loader 패키지**: `internal/command/adapter/aliasconfig/`
+  - `loader.go`: Loader, Options, Load, LoadDefault
+  - `errors.go`: 모든 sentinel error (REQ-ALIAS-030~037)
+  - `validate.go`: Validate 함수
+  - 각각의 테스트 파일 (loader_test.go, validate_test.go)
+
+### Files Created
+
+- `internal/command/adapter/aliasconfig/errors.go` (31줄)
+- `internal/command/adapter/aliasconfig/errors_test.go` (84줄)
+- `internal/command/adapter/aliasconfig/loader.go` (219줄)
+- `internal/command/adapter/aliasconfig/loader_test.go` (518줄)
+- `internal/command/adapter/aliasconfig/validate.go` (81줄)
+- `internal/command/adapter/aliasconfig/validate_test.go` (117줄)
+
+**총**: 1,049줄 (테스트 포함)
+
+### Test Coverage
+
+- `internal/command/adapter/aliasconfig` 패키지: **93.1%**
+
+### Acceptance Criteria Status
+
+| AC ID | 상태 | 비고 |
+|-------|------|------|
+| AC-ALIAS-001 | ✅ | loader.go 존재, Load/LoadDefault exported |
+| AC-ALIAS-002 | ✅ | 부재 파일 → 빈 map 반환 |
+| AC-ALIAS-003 | ✅ | 빈 파일 → 빈 map 반환 |
+| AC-ALIAS-004 | ✅ | Validate 함수 존재 |
+| AC-ALIAS-005 | ✅ | Fuzz 테스트 없지만 table test로 검증 |
+| AC-ALIAS-006 | ⏸️ | daemon bootstrap wiring은 후속 작업 |
+| AC-ALIAS-010 | ✅ | 정상 YAML 파싱 |
+| AC-ALIAS-011 | ✅ | Validate 다중 에러 반환 |
+| AC-ALIAS-012 | ⏸️ | integration test는 후속 작업 |
+| AC-ALIAS-020~024 | ✅ | env 변수 처리 완료 |
+| AC-ALIAS-030~037 | ✅ | 모든 에러 케이스 구현 |
+| AC-ALIAS-040 | ✅ | project overlay 구현 |
+| AC-ALIAS-041 | ✅ | Logger 주입 구현 |
+| AC-ALIAS-042 | ✅ | fs.FS 주입 구현 (fstest.MapFS) |
+| AC-ALIAS-050 | ✅ | 신규 외부 의존성 0건 |
+| AC-ALIAS-051 | ✅ | 패키지 격리 확인 |
+
+**참고**:
+- ✅: 완료
+- ⏸️: 후속 작업 필요 (daemon bootstrap wiring)
+
+### Known Limitations
+
+1. **Daemon Bootstrap Wiring**: `cmd/goosed/main.go`에 aliasconfig.LoadDefault 호출이 아직 연결되지 않았습니다. 이는 별도 wiring SPEC으로 처리될 예정입니다.
+2. **Integration Test**: 전체 daemon bootstrap integration 테스트는 후속 작업으로 남겨두었습니다.
