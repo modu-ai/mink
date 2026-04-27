@@ -1,7 +1,8 @@
 ---
 id: SPEC-GOOSE-CREDPOOL-001
 version: 0.3.0
-status: implemented
+status: completed
+completed: 2026-04-27
 created_at: 2026-04-21
 updated_at: 2026-04-27
 author: manager-spec

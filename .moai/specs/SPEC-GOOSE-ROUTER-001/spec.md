@@ -1,9 +1,10 @@
 ---
 id: SPEC-GOOSE-ROUTER-001
 version: 1.0.0
-status: implemented
+status: completed
+completed: 2026-04-27
 created_at: 2026-04-21
-updated_at: 2026-04-25
+updated_at: 2026-04-27
 author: manager-spec
 priority: P0
 issue_number: null

@@ -1,9 +1,10 @@
 ---
 id: SPEC-GOOSE-BRAND-RENAME-001
 version: 0.1.1
-status: implemented
+status: completed
+completed: 2026-04-27
 created_at: 2026-04-26
-updated_at: 2026-04-26
+updated_at: 2026-04-27
 author: manager-spec
 priority: P1
 issue_number: null

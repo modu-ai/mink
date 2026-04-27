@@ -1,7 +1,8 @@
 ---
 id: SPEC-GOOSE-CMDCTX-001
 version: 0.1.1
-status: implemented
+status: completed
+completed: 2026-04-27
 created_at: 2026-04-27
 updated_at: 2026-04-27
 author: manager-spec

@@ -5,6 +5,60 @@
 
 ## [Unreleased]
 
+### Documentation — 전체 26개 implemented SPEC completed 승격
+
+P0 6개 + 나머지 15개 implemented SPEC에 대한 패키지 README.md 작성, 문서화 완료, completed 승격.
+
+**P0 패키지 README.md (6개)**:
+- `internal/core/README.md` — goosed 데몬의 핵심 런타임 (Runtime, 생애주기, Graceful Shutdown)
+- `internal/query/README.md` — Agentic Query Engine (1:1 세션 대응, 스트리밍 응답)
+- `internal/llm/router/README.md` — LLM 요청 라우팅 (다중 provider, 대화 문맥 분석)
+- `internal/config/README.md` — 계층형 설정 로더 (YAML/환경변수/기본값 병합)
+- `internal/context/README.md` — Context window 관리 및 compaction 전략 (토큰 최적화)
+- `internal/hook/README.md` — Hook 시스템 (생애주기 이벤트, 권한 관리)
+
+**Phase 1~3 패키지 README.md (7개)**:
+- `internal/llm/provider/README.md` — 6 Provider 어댑터 (Anthropic/OpenAI/Google/xAI/DeepSeek/Ollama)
+- `internal/skill/README.md` — Progressive Disclosure Skill System (L0~L3, YAML, 4 Trigger)
+- `internal/command/README.md` — Slash Command System (내장 + Custom, Skill 연계)
+- `internal/tools/README.md` — Tool Execution System (등록, 실행, 권한 관리)
+- `internal/transport/README.md` — Transport Layer (gRPC/HTTP 통신 추상화)
+- `internal/subagent/README.md` — Sub-agent Management (격리된 에이전트 생애주기)
+- `internal/mcp/README.md` — MCP Client/Server (JSON-RPC 2.0, stdio/SSE)
+
+**LLM 서브패키지 README.md (3개)**:
+- `internal/llm/credential/README.md` — Credential Pool (API key/OAuth 풀 관리, 자동 갱신)
+- `internal/llm/cache/README.md` — Prompt Cache (Anthropic caching 전략, marker 적용)
+- `internal/llm/ratelimit/README.md` — Rate Limit Tracker (응답 헤더 기반 추적, backoff)
+
+**기타 패키지 README.md (1개)**:
+- `internal/evolve/errorclass/README.md` — Error Classification (구조화된 에러 분류)
+- `internal/plugin/README.md` — Plugin System (로딩, 검증, 생애주기)
+- `internal/permission/README.md` — Permission System (권한 관리, allowlist/denylist)
+
+**completed 승격 SPEC (21개)**:
+- SPEC-GOOSE-ADAPTER-001, SPEC-GOOSE-ADAPTER-002
+- SPEC-GOOSE-ALIAS-CONFIG-001, SPEC-GOOSE-BRAND-RENAME-001
+- SPEC-GOOSE-CMDCTX-001, SPEC-GOOSE-CMDCTX-CREDPOOL-WIRE-001
+- SPEC-GOOSE-CMDLOOP-WIRE-001, SPEC-GOOSE-COMMAND-001
+- SPEC-GOOSE-CREDPOOL-001, SPEC-GOOSE-DAEMON-WIRE-001
+- SPEC-GOOSE-ERROR-CLASS-001, SPEC-GOOSE-MCP-001
+- SPEC-GOOSE-PERMISSION-001, SPEC-GOOSE-PLUGIN-001
+- SPEC-GOOSE-PROMPT-CACHE-001, SPEC-GOOSE-RATELIMIT-001
+- SPEC-GOOSE-SKILLS-001, SPEC-GOOSE-SUBAGENT-001
+- SPEC-GOOSE-TOOLS-001, SPEC-GOOSE-TRANSPORT-001
+
+### Added — SPEC-GOOSE-CONFIG-001 v1.0.0 (계층형 설정 로더)
+
+CONFIG-001 별도 CHANGELOG 항목.
+
+**SPEC-GOOSE-CONFIG-001**:
+- **REQ-CFG-001 ~ REQ-CFG-015**: 모든 요구사항 충족
+- **계층형 로딩**: defaults → project(YAML) → user(YAML) → runtime(env)
+- **불변성 보장**: Load() 반환 후 필드 변경 금지 (REQ-CFG-003)
+- **테스트 커버리지**: 85.8%
+- **@MX:ANCHOR**: Load()는 fan_in >= 5 단일 진입점 (모든 후속 SPEC의 시작점)
+
 ### Added — SPEC-GOOSE-CMDCTX-001 v0.1.1 (Slash Command Context Adapter)
 
 PR #50 (SPEC-GOOSE-COMMAND-001 implemented) 머지로 노출된 `command.SlashCommandContext` 인터페이스의 어댑터 wiring을 신설. dispatcher가 빌트인 명령(`/clear`, `/compact`, `/model`, `/status`)을 실행할 때 SPEC-GOOSE-ROUTER-001 / CONTEXT-001 / SUBAGENT-001 에 위임하는 통합 어댑터 구현. SPEC PR #51 + 구현 PR #52에서 plan-auditor 1라운드 + TDD RED-GREEN-REFACTOR 완료.

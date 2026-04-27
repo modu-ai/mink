@@ -1,9 +1,10 @@
 ---
 id: SPEC-GOOSE-ADAPTER-002
 version: 1.1.0
-status: implemented
+status: completed
+completed: 2026-04-27
 created_at: 2026-04-24
-updated_at: 2026-04-25
+updated_at: 2026-04-27
 author: manager-spec
 priority: high
 issue_number: null
