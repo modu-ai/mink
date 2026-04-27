@@ -1,6 +1,6 @@
 ---
 id: SPEC-GOOSE-CMDCTX-001
-version: 0.1.0
+version: 0.1.1
 status: planned
 created_at: 2026-04-27
 updated_at: 2026-04-27
@@ -20,6 +20,7 @@ labels: [area/cli, area/runtime, area/router, type/feature, priority/p1-high]
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-27 | 초안 작성. PR #50 (SPEC-GOOSE-COMMAND-001 implemented)에서 정의된 `SlashCommandContext` 인터페이스의 구현체(adapter) wiring SPEC 신설. 6개 메서드를 ROUTER-001 / CONTEXT-001 / SUBAGENT-001 에 위임. | manager-spec |
+| 0.1.1 | 2026-04-27 | plan-auditor iter1 FAIL 결함 수정: M1 (ErrUnknownModel stale claim 정정 — PR #50 internal/command/errors.go:23-25 에 이미 정의됨), M2 (planMode *atomic.Bool 포인터 indirection 으로 변경 — sync/atomic.Bool noCopy 위반 해소), M3 (AC-CMDCTX-019 신설 — adapter 비-mutation invariant 정적 분석), M4 (REQ-CMDCTX-016 §4.4 Unwanted → §4.1 Ubiquitous 재배치), M5 (AC-CMDCTX-016 확장 — logger.Warn 호출 검증 추가), N2 (Exclusions #7-9 placeholder 명시) | manager-spec |
 
 ---
 
@@ -78,11 +79,11 @@ PR #50 (SPEC-GOOSE-COMMAND-001) 머지로 `internal/command/context.go` 에 `Sla
    - `OnModelChange(info ModelInfo) error` → `LoopController.RequestModelChange(ctx, info)` 위임.
    - `ResolveModelAlias(alias string) (*ModelInfo, error)` → registry + alias 테이블 lookup.
    - `SessionSnapshot() SessionSnapshot` → `LoopController.Snapshot()` + `os.Getwd()`.
-   - `PlanModeActive() bool` → adapter local `atomic.Bool` ⊕ ctx-based `TeammateIdentity.PlanModeRequired`.
+   - `PlanModeActive() bool` → adapter local `*atomic.Bool` (포인터 공유 — WithContext children 간 단일 진실 공급원) ⊕ ctx-based `TeammateIdentity.PlanModeRequired`.
 
 3. nil/error 경로 처리:
    - nil registry / nil loop controller: graceful error 반환 (panic 금지).
-   - 미등록 alias: `command.ErrUnknownModel` (sentinel — 없으면 본 SPEC에서 추가).
+   - 미등록 alias: `command.ErrUnknownModel` (PR #50 SPEC-GOOSE-COMMAND-001 에서 `internal/command/errors.go:23-25` 에 이미 정의된 sentinel — 본 SPEC은 재사용).
    - `os.Getwd()` 실패: `"<unknown>"` placeholder.
 
 4. 테스트:
@@ -111,9 +112,11 @@ PR #50 (SPEC-GOOSE-COMMAND-001) 머지로 `internal/command/context.go` 에 `Sla
 
 **REQ-CMDCTX-003** — The `ContextAdapter.SessionSnapshot` method **shall** return a `SessionSnapshot` value with `TurnCount` from the loop controller snapshot, `Model` from the current active model identifier, and `CWD` from `os.Getwd()` (or `"<unknown>"` on error).
 
-**REQ-CMDCTX-004** — The `ContextAdapter.PlanModeActive` method **shall** return `true` if and only if the adapter's internal `atomic.Bool` flag is set OR the calling context (when ctx-aware variant is used) carries a `TeammateIdentity` with `PlanModeRequired == true`. Default behavior (no ctx hint, flag unset) **shall** return `false`.
+**REQ-CMDCTX-004** — The `ContextAdapter.PlanModeActive` method **shall** return `true` if and only if the adapter's internal `*atomic.Bool` flag (shared with WithContext children) is set OR the calling context (when ctx-aware variant is used) carries a `TeammateIdentity` with `PlanModeRequired == true`. Default behavior (no ctx hint, flag unset) **shall** return `false`.
 
 **REQ-CMDCTX-005** — All `ContextAdapter` methods **shall** be safe for concurrent invocation from multiple goroutines (race-free as verified by `go test -race`).
+
+**REQ-CMDCTX-016** — The adapter **shall not** mutate `loop.State` directly. All loop state changes **shall** be routed through `LoopController` interface methods (preserves SPEC-GOOSE-CONTEXT-001 / SPEC-GOOSE-QUERY-001 REQ-QUERY-015 invariant: loop state is single-goroutine-owned).
 
 ### 4.2 Event-Driven (이벤트 기반)
 
@@ -141,7 +144,7 @@ PR #50 (SPEC-GOOSE-COMMAND-001) 머지로 `internal/command/context.go` 에 `Sla
 
 **REQ-CMDCTX-015** — **If** the `LoopController` dependency injected at construction is `nil`, **then** `OnClear / OnCompactRequest / OnModelChange` **shall** return a sentinel error `ErrLoopControllerUnavailable` and **shall not** panic. `SessionSnapshot()` **shall** return a `SessionSnapshot{TurnCount: 0, Model: "<unknown>", CWD: cwdOrFallback}` value.
 
-**REQ-CMDCTX-016** — The adapter **shall not** mutate `loop.State` directly. All loop state changes **shall** be routed through `LoopController` interface methods (preserves SPEC-GOOSE-CONTEXT-001 / SPEC-GOOSE-QUERY-001 REQ-QUERY-015 invariant: loop state is single-goroutine-owned).
+(REQ-CMDCTX-016 은 §4.1 Ubiquitous 로 이동됨 — adapter 의 비-mutation 은 시스템 상시 불변이므로 Unwanted Behavior 보다 Ubiquitous 가 적절. v0.1.1 부터.)
 
 ### 4.5 Optional (선택적)
 
@@ -170,9 +173,10 @@ PR #50 (SPEC-GOOSE-COMMAND-001) 머지로 `internal/command/context.go` 에 `Sla
 | **AC-CMDCTX-013** | REQ-CMDCTX-015 | **Given** 위와 동일 **When** `SessionSnapshot()` 호출 **Then** `SessionSnapshot{TurnCount: 0, Model: "<unknown>", CWD: ...}` 반환 |
 | **AC-CMDCTX-014** | REQ-CMDCTX-005, REQ-CMDCTX-016 | **Given** ContextAdapter 인스턴스, 100 goroutine 동시에 6개 메서드 무작위 호출 (1000 iteration each) **When** `go test -race -count=10` 실행 **Then** race condition 0건, panic 0건 |
 | **AC-CMDCTX-015** | REQ-CMDCTX-013 | **Given** fake LoopController.RequestClear 가 nil 반환 **When** `OnClear()` 호출 **Then** 반환 에러 nil; **Given** fake가 sentinel error 반환 **When** 위와 동일 호출 **Then** 그 에러가 그대로 전파 |
-| **AC-CMDCTX-016** | REQ-CMDCTX-010, REQ-CMDCTX-018 | **Given** mock `getwdFn` 이 에러 반환하도록 주입 **When** `SessionSnapshot()` 호출 **Then** `.CWD == "<unknown>"`, 함수 자체는 panic 없이 정상 반환 |
+| **AC-CMDCTX-016** | REQ-CMDCTX-010, REQ-CMDCTX-018 | **Given** mock `getwdFn` 이 에러 반환하도록 주입(`fakeGetwdFn override`) **And** logger 가 `fakeWarnLogger` 로 주입됨 **When** `SessionSnapshot()` 호출 **Then** 반환값 `.CWD == "<unknown>"` **And** 함수 자체는 panic 없이 정상 반환 **And** `fakeWarnLogger.WarnCount >= 1` **And** Warn 메시지에 `os.Getwd` 가 반환한 원본 에러가 포함됨 (REQ-CMDCTX-018 logger 검증). logger 가 nil 인 경우 best-effort 에 따라 Warn 호출 생략은 허용. |
 | **AC-CMDCTX-017** | REQ-CMDCTX-017 | **Given** `New(...)` 에 alias map `{"opus": "anthropic/claude-opus-4-7"}` 주입 **When** `ResolveModelAlias("opus")` 호출 **Then** `(*ModelInfo{ID:"anthropic/claude-opus-4-7"}, nil)` 반환 |
 | **AC-CMDCTX-018** | REQ-CMDCTX-011 | **Given** adapter plan mode flag true, fakeLoop carrier **When** `OnClear()` 호출 **Then** `LoopController.RequestClear` 호출 1회 발생 (adapter는 차단하지 않음 — 차단은 dispatcher 책임) |
+| **AC-CMDCTX-019** | REQ-CMDCTX-016 | **Given** `internal/command/adapter/` 패키지 코드 **When** 정적 분석 실행: `grep -rE 'loop\.State\.[A-Z][A-Za-z]*\s*=' internal/command/adapter/ --include='*.go' \| grep -v '_test.go'` **Then** 매칭 0건 (export 필드 직접 할당 부재) **And** REQ-CMDCTX-016 가 입증된다 — 모든 loop.State 변경은 LoopController 메서드 경유 |
 
 **커버리지 매트릭스**:
 
@@ -193,11 +197,11 @@ PR #50 (SPEC-GOOSE-COMMAND-001) 머지로 `internal/command/context.go` 에 `Sla
 | REQ-CMDCTX-013 | AC-CMDCTX-015 |
 | REQ-CMDCTX-014 | AC-CMDCTX-011 |
 | REQ-CMDCTX-015 | AC-CMDCTX-012, AC-CMDCTX-013 |
-| REQ-CMDCTX-016 | AC-CMDCTX-014 (race + 직접 mutate 부재) |
+| REQ-CMDCTX-016 | AC-CMDCTX-014 (race), AC-CMDCTX-019 (정적 분석 — adapter 비-mutation invariant) |
 | REQ-CMDCTX-017 | AC-CMDCTX-017 |
 | REQ-CMDCTX-018 | AC-CMDCTX-016 |
 
-총 18 REQ / 18 AC. 모든 REQ 가 최소 1개의 AC로 검증된다.
+총 18 REQ / 19 AC. 모든 REQ 가 최소 1개의 AC로 검증된다.
 
 ---
 
@@ -221,7 +225,7 @@ internal/command/
     └── fakes_test.go           # fakeLoopController, fakeRegistry helpers
 ```
 
-`command.ErrUnknownModel` 은 `internal/command/errors.go` (또는 `internal/command/context.go` 옆)에 추가. 본 SPEC 범위.
+`command.ErrUnknownModel` 은 PR #50 (SPEC-GOOSE-COMMAND-001)에서 `internal/command/errors.go:23-25` 에 이미 정의됨. 본 SPEC은 **재사용**.
 
 ### 6.2 핵심 타입 (Go 시그니처)
 
@@ -289,7 +293,11 @@ type ContextAdapter struct {
     registry   *router.ProviderRegistry  // may be nil → REQ-CMDCTX-014
     loopCtrl   LoopController            // may be nil → REQ-CMDCTX-015
     aliasMap   map[string]string         // optional, may be empty
-    planMode   atomic.Bool               // top-level orchestrator plan flag
+    // planMode is a *atomic.Bool (pointer indirection) so that WithContext
+    // children share the same underlying flag without copying the atomic
+    // (sync/atomic.Bool carries a noCopy guard; copying triggers go vet
+    // copylocks). SetPlanMode on the parent is observed by all children.
+    planMode   *atomic.Bool              // top-level orchestrator plan flag, shared
     getwdFn    func() (string, error)    // injectable for testing
     logger     Logger                    // optional, may be nil
     // ctxHook is the optional context that carries TeammateIdentity for
@@ -308,14 +316,31 @@ type Options struct {
 
 // New constructs a ContextAdapter with the given options. nil dependencies
 // are tolerated (graceful degradation per REQ-CMDCTX-014, -015).
+// New always allocates a fresh *atomic.Bool for planMode so that WithContext
+// children share state with the parent.
+//
+//     return &ContextAdapter{
+//         planMode: new(atomic.Bool),
+//         ...
+//     }
 func New(opts Options) *ContextAdapter
 
 // SetPlanMode toggles the top-level orchestrator plan-mode flag.
 // Called by future /plan command implementation (out of scope here).
+// Because planMode is *atomic.Bool, all WithContext children observe the
+// same flag value (REQ-CMDCTX-005, REQ-CMDCTX-011).
 func (a *ContextAdapter) SetPlanMode(active bool)
 
 // WithContext returns a new ContextAdapter that uses the provided ctx for
 // PlanModeActive lookups. The original adapter is not modified.
+// The returned clone is a shallow copy: registry, loopCtrl, aliasMap, logger,
+// getwdFn, and the *atomic.Bool planMode pointer are all shared. Only
+// ctxHook differs. This is safe because the only mutable shared state
+// (planMode) is accessed via atomic operations.
+//
+//     clone := *a              // shallow copy is safe — atomic.Bool is via pointer
+//     clone.ctxHook = ctx
+//     return &clone
 func (a *ContextAdapter) WithContext(ctx context.Context) *ContextAdapter
 
 // SlashCommandContext implementation.
@@ -391,20 +416,32 @@ ResolveModelAlias(alias):
 
 ```
 PlanModeActive():
-  1. if a.planMode.Load() == true: return true
+  1. if a.planMode != nil && a.planMode.Load() == true: return true
+     // (a.planMode 는 New(...) 가 항상 new(atomic.Bool) 로 채우므로 일반 경로에서는
+     //  nil 이 아니다. defensive check 만 표기.)
   2. if a.ctxHook != nil:
        id, ok := subagent.TeammateIdentityFromContext(a.ctxHook)
        if ok && id.PlanModeRequired: return true
   3. return false
+
+WithContext(ctx):
+  clone := *a              // shallow copy: planMode pointer 는 그대로 공유
+  clone.ctxHook = ctx
+  return &clone
+
+SetPlanMode(active):
+  a.planMode.Store(active)  // 부모/자식 adapter 모두에서 즉시 관찰됨
 ```
 
 ### 6.6 race 안전성
 
-- `planMode atomic.Bool` — Load/Store atomic, no mutex
+- `planMode *atomic.Bool` — pointer indirection. Load/Store atomic, no mutex. `WithContext` children share the same pointer; `SetPlanMode` on parent is observed by all children atomically. **이 포인터 indirection 은 `sync/atomic.Bool` 의 `noCopy` 가드를 위반하지 않기 위함이다** (값 타입으로 둘 경우 `WithContext` 의 shallow-copy 가 `go vet copylocks` 경고를 유발).
 - `aliasMap` — read-only after `New(...)`; no concurrent mutation
 - `registry` — read-only (ROUTER-001 invariant)
 - `loopCtrl` — interface-level concurrency contract (구현체 책임)
-- `ctxHook` — `WithContext` 가 새 인스턴스를 반환하므로 immutable per-invocation
+- `ctxHook` — `WithContext` 가 새 인스턴스를 반환하므로 immutable per-invocation. clone 은 shallow copy 이지만 mutable shared state 는 `*atomic.Bool` 한 개 뿐이며 atomic operation 으로만 접근.
+
+**상태 공유 invariant**: WithContext 로 파생된 모든 child adapter 는 부모와 `planMode *atomic.Bool` 포인터를 공유한다. 따라서 `parent.SetPlanMode(true)` 호출은 모든 자식의 `PlanModeActive()` 호출에서 즉시(atomic ordering 보장 내) 관찰된다. 이는 plan-mode 토글이 단일 진실 공급원(single source of truth)임을 보장한다.
 
 ### 6.7 TDD 진입 순서 (RED → GREEN → REFACTOR)
 
@@ -458,7 +495,7 @@ PlanModeActive():
 본 SPEC은 의존 SPEC들을 **변경하지 않는다** (모두 implemented status, FROZEN). 본 SPEC이 추가하는 것:
 
 - `internal/command/adapter/` 패키지 (신규)
-- `command.ErrUnknownModel` sentinel (`internal/command/errors.go` 에 추가, 기존 자산 미수정)
+- `command.ErrUnknownModel` 은 PR #50 (SPEC-GOOSE-COMMAND-001)에서 `internal/command/errors.go:23-25` 에 이미 정의됨. 본 SPEC은 **재사용** (추가/수정 없음).
 - `command.SlashCommandContext` 인터페이스 시그니처 자체는 수정 금지
 
 ---
@@ -576,7 +613,7 @@ go test -race -count=10 ./internal/command/adapter/...
 4. **OnModelChange 후 OAuth refresh / credential pool swap** — SPEC-GOOSE-CREDPOOL-001 후속 wiring.
 5. **Plan mode top-level orchestrator setter** — `/plan` slash command 또는 등가 진입점. COMMAND-001 후속.
 6. **Telemetry / metrics emission** — adapter 호출 카운트 / latency 수집. 후속 observability SPEC.
-7. **Permissive alias mode** — SuggestedModels 에 없는 모델 허용 옵션. 본 SPEC은 strict only.
-8. **Hot-reload of registry / aliasMap** — `New(...)` 시점 immutable. 후속 SPEC.
-9. **Multi-session adapter** — 단일 프로세스 단일 세션 가정. 다중 세션 multiplexing 은 후속.
+7. **Permissive alias mode** — SuggestedModels 에 없는 모델 허용 옵션. 본 SPEC은 strict only. 후속 SPEC (TBD-SPEC-ID, 본 SPEC 머지 후 별도 plan 필요).
+8. **Hot-reload of registry / aliasMap** — `New(...)` 시점 immutable. 후속 SPEC (TBD-SPEC-ID, 본 SPEC 머지 후 별도 plan 필요).
+9. **Multi-session adapter** — 단일 프로세스 단일 세션 가정. 다중 세션 multiplexing 은 후속 SPEC (TBD-SPEC-ID, 본 SPEC 머지 후 별도 plan 필요).
 10. **Dispatcher 인터페이스 변경** — `SlashCommandContext` 시그니처 자체는 SPEC-GOOSE-COMMAND-001 가 소유. 본 SPEC은 구현만.

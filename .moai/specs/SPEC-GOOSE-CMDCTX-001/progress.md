@@ -17,6 +17,17 @@
   - 본 SPEC 산출물: research.md, spec.md, progress.md (본 파일)
   - 다음 단계: plan-auditor 사이클은 본 위임 범위 외. 사용자 검토 후 /moai run 분기 결정.
 
+- 2026-04-27 plan-auditor iter1 결과 (FAIL) → spec.md v0.1.0 → v0.1.1 결함 수정
+  - **M1 적용**: §3.1 IN SCOPE, §6.2 패키지 레이아웃 주석, §7 의존성 절 — `command.ErrUnknownModel` stale claim 정정. PR #50 (SPEC-GOOSE-COMMAND-001) 에서 `internal/command/errors.go:23-25` 에 이미 정의됨이 사실. 본 SPEC은 **재사용** (추가/수정 없음).
+  - **M2 적용**: §6.2 ContextAdapter struct, `New(...)` / `SetPlanMode` / `WithContext` godoc, §6.5 PlanModeActive 알고리즘, §6.6 race 안전성 — `planMode atomic.Bool` (값 타입) → `planMode *atomic.Bool` (포인터 indirection) 으로 변경. 이유: `sync/atomic.Bool` 의 `noCopy` 가드 위반을 막기 위함. shallow-copy 기반 `WithContext` 가 `go vet copylocks` 경고를 유발하지 않으면서 부모/자식 adapter 간 plan-mode 상태 공유(single source of truth) 보장.
+  - **M3 적용**: AC-CMDCTX-019 신설 — adapter 비-mutation invariant 의 정적 분석 검증(`grep -rE 'loop\.State\.[A-Z][A-Za-z]*\s*=' internal/command/adapter/`). REQ-CMDCTX-016 매핑에 추가. AC 18 → 19.
+  - **M4 적용**: REQ-CMDCTX-016 을 §4.4 Unwanted Behavior 에서 §4.1 Ubiquitous 로 재배치. EARS 분류상 "shall not mutate" 형태의 시스템 상시 불변은 Ubiquitous 가 적절. REQ ID 는 016 유지.
+  - **M5 적용**: AC-CMDCTX-016 본문 확장 — `fakeWarnLogger` 주입 후 `WarnCount >= 1` 검증 + 원본 에러 포함 확인. REQ-CMDCTX-018 의 logger 절을 단일 AC 로 통합 검증.
+  - **N2 적용**: Exclusions #7-9 (Permissive alias mode / Hot-reload / Multi-session) 에 "TBD-SPEC-ID, 본 SPEC 머지 후 별도 plan 필요" 형식 추가. #1-6 와 형식 통일.
+  - frontmatter: version 0.1.0 → 0.1.1, updated_at 유지(2026-04-27), HISTORY 항목 1줄 추가.
+  - **REQ / AC 통계 갱신**: 총 REQ 18 (Ubiquitous 6, Event-Driven 5, State-Driven 3, Unwanted 2, Optional 2) / 총 AC 19. 모든 REQ 가 최소 1개의 AC로 검증.
+  - 다음 단계: plan-auditor iter2 호출은 본 위임 범위 밖. 사용자 ratify 또는 manager-spec 후속 호출 시 진행.
+
 ### 산출물 요약
 
 | 파일 | 라인 수 추정 | 목적 |
@@ -25,10 +36,12 @@
 | spec.md | ~450 | EARS 18 REQ + 18 AC, 기술적 접근, 의존성, 제외 항목 |
 | progress.md | ~30 | phase log (본 파일) |
 
-### REQ / AC 통계
+### REQ / AC 통계 (v0.1.1 기준)
 
-- 총 REQ: 18 (Ubiquitous 5, Event-Driven 5, State-Driven 3, Unwanted 3, Optional 2)
-- 총 AC: 18 (각 REQ 최소 1개 매핑, 일부 REQ는 다중 AC)
+- 총 REQ: 18 (Ubiquitous 6, Event-Driven 5, State-Driven 3, Unwanted 2, Optional 2)
+  - v0.1.0 → v0.1.1: REQ-CMDCTX-016 재배치 (Unwanted 3 → 2, Ubiquitous 5 → 6)
+- 총 AC: 19 (각 REQ 최소 1개 매핑, 일부 REQ는 다중 AC)
+  - v0.1.0 → v0.1.1: AC-CMDCTX-019 신설 (REQ-CMDCTX-016 정적 분석)
 - 커버리지 매트릭스: spec.md §5 참고
 
 ### 다음 단계 (제안)
