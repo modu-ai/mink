@@ -1,9 +1,9 @@
 ---
 id: SPEC-GOOSE-TRANSPORT-001
 version: 0.1.2
-status: planned
+status: implemented
 created_at: 2026-04-21
-updated_at: 2026-04-26
+updated_at: 2026-04-27
 author: manager-spec
 priority: P0
 issue_number: null
@@ -407,6 +407,18 @@ Recovery가 outer에 있어야 logging이 panic으로 누락되지 않고 loggin
 - 본 SPEC은 **rate limiting / quota interceptor를 포함하지 않는다**.
 - 본 SPEC은 **Unix socket / Windows named pipe 변형을 지원하지 않는다**. TCP-only.
 - 본 SPEC은 **인증을 완전 구현하지 않는다**. Shutdown 토큰은 단순 static string 비교. 실제 인증은 후속 SPEC.
+
+---
+
+## Implementation Notes (sync 정합화 2026-04-27)
+
+- **Status Transition**: planned → implemented
+- **Package**: `internal/transport/grpc/` (7 파일) + `internal/transport/grpc/gen/goosev1/` (proto 생성물)
+- **Core**: `server.go` (10KB, `grpc.NewServer` + health service `goose.v1.DaemonService`), `daemon_service.go`(unary 3종 RPC), `interceptors.go`, `shutdown_auth.go`, `panic_test_service.go`
+- **Generated**: `gen/goosev1/daemon.pb.go` + `daemon_grpc.pb.go` — proto package `goose.v1`, module path `github.com/modu-ai/goose` (v0.1.2 정정과 일관)
+- **Verified REQs (spot-check)**: REQ-TR-001/012 gRPC listener 일관, `goose.v1.DaemonService` 등록, modu-ai 패키지 path. BRIDGE-001 streaming 위임은 본 SPEC 범위 외
+- **Test Coverage**: `server_test.go` (18KB) — health/serving status/shutdown auth 검증
+- **Lifecycle**: spec-anchored Level 2 — Shutdown 인증은 단순 static string, 후속 SPEC에서 강화 예정
 
 ---
 

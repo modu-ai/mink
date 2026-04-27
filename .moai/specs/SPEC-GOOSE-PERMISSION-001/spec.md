@@ -1,9 +1,9 @@
 ---
 id: SPEC-GOOSE-PERMISSION-001
 version: 0.2.0
-status: planned
+status: implemented
 created_at: 2026-04-24
-updated_at: 2026-04-26
+updated_at: 2026-04-27
 author: manager-spec
 priority: P0
 issue_number: null
@@ -746,6 +746,19 @@ Check(ctx, req):
 
 ### 12.3 부속 문서
 - 본 SPEC의 background는 본문 §2에 임베드 (별도 research.md 미생성). 추가 deep-dive 필요 시 후속 amendment에서 `./research.md` 추가.
+
+---
+
+## Implementation Notes (sync 정합화 2026-04-27)
+
+- **Status Transition**: planned → implemented
+- **Package**: `internal/permission/` (13 파일) + `internal/permission/store/` (file/memory 2 store 구현)
+- **Core**: `manager.go`(first-call confirm `inflight` map for 동시성 제어), `manifest.go`, `grant.go`, `confirmer.go`, `errors.go`
+- **Store**: `store.go` + `store/file.go`(영속 grant store), `store/memory.go`(테스트 in-memory)
+- **Verified REQs (spot-check)**: declared permission(`requires:` manifest 필드 파싱), first-call-confirm flow + inflight 중복 차단, grant store 영속화
+- **참고**: `internal/permissions/`(복수형, 별도 디렉토리)는 Claude SDK PermissionMode 추상화 — 본 SPEC 범위 외
+- **Test Coverage** (6 파일): `manager_test.go`(메인), `confirmer_test.go`, `errors_test.go`, `manifest_test.go`, `store/file_test.go`, `store/memory_test.go`
+- **Lifecycle**: spec-anchored Level 2, milestone M2
 
 ---
 

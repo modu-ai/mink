@@ -1,9 +1,9 @@
 ---
 id: SPEC-GOOSE-RATELIMIT-001
 version: 0.2.0
-status: planned
+status: implemented
 created_at: 2026-04-21
-updated_at: 2026-04-25
+updated_at: 2026-04-27
 author: manager-spec
 priority: P0
 issue_number: null
@@ -443,6 +443,18 @@ parseAndEmit(provider, state, now):
 - 본 SPEC은 **gRPC 서비스 quotas를 다루지 않는다**. HTTP provider 전용.
 - 본 SPEC은 **overage(limit 초과) 예측/비용 알림을 포함하지 않는다**. 메트릭 SPEC.
 - 본 SPEC은 **로컬 quota 관리(token bucket / leaky bucket / sliding window)를 포함하지 않는다**. 본 Tracker는 provider 응답 헤더를 기반으로 한 passive reflector이며, 클라이언트 측 자체 quota 계산 알고리즘은 구현하지 않는다.
+
+---
+
+## Implementation Notes (sync 정합화 2026-04-27)
+
+- **Status Transition**: planned → implemented
+- **Package**: `internal/llm/ratelimit/` (12 파일)
+- **Core**: `bucket.go`(4 bucket: `RequestsMin`/`RequestsHour`/`TokensMin`/`TokensHour` = RPM/RPH/TPM/TPH), `tracker.go`(`defaultThresholdPct=80.0`, `defaultWarnCooldown=30s`, min/max `50/100`), `event.go`, `display.go`, `errors.go`
+- **Parsers**: `parser.go` + 3 provider 구현. 헤더 prefix는 provider별로 다름 — OpenAI/OpenRouter는 `x-ratelimit-*` (`parser_openai.go`/`parser_openrouter.go`), **Anthropic은 `anthropic-ratelimit-*`** (`parser_anthropic.go` line 27~ — `anthropic-ratelimit-requests-limit/remaining/reset`, `anthropic-ratelimit-tokens-limit/remaining/reset`)
+- **Verified REQs (spot-check)**: REQ-RL-002/003 4-bucket sync 안전성, REQ-RL-004 `opts.ThresholdPct` 비-하드코딩 (default 80.0, min/max 50/100), REQ-RL-005 80% 임계 cooldown 윈도우 내 동일 provider×bucket Event suppress (default 30s `opts.WarnCooldown`)
+- **Test Coverage**: 거대한 단일 `tracker_test.go` (33KB, table-driven 다수)
+- **Lifecycle**: spec-anchored Level 2
 
 ---
 

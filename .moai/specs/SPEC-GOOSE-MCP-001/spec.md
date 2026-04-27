@@ -1,9 +1,9 @@
 ---
 id: SPEC-GOOSE-MCP-001
 version: 0.2.0
-status: planned
+status: implemented
 created_at: 2026-04-21
-updated_at: 2026-04-24
+updated_at: 2026-04-27
 author: manager-spec
 priority: P0
 issue_number: null
@@ -620,6 +620,18 @@ Schema validation은 CONFIG-001의 loader에서 1차(struct tag), 본 SPEC의 `v
 - 본 SPEC은 **MCP `2025-03-26` 스펙의 Streamable HTTP 전송 (POST + optional SSE stream)** 을 포함하지 않는다. 본 SPEC 의 SSE transport 는 "SSE-only" (server-initiated read-only stream) 에 한정하며, Streamable HTTP 및 연관된 세션 재개(`Mcp-Session-Id`) / resumability 는 **후속 SPEC (SPEC-GOOSE-MCP-002)** 로 연기한다. 이 결정은 Anthropic 공식 스펙이 SSE 단독 모드를 deprecated 로 분류했음을 인지하고도 MVP 범위를 제한하기 위함이다.
 - 본 SPEC은 **MCP `resources/subscribe` 및 `notifications/*` 계열 메서드를 구현하지 않는다** (research.md:§2.3 에 명시된 OUT 범위). 리소스 변경 구독 / 서버-주도 tool list 갱신 notification 등은 후속 SPEC.
 - 본 SPEC은 **다중 goosed 프로세스 간 credential 파일 동기화 (file lock / atomic rename race)** 를 보장하지 않는다. mvp 는 단일 goosed 프로세스 가정이며, 다중 프로세스 환경의 credential 경합 해결은 후속 SPEC.
+
+---
+
+## Implementation Notes (sync 정합화 2026-04-27)
+
+- **Status Transition**: planned → implemented
+- **Package**: `internal/mcp/` (15+ 파일) + `internal/mcp/transport/` (3 transport)
+- **Core**: `client.go`, `server.go`, `types.go`, `adapter.go`, `auth.go`(OAuth 2.1), `validation.go`, `errors.go`, `credentials.go`, `transport_factory.go`
+- **Transports**: `transport/stdio.go`, `transport/websocket.go`, `transport/sse.go` (3 종 모두 구현)
+- **Verified REQs (spot-check)**: REQ-MCP-021 capability negotiation (`ClientCapabilities`/`ServerCapabilities` 맵 + `HasCapability` 메서드 + `ErrCapabilityNotSupported`), REQ-MCP-022 `$/cancelRequest` deadline, REQ-MCP-023 tool registry sync via `adapter.go`
+- **Test Coverage**: 7+ `_test.go` 파일 (client 39KB, server, types, adapter, auth, transport, coverage 30KB)
+- **Lifecycle**: spec-anchored Level 2 — Streamable HTTP(2025-03-26 신형 전송)는 후속 SPEC-MCP-002로 명시 연기됨
 
 ---
 

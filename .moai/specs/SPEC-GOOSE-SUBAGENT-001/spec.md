@@ -1,9 +1,9 @@
 ---
 id: SPEC-GOOSE-SUBAGENT-001
 version: 0.3.0
-status: planned
+status: implemented
 created_at: 2026-04-21
-updated_at: 2026-04-25
+updated_at: 2026-04-27
 author: manager-spec
 priority: P0
 issue_number: null
@@ -624,6 +624,24 @@ func (t *TeammateCanUseTool) Check(ctx context.Context, toolName string, input j
 - 본 SPEC은 **Memory의 구조화 쿼리/embedding 검색을 구현하지 않는다**. 순수 jsonl append-only. 구조화는 MEMORY-001(Phase 4).
 - 본 SPEC은 **Coordinator/Worker 팀 분업 semantics를 정의하지 않는다**. `CoordinatorMode` 플래그 전파만.
 - 본 SPEC은 **Legacy .claude/agents/*.md 전환 도구를 구현하지 않는다**. 호환성 스캔 리포트만.
+
+---
+
+## Implementation Notes (sync 정합화 2026-04-27)
+
+- **Status Transition**: planned → implemented
+- **Package**: `internal/subagent/` (23 파일, 5 `coverage*_test.go` 포함)
+- **Core**: `run.go` (14KB main runtime), `loader.go`(AgentDefinition + MemoryScopes 필드), `memory.go`(3 scope 관리 — `ScopeUser`/`ScopeProject`/local), `permission.go`(`PlanModeApprove(agentID)` REQ-SA-022 + background write 게이트 차단), `worktree.go`(IsolationWorktree), `resume.go`(AgentID round-trip 파싱), `identity.go`, `types.go`
+- **Isolation Modes**: `IsolationFork`, `IsolationBackground`, `IsolationWorktree` — `permission.go`에서 `IsolationBackground && isWriteTool(toolName)` 차단
+- **Verified REQs (spot-check)**:
+  - REQ-SA-001 `AgentID = {agentName}@{sessionId}-{spawnIndex}` 포맷 + `spawnIndex` 단조증가는 `atomic.AddInt64(&parentSpawnCounter, 1)` 보장
+  - REQ-SA-012 `memdir.jsonl` 동시 쓰기 시 partial line 금지 — `O_APPEND|O_SYNC` + flock(LockFileEx) advisory lock 의무
+  - REQ-SA-018 agentName 문자 집합 `[a-zA-Z0-9_]` (delimiter `-`/`@` 제외)
+  - REQ-SA-021 `memory.append` 빌트인 tool 노출
+  - REQ-SA-022 `PlanModeApprove(agentID)` API
+  - 3 isolation mode + 3 memory scope
+- **Test Coverage**: 9+ `_test.go` 파일 (loader, memory, types, spawn 16KB, terminal, resume, session_end, worktree, 5 coverage)
+- **Lifecycle**: spec-anchored Level 2 — v0.3.0 plan-auditor iter1+iter2 결함 수정 모두 코드 반영
 
 ---
 
