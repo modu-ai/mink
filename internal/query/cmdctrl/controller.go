@@ -12,6 +12,7 @@ import (
 
 	"github.com/modu-ai/goose/internal/command"
 	"github.com/modu-ai/goose/internal/command/adapter"
+	"github.com/modu-ai/goose/internal/llm/credential"
 	"github.com/modu-ai/goose/internal/query/loop"
 )
 
@@ -55,20 +56,38 @@ type LoopControllerImpl struct {
 	// logger is an optional structured logger for debugging enqueue/apply events.
 	// nil means silent operation (AC-CMDLOOP-012).
 	logger interface{} // TODO: Will be *slog.Logger or similar
+
+	// credResolver provides credential pools for provider validation.
+	// nil means no credential validation (backward compatible).
+	// AC-CCWIRE-002: Nil resolver disables validation.
+	// AC-CCWIRE-005: Validation only occurs when resolver != nil.
+	credResolver CredentialPoolResolver
+
+	// preWarmRefresh enables async credential refresh after model changes.
+	// AC-CCWIRE-021: Best-effort refresh; errors never propagated.
+	preWarmRefresh bool
+
+	// preWarmCount tracks active pre-warm goroutines for testing/debugging.
+	preWarmCount atomic.Int32
 }
 
 // New creates a new LoopControllerImpl instance.
 //
 // AC-CMDLOOP-013: Nil engine is allowed - Snapshot returns zero-value.
 // AC-CMDLOOP-012: Nil logger is allowed - silent operation.
+// AC-CCWIRE-002: Backward compatible - existing 2-arg calls still work.
 //
 // @MX:ANCHOR: [AUTO] Constructor for LoopController implementation.
 // @MX:REASON: Public factory function; will be called by CLI/DAEMON wiring specs.
-func New(engine, logger interface{}) *LoopControllerImpl {
-	return &LoopControllerImpl{
+func New(engine, logger interface{}, opts ...Option) *LoopControllerImpl {
+	c := &LoopControllerImpl{
 		engine: engine,
 		logger: logger,
 	}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
 }
 
 // RequestClear signals the loop to reset Messages and TurnCount on the next
@@ -147,9 +166,15 @@ func (c *LoopControllerImpl) RequestReactiveCompact(ctx context.Context, target 
 // AC-CMDLOOP-004: Last-write-wins semantics.
 // AC-CMDLOOP-011: Rejects zero-value ModelInfo with empty ID.
 // AC-CMDLOOP-017: Changes visible immediately after return.
+// AC-CCWIRE-002: Nil resolver disables validation (backward compatible).
+// AC-CCWIRE-005: Validation only occurs when resolver != nil.
+// AC-CCWIRE-008: Nil pool returns ErrCredentialUnavailable.
+// AC-CCWIRE-010: Zero available returns ErrCredentialUnavailable.
+// AC-CCWIRE-011: Valid credentials allow swap to proceed.
+// AC-CCWIRE-013: Pre-warm refresh after successful swap.
 //
 // @MX:NOTE: [AUTO] Swaps active model via atomic.Pointer.Store - O(1) operation.
-// @MX:SPEC: SPEC-GOOSE-CMDLOOP-WIRE-001 REQ-CMDLOOP-010
+// @MX:SPEC: SPEC-GOOSE-CMDLOOP-WIRE-001 REQ-CMDLOOP-010, SPEC-GOOSE-CMDCTX-CREDPOOL-WIRE-001 REQ-CCWIRE-001~021
 func (c *LoopControllerImpl) RequestModelChange(ctx context.Context, info command.ModelInfo) error {
 	// Handle nil receiver gracefully (AC-CMDLOOP-018)
 	if c == nil {
@@ -162,6 +187,7 @@ func (c *LoopControllerImpl) RequestModelChange(ctx context.Context, info comman
 	}
 
 	// Check if context is already cancelled (AC-CMDLOOP-007)
+	// AC-CCWIRE-009: Context check happens before any pool operations
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -171,12 +197,73 @@ func (c *LoopControllerImpl) RequestModelChange(ctx context.Context, info comman
 		return ErrInvalidModelInfo
 	}
 
+	// Credential pool validation (AC-CCWIRE-005: only when resolver != nil)
+	if c.credResolver != nil {
+		// AC-CCWIRE-006: Extract provider from model ID
+		provider := extractProvider(info.ID)
+
+		// AC-CCWIRE-008: Look up pool via resolver
+		pool := c.credResolver.PoolFor(provider)
+
+		// AC-CCWIRE-008: Nil pool triggers ErrCredentialUnavailable
+		if pool == nil {
+			return ErrCredentialUnavailable
+		}
+
+		// AC-CCWIRE-010: Check available credentials
+		total, available := pool.Size()
+		if total == 0 || available == 0 {
+			return ErrCredentialUnavailable
+		}
+	}
+
+	// AC-CCWIRE-011: All checks passed - proceed with atomic swap
 	// Atomic swap - immediate visibility (AC-CMDLOOP-003/017)
 	c.activeModel.Store(&info)
+
+	// AC-CCWIRE-013: Async pre-warm refresh after successful swap
+	if c.credResolver != nil && c.preWarmRefresh {
+		provider := extractProvider(info.ID)
+		pool := c.credResolver.PoolFor(provider)
+		if pool != nil {
+			c.preWarmCount.Add(1)
+			go c.preWarmRefreshAsync(ctx, pool)
+		}
+	}
 
 	// TODO: Add logging when logger is implemented (AC-CMDLOOP-012)
 
 	return nil
+}
+
+// preWarmRefreshAsync performs a best-effort credential refresh after a model change.
+//
+// AC-CCWIRE-016: Asynchronous - does not block RequestModelChange.
+// AC-CCWIRE-017: Best-effort - errors logged but never propagated.
+// AC-CCWIRE-021: Only spawned when preWarmRefresh is enabled.
+//
+// @MX:WARN: [AUTO] Goroutine spawned without caller control.
+// @MX:REASON: Best-effort pre-warm; errors intentionally discarded per SPEC.
+func (c *LoopControllerImpl) preWarmRefreshAsync(ctx context.Context, pool *credential.CredentialPool) {
+	// AC-CCWIRE-017: Best-effort - recover from panics, never propagate errors
+	defer func() {
+		c.preWarmCount.Add(-1)
+		if r := recover(); r != nil { //nolint:staticcheck // SA9003: Empty branch is intentional for best-effort semantics (AC-CCWIRE-017)
+			// TODO: Log panic when logger is implemented
+		}
+	}()
+
+	// AC-CCWIRE-013: Select and release a credential to trigger OAuth refresh if needed
+	cred, err := pool.Select(ctx)
+	if err != nil { //nolint:staticcheck // SA9003: Empty branch is intentional for best-effort semantics (AC-CCWIRE-017)
+		// TODO: Log error when logger is implemented
+		return
+	}
+
+	// Release the credential immediately (pre-warm is just validation)
+	if releaseErr := pool.Release(cred); releaseErr != nil { //nolint:staticcheck // SA9003: Empty branch is intentional for best-effort semantics (AC-CCWIRE-017)
+		// TODO: Log error when logger is implemented
+	}
 }
 
 // Snapshot returns a read-only copy of the loop state for /status command.
