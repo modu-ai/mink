@@ -35,7 +35,6 @@ func TestContextAdapter_ConcurrentAccess(t *testing.T) {
 	wg.Add(goroutines)
 
 	for i := range goroutines {
-		i := i
 		go func() {
 			defer wg.Done()
 			for j := range iterations {
@@ -80,7 +79,6 @@ func TestContextAdapter_WithContext_SharedPlanMode(t *testing.T) {
 	wg.Add(goroutines)
 
 	for i, child := range children {
-		i, child := i, child
 		go func() {
 			defer wg.Done()
 			for range 100 {

@@ -116,7 +116,6 @@ func TestContextAdapter_ResolveModelAlias(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			a := New(Options{
@@ -472,7 +471,6 @@ func TestResolveAlias_MultipleProviders(t *testing.T) {
 		{"openai/unknown-model", "", command.ErrUnknownModel},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(fmt.Sprintf("input_%s", tc.input), func(t *testing.T) {
 			t.Parallel()
 			got, err := resolveAlias(reg, nil, tc.input)

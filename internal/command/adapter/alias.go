@@ -1,6 +1,7 @@
 package adapter
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/modu-ai/goose/internal/command"
@@ -49,7 +50,7 @@ func resolveAlias(
 	}
 
 	// Step 6: strict model verification.
-	if !isSuggestedModel(meta.SuggestedModels, modelName) {
+	if !slices.Contains(meta.SuggestedModels, modelName) {
 		return nil, command.ErrUnknownModel
 	}
 
@@ -58,14 +59,4 @@ func resolveAlias(
 		ID:          canonical,
 		DisplayName: meta.DisplayName + " " + modelName,
 	}, nil
-}
-
-// isSuggestedModel reports whether model is in the SuggestedModels slice.
-func isSuggestedModel(suggested []string, model string) bool {
-	for _, s := range suggested {
-		if s == model {
-			return true
-		}
-	}
-	return false
 }
