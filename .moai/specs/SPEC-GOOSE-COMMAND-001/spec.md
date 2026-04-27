@@ -10,7 +10,7 @@ issue_number: null
 phase: 3
 size: 소(S)
 lifecycle: spec-anchored
-labels: []
+labels: [area/cli, area/command, type/feature, phase-3, priority/p1-high]
 ---
 
 # SPEC-GOOSE-COMMAND-001 — Slash Command System (내장 + Custom, Skill 연계)

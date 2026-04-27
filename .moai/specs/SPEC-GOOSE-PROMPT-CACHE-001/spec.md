@@ -10,7 +10,7 @@ issue_number: null
 phase: 1
 size: 소(S)
 lifecycle: spec-anchored
-labels: []
+labels: [phase-1, cache, anthropic, prompt-cache, llm, priority/p1-high]
 ---
 
 # SPEC-GOOSE-PROMPT-CACHE-001 — Prompt Caching (system_and_3 Strategy, 4 Breakpoint, TTL)

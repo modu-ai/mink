@@ -108,7 +108,7 @@ CLAUDE.md §13이 정의하는 MoAI-ADK 3-Level Progressive Disclosure와 본 SP
 11. 변수 치환 — `${CLAUDE_SKILL_DIR}`, `${CLAUDE_SESSION_ID}`, `${USER_HOME}` 등 body/hooks 로드 시점 치환.
 12. 권한 게이트 — `disableModelInvocation`, `userInvocable`, `allowedTools`의 런타임 검증 함수.
 13. `FileChangedConsumer(paths []string) []string` — 변경된 파일 경로를 활성화 대상 skill ID 목록으로 변환(HOOK-001에서 FileChanged 이벤트를 본 패키지로 라우팅).
-14. Remote skill loader skeleton — `LoadRemoteSkill(uri string) (*SkillDefinition, error)` (HTTP fetch만; 인증은 Phase 5+ TODO).
+14. Remote skill loader skeleton — `LoadRemoteSkill(uri string) (*SkillDefinition, error)` (HTTP fetch만; 인증은 Phase 5+).
 
 ### 3.2 OUT OF SCOPE
 

@@ -10,7 +10,7 @@ issue_number: null
 phase: 2
 size: 중(M)
 lifecycle: spec-anchored
-labels: []
+labels: [phase-2, plugin, primitive, marketplace, manifest, priority/p1-high]
 ---
 
 # SPEC-GOOSE-PLUGIN-001 — Plugin Host (manifest.json + MCPB + 4 Primitive 패키징)

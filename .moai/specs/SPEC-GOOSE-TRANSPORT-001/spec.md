@@ -10,7 +10,7 @@ issue_number: null
 phase: 0
 size: 중(M)
 lifecycle: spec-anchored
-labels: []
+labels: [phase-0, grpc, proto, transport, server, priority/p0-critical]
 ---
 
 # SPEC-GOOSE-TRANSPORT-001 — gRPC 서버/proto 스키마 기본 계약

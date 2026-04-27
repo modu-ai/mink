@@ -613,7 +613,7 @@ go test -race -count=10 ./internal/command/adapter/...
 4. **OnModelChange 후 OAuth refresh / credential pool swap** — SPEC-GOOSE-CREDPOOL-001 후속 wiring.
 5. **Plan mode top-level orchestrator setter** — `/plan` slash command 또는 등가 진입점. COMMAND-001 후속.
 6. **Telemetry / metrics emission** — adapter 호출 카운트 / latency 수집. 후속 observability SPEC.
-7. **Permissive alias mode** — SuggestedModels 에 없는 모델 허용 옵션. 본 SPEC은 strict only. 후속 SPEC (TBD-SPEC-ID, 본 SPEC 머지 후 별도 plan 필요).
-8. **Hot-reload of registry / aliasMap** — `New(...)` 시점 immutable. 후속 SPEC (TBD-SPEC-ID, 본 SPEC 머지 후 별도 plan 필요).
-9. **Multi-session adapter** — 단일 프로세스 단일 세션 가정. 다중 세션 multiplexing 은 후속 SPEC (TBD-SPEC-ID, 본 SPEC 머지 후 별도 plan 필요).
+7. **Permissive alias mode** — SuggestedModels 에 없는 모델 허용 옵션. 본 SPEC은 strict only. 후속 SPEC (본 SPEC 머지 후 별도 plan 필요).
+8. **Hot-reload of registry / aliasMap** — `New(...)` 시점 immutable. 후속 SPEC (본 SPEC 머지 후 별도 plan 필요).
+9. **Multi-session adapter** — 단일 프로세스 단일 세션 가정. 다중 세션 multiplexing 은 후속 SPEC (본 SPEC 머지 후 별도 plan 필요).
 10. **Dispatcher 인터페이스 변경** — `SlashCommandContext` 시그니처 자체는 SPEC-GOOSE-COMMAND-001 가 소유. 본 SPEC은 구현만.
