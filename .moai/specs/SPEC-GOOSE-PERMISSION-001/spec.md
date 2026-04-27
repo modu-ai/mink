@@ -757,7 +757,7 @@ Check(ctx, req):
 - **Store**: `store.go` + `store/file.go`(영속 grant store), `store/memory.go`(테스트 in-memory)
 - **Verified REQs (spot-check)**: declared permission(`requires:` manifest 필드 파싱), first-call-confirm flow + inflight 중복 차단, grant store 영속화
 - **참고**: `internal/permissions/`(복수형, 별도 디렉토리)는 Claude SDK PermissionMode 추상화 — 본 SPEC 범위 외
-- **Test Coverage**: `manager_test.go` 24KB + 5+ `_test.go` (confirmer, errors, manifest, store/file, store/memory)
+- **Test Coverage** (6 파일): `manager_test.go`(메인), `confirmer_test.go`, `errors_test.go`, `manifest_test.go`, `store/file_test.go`, `store/memory_test.go`
 - **Lifecycle**: spec-anchored Level 2, milestone M2
 
 ---

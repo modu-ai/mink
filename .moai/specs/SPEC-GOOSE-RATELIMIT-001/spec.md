@@ -451,8 +451,8 @@ parseAndEmit(provider, state, now):
 - **Status Transition**: planned → implemented
 - **Package**: `internal/llm/ratelimit/` (12 파일)
 - **Core**: `bucket.go`(4 bucket: `RequestsMin`/`RequestsHour`/`TokensMin`/`TokensHour` = RPM/RPH/TPM/TPH), `tracker.go`(`defaultThresholdPct=80.0`, `defaultWarnCooldown=30s`, min/max `50/100`), `event.go`, `display.go`, `errors.go`
-- **Parsers**: `parser.go` + 3 provider 구현 (`parser_anthropic.go`, `parser_openai.go`, `parser_openrouter.go`) — `x-ratelimit-*` 헤더 파싱
-- **Verified REQs (spot-check)**: REQ-RL-002/003 4-bucket sync 안전성, REQ-RL-004/005 `opts.ThresholdPct`/`opts.WarnCooldown` 비-하드코딩, REQ-RL-007 80% 임계 cooldown
+- **Parsers**: `parser.go` + 3 provider 구현. 헤더 prefix는 provider별로 다름 — OpenAI/OpenRouter는 `x-ratelimit-*` (`parser_openai.go`/`parser_openrouter.go`), **Anthropic은 `anthropic-ratelimit-*`** (`parser_anthropic.go` line 27~ — `anthropic-ratelimit-requests-limit/remaining/reset`, `anthropic-ratelimit-tokens-limit/remaining/reset`)
+- **Verified REQs (spot-check)**: REQ-RL-002/003 4-bucket sync 안전성, REQ-RL-004 `opts.ThresholdPct` 비-하드코딩 (default 80.0, min/max 50/100), REQ-RL-005 80% 임계 cooldown 윈도우 내 동일 provider×bucket Event suppress (default 30s `opts.WarnCooldown`)
 - **Test Coverage**: 거대한 단일 `tracker_test.go` (33KB, table-driven 다수)
 - **Lifecycle**: spec-anchored Level 2
 

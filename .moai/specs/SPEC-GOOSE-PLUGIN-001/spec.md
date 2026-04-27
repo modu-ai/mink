@@ -556,7 +556,7 @@ CONFIG-001의 loader가 1차 파싱, 본 SPEC의 `config.go`가 2차 validation 
 - **Status Transition**: planned → implemented
 - **Package**: `internal/plugin/` (19 파일)
 - **Core**: `manifest.go`(`ParseManifestFile` — fan_in ≥ 3 단일 진입점), `mcpb.go`(`extractMCPB` zip 해제), `loader.go`(4-primitive 순차 로드 + 실패 시 전체 롤백), `registry.go`(`ClearThenRegister` atomic swap), `validator.go`, `types.go`, `errors.go`, `config.go`, `hook_handler.go`
-- **Verified REQs (spot-check)**: REQ-PL-005 manifest 파싱 진입점, MCPB 번들 zip 해제, 4-primitive(Skills+Agents+MCP+Hooks) 통합 로딩, atomic hot-reload swap
+- **Verified REQs (spot-check)**: REQ-PL-005 manifest 파싱 진입점, MCPB 번들 zip 해제, 4-primitive(Skills+Agents+MCP+Hooks) 통합 로딩, REQ-PL-002/003 PluginRegistry per-instance atomic swap (`atomic.Pointer[map[PluginID]*PluginInstance]` + `sync.Mutex`로 lock-free 읽기 / mu 보호 쓰기) — atomicity 보장 범위는 단일 PluginRegistry 인스턴스 한정, cross-registry는 globally atomic 아님
 - **Test Coverage**: 8+ `_test.go` 파일 (manifest, mcpb, loader, registry, swap, validator, config, coverage)
 - **Lifecycle**: spec-anchored Level 2 — v0.1.0 초안 frontmatter 그대로지만 코드 충실도 v0.2급 수준
 

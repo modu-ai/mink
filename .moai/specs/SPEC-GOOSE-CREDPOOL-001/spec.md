@@ -639,6 +639,8 @@ Select_with_refresh(ctx):
 ## 11. Open Items (v0.3.0 신설, Run phase / 후속 SPEC 이관)
 
 > mass audit iteration 1에서 식별된 SPEC vs 구현 gap 중, 본 SPEC의 Plan 단계에 포함하지 않고 Run phase 또는 후속 SPEC으로 이관되는 항목.
+>
+> **갱신 노트 (sync 정합화 2026-04-27)**: §11.1 OI-01(Storage), OI-02(Refresher Select 배선), OI-05(3 provider source)는 본 sync 시점 코드 검증으로 구현 완료를 확인했다 — `internal/llm/credential/storage.go`(FileStorage + 5 tests: SaveAndLoad/NoSecretFieldsInJSON/AtomicWrite/LoadNonexistent/FilePermissions), `pool.go` line 79/247/293(WithRefresher 옵션 + 만료 임박 처리 + `refresher.Refresh(ctx, c)` 실호출), `anthropic_source.go`/`openai_source.go`/`nous_source.go` 3개 source. OI-03/04/06/07/08은 별도 재검증 필요. 본 §11.1 표 자체는 mass audit iter1(2026-04-25) 스냅샷이며 구현 진행도와 부분적으로 stale함을 명시한다.
 
 ### 11.1 본 SPEC Run phase로 이관 (구현 미착수)
 
@@ -713,7 +715,8 @@ Select_with_refresh(ctx):
 - **Key Files**: `pool.go`, `pooled.go`(`KeyringID` 단일 reference 필드, secret 미포함), `lease.go`, `storage.go`, `state.go`, `stats.go`
 - **Refresher**: `refresher.go` — `Refresh(ctx, cred) error` 시그니처 (Zero-Knowledge: pool에 새 token 미반환). 실제 HTTP refresh는 SPEC-GOOSE-CREDENTIAL-PROXY-001 에 위임됨
 - **Sources**: `factory.go`, `source.go` + 4 구현 (`anthropic_source.go`, `openai_source.go`, `nous_source.go`, `dummy_source.go`)
-- **Verified REQs (spot-check)**: REQ-CP-004 metadata-only persist, `Refresher` interface 시그니처 일치, 4-strategy 선택, v0.3.0 Amendment(Tier 4 위임) 코드 일관
+- **Verified REQs (spot-check)**: REQ-CREDPOOL-004 metadata-only persist (`KeyringID` 단일 reference), `Refresher` interface 시그니처 일치 (`Refresh(ctx, cred) error`, Zero-Knowledge), 4-strategy 선택 (`PriorityStrategy`/`RoundRobinStrategy`/`WeightedStrategy`/`LRUStrategy`), v0.3.0 Amendment(Tier 4 위임) 코드 일관
+- **§11 stale 확인**: §11.1 OI-01(Storage)·OI-02(Refresher Select 배선)·OI-05(3 provider source)는 본 sync 시점 코드 검증 완료 — `pool.go` line 111/126 (Storage Save/Load), line 247/293 (Refresher.Refresh 호출), line 42-45 (`refreshFailCounts` 카운터). §11.1 표 위 갱신 노트 참조
 - **Lifecycle**: spec-anchored Level 2 — 후속 동작 변경 시 SPEC 본문 갱신 필수
 
 ---

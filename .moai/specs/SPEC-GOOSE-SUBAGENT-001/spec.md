@@ -631,9 +631,15 @@ func (t *TeammateCanUseTool) Check(ctx context.Context, toolName string, input j
 
 - **Status Transition**: planned → implemented
 - **Package**: `internal/subagent/` (23 파일, 5 `coverage*_test.go` 포함)
-- **Core**: `run.go` (14KB main runtime), `loader.go`(AgentDefinition + MemoryScopes 필드), `memory.go`(3 scope 관리 — `ScopeUser`/`ScopeProject`/local), `permission.go`(`PlanModeApprove(agentID)` REQ-SA-022 + background write 게이트 차단), `worktree.go`(IsolationWorktree), `resume.go`(`AgentID = {agentName}@{sessionId}-{spawnIndex}` REQ-SA-018), `identity.go`, `types.go`
+- **Core**: `run.go` (14KB main runtime), `loader.go`(AgentDefinition + MemoryScopes 필드), `memory.go`(3 scope 관리 — `ScopeUser`/`ScopeProject`/local), `permission.go`(`PlanModeApprove(agentID)` REQ-SA-022 + background write 게이트 차단), `worktree.go`(IsolationWorktree), `resume.go`(AgentID round-trip 파싱), `identity.go`, `types.go`
 - **Isolation Modes**: `IsolationFork`, `IsolationBackground`, `IsolationWorktree` — `permission.go`에서 `IsolationBackground && isWriteTool(toolName)` 차단
-- **Verified REQs (spot-check)**: 3 isolation mode, 3 memory scope, atomic `spawnIndex`(O_APPEND|O_SYNC), REQ-SA-022 `PlanModeApprove` API, REQ-SA-018 `AgentID` 포맷
+- **Verified REQs (spot-check)**:
+  - REQ-SA-001 `AgentID = {agentName}@{sessionId}-{spawnIndex}` 포맷 + `spawnIndex` 단조증가는 `atomic.AddInt64(&parentSpawnCounter, 1)` 보장
+  - REQ-SA-012 `memdir.jsonl` 동시 쓰기 시 partial line 금지 — `O_APPEND|O_SYNC` + flock(LockFileEx) advisory lock 의무
+  - REQ-SA-018 agentName 문자 집합 `[a-zA-Z0-9_]` (delimiter `-`/`@` 제외)
+  - REQ-SA-021 `memory.append` 빌트인 tool 노출
+  - REQ-SA-022 `PlanModeApprove(agentID)` API
+  - 3 isolation mode + 3 memory scope
 - **Test Coverage**: 9+ `_test.go` 파일 (loader, memory, types, spawn 16KB, terminal, resume, session_end, worktree, 5 coverage)
 - **Lifecycle**: spec-anchored Level 2 — v0.3.0 plan-auditor iter1+iter2 결함 수정 모두 코드 반영
 
