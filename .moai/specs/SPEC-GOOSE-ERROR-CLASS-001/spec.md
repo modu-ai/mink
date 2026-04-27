@@ -1,7 +1,7 @@
 ---
 id: SPEC-GOOSE-ERROR-CLASS-001
 version: 0.1.1
-status: planned
+status: implemented
 created_at: 2026-04-21
 updated_at: 2026-04-25
 author: manager-spec
