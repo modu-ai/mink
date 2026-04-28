@@ -15,6 +15,21 @@ import (
 	"go.uber.org/zap"
 )
 
+// Precompiled regex patterns for self-critique output parsing.
+var (
+	scorePattern  = regexp.MustCompile(`SCORE:\s*([0-9.]+)`)
+	gapPattern    = regexp.MustCompile(`GAP:\s*([\s\S]*?)(?:\nINCONSISTENCY:|\nUNSUPPORTED:|$)`)
+	incPattern    = regexp.MustCompile(`INCONSISTENCY:\s*([\s\S]*?)(?:\nUNSUPPORTED:|$)`)
+	unsupPattern  = regexp.MustCompile(`UNSUPPORTED:\s*([\s\S]*?)$`)
+)
+
+const (
+	// MaxCritiqueMessages is the maximum number of execution history messages to include in the critique prompt.
+	MaxCritiqueMessages = 20
+	// MaxPromptLength is the maximum length for the task prompt before truncation.
+	MaxPromptLength = 10000
+)
+
 // SelfCritiqueConfig configures the self-critique reflect hook.
 type SelfCritiqueConfig struct {
 	// LLMCall is the LLM API function. Required.
@@ -70,9 +85,14 @@ func NewSelfCritiqueHook(cfg SelfCritiqueConfig) (ReflectHook, error) {
 		}
 
 		rawOutput := output.String()
+		// Truncate debug log output to avoid excessive log noise
+		truncated := rawOutput
+		if len(truncated) > 500 {
+			truncated = truncated[:500] + "... [truncated]"
+		}
 		cfg.Logger.Debug("self-critique LLM response",
 			zap.String("task_id", task.ID),
-			zap.String("response", rawOutput),
+			zap.String("response", truncated),
 		)
 
 		// Parse response
@@ -94,14 +114,18 @@ func NewSelfCritiqueHook(cfg SelfCritiqueConfig) (ReflectHook, error) {
 func buildCritiquePrompt(taskPrompt string, messages []message.Message) string {
 	var sb strings.Builder
 
+	// Truncate task prompt if too long to avoid token overflow
+	if len(taskPrompt) > MaxPromptLength {
+		taskPrompt = taskPrompt[:MaxPromptLength] + "\n... [truncated]"
+	}
+
 	sb.WriteString("You are an AI output quality evaluator. Analyze the following task execution and provide a critique.\n\n")
 	sb.WriteString("## Task\n")
 	sb.WriteString(taskPrompt)
 	sb.WriteString("\n\n## Execution History\n")
 
 	// Include last N messages to avoid token overflow
-	maxMessages := 20
-	startIdx := max(len(messages)-maxMessages, 0)
+	startIdx := max(len(messages)-MaxCritiqueMessages, 0)
 
 	for i := startIdx; i < len(messages); i++ {
 		msg := messages[i]
@@ -135,8 +159,7 @@ func parseCritiqueOutput(output string) *ReflectResult {
 	}
 
 	// Extract SCORE
-	scoreRegex := regexp.MustCompile(`SCORE:\s*([0-9.]+)`)
-	if matches := scoreRegex.FindStringSubmatch(output); len(matches) > 1 {
+	if matches := scorePattern.FindStringSubmatch(output); len(matches) > 1 {
 		if score, err := strconv.ParseFloat(matches[1], 64); err == nil {
 			result.Score = score
 		}
@@ -147,20 +170,17 @@ func parseCritiqueOutput(output string) *ReflectResult {
 	}
 
 	// Extract GAP (multiline)
-	gapRegex := regexp.MustCompile(`GAP:\s*([\s\S]*?)(?:\nINCONSISTENCY:|\nUNSUPPORTED:|$)`)
-	if matches := gapRegex.FindStringSubmatch(output); len(matches) > 1 {
+	if matches := gapPattern.FindStringSubmatch(output); len(matches) > 1 {
 		result.Gap = strings.TrimSpace(matches[1])
 	}
 
 	// Extract INCONSISTENCY (multiline)
-	incRegex := regexp.MustCompile(`INCONSISTENCY:\s*([\s\S]*?)(?:\nUNSUPPORTED:|$)`)
-	if matches := incRegex.FindStringSubmatch(output); len(matches) > 1 {
+	if matches := incPattern.FindStringSubmatch(output); len(matches) > 1 {
 		result.Inconsistency = strings.TrimSpace(matches[1])
 	}
 
 	// Extract UNSUPPORTED (multiline to end)
-	unsupRegex := regexp.MustCompile(`UNSUPPORTED:\s*([\s\S]*?)$`)
-	if matches := unsupRegex.FindStringSubmatch(output); len(matches) > 1 {
+	if matches := unsupPattern.FindStringSubmatch(output); len(matches) > 1 {
 		result.Unsupported = strings.TrimSpace(matches[1])
 	}
 

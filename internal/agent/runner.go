@@ -5,11 +5,17 @@ package agent
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/modu-ai/goose/internal/query"
 	"github.com/modu-ai/goose/internal/query/loop"
 	"go.uber.org/zap"
+)
+
+const (
+	// MinPassScore is the minimum reflection score required to avoid re-planning.
+	MinPassScore = 0.7
+	// DefaultMaxPlans is the default maximum number of re-plan iterations.
+	DefaultMaxPlans = 2
 )
 
 // EngineConfigFactory creates a QueryEngineConfig for a given task.
@@ -49,7 +55,7 @@ func NewAgentRunner(cfg AgentRunnerConfig) (*AgentRunner, error) {
 		cfg.Logger = zap.NewNop()
 	}
 	if cfg.MaxReplans <= 0 {
-		cfg.MaxReplans = 2
+		cfg.MaxReplans = DefaultMaxPlans
 	}
 	return &AgentRunner{cfg: cfg}, nil
 }
@@ -116,14 +122,14 @@ func (r *AgentRunner) RunTask(ctx context.Context, task *Task) (*TaskResult, err
 				result.Reflect = reflectResult
 
 				// Check if re-plan needed
-				if reflectResult.Score >= 0.7 {
+				if reflectResult.Score >= MinPassScore {
 					task.State = TaskReflected
 					result.ReplanCount = attempt
 					result.FinalState = finalState
 					return result, nil
 				}
 
-				// Score < 0.7 — prepare re-plan if attempts remaining
+				// Score < MinPassScore — prepare re-plan if attempts remaining
 				if attempt < r.cfg.MaxReplans {
 					r.cfg.Logger.Info("re-plan triggered",
 						zap.Float64("score", reflectResult.Score),
@@ -165,10 +171,7 @@ func (r *AgentRunner) RunTask(ctx context.Context, task *Task) (*TaskResult, err
 // @MX:NOTE: [AUTO] Multi-hook composition - minimum score wins
 // @MX:REASON: SPEC-GOOSE-AGENT-RUNNER-001 - Multiple hooks can be registered; strictest hook drives re-plan decision
 func (r *AgentRunner) runReflectHooks(ctx context.Context, task Task, state loop.State) (*ReflectResult, error) {
-	var (
-		minResult *ReflectResult
-		mu        sync.Mutex
-	)
+	var minResult *ReflectResult
 
 	// Run hooks in sequence (could be parallelized in the future)
 	for _, hook := range r.cfg.ReflectHooks {
@@ -178,11 +181,9 @@ func (r *AgentRunner) runReflectHooks(ctx context.Context, task Task, state loop
 			continue
 		}
 		if result != nil {
-			mu.Lock()
 			if minResult == nil || result.Score < minResult.Score {
 				minResult = result
 			}
-			mu.Unlock()
 		}
 	}
 
