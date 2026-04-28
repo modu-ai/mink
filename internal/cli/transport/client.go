@@ -46,13 +46,13 @@ type DaemonClient struct {
 }
 
 // NewDaemonClient creates a new gRPC client connection to the daemon.
-// addr format: "host:port" (e.g., "127.0.0.1:17891").
-// Empty addr defaults to "127.0.0.1:17891".
+// addr format: "host:port" (e.g., "127.0.0.1:9005").
+// Empty addr defaults to "127.0.0.1:9005".
 // timeout defaults to 3 seconds (REQ-CLI-008).
 // @MX:NOTE Dial timeout prevents indefinite hanging (REQ-CLI-008).
 func NewDaemonClient(addr string, timeout time.Duration) (*DaemonClient, error) {
 	if addr == "" {
-		addr = "127.0.0.1:17891"
+		addr = "127.0.0.1:9005"
 	}
 	if timeout == 0 {
 		timeout = defaultDialTimeout

@@ -107,10 +107,10 @@ func TestNewAskCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := NewAskCommand(tt.client, "127.0.0.1:17891")
+			cmd := NewAskCommand(tt.client, "127.0.0.1:9005")
 
 			// Add persistent flag for daemon-addr (inherited from parent)
-			cmd.PersistentFlags().String("daemon-addr", "127.0.0.1:17891", "Address of the goose daemon")
+			cmd.PersistentFlags().String("daemon-addr", "127.0.0.1:9005", "Address of the goose daemon")
 
 			// Capture output
 			var outBuf, errBuf bytes.Buffer
@@ -156,8 +156,8 @@ func TestAskCommand_Timeout(t *testing.T) {
 		},
 	}
 
-	cmd := NewAskCommand(client, "127.0.0.1:17891")
-	cmd.PersistentFlags().String("daemon-addr", "127.0.0.1:17891", "")
+	cmd := NewAskCommand(client, "127.0.0.1:9005")
+	cmd.PersistentFlags().String("daemon-addr", "127.0.0.1:9005", "")
 	cmd.SetArgs([]string{"Test"})
 	cmd.Flags().Set("timeout", "100ms") // Short timeout
 
@@ -185,8 +185,8 @@ func TestAskCommand_Stdin(t *testing.T) {
 		},
 	}
 
-	cmd := NewAskCommand(client, "127.0.0.1:17891")
-	cmd.PersistentFlags().String("daemon-addr", "127.0.0.1:17891", "")
+	cmd := NewAskCommand(client, "127.0.0.1:9005")
+	cmd.PersistentFlags().String("daemon-addr", "127.0.0.1:9005", "")
 
 	// Simulate stdin input
 	stdin := strings.NewReader("Hello from stdin\n")

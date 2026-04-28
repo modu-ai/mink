@@ -77,10 +77,10 @@ func TestBootstrap_SucceedsWithEmptyConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("설정 로드 실패: %v", err)
 	}
-	// 기본값 확인 (Transport.HealthPort로 필드 변경)
-	if cfg.Transport.HealthPort == 0 {
-		t.Fatal("기본 HealthPort가 0이면 안 됨")
-	}
+		// 기본값 확인 — GRPCPort는 반드시 설정되어야 함
+		if cfg.Transport.GRPCPort == 0 {
+			t.Fatal("기본 GRPCPort가 0이면 안 됨")
+		}
 
 	logger, err := core.NewLogger("info", "goosed", "test")
 	if err != nil {

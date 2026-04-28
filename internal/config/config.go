@@ -52,9 +52,9 @@ type LogConfig struct {
 
 // TransportConfig는 전송 계층 설정이다.
 type TransportConfig struct {
-	// HealthPort는 헬스체크 서버 포트다. 기본값: 17890.
+	// HealthPort는 헬스체크 서버 포트다. 기본값: 0 (disabled).
 	HealthPort int `yaml:"health_port"`
-	// GRPCPort는 gRPC 서버 포트다. 기본값: 17891.
+	// GRPCPort는 gRPC 서버 포트다. 기본값: 9005.
 	GRPCPort int `yaml:"grpc_port"`
 }
 
@@ -357,7 +357,7 @@ func (c *Config) Validate() error {
 	// 포트 범위 검증: 1..65535
 	// REQ-CFG-010: 포트가 설정된 경우 1..65535 범위여야 함
 	// 0은 "미설정"이 아니라 명시적으로 잘못된 포트 값임
-	if c.Transport.HealthPort < 1 || c.Transport.HealthPort > 65535 {
+	if c.Transport.HealthPort != 0 && (c.Transport.HealthPort < 1 || c.Transport.HealthPort > 65535) {
 		errs = append(errs, ErrInvalidField{
 			Path: "transport.health_port",
 			Msg:  "must be 1..65535",

@@ -38,9 +38,9 @@ func TestPingCommandSuccess(t *testing.T) {
 		},
 	}
 
-	cmd := commands.NewPingCommand(mockClient, "127.0.0.1:17891")
+	cmd := commands.NewPingCommand(mockClient, "127.0.0.1:9005")
 	// Set the daemon-addr flag on the command
-	cmd.PersistentFlags().String("daemon-addr", "127.0.0.1:17891", "")
+	cmd.PersistentFlags().String("daemon-addr", "127.0.0.1:9005", "")
 
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
@@ -65,9 +65,9 @@ func TestPingCommandDaemonUnreachable(t *testing.T) {
 		},
 	}
 
-	cmd := commands.NewPingCommand(mockClient, "127.0.0.1:17891")
+	cmd := commands.NewPingCommand(mockClient, "127.0.0.1:9005")
 	// Set the daemon-addr flag on the command
-	cmd.PersistentFlags().String("daemon-addr", "127.0.0.1:17891", "")
+	cmd.PersistentFlags().String("daemon-addr", "127.0.0.1:9005", "")
 
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
@@ -79,7 +79,7 @@ func TestPingCommandDaemonUnreachable(t *testing.T) {
 	errOutput := buf.String()
 	assert.True(t, strings.HasPrefix(errOutput, "goose:"), "Error should start with 'goose:' prefix")
 	assert.Contains(t, errOutput, "daemon unreachable")
-	assert.Contains(t, errOutput, "127.0.0.1:17891")
+	assert.Contains(t, errOutput, "127.0.0.1:9005")
 
 	// Verify exit code constant
 	exitCode := cli.ExitUnavailable

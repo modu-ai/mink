@@ -23,7 +23,7 @@ import (
 
 // Config는 gRPC 서버 설정이다.
 type Config struct {
-	// BindAddr는 gRPC 서버가 바인딩할 주소다 (기본값: "127.0.0.1:17891").
+	// BindAddr는 gRPC 서버가 바인딩할 주소다 (기본값: "127.0.0.1:9005").
 	// REQ-TR-001: 기본값은 loopback.
 	BindAddr string
 
@@ -101,7 +101,7 @@ func newServerInternal(cfg Config, logger *zap.Logger, state *core.StateHolder, 
 
 	bindAddr := cfg.BindAddr
 	if bindAddr == "" {
-		bindAddr = "127.0.0.1:17891"
+		bindAddr = "127.0.0.1:9005"
 	}
 
 	// listener 바인딩 (REQ-TR-001: loopback 기본)

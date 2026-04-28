@@ -88,5 +88,5 @@ func TestRootCommandDaemonAddrDefault(t *testing.T) {
 	require.NotNil(t, flag)
 
 	// Test default value
-	assert.Equal(t, "127.0.0.1:17891", flag.DefValue)
+	assert.Equal(t, "127.0.0.1:9005", flag.DefValue)
 }

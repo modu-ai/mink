@@ -35,8 +35,8 @@ func TestLoad_DefaultsOnly_NoFiles_NoEnv(t *testing.T) {
 
 	// 기본값 확인
 	assert.Equal(t, "info", cfg.Log.Level)
-	assert.Equal(t, 17890, cfg.Transport.HealthPort)
-	assert.Equal(t, 17891, cfg.Transport.GRPCPort)
+	assert.Equal(t, 0, cfg.Transport.HealthPort)
+	assert.Equal(t, 9005, cfg.Transport.GRPCPort)
 	assert.Equal(t, "en", cfg.UI.Locale)
 	assert.False(t, cfg.Learning.Enabled)
 
@@ -80,7 +80,7 @@ func TestLoad_LayerMerge_DefaultUserEnv(t *testing.T) {
 	assert.Equal(t, config.SourceEnv, cfg.Source("transport.grpc_port"))
 
 	// 그 외 기본값 유지
-	assert.Equal(t, 17890, cfg.Transport.HealthPort)
+	assert.Equal(t, 0, cfg.Transport.HealthPort)
 }
 
 // ---- AC-CFG-003: YAML 구문 오류 거부 ----
@@ -341,7 +341,7 @@ func TestLoad_EnvOverlay_GRPCPort_Int_HappyPath(t *testing.T) {
 	t.Parallel()
 
 	userYAML := `transport:
-  grpc_port: 17891
+  grpc_port: 9005
 `
 	gooseHome := t.TempDir()
 	memFS := fstest.MapFS{
@@ -371,7 +371,7 @@ func TestLoad_EnvOverlay_GRPCPort_ParseFail_Fallback(t *testing.T) {
 	t.Parallel()
 
 	userYAML := `transport:
-  grpc_port: 17891
+  grpc_port: 9005
 `
 	gooseHome := t.TempDir()
 	memFS := fstest.MapFS{
@@ -391,7 +391,7 @@ func TestLoad_EnvOverlay_GRPCPort_ParseFail_Fallback(t *testing.T) {
 	// 에러 없이 반환
 	require.NoError(t, err)
 	// user 값 유지
-	assert.Equal(t, 17891, cfg.Transport.GRPCPort)
+	assert.Equal(t, 9005, cfg.Transport.GRPCPort)
 	assert.Equal(t, config.SourceUser, cfg.Source("transport.grpc_port"))
 }
 
@@ -1062,7 +1062,7 @@ func TestLoad_EnvOverlay_HealthPort_ParseFail(t *testing.T) {
 	})
 	require.NoError(t, err)
 	// 기본값 유지
-	assert.Equal(t, 17890, cfg.Transport.HealthPort)
+	assert.Equal(t, 0, cfg.Transport.HealthPort)
 }
 
 // TestSource_NilSources는 Config.Source() nil 안전성을 검증한다.

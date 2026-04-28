@@ -243,7 +243,7 @@ func TestNewApp_AliasConfigLoadFailure(t *testing.T) {
 func TestApp_ClientLazyConnection(t *testing.T) {
 	logger := zap.NewNop()
 	cfg := AppConfig{
-		DaemonAddr: "127.0.0.1:17891", // Default daemon address
+		DaemonAddr: "127.0.0.1:9005", // Default daemon address
 		Logger:     logger,
 	}
 

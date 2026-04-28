@@ -25,7 +25,7 @@ func (m *mockPingClient) Ping(ctx context.Context, addr string, writer io.Writer
 // TestNewDaemonCommand verifies the daemon command is properly initialized.
 func TestNewDaemonCommand(t *testing.T) {
 	client := &mockPingClient{latency: 10 * time.Millisecond}
-	cmd := NewDaemonCommand(client, "127.0.0.1:17891")
+	cmd := NewDaemonCommand(client, "127.0.0.1:9005")
 
 	if cmd == nil {
 		t.Fatal("NewDaemonCommand returned nil")
@@ -107,7 +107,7 @@ func TestDaemonStatusCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := NewDaemonCommand(tt.client, "127.0.0.1:17891")
+			cmd := NewDaemonCommand(tt.client, "127.0.0.1:9005")
 			cmd.SetArgs(tt.args)
 
 			out := &bytes.Buffer{}
@@ -139,7 +139,7 @@ func TestDaemonStatusCommand(t *testing.T) {
 
 // TestDaemonShutdownCommand verifies the shutdown subcommand behavior.
 func TestDaemonShutdownCommand(t *testing.T) {
-	cmd := NewDaemonCommand(&mockPingClient{}, "127.0.0.1:17891")
+	cmd := NewDaemonCommand(&mockPingClient{}, "127.0.0.1:9005")
 	cmd.SetArgs([]string{"shutdown"})
 
 	out := &bytes.Buffer{}

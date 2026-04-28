@@ -10,7 +10,7 @@ import (
 
 // TestSessionListEmpty verifies that list works with no sessions.
 func TestSessionListEmpty(t *testing.T) {
-	cmd := NewSessionCommand("127.0.0.1:17891")
+	cmd := NewSessionCommand("127.0.0.1:9005")
 	cmd.SetArgs([]string{"list"})
 
 	// Override session Dir for testing
@@ -39,7 +39,7 @@ func TestSessionListWithSessions(t *testing.T) {
 
 // TestSessionLoadSuccess verifies that load prints message count.
 func TestSessionLoadSuccess(t *testing.T) {
-	cmd := NewSessionCommand("127.0.0.1:17891")
+	cmd := NewSessionCommand("127.0.0.1:9005")
 	cmd.SetArgs([]string{"load", "test-session"})
 
 	// This would require mocking session.Load()
@@ -49,7 +49,7 @@ func TestSessionLoadSuccess(t *testing.T) {
 
 // TestSessionLoadNotFound verifies that load errors on missing session.
 func TestSessionLoadNotFound(t *testing.T) {
-	cmd := NewSessionCommand("127.0.0.1:17891")
+	cmd := NewSessionCommand("127.0.0.1:9005")
 	cmd.SetArgs([]string{"load", "nonexistent"})
 
 	var out bytes.Buffer
@@ -65,7 +65,7 @@ func TestSessionLoadNotFound(t *testing.T) {
 // TestSessionSaveErrors verifies that save returns appropriate error.
 // REQ-CLI-012: /save should only work in TUI, not as CLI command.
 func TestSessionSaveErrors(t *testing.T) {
-	cmd := NewSessionCommand("127.0.0.1:17891")
+	cmd := NewSessionCommand("127.0.0.1:9005")
 	cmd.SetArgs([]string{"save", "test-session"})
 
 	var out bytes.Buffer

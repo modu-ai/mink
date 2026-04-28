@@ -10,8 +10,8 @@ func defaultConfig() *Config {
 			Level: "info",
 		},
 		Transport: TransportConfig{
-			HealthPort: 17890,
-			GRPCPort:   17891,
+			HealthPort: 0, // Disabled: use gRPC health checking on GRPCPort
+			GRPCPort:   9005,
 		},
 		LLM: LLMConfig{
 			DefaultProvider: "",
@@ -40,11 +40,10 @@ func defaultConfig() *Config {
 }
 
 const (
-	// DefaultHealthPort는 헬스체크 서버 기본 포트다.
-	// CORE-001 §6.2에서 상속
-	DefaultHealthPort = 17890
+	// DefaultHealthPort는 헬스체크 서버 기본 포트다 (0 = disabled).
+	DefaultHealthPort = 0
 	// DefaultGRPCPort는 gRPC 서버 기본 포트다.
-	DefaultGRPCPort = 17891
+	DefaultGRPCPort = 9005
 	// DefaultLogLevel은 기본 로그 레벨이다.
 	DefaultLogLevel = "info"
 	// DefaultLocale은 기본 UI 언어 코드다.

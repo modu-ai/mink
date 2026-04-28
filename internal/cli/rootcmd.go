@@ -41,7 +41,7 @@ func NewRootCommand(version, commit, builtAt string) *cobra.Command {
 
 	// Global flags
 	rootCmd.PersistentFlags().String("config", "", "Path to configuration file")
-	rootCmd.PersistentFlags().String("daemon-addr", "127.0.0.1:17891", "Address of the goose daemon")
+	rootCmd.PersistentFlags().String("daemon-addr", "127.0.0.1:9005", "Address of the goose daemon")
 	rootCmd.PersistentFlags().String("format", "text", "Output format (text|json)")
 	rootCmd.PersistentFlags().String("log-level", "info", "Log level (debug|info|warn|error)")
 	rootCmd.PersistentFlags().Bool("no-color", false, "Disable colored output")
@@ -51,14 +51,14 @@ func NewRootCommand(version, commit, builtAt string) *cobra.Command {
 
 	// Ping command with real gRPC client
 	pingClient := commands.NewGRPCPingClient()
-	rootCmd.AddCommand(commands.NewPingCommand(pingClient, "127.0.0.1:17891"))
+	rootCmd.AddCommand(commands.NewPingCommand(pingClient, "127.0.0.1:9005"))
 
 	// Ask command with gRPC client adapter
 	askClient := &askClientAdapter{newClient: transport.NewDaemonClient}
-	rootCmd.AddCommand(commands.NewAskCommand(askClient, "127.0.0.1:17891"))
+	rootCmd.AddCommand(commands.NewAskCommand(askClient, "127.0.0.1:9005"))
 
 	// Session commands
-	rootCmd.AddCommand(commands.NewSessionCommand("127.0.0.1:17891"))
+	rootCmd.AddCommand(commands.NewSessionCommand("127.0.0.1:9005"))
 
 	// Config commands
 	rootCmd.AddCommand(commands.NewConfigCommand(commands.NewMemoryConfigStore()))
@@ -70,7 +70,7 @@ func NewRootCommand(version, commit, builtAt string) *cobra.Command {
 	rootCmd.AddCommand(commands.NewPluginCommand())
 
 	// Daemon commands (reuse pingClient)
-	rootCmd.AddCommand(commands.NewDaemonCommand(pingClient, "127.0.0.1:17891"))
+	rootCmd.AddCommand(commands.NewDaemonCommand(pingClient, "127.0.0.1:9005"))
 
 	return rootCmd
 }
@@ -84,7 +84,7 @@ type askClientAdapter struct {
 // ChatStream implements commands.AskClient interface.
 func (a *askClientAdapter) ChatStream(ctx context.Context, messages []commands.Message) (<-chan commands.StreamEvent, error) {
 	// Get daemon address from context (set by command)
-	addr := "127.0.0.1:17891" // Default
+	addr := "127.0.0.1:9005" // Default
 
 	client, err := a.newClient(addr, 30*time.Second)
 	if err != nil {

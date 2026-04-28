@@ -35,7 +35,7 @@ type clientFactory struct {
 func (f *clientFactory) ChatStream(ctx context.Context, messages []ChatMessage) (<-chan StreamEvent, error) {
 	// For now, we'll create a new client for each stream
 	// In Phase E, we can implement connection pooling
-	client, err := f.newClient("127.0.0.1:17891", 30)
+	client, err := f.newClient("127.0.0.1:9005", 30)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to daemon: %w", err)
 	}

@@ -17,7 +17,7 @@ type PingClient interface {
 }
 
 // NewPingCommand creates the ping subcommand.
-// @MX:NOTE The daemon address is configurable via global flag, with default "127.0.0.1:17891".
+// @MX:NOTE The daemon address is configurable via global flag, with default "127.0.0.1:9005".
 func NewPingCommand(client PingClient, defaultAddr string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ping",

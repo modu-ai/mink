@@ -74,7 +74,7 @@ func TestNewDaemonClient(t *testing.T) {
 	}{
 		{
 			name:    "valid address",
-			addr:    "127.0.0.1:17891",
+			addr:    "127.0.0.1:9005",
 			timeout: 3 * time.Second,
 			wantErr: false,
 		},
@@ -86,7 +86,7 @@ func TestNewDaemonClient(t *testing.T) {
 		},
 		{
 			name:    "zero timeout defaults to 3 seconds",
-			addr:    "127.0.0.1:17891",
+			addr:    "127.0.0.1:9005",
 			timeout: 0,
 			wantErr: false,
 		},
