@@ -1,7 +1,7 @@
 ---
 id: SPEC-AGENCY-CLEANUP-002
 version: 0.1.0
-status: planned
+status: implemented
 created_at: 2026-04-25
 updated_at: 2026-04-25
 author: manager-spec

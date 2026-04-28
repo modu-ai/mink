@@ -1,7 +1,7 @@
 ---
 id: SPEC-GOOSE-ARCH-REDESIGN-v0.2
 version: 0.1.0
-status: draft
+status: implemented
 created_at: 2026-04-24
 updated_at: 2026-04-27
 author: GOOS행님
