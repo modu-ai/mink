@@ -3,9 +3,11 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/modu-ai/goose/internal/cli/transport"
+	"github.com/modu-ai/goose/internal/cli/tui"
 	"github.com/modu-ai/goose/internal/command"
 	"github.com/modu-ai/goose/internal/command/adapter"
 	"github.com/modu-ai/goose/internal/command/adapter/aliasconfig"
@@ -166,6 +168,55 @@ func InitApp(cfg AppConfig) (*App, error) {
 		appInstance, initErr = NewApp(cfg)
 	})
 	return appInstance, initErr
+}
+
+// ProcessInput implements tui.AppInterface by delegating to the Dispatcher.
+// It bridges TUI user input into the command processing pipeline.
+// @MX:ANCHOR: [AUTO] TUI ↔ Dispatcher bridge — satisfies tui.AppInterface.
+// @MX:REASON: Called by TUI Enter handler and slash command handler — fan_in >= 2.
+func (a *App) ProcessInput(ctx context.Context, input string) (*tui.ProcessResult, error) {
+	if a == nil || a.Dispatcher == nil {
+		return &tui.ProcessResult{
+			Kind:   tui.ProcessProceed,
+			Prompt: input,
+		}, nil
+	}
+
+	processed, err := a.Dispatcher.ProcessUserInput(ctx, input, a.Adapter)
+	if err != nil {
+		return nil, fmt.Errorf("dispatcher: %w", err)
+	}
+
+	// Map command.ProcessedKind → tui.ProcessedKind
+	var kind tui.ProcessedKind
+	switch processed.Kind {
+	case command.ProcessProceed:
+		kind = tui.ProcessProceed
+	case command.ProcessLocal:
+		kind = tui.ProcessLocal
+	case command.ProcessExit:
+		kind = tui.ProcessExit
+	case command.ProcessAbort:
+		kind = tui.ProcessAbort
+	default:
+		kind = tui.ProcessProceed
+	}
+
+	// Map SDKMessage → ProcessMessage
+	var msgs []tui.ProcessMessage
+	for _, m := range processed.Messages {
+		content, _ := m.Payload.(string)
+		msgs = append(msgs, tui.ProcessMessage{
+			Type:    string(m.Type),
+			Content: content,
+		})
+	}
+
+	return &tui.ProcessResult{
+		Kind:     kind,
+		Messages: msgs,
+		Prompt:   processed.Prompt,
+	}, nil
 }
 
 // appKey is the context key for storing/retrieving App from context.

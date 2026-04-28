@@ -52,7 +52,40 @@ func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if !m.streaming && m.input.Value() != "" {
 			input := m.input.Value()
 
-			// Check for slash command
+			// Try dispatcher first when App is available
+			if m.app != nil {
+				result, err := DispatchInput(m.app, context.Background(), input)
+				if err == nil && result != nil {
+					m.input.Reset()
+
+					switch result.Kind {
+					case ProcessExit:
+						m.quitting = true
+						return m, tea.Quit
+					case ProcessAbort:
+						return m, nil
+					case ProcessLocal:
+						// Display local response
+						if response := FormatLocalResult(result); response != "" {
+							m.messages = append(m.messages, ChatMessage{
+								Role:    "system",
+								Content: response,
+							})
+							m.updateViewport()
+						}
+						return m, nil
+					case ProcessProceed:
+						// Fall through to send message with (possibly expanded) prompt
+						if result.Prompt != "" {
+							m.input.SetValue(result.Prompt)
+						}
+						return m.sendMessage()
+					}
+				}
+				// Dispatcher error: fall through to legacy handling
+			}
+
+			// Legacy slash command handling (no App or dispatcher failed)
 			if cmd, ok := ParseSlashCmd(input); ok {
 				// Handle slash command
 				response, quitCmd := HandleSlashCmd(cmd, m)

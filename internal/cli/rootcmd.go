@@ -10,6 +10,7 @@ import (
 	"github.com/modu-ai/goose/internal/cli/tui"
 	"github.com/modu-ai/goose/internal/cli/transport"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
 // @MX:ANCHOR Execute is the main entry point for the CLI.
@@ -31,11 +32,39 @@ func NewRootCommand(version, commit, builtAt string) *cobra.Command {
 		Short:         "AI Daily Companion",
 		SilenceUsage:  true,
 		SilenceErrors: true,
+		// PersistentPreRunE initializes App for all subcommands
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			// Create logger
+			logLevel, _ := cmd.PersistentFlags().GetString("log-level")
+			logger := newLogger(logLevel)
+
+			// Get flags for App initialization
+			daemonAddr, _ := cmd.PersistentFlags().GetString("daemon-addr")
+			aliasFile, _ := cmd.PersistentFlags().GetString("config")
+
+			// Initialize App (singleton via sync.Once)
+			app, err := InitApp(AppConfig{
+				AliasFile:   aliasFile,
+				StrictAlias: false, // TODO: make this a flag
+				DaemonAddr:  daemonAddr,
+				Logger:      logger,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to initialize app: %w", err)
+			}
+
+			// Store App in command context for subcommands
+			ctx := WithApp(cmd.Context(), app)
+			cmd.SetContext(ctx)
+
+			return nil
+		},
 		// Default to TUI chat mode when no subcommand is provided
 		RunE: func(cmd *cobra.Command, args []string) error {
+			app := AppFromContext(cmd.Context())
 			addr, _ := cmd.PersistentFlags().GetString("daemon-addr")
 			noColor, _ := cmd.PersistentFlags().GetBool("no-color")
-			return tui.Run(addr, noColor)
+			return tui.RunWithApp(app, addr, noColor)
 		},
 	}
 
@@ -73,6 +102,24 @@ func NewRootCommand(version, commit, builtAt string) *cobra.Command {
 	rootCmd.AddCommand(commands.NewDaemonCommand(pingClient, "127.0.0.1:9005"))
 
 	return rootCmd
+}
+
+// newLogger creates a zap logger with the specified level.
+// @MX:NOTE Helper function for logger creation in root command.
+func newLogger(level string) *zap.Logger {
+	lvl := zap.InfoLevel
+	if err := lvl.UnmarshalText([]byte(level)); err != nil {
+		lvl = zap.InfoLevel
+	}
+
+	logger, _ := zap.NewProduction()
+	if level != "" {
+		config := zap.NewProductionConfig()
+		config.Level = zap.NewAtomicLevelAt(lvl)
+		logger, _ = config.Build()
+	}
+
+	return logger
 }
 
 // askClientAdapter adapts transport.DaemonClient to commands.AskClient interface.

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/modu-ai/goose/internal/cli"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -89,4 +90,34 @@ func TestRootCommandDaemonAddrDefault(t *testing.T) {
 
 	// Test default value
 	assert.Equal(t, "127.0.0.1:9005", flag.DefValue)
+}
+
+// TestRootCommand_InitAppWiring verifies that PersistentPreRunE initializes App.
+func TestRootCommand_InitAppWiring(t *testing.T) {
+	t.Parallel()
+
+	rootCmd := cli.NewRootCommand("v0.1.0", "abc123", "2026-04-28")
+
+	// Set up a dummy subcommand that can retrieve App from context
+	var retrievedApp *cli.App
+	dummyCmd := &cobra.Command{
+		Use: "dummy",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			retrievedApp = cli.AppFromContext(cmd.Context())
+			return nil
+		},
+	}
+	rootCmd.AddCommand(dummyCmd)
+
+	// Execute the dummy command
+	rootCmd.SetArgs([]string{"dummy"})
+	err := rootCmd.Execute()
+
+	// Should not error
+	require.NoError(t, err)
+
+	// App should be initialized and retrievable from context
+	assert.NotNil(t, retrievedApp, "App should be initialized by PersistentPreRunE")
+	assert.NotNil(t, retrievedApp.Dispatcher, "App.Dispatcher should be initialized")
+	assert.NotNil(t, retrievedApp.Adapter, "App.Adapter should be initialized")
 }

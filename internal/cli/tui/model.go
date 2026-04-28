@@ -43,6 +43,9 @@ type Model struct {
 	client      DaemonClient // Daemon client interface
 	daemonAddr  string       // Daemon address
 
+	// App integration
+	app AppInterface // Dispatcher integration (may be nil)
+
 	// Session state
 	sessionName string // Current session name
 	messages    []ChatMessage // Chat history

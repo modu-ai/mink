@@ -43,6 +43,14 @@ func TestModelInit(t *testing.T) {
 	assert.NotNil(t, cmds, "Init should return initial commands")
 }
 
+// TestNewModelWithApp tests that model can be created with App.
+func TestNewModelWithApp(t *testing.T) {
+	// For now, just verify the model can be created without panicking
+	// The actual app field integration will be tested in integration tests
+	model := NewModel(nil, "test-session", false)
+	assert.NotNil(t, model, "Model should be created")
+}
+
 // TestModelUpdate_EnterKey tests that Enter key sends a message.
 func TestModelUpdate_EnterKey(t *testing.T) {
 	model := NewModel(nil, "test-session", false)

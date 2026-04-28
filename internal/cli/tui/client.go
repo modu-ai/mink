@@ -127,13 +127,21 @@ func (a *daemonClientAdapter) Close() error {
 // Run is the main entry point for the TUI.
 // @MX:ANCHOR This function creates the model and starts the bubbletea program.
 func Run(addr string, noColor bool) error {
+	return RunWithApp(nil, addr, noColor)
+}
+
+// RunWithApp is the main entry point for the TUI with App integration.
+// @MX:ANCHOR This function creates the model with App and starts the bubbletea program.
+// @MX:REASON: Called by rootcmd when App is initialized - fan_in >= 2 (rootcmd, tests).
+func RunWithApp(app AppInterface, addr string, noColor bool) error {
 	// Create daemon client factory
 	clientFactory := NewDaemonClientFactory(func(daemonAddr string, timeout int) (*transport.DaemonClient, error) {
 		return transport.NewDaemonClient(daemonAddr, time.Duration(timeout)*time.Second)
 	})
 
-	// Create model
+	// Create model with App integration
 	model := NewModel(clientFactory, "", noColor)
+	model.app = app
 	model.daemonAddr = addr
 
 	// Create and start program
