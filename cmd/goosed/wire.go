@@ -4,10 +4,17 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
 	"time"
 
+	"github.com/modu-ai/goose/internal/command"
+	"github.com/modu-ai/goose/internal/command/adapter"
+	"github.com/modu-ai/goose/internal/command/builtin"
 	"github.com/modu-ai/goose/internal/core"
 	"github.com/modu-ai/goose/internal/hook"
+	"github.com/modu-ai/goose/internal/llm/router"
+	"github.com/modu-ai/goose/internal/query/cmdctrl"
 	"github.com/modu-ai/goose/internal/skill"
 	"github.com/modu-ai/goose/internal/tools"
 	"go.uber.org/zap"
@@ -117,4 +124,96 @@ func wireInteractiveHandler(_ *core.Runtime, _ *hook.HookRegistry, handler hook.
 	// nil handler + ExplicitNoOp은 정상 no-op (REQ-WIRE-009)
 	// nil handler without ExplicitNoOp은 REQ-WIRE-008 위반 — 단 주입 경로는 main.go에서 제어
 	_ = handler
+}
+
+// zapAdapterLogger adapts zap.Logger to the adapter.Logger interface.
+// REQ-CMDCTX-018: Best-effort warnings for os.Getwd failures.
+//
+// @MX:NOTE: [AUTO] Logger bridge: zap.Logger → adapter.Logger interface.
+// Fields are emitted as alternating key-value pairs.
+type zapAdapterLogger struct {
+	l *zap.Logger
+}
+
+// Warn emits a warning message with structured fields.
+// The fields slice contains alternating key-value pairs.
+func (z zapAdapterLogger) Warn(msg string, fields ...any) {
+	zapFields := make([]zap.Field, 0, len(fields)/2)
+	for i := 0; i+1 < len(fields); i += 2 {
+		key, _ := fields[i].(string)
+		val := fields[i+1]
+		zapFields = append(zapFields, zap.Any(key, val))
+	}
+	z.l.Warn(msg, zapFields...)
+}
+
+// wireSlashCommandSubsystem constructs the slash command subsystem components.
+// Returns (dispatcher, contextAdapter, error) — error returns trigger ExitConfig path.
+// SPEC-GOOSE-CMDCTX-DAEMON-INTEG-001
+//
+// Step 10.6: LoopController instantiation with graceful degradation (engine=nil).
+// Step 10.6b: Drain consumer registration (no-op for now, Drain method not defined).
+// Step 10.7: ContextAdapter construction.
+// Step 10.8: Dispatcher and Registry creation.
+//
+// @MX:ANCHOR: [AUTO] Slash command subsystem construction point.
+// @MX:REASON: Single call site from main.go; bridges 3 subsystems (cmdctrl, adapter, command).
+// @MX:SPEC: SPEC-GOOSE-CMDCTX-DAEMON-INTEG-001
+func wireSlashCommandSubsystem(
+	rt *core.Runtime,
+	providerRegistry *router.ProviderRegistry,
+	aliasMap map[string]string,
+	logger *zap.Logger,
+) (*command.Dispatcher, *adapter.ContextAdapter, error) {
+	// Default nil aliasMap to empty map to avoid nil pointer issues.
+	if aliasMap == nil {
+		aliasMap = make(map[string]string)
+	}
+
+	// Step 10.6: LoopController instantiation.
+	// Engine is nil for now — Plan-Run-Sync not built yet (CMDLOOP-WIRE-001 graceful degradation).
+	// cmdctrl.New takes slog.Logger, so we need to adapt zap.Logger.
+	// Use slog.Default() as fallback since we don't have a zap-to-slog bridge.
+	// TODO: Replace slog.Default() with proper zap-to-slog adapter when available.
+	loopCtrl := cmdctrl.New(nil, slog.Default())
+	if loopCtrl == nil {
+		return nil, nil, fmt.Errorf("loop controller creation failed")
+	}
+
+	// Step 10.6b: Register LoopController drain consumer.
+	// LoopControllerImpl doesn't have a Drain method yet, so we register a no-op consumer.
+	// CMDLOOP-WIRE-001 doesn't define Drain behavior at this stage.
+	rt.Drain.RegisterDrainConsumer(core.DrainConsumer{
+		Name:    "command.LoopController",
+		Fn:      func(ctx context.Context) error { return nil }, // no-op: Drain method not defined yet
+		Timeout: 5 * time.Second,
+	})
+
+	// Step 10.7: ContextAdapter construction.
+	ctxAdapter := adapter.New(adapter.Options{
+		Registry:       providerRegistry,
+		LoopController: loopCtrl,
+		AliasMap:       aliasMap,
+		Logger:         zapAdapterLogger{l: logger},
+	})
+	if ctxAdapter == nil {
+		return nil, nil, fmt.Errorf("context adapter creation failed")
+	}
+
+	// Step 10.8: Dispatcher and Registry creation.
+	cmdRegistry, err := command.NewRegistry(command.WithLogger(logger))
+	if err != nil {
+		return nil, nil, fmt.Errorf("command registry creation failed: %w", err)
+	}
+
+	// Register builtin commands (/help, /clear, /exit, /model, /compact, /status, /version, /plan).
+	builtin.Register(cmdRegistry)
+
+	// Create dispatcher with empty config (custom command roots not yet supported).
+	dispatcher := command.NewDispatcher(cmdRegistry, command.Config{}, logger)
+	if dispatcher == nil {
+		return nil, nil, fmt.Errorf("dispatcher creation failed")
+	}
+
+	return dispatcher, ctxAdapter, nil
 }

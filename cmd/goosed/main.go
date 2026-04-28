@@ -111,6 +111,16 @@ func runWithContext(ctx context.Context) int {
 		return core.ExitConfig
 	}
 
+	// 10.5~10.8. Slash command subsystem wiring
+	// SPEC-GOOSE-CMDCTX-DAEMON-INTEG-001
+	dispatcher, ctxAdapter, err := wireSlashCommandSubsystem(rt, providerRegistry, aliasMap, logger)
+	if err != nil {
+		logger.Error("slash command subsystem wiring failed", zap.Error(err))
+		return core.ExitConfig
+	}
+	_ = dispatcher // will be used by RPC handler (TRANSPORT-001)
+	_ = ctxAdapter // will be used by RPC handler (TRANSPORT-001)
+
 	// InteractiveHandler placeholder (REQ-WIRE-009)
 	wireInteractiveHandler(rt, hookRegistry, nil, hook.WithExplicitNoOp())
 
