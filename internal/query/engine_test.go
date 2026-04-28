@@ -1,8 +1,6 @@
-//go:build integration
-
-// Package query integration tests.
+// Package query tests for QueryEngine.
 // SPEC-GOOSE-QUERY-001 engine_test.go
-// 빌드 태그: integration (go test -tags=integration)
+// Build tag removed to ensure tests run with standard `go test` command.
 package query_test
 
 import (

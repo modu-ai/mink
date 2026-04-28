@@ -1,6 +1,7 @@
 package skill
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -31,7 +32,7 @@ Remote skill body with ${CLAUDE_SKILL_DIR}
 	defer server.Close()
 
 	logger := zap.NewNop()
-	def, err := LoadRemoteSkill(server.URL+"/skills/remote.md", logger)
+	def, err := LoadRemoteSkill(context.Background(), server.URL+"/skills/remote.md", logger)
 	require.NoError(t, err)
 	require.NotNil(t, def)
 
@@ -58,7 +59,7 @@ func TestLoadRemoteSkill_HTTPError(t *testing.T) {
 	defer server.Close()
 
 	logger := zap.NewNop()
-	def, err := LoadRemoteSkill(server.URL+"/notfound", logger)
+	def, err := LoadRemoteSkill(context.Background(), server.URL+"/notfound", logger)
 	assert.Error(t, err)
 	assert.Nil(t, def)
 }
@@ -66,7 +67,7 @@ func TestLoadRemoteSkill_HTTPError(t *testing.T) {
 // TestLoadRemoteSkill_InvalidURI는 잘못된 URI 처리를 검증한다.
 func TestLoadRemoteSkill_InvalidURI(t *testing.T) {
 	logger := zap.NewNop()
-	def, err := LoadRemoteSkill("not-a-valid-uri", logger)
+	def, err := LoadRemoteSkill(context.Background(), "not-a-valid-uri", logger)
 	assert.Error(t, err)
 	assert.Nil(t, def)
 }

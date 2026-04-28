@@ -8,6 +8,7 @@ package cmdctrl
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"sync/atomic"
 
 	"github.com/modu-ai/goose/internal/command"
@@ -55,7 +56,7 @@ type LoopControllerImpl struct {
 
 	// logger is an optional structured logger for debugging enqueue/apply events.
 	// nil means silent operation (AC-CMDLOOP-012).
-	logger interface{} // TODO: Will be *slog.Logger or similar
+	logger *slog.Logger
 
 	// credResolver provides credential pools for provider validation.
 	// nil means no credential validation (backward compatible).
@@ -79,7 +80,7 @@ type LoopControllerImpl struct {
 //
 // @MX:ANCHOR: [AUTO] Constructor for LoopController implementation.
 // @MX:REASON: Public factory function; will be called by CLI/DAEMON wiring specs.
-func New(engine, logger interface{}, opts ...Option) *LoopControllerImpl {
+func New(engine interface{}, logger *slog.Logger, opts ...Option) *LoopControllerImpl {
 	c := &LoopControllerImpl{
 		engine: engine,
 		logger: logger,
@@ -119,7 +120,12 @@ func (c *LoopControllerImpl) RequestClear(ctx context.Context) error {
 	// Set the pending flag - lock-free O(1) operation (AC-CMDLOOP-004)
 	c.pendingClear.Store(true)
 
-	// TODO: Add logging when logger is implemented (AC-CMDLOOP-012)
+	// Log clear request if logger is available (AC-CMDLOOP-012)
+	if c.logger != nil {
+		c.logger.LogAttrs(ctx, slog.LevelDebug, "clear request enqueued",
+			slog.String("controller", "LoopControllerImpl"),
+		)
+	}
 
 	return nil
 }
@@ -154,7 +160,13 @@ func (c *LoopControllerImpl) RequestReactiveCompact(ctx context.Context, target 
 	// Note: target parameter is ignored per SPEC Exclusions §10 #2
 	c.pendingCompact.Store(true)
 
-	// TODO: Add logging when logger is implemented (AC-CMDLOOP-012)
+	// Log compact request if logger is available (AC-CMDLOOP-012)
+	if c.logger != nil {
+		c.logger.LogAttrs(ctx, slog.LevelDebug, "compact request enqueued",
+			slog.String("controller", "LoopControllerImpl"),
+			slog.Int("target", target),
+		)
+	}
 
 	return nil
 }
@@ -221,6 +233,14 @@ func (c *LoopControllerImpl) RequestModelChange(ctx context.Context, info comman
 	// Atomic swap - immediate visibility (AC-CMDLOOP-003/017)
 	c.activeModel.Store(&info)
 
+	// Log model change if logger is available (AC-CMDLOOP-012)
+	if c.logger != nil {
+		c.logger.LogAttrs(ctx, slog.LevelInfo, "model changed",
+			slog.String("model_id", info.ID),
+			slog.String("display_name", info.DisplayName),
+		)
+	}
+
 	// AC-CCWIRE-013: Async pre-warm refresh after successful swap
 	if c.credResolver != nil && c.preWarmRefresh {
 		provider := extractProvider(info.ID)
@@ -230,8 +250,6 @@ func (c *LoopControllerImpl) RequestModelChange(ctx context.Context, info comman
 			go c.preWarmRefreshAsync(ctx, pool)
 		}
 	}
-
-	// TODO: Add logging when logger is implemented (AC-CMDLOOP-012)
 
 	return nil
 }
@@ -248,21 +266,36 @@ func (c *LoopControllerImpl) preWarmRefreshAsync(ctx context.Context, pool *cred
 	// AC-CCWIRE-017: Best-effort - recover from panics, never propagate errors
 	defer func() {
 		c.preWarmCount.Add(-1)
-		if r := recover(); r != nil { //nolint:staticcheck // SA9003: Empty branch is intentional for best-effort semantics (AC-CCWIRE-017)
-			// TODO: Log panic when logger is implemented
+		if r := recover(); r != nil {
+			// Log panic if logger is available (AC-CCWIRE-017)
+			if c.logger != nil {
+				c.logger.LogAttrs(ctx, slog.LevelWarn, "pre-warm refresh panic recovered",
+					slog.Any("panic", r),
+				)
+			}
 		}
 	}()
 
 	// AC-CCWIRE-013: Select and release a credential to trigger OAuth refresh if needed
 	cred, err := pool.Select(ctx)
-	if err != nil { //nolint:staticcheck // SA9003: Empty branch is intentional for best-effort semantics (AC-CCWIRE-017)
-		// TODO: Log error when logger is implemented
+	if err != nil {
+		// Log error if logger is available (AC-CCWIRE-017)
+		if c.logger != nil {
+			c.logger.LogAttrs(ctx, slog.LevelDebug, "pre-warm credential select failed",
+				slog.String("error", err.Error()),
+			)
+		}
 		return
 	}
 
 	// Release the credential immediately (pre-warm is just validation)
-	if releaseErr := pool.Release(cred); releaseErr != nil { //nolint:staticcheck // SA9003: Empty branch is intentional for best-effort semantics (AC-CCWIRE-017)
-		// TODO: Log error when logger is implemented
+	if releaseErr := pool.Release(cred); releaseErr != nil {
+		// Log error if logger is available (AC-CCWIRE-017)
+		if c.logger != nil {
+			c.logger.LogAttrs(ctx, slog.LevelDebug, "pre-warm credential release failed",
+				slog.String("error", releaseErr.Error()),
+			)
+		}
 	}
 }
 
@@ -333,7 +366,12 @@ func (c *LoopControllerImpl) ApplyPendingRequests(state *loop.State) {
 		state.Messages = nil
 		state.TurnCount = 0
 
-		// TODO: Add logging when logger is implemented (AC-CMDLOOP-012)
+		// Log operation if logger is available (AC-CMDLOOP-012)
+		if c.logger != nil {
+			c.logger.LogAttrs(context.Background(), slog.LevelDebug, "request applied",
+				slog.String("controller", "LoopControllerImpl"),
+			)
+		}
 	}
 
 	// Check and clear pendingCompact flag
@@ -343,6 +381,11 @@ func (c *LoopControllerImpl) ApplyPendingRequests(state *loop.State) {
 		// AC-CMDLOOP-016-WHITELIST: This is the only place where we mutate AutoCompactTracking
 		state.AutoCompactTracking.ReactiveTriggered = true
 
-		// TODO: Add logging when logger is implemented (AC-CMDLOOP-012)
+		// Log operation if logger is available (AC-CMDLOOP-012)
+		if c.logger != nil {
+			c.logger.LogAttrs(context.Background(), slog.LevelDebug, "request applied",
+				slog.String("controller", "LoopControllerImpl"),
+			)
+		}
 	}
 }

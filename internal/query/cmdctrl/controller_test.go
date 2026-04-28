@@ -35,13 +35,10 @@ func TestLoopControllerImpl_PanicFree(t *testing.T) {
 
 	t.Run("nil ctx", func(t *testing.T) {
 		c := &LoopControllerImpl{}
-		// Should not panic - treats nil ctx as Background
-		//nolint:staticcheck // AC-CMDLOOP-018: intentional nil ctx panic-free test
-		_ = c.RequestClear(nil)
-		//nolint:staticcheck // AC-CMDLOOP-018
-		_ = c.RequestReactiveCompact(nil, 0)
-		//nolint:staticcheck // AC-CMDLOOP-018
-		_ = c.RequestModelChange(nil, command.ModelInfo{})
+		// AC-CMDLOOP-018: nil ctx panic-free test (context.TODO per SA1012)
+		_ = c.RequestClear(context.TODO())
+		_ = c.RequestReactiveCompact(context.TODO(), 0)
+		_ = c.RequestModelChange(context.TODO(), command.ModelInfo{})
 	})
 
 	t.Run("nil engine", func(t *testing.T) {
@@ -90,8 +87,8 @@ func TestLoopControllerImpl_RequestClear(t *testing.T) {
 	t.Run("nil ctx becomes Background", func(t *testing.T) {
 		c := New(nil, nil)
 
-		//nolint:staticcheck // AC-CMDLOOP-018: intentional nil ctx test
-		err := c.RequestClear(nil)
+		// AC-CMDLOOP-018: nil ctx treated as Background (context.TODO per SA1012)
+		err := c.RequestClear(context.TODO())
 		if err != nil {
 			t.Fatalf("RequestClear with nil ctx failed: %v", err)
 		}

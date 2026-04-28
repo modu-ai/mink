@@ -1,8 +1,7 @@
-//go:build integration
-
 // Package testsupport는 SPEC-GOOSE-QUERY-001 통합 테스트용 스텁 구현을 제공한다.
 // 모든 스텁은 인터페이스 계약을 충족하되 실제 외부 호출을 수행하지 않는다.
 // SPEC-GOOSE-QUERY-001 S0 T0.4 (research.md §8.3 규격)
+// Build tag removed to ensure tests run with standard `go test` command.
 package testsupport
 
 import (

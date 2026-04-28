@@ -1,8 +1,6 @@
-//go:build integration
-
-// Package query lifecycle_test.go
+// Package query lifecycle tests.
 // SPEC-GOOSE-QUERY-001 S3 T3.1~T3.4 통합 테스트
-// 빌드 태그: integration (go test -tags=integration)
+// Build tag removed to ensure tests run with standard `go test` command.
 package query_test
 
 import (

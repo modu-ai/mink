@@ -1,6 +1,7 @@
 package skill
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,7 +17,7 @@ import (
 // REQ-SK-022d: 로컬 skill과 동일한 parse-time 보안 정책이 적용된다.
 //
 // 주의: 인증(AKI/GCS/OAuth)은 Phase 5+에서 구현된다. 현재는 HTTP GET만 수행.
-func LoadRemoteSkill(uri string, logger *zap.Logger) (*SkillDefinition, error) {
+func LoadRemoteSkill(ctx context.Context, uri string, logger *zap.Logger) (*SkillDefinition, error) {
 	// URI 유효성 검사
 	parsedURL, err := url.ParseRequestURI(uri)
 	if err != nil {
@@ -27,8 +28,13 @@ func LoadRemoteSkill(uri string, logger *zap.Logger) (*SkillDefinition, error) {
 		return nil, fmt.Errorf("지원되지 않는 URI 스킴 %q (http/https만 지원)", parsedURL.Scheme)
 	}
 
-	// HTTP GET
-	resp, err := http.Get(uri) //nolint:noctx // TODO Phase 5+에서 context 주입
+	// HTTP GET with context
+	req, err := http.NewRequestWithContext(ctx, "GET", uri, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create HTTP request for %q: %w", uri, err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("remote skill fetch 실패 %q: %w", uri, err)
 	}
