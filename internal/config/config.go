@@ -31,6 +31,7 @@ type Config struct {
 	LLM       LLMConfig       `yaml:"llm"`
 	Learning  LearningConfig  `yaml:"learning"`
 	UI        UIConfig        `yaml:"ui"`
+	Audit     AuditConfig     `yaml:"audit"`
 	// SkillsRoot는 skill SKILL.md 파일을 탐색할 루트 디렉토리다.
 	// 빈 문자열이면 Load() 시 GOOSE_HOME/skills 로 설정된다.
 	// SPEC-GOOSE-DAEMON-WIRE-001 REQ-WIRE-002 step 7
@@ -130,6 +131,19 @@ type LearningConfig struct {
 type UIConfig struct {
 	// Locale은 UI 언어 코드다 (en|ko|ja|zh).
 	Locale string `yaml:"locale"`
+}
+
+// AuditConfig는 감사 로그 설정이다.
+// SPEC-GOOSE-AUDIT-001 — Append-Only Audit Log
+type AuditConfig struct {
+	// Enabled는 감사 로그 활성화 여부다. 기본값: true.
+	Enabled bool `yaml:"enabled"`
+	// MaxSizeMB는 로테이션 전 최대 로그 파일 크기(MB)다. 기본값: 100.
+	MaxSizeMB int `yaml:"max_size_mb"`
+	// GlobalDir은 전역 감사 로그 디렉토리 경로다. 기본값: ~/.goose/logs.
+	GlobalDir string `yaml:"global_dir"`
+	// LocalDir은 프로젝트 감사 로그 디렉토리 경로다. 기본값: ./.goose/logs.
+	LocalDir string `yaml:"local_dir"`
 }
 
 // LoadOptions는 Load() 동작을 제어하는 옵션이다.
@@ -539,7 +553,7 @@ func applyNodeToConfig(rootNode *yaml.Node, cfg *Config, sources sourceMap, src 
 
 	// 최상위 키를 순회하며 known/unknown 분리
 	knownKeys := map[string]bool{
-		"log": true, "transport": true, "llm": true, "learning": true, "ui": true,
+		"log": true, "transport": true, "llm": true, "learning": true, "ui": true, "audit": true,
 	}
 
 	for i := 0; i+1 < len(node.Content); i += 2 {
@@ -580,6 +594,10 @@ func applyNodeToConfig(rootNode *yaml.Node, cfg *Config, sources sourceMap, src 
 			}
 		case "ui":
 			if err := applyUINode(valNode, cfg, sources, src); err != nil {
+				return err
+			}
+		case "audit":
+			if err := applyAuditNode(valNode, cfg, sources, src); err != nil {
 				return err
 			}
 		}
@@ -782,6 +800,51 @@ func applyUINode(node *yaml.Node, cfg *Config, sources sourceMap, src Source) er
 		case "locale":
 			cfg.UI.Locale = v.Value
 			sources.set("ui.locale", src)
+		}
+	}
+	return nil
+}
+
+// applyAuditNode는 "audit" 섹션 노드를 Config.Audit에 적용한다.
+func applyAuditNode(node *yaml.Node, cfg *Config, sources sourceMap, src Source) error {
+	if node.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		k := node.Content[i].Value
+		v := node.Content[i+1]
+		switch k {
+		case "enabled":
+			// REQ-CFG-015: bool zero-value (false)도 presence-aware로 처리
+			b, err := strconv.ParseBool(v.Value)
+			if err != nil {
+				return ErrInvalidField{
+					Path:     "audit.enabled",
+					Expected: "bool",
+					Got:      "string",
+					Msg:      fmt.Sprintf("bool 파싱 실패: %s", v.Value),
+				}
+			}
+			cfg.Audit.Enabled = b
+			sources.set("audit.enabled", src)
+		case "max_size_mb":
+			size, err := strconv.Atoi(v.Value)
+			if err != nil {
+				return ErrInvalidField{
+					Path:     "audit.max_size_mb",
+					Expected: "int",
+					Got:      "string",
+					Msg:      fmt.Sprintf("int 파싱 실패: %s", v.Value),
+				}
+			}
+			cfg.Audit.MaxSizeMB = size
+			sources.set("audit.max_size_mb", src)
+		case "global_dir":
+			cfg.Audit.GlobalDir = v.Value
+			sources.set("audit.global_dir", src)
+		case "local_dir":
+			cfg.Audit.LocalDir = v.Value
+			sources.set("audit.local_dir", src)
 		}
 	}
 	return nil

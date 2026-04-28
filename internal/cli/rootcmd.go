@@ -101,6 +101,9 @@ func NewRootCommand(version, commit, builtAt string) *cobra.Command {
 	// Daemon commands (reuse pingClient)
 	rootCmd.AddCommand(commands.NewDaemonCommand(pingClient, "127.0.0.1:9005"))
 
+	// Audit command
+	rootCmd.AddCommand(commands.NewAuditCommand())
+
 	return rootCmd
 }
 

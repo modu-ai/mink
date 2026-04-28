@@ -36,6 +36,12 @@ func defaultConfig() *Config {
 		UI: UIConfig{
 			Locale: "en",
 		},
+		Audit: AuditConfig{
+			Enabled:   true,
+			MaxSizeMB: 100,
+			GlobalDir: "~/.goose/logs",
+			LocalDir:  "./.goose/logs",
+		},
 	}
 }
 
