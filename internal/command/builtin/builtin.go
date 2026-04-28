@@ -27,14 +27,15 @@ func extractSctx(ctx context.Context) command.SlashCommandContext {
 
 // Register adds all builtin commands and their aliases to the provided registry.
 //
-// Commands registered (7):
-//   - /help  (alias: /?)
+// Commands registered (8):
+//   - /help   (alias: /?)
 //   - /clear
-//   - /exit  (alias: /quit)
+//   - /exit   (alias: /quit)
 //   - /model
 //   - /compact
 //   - /status
 //   - /version
+//   - /plan   (alias: /planmode)
 //
 // @MX:ANCHOR: [AUTO] Single registration point for all builtin commands.
 // @MX:REASON: Fan-in >= 3: application startup, integration tests, builtin tests.
@@ -53,9 +54,11 @@ func Register(reg registrar) {
 	mustRegister(&compactCommand{})
 	mustRegister(&statusCommand{})
 	mustRegister(&versionCommand{})
+	mustRegister(&planCommand{}) // REQ-PMC-006
 
 	// Register aliases for the builtin command set.
 	// These bypass strict name validation since "?" is a special-case allowed alias.
 	reg.RegisterAlias("quit", "exit")
 	reg.RegisterAlias("?", "help")
+	reg.RegisterAlias("planmode", "plan") // REQ-PMC-006
 }
