@@ -113,9 +113,6 @@ func (a *defaultAgent) Ask(ctx context.Context, userMsg string) (string, error) 
 	}
 	a.conversation.Append(userMessage)
 
-	// Build message list for LLM
-	messages := a.buildMessages(userMsg)
-
 	// Calculate reserved tokens for completion
 	reservedTokens := a.capabilities.MaxOutputTokens
 	if reservedTokens == 0 {
@@ -126,8 +123,8 @@ func (a *defaultAgent) Ask(ctx context.Context, userMsg string) (string, error) 
 	maxTokens := a.capabilities.MaxContextTokens - reservedTokens
 	a.conversation.Trim(maxTokens)
 
-	// Rebuild messages after trim
-	messages = a.buildMessages(userMsg)
+	// Build message list for LLM (after trim)
+	messages := a.buildMessages(userMsg)
 
 	// Convert to LLM message format
 	llmMessages := make([]message.Message, len(messages))

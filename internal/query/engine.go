@@ -380,6 +380,17 @@ func (e *QueryEngine) buildPostSamplingHooks() []loop.PostSamplingHookFunc {
 	return hooks
 }
 
+// State returns a copy of the current loop state.
+// Safe to call from any goroutine.
+//
+// @MX:ANCHOR: [AUTO] External state accessor for reflect hooks
+// @MX:REASON: SPEC-GOOSE-SELF-CRITIQUE-001 - AgentRunner reflect hooks need final state
+func (e *QueryEngine) State() loop.State {
+	e.stateMu.Lock()
+	defer e.stateMu.Unlock()
+	return e.state
+}
+
 // validateConfig는 QueryEngineConfig 필수 필드를 검증한다.
 func validateConfig(cfg QueryEngineConfig) error {
 	if cfg.LLMCall == nil {
