@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"math/rand"
+	mrand "math/rand/v2"
 	"time"
 )
 
@@ -77,7 +77,8 @@ func (p RetryPolicy) NextDelay(attempt int) time.Duration {
 	}
 
 	// Add jitter: ±JitterFrac * delay
-	jitter := expDelay * p.JitterFrac * (2*rand.Float64() - 1)
+	// Using math/rand/v2 which is auto-seeded and thread-safe
+	jitter := expDelay * p.JitterFrac * (2*mrand.Float64() - 1)
 
 	return time.Duration(expDelay + jitter)
 }

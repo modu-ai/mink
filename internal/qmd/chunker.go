@@ -157,11 +157,12 @@ func (c *MarkdownChunker) splitByTokens(section Section, docID, path string, sta
 			Position:   startPos + len(chunks),
 		})
 
-		// Move forward with overlap
-		pos = endPos - c.overlap
-		if pos < 0 {
-			pos = 0
+		// Move forward with overlap, ensuring progress
+		nextPos := endPos - c.overlap
+		if nextPos <= pos {
+			nextPos = endPos // overlap too large, skip overlap to prevent infinite loop
 		}
+		pos = nextPos
 	}
 
 	return chunks

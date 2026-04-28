@@ -5,11 +5,11 @@ package agent
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/modu-ai/goose/internal/llm/provider"
 	"github.com/modu-ai/goose/internal/message"
-	"go.uber.org/zap"
 )
 
 // Agent represents an AI agent with persona and conversation management.
@@ -39,25 +39,34 @@ type Agent interface {
 // defaultAgent is the standard Agent implementation.
 // @MX:NOTE: [SPEC-GOOSE-AGENT-001] Core agent runtime implementation
 type defaultAgent struct {
-	spec       *AgentSpec
-	provider   provider.Provider
-	observer   InteractionObserver
+	spec        *AgentSpec
+	provider    provider.Provider
+	observer    InteractionObserver
 	toolInvoker ToolInvoker
 	conversation *Conversation
 	capabilities provider.Capabilities
-	logger     *zap.Logger
+	logger      *slog.Logger
+}
+
+// AgentOption is a functional option for configuring Agent creation.
+type AgentOption func(*defaultAgent)
+
+// WithLogger sets a custom logger for the agent.
+// If not provided, defaults to slog.Default().
+func WithLogger(logger *slog.Logger) AgentOption {
+	return func(a *defaultAgent) {
+		a.logger = logger
+	}
 }
 
 // NewAgent creates a new agent from a spec.
 // @MX:ANCHOR: [AUTO] Agent factory function
 // @MX:REASON: Entry point for agent instantiation, validates spec
-func NewAgent(spec *AgentSpec, llmProvider provider.Provider, observer InteractionObserver) (Agent, error) {
+func NewAgent(spec *AgentSpec, llmProvider provider.Provider, observer InteractionObserver, opts ...AgentOption) (Agent, error) {
 	// Validate spec (REQ-AG-009)
 	if err := validateSpec(spec); err != nil {
 		return nil, err
 	}
-
-	logger, _ := zap.NewDevelopment() // TODO: inject from context
 
 	agent := &defaultAgent{
 		spec:        spec,
@@ -65,7 +74,12 @@ func NewAgent(spec *AgentSpec, llmProvider provider.Provider, observer Interacti
 		observer:    observer,
 		toolInvoker: &NoopToolInvoker{},
 		conversation: NewConversation(),
-		logger:      logger,
+		logger:      slog.Default(), // Default to slog.Default()
+	}
+
+	// Apply functional options
+	for _, opt := range opts {
+		opt(agent)
 	}
 
 	// Fetch capabilities on first creation (REQ-AG-008)
@@ -228,8 +242,8 @@ func (a *defaultAgent) notifyObserver(ix Interaction) {
 	defer func() {
 		if r := recover(); r != nil {
 			a.logger.Warn("observer panic recovered",
-				zap.Any("panic", r),
-				zap.String("agent", a.spec.Name),
+				"panic", r,
+				"agent", a.spec.Name,
 			)
 		}
 	}()

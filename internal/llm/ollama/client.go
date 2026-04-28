@@ -4,10 +4,14 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
+	"time"
 )
 
 // httpClient handles HTTP communication with Ollama server.
@@ -17,11 +21,71 @@ type httpClient struct {
 	httpClient *http.Client
 }
 
+// validateBaseURL validates that the baseURL is a localhost address.
+// Ollama runs locally, so we reject non-localhost URLs to prevent SSRF attacks.
+func validateBaseURL(baseURL string) error {
+	parsedURL, err := url.Parse(baseURL)
+	if err != nil {
+		return fmt.Errorf("invalid baseURL: %w", err)
+	}
+
+	// Only allow http or https schemes
+	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+		return fmt.Errorf("invalid scheme: %s (only http/https allowed)", parsedURL.Scheme)
+	}
+
+	// Only allow localhost addresses
+	host := parsedURL.Hostname()
+	if host == "" {
+		return fmt.Errorf("empty host in baseURL")
+	}
+
+	// Check if host is localhost or 127.0.0.1
+	isLocalhost := isLocalhost(host)
+	if !isLocalhost {
+		return fmt.Errorf("baseURL must be localhost (got %s)", host)
+	}
+
+	return nil
+}
+
+// isLocalhost checks if a hostname is a localhost address.
+func isLocalhost(host string) bool {
+	// Check for common localhost variants
+	switch host {
+	case "localhost", "127.0.0.1", "::1", "0.0.0.0":
+		return true
+	}
+
+	// Check if it's an IPv4 loopback address (127.x.x.x)
+	ip := net.ParseIP(host)
+	if ip != nil {
+		return ip.IsLoopback()
+	}
+
+	return false
+}
+
 func newHTTPClient(baseURL string) *httpClient {
+	// Validate baseURL to prevent SSRF attacks
+	if err := validateBaseURL(baseURL); err != nil {
+		panic(fmt.Sprintf("invalid baseURL: %v", err))
+	}
+
 	return &httpClient{
 		baseURL: baseURL,
 		httpClient: &http.Client{
-			// Use default timeout; context controls cancellation
+			// 30-second timeout for all requests
+			Timeout: 30 * time.Second,
+			// Explicit TLS configuration (using defaults)
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					// Use system defaults (safe for local connections)
+					MinVersion: tls.VersionTLS12,
+				},
+				// Disable HTTP/2 for local connections (simpler debugging)
+				ForceAttemptHTTP2: false,
+			},
 		},
 	}
 }

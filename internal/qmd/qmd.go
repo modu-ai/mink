@@ -11,6 +11,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -150,12 +151,22 @@ func NewSecurityFilter() *DefaultSecurityFilter {
 }
 
 // IsAllowed checks if a path matches any blocked pattern.
+// Normalizes the path and checks for path traversal attempts.
 func (f *DefaultSecurityFilter) IsAllowed(path string) bool {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
-	absPath, err := filepath.Abs(path)
+	// Clean the path to resolve any . or .. components
+	cleanPath := filepath.Clean(path)
+
+	// Convert to absolute path for consistent matching
+	absPath, err := filepath.Abs(cleanPath)
 	if err != nil {
+		return false
+	}
+
+	// Check for path traversal attempts after normalization
+	if containsPathTraversal(absPath) {
 		return false
 	}
 
@@ -167,6 +178,14 @@ func (f *DefaultSecurityFilter) IsAllowed(path string) bool {
 	}
 
 	return true
+}
+
+// containsPathTraversal checks if a path contains .. components after cleaning.
+// This is a defense-in-depth check to catch potential path traversal attempts.
+func containsPathTraversal(path string) bool {
+	// After filepath.Clean, any remaining .. indicates traversal outside root
+	// Check if the cleaned path still contains .. as a path component
+	return slices.Contains(strings.Split(filepath.ToSlash(path), "/"), "..")
 }
 
 // matchesPattern checks if a path matches a blocked pattern.
@@ -183,8 +202,7 @@ func (f *DefaultSecurityFilter) matchesPattern(path, pattern string) bool {
 		if len(parts) > 1 {
 			hiddenDir := "." + strings.Split(parts[1], "/")[0]
 			// Check if any path component is this hidden directory
-			pathParts := strings.Split(path, "/")
-			for _, part := range pathParts {
+			for part := range strings.SplitSeq(path, "/") {
 				if part == hiddenDir || strings.HasPrefix(part, hiddenDir+"/") {
 					return true
 				}
@@ -206,11 +224,9 @@ func (f *DefaultSecurityFilter) matchesPattern(path, pattern string) bool {
 	}
 
 	// Check if path starts with pattern prefix (for ** patterns)
-	if strings.HasPrefix(pattern, "**/") {
-		suffix := strings.TrimPrefix(pattern, "**/")
+	if suffix, ok := strings.CutPrefix(pattern, "**/"); ok {
 		// Check if any component matches the suffix
-		pathParts := strings.Split(path, "/")
-		for _, part := range pathParts {
+		for part := range strings.SplitSeq(path, "/") {
 			if matched, err := filepath.Match(suffix, part); err == nil && matched {
 				return true
 			}

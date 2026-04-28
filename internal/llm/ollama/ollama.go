@@ -2,9 +2,8 @@ package ollama
 
 import (
 	"context"
+	"log/slog"
 	"sync"
-
-	"go.uber.org/zap"
 
 	"github.com/modu-ai/goose/internal/llm"
 )
@@ -15,12 +14,12 @@ type Provider struct {
 	endpoint string
 	client   *httpClient
 	caps     *capabilitiesCache
-	logger   *zap.Logger
+	logger   *slog.Logger
 }
 
 // New creates a new Ollama provider.
 // SPEC-GOOSE-LLM-001: Base URL defaults to http://localhost:11434.
-func New(endpoint string, logger *zap.Logger) (*Provider, error) {
+func New(endpoint string, logger *slog.Logger) (*Provider, error) {
 	if endpoint == "" {
 		endpoint = "http://localhost:11434"
 	}
@@ -69,9 +68,9 @@ func (p *Provider) Complete(ctx context.Context, req llm.CompletionRequest) (llm
 
 	if p.logger != nil {
 		p.logger.Debug("ollama complete",
-			zap.String("model", req.Model),
-			zap.Int("prompt_tokens", result.Usage.PromptTokens),
-			zap.Int("completion_tokens", result.Usage.CompletionTokens),
+			"model", req.Model,
+			"prompt_tokens", result.Usage.PromptTokens,
+			"completion_tokens", result.Usage.CompletionTokens,
 		)
 	}
 
@@ -204,7 +203,7 @@ func (p *Provider) parseStream(ctx context.Context, stream *chatStream, out chan
 	defer stream.Close()
 
 	for {
-		// Check context cancellation
+		// Check context cancellation before each operation
 		select {
 		case <-ctx.Done():
 			return
@@ -228,7 +227,7 @@ func (p *Provider) parseStream(ctx context.Context, stream *chatStream, out chan
 		if err != nil {
 			// REQ-LLM-010: Malformed stream - send error chunk and close
 			if p.logger != nil {
-				p.logger.Debug("ollama malformed stream", zap.Error(err))
+				p.logger.Debug("ollama malformed stream", "error", err)
 			}
 			select {
 			case <-ctx.Done():
@@ -254,6 +253,7 @@ func (p *Provider) parseStream(ctx context.Context, stream *chatStream, out chan
 			}
 		}
 
+		// Check context cancellation before sending to prevent goroutine leak
 		select {
 		case <-ctx.Done():
 			return
