@@ -24,3 +24,12 @@ type ErrCapabilityUnsupported struct {
 func (e ErrCapabilityUnsupported) Error() string {
 	return fmt.Sprintf("provider: %q does not support capability %q", e.ProviderName, e.Feature)
 }
+
+// ErrModelNotFound는 요청한 모델을 찾을 수 없을 때 반환된다.
+type ErrModelNotFound struct {
+	Model string
+}
+
+func (e ErrModelNotFound) Error() string {
+	return fmt.Sprintf("model: %q not found", e.Model)
+}
