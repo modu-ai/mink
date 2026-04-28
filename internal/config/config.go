@@ -32,6 +32,7 @@ type Config struct {
 	Learning  LearningConfig  `yaml:"learning"`
 	UI        UIConfig        `yaml:"ui"`
 	Audit     AuditConfig     `yaml:"audit"`
+	FSAccess  FSAccessConfig  `yaml:"fs_access"`
 	// SkillsRoot는 skill SKILL.md 파일을 탐색할 루트 디렉토리다.
 	// 빈 문자열이면 Load() 시 GOOSE_HOME/skills 로 설정된다.
 	// SPEC-GOOSE-DAEMON-WIRE-001 REQ-WIRE-002 step 7
@@ -848,4 +849,17 @@ func applyAuditNode(node *yaml.Node, cfg *Config, sources sourceMap, src Source)
 		}
 	}
 	return nil
+}
+
+// FSAccessConfig is the filesystem access control configuration.
+// SPEC-GOOSE-FS-ACCESS-001
+type FSAccessConfig struct {
+	// Enabled controls whether FS access control is active. Default: true.
+	Enabled bool `yaml:"enabled"`
+	// PolicyPath is the path to the security.yaml policy file.
+	// Default: ./.goose/config/security.yaml
+	PolicyPath string `yaml:"policy_path"`
+	// ReloadInterval controls how often the policy file is checked for changes.
+	// Default: 5s.
+	ReloadInterval string `yaml:"reload_interval"`
 }

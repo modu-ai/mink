@@ -42,6 +42,11 @@ func defaultConfig() *Config {
 			GlobalDir: "~/.goose/logs",
 			LocalDir:  "./.goose/logs",
 		},
+		FSAccess: FSAccessConfig{
+			Enabled:        true,
+			PolicyPath:     "./.goose/config/security.yaml",
+			ReloadInterval: "5s",
+		},
 	}
 }
 
