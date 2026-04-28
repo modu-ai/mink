@@ -24,6 +24,334 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// ChatStreamRequest는 ChatStream RPC 요청 메시지다.
+type ChatStreamRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Message는 사용자 메시지나 시스템 프롬프트를 나타낸다.
+	Message       *Message `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChatStreamRequest) Reset() {
+	*x = ChatStreamRequest{}
+	mi := &file_goose_v1_daemon_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChatStreamRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChatStreamRequest) ProtoMessage() {}
+
+func (x *ChatStreamRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_goose_v1_daemon_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChatStreamRequest.ProtoReflect.Descriptor instead.
+func (*ChatStreamRequest) Descriptor() ([]byte, []int) {
+	return file_goose_v1_daemon_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *ChatStreamRequest) GetMessage() *Message {
+	if x != nil {
+		return x.Message
+	}
+	return nil
+}
+
+// ChatStreamResponse는 ChatStream RPC 응답 메시지다.
+type ChatStreamResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Event:
+	//
+	//	*ChatStreamResponse_Text
+	//	*ChatStreamResponse_Error
+	//	*ChatStreamResponse_Done
+	Event         isChatStreamResponse_Event `protobuf_oneof:"event"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChatStreamResponse) Reset() {
+	*x = ChatStreamResponse{}
+	mi := &file_goose_v1_daemon_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChatStreamResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChatStreamResponse) ProtoMessage() {}
+
+func (x *ChatStreamResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_goose_v1_daemon_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChatStreamResponse.ProtoReflect.Descriptor instead.
+func (*ChatStreamResponse) Descriptor() ([]byte, []int) {
+	return file_goose_v1_daemon_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ChatStreamResponse) GetEvent() isChatStreamResponse_Event {
+	if x != nil {
+		return x.Event
+	}
+	return nil
+}
+
+func (x *ChatStreamResponse) GetText() *TextEvent {
+	if x != nil {
+		if x, ok := x.Event.(*ChatStreamResponse_Text); ok {
+			return x.Text
+		}
+	}
+	return nil
+}
+
+func (x *ChatStreamResponse) GetError() *ErrorEvent {
+	if x != nil {
+		if x, ok := x.Event.(*ChatStreamResponse_Error); ok {
+			return x.Error
+		}
+	}
+	return nil
+}
+
+func (x *ChatStreamResponse) GetDone() *DoneEvent {
+	if x != nil {
+		if x, ok := x.Event.(*ChatStreamResponse_Done); ok {
+			return x.Done
+		}
+	}
+	return nil
+}
+
+type isChatStreamResponse_Event interface {
+	isChatStreamResponse_Event()
+}
+
+type ChatStreamResponse_Text struct {
+	// TextEvent는 LLM 생성 텍스트 조각을 전달한다.
+	Text *TextEvent `protobuf:"bytes,1,opt,name=text,proto3,oneof"`
+}
+
+type ChatStreamResponse_Error struct {
+	// ErrorEvent는 처리 중 오류를 전달한다.
+	Error *ErrorEvent `protobuf:"bytes,2,opt,name=error,proto3,oneof"`
+}
+
+type ChatStreamResponse_Done struct {
+	// DoneEvent는 스트림 종료를 알린다.
+	Done *DoneEvent `protobuf:"bytes,3,opt,name=done,proto3,oneof"`
+}
+
+func (*ChatStreamResponse_Text) isChatStreamResponse_Event() {}
+
+func (*ChatStreamResponse_Error) isChatStreamResponse_Event() {}
+
+func (*ChatStreamResponse_Done) isChatStreamResponse_Event() {}
+
+// Message는 채팅 메시지를 나타낸다.
+type Message struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Role          string                 `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`       // "user", "assistant", "system"
+	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"` // 메시지 내용
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Message) Reset() {
+	*x = Message{}
+	mi := &file_goose_v1_daemon_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Message) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Message) ProtoMessage() {}
+
+func (x *Message) ProtoReflect() protoreflect.Message {
+	mi := &file_goose_v1_daemon_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Message.ProtoReflect.Descriptor instead.
+func (*Message) Descriptor() ([]byte, []int) {
+	return file_goose_v1_daemon_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *Message) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *Message) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+// TextEvent는 텍스트 응답 조각을 나타낸다.
+type TextEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Content       string                 `protobuf:"bytes,1,opt,name=content,proto3" json:"content,omitempty"` // 텍스트 조각
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TextEvent) Reset() {
+	*x = TextEvent{}
+	mi := &file_goose_v1_daemon_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TextEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TextEvent) ProtoMessage() {}
+
+func (x *TextEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_goose_v1_daemon_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TextEvent.ProtoReflect.Descriptor instead.
+func (*TextEvent) Descriptor() ([]byte, []int) {
+	return file_goose_v1_daemon_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *TextEvent) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+// ErrorEvent는 오류를 나타낸다.
+type ErrorEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"` // 오류 메시지
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ErrorEvent) Reset() {
+	*x = ErrorEvent{}
+	mi := &file_goose_v1_daemon_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ErrorEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ErrorEvent) ProtoMessage() {}
+
+func (x *ErrorEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_goose_v1_daemon_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ErrorEvent.ProtoReflect.Descriptor instead.
+func (*ErrorEvent) Descriptor() ([]byte, []int) {
+	return file_goose_v1_daemon_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ErrorEvent) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+// DoneEvent는 스트림 종료를 나타낸다.
+type DoneEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DoneEvent) Reset() {
+	*x = DoneEvent{}
+	mi := &file_goose_v1_daemon_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DoneEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DoneEvent) ProtoMessage() {}
+
+func (x *DoneEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_goose_v1_daemon_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DoneEvent.ProtoReflect.Descriptor instead.
+func (*DoneEvent) Descriptor() ([]byte, []int) {
+	return file_goose_v1_daemon_proto_rawDescGZIP(), []int{5}
+}
+
 // PingRequest는 Ping RPC 요청 메시지다.
 type PingRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -33,7 +361,7 @@ type PingRequest struct {
 
 func (x *PingRequest) Reset() {
 	*x = PingRequest{}
-	mi := &file_goose_v1_daemon_proto_msgTypes[0]
+	mi := &file_goose_v1_daemon_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45,7 +373,7 @@ func (x *PingRequest) String() string {
 func (*PingRequest) ProtoMessage() {}
 
 func (x *PingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_goose_v1_daemon_proto_msgTypes[0]
+	mi := &file_goose_v1_daemon_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -58,7 +386,7 @@ func (x *PingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PingRequest.ProtoReflect.Descriptor instead.
 func (*PingRequest) Descriptor() ([]byte, []int) {
-	return file_goose_v1_daemon_proto_rawDescGZIP(), []int{0}
+	return file_goose_v1_daemon_proto_rawDescGZIP(), []int{6}
 }
 
 // PingResponse는 Ping RPC 응답 메시지다.
@@ -74,7 +402,7 @@ type PingResponse struct {
 
 func (x *PingResponse) Reset() {
 	*x = PingResponse{}
-	mi := &file_goose_v1_daemon_proto_msgTypes[1]
+	mi := &file_goose_v1_daemon_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -86,7 +414,7 @@ func (x *PingResponse) String() string {
 func (*PingResponse) ProtoMessage() {}
 
 func (x *PingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_goose_v1_daemon_proto_msgTypes[1]
+	mi := &file_goose_v1_daemon_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -99,7 +427,7 @@ func (x *PingResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PingResponse.ProtoReflect.Descriptor instead.
 func (*PingResponse) Descriptor() ([]byte, []int) {
-	return file_goose_v1_daemon_proto_rawDescGZIP(), []int{1}
+	return file_goose_v1_daemon_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *PingResponse) GetVersion() string {
@@ -132,7 +460,7 @@ type GetInfoRequest struct {
 
 func (x *GetInfoRequest) Reset() {
 	*x = GetInfoRequest{}
-	mi := &file_goose_v1_daemon_proto_msgTypes[2]
+	mi := &file_goose_v1_daemon_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -144,7 +472,7 @@ func (x *GetInfoRequest) String() string {
 func (*GetInfoRequest) ProtoMessage() {}
 
 func (x *GetInfoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_goose_v1_daemon_proto_msgTypes[2]
+	mi := &file_goose_v1_daemon_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -157,7 +485,7 @@ func (x *GetInfoRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInfoRequest.ProtoReflect.Descriptor instead.
 func (*GetInfoRequest) Descriptor() ([]byte, []int) {
-	return file_goose_v1_daemon_proto_rawDescGZIP(), []int{2}
+	return file_goose_v1_daemon_proto_rawDescGZIP(), []int{8}
 }
 
 // GetInfoResponse는 GetInfo RPC 응답 메시지다.
@@ -175,7 +503,7 @@ type GetInfoResponse struct {
 
 func (x *GetInfoResponse) Reset() {
 	*x = GetInfoResponse{}
-	mi := &file_goose_v1_daemon_proto_msgTypes[3]
+	mi := &file_goose_v1_daemon_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -187,7 +515,7 @@ func (x *GetInfoResponse) String() string {
 func (*GetInfoResponse) ProtoMessage() {}
 
 func (x *GetInfoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_goose_v1_daemon_proto_msgTypes[3]
+	mi := &file_goose_v1_daemon_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -200,7 +528,7 @@ func (x *GetInfoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInfoResponse.ProtoReflect.Descriptor instead.
 func (*GetInfoResponse) Descriptor() ([]byte, []int) {
-	return file_goose_v1_daemon_proto_rawDescGZIP(), []int{3}
+	return file_goose_v1_daemon_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetInfoResponse) GetVersion() string {
@@ -256,7 +584,7 @@ type ShutdownRequest struct {
 
 func (x *ShutdownRequest) Reset() {
 	*x = ShutdownRequest{}
-	mi := &file_goose_v1_daemon_proto_msgTypes[4]
+	mi := &file_goose_v1_daemon_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -268,7 +596,7 @@ func (x *ShutdownRequest) String() string {
 func (*ShutdownRequest) ProtoMessage() {}
 
 func (x *ShutdownRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_goose_v1_daemon_proto_msgTypes[4]
+	mi := &file_goose_v1_daemon_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -281,7 +609,7 @@ func (x *ShutdownRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShutdownRequest.ProtoReflect.Descriptor instead.
 func (*ShutdownRequest) Descriptor() ([]byte, []int) {
-	return file_goose_v1_daemon_proto_rawDescGZIP(), []int{4}
+	return file_goose_v1_daemon_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ShutdownRequest) GetReason() string {
@@ -302,7 +630,7 @@ type ShutdownResponse struct {
 
 func (x *ShutdownResponse) Reset() {
 	*x = ShutdownResponse{}
-	mi := &file_goose_v1_daemon_proto_msgTypes[5]
+	mi := &file_goose_v1_daemon_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -314,7 +642,7 @@ func (x *ShutdownResponse) String() string {
 func (*ShutdownResponse) ProtoMessage() {}
 
 func (x *ShutdownResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_goose_v1_daemon_proto_msgTypes[5]
+	mi := &file_goose_v1_daemon_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -327,7 +655,7 @@ func (x *ShutdownResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShutdownResponse.ProtoReflect.Descriptor instead.
 func (*ShutdownResponse) Descriptor() ([]byte, []int) {
-	return file_goose_v1_daemon_proto_rawDescGZIP(), []int{5}
+	return file_goose_v1_daemon_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ShutdownResponse) GetAccepted() bool {
@@ -348,7 +676,23 @@ var File_goose_v1_daemon_proto protoreflect.FileDescriptor
 
 const file_goose_v1_daemon_proto_rawDesc = "" +
 	"\n" +
-	"\x15goose/v1/daemon.proto\x12\bgoose.v1\"\r\n" +
+	"\x15goose/v1/daemon.proto\x12\bgoose.v1\"@\n" +
+	"\x11ChatStreamRequest\x12+\n" +
+	"\amessage\x18\x01 \x01(\v2\x11.goose.v1.MessageR\amessage\"\xa1\x01\n" +
+	"\x12ChatStreamResponse\x12)\n" +
+	"\x04text\x18\x01 \x01(\v2\x13.goose.v1.TextEventH\x00R\x04text\x12,\n" +
+	"\x05error\x18\x02 \x01(\v2\x14.goose.v1.ErrorEventH\x00R\x05error\x12)\n" +
+	"\x04done\x18\x03 \x01(\v2\x13.goose.v1.DoneEventH\x00R\x04doneB\a\n" +
+	"\x05event\"7\n" +
+	"\aMessage\x12\x12\n" +
+	"\x04role\x18\x01 \x01(\tR\x04role\x12\x18\n" +
+	"\acontent\x18\x02 \x01(\tR\acontent\"%\n" +
+	"\tTextEvent\x12\x18\n" +
+	"\acontent\x18\x01 \x01(\tR\acontent\"&\n" +
+	"\n" +
+	"ErrorEvent\x12\x18\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"\v\n" +
+	"\tDoneEvent\"\r\n" +
 	"\vPingRequest\"[\n" +
 	"\fPingResponse\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\tR\aversion\x12\x1b\n" +
@@ -369,11 +713,13 @@ const file_goose_v1_daemon_proto_rawDesc = "" +
 	"\x06reason\x18\x01 \x01(\tR\x06reason\"H\n" +
 	"\x10ShutdownResponse\x12\x1a\n" +
 	"\baccepted\x18\x01 \x01(\bR\baccepted\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage2\xc9\x01\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage2\x96\x02\n" +
 	"\rDaemonService\x125\n" +
 	"\x04Ping\x12\x15.goose.v1.PingRequest\x1a\x16.goose.v1.PingResponse\x12>\n" +
 	"\aGetInfo\x12\x18.goose.v1.GetInfoRequest\x1a\x19.goose.v1.GetInfoResponse\x12A\n" +
-	"\bShutdown\x12\x19.goose.v1.ShutdownRequest\x1a\x1a.goose.v1.ShutdownResponseBFZDgithub.com/modu-ai/goose/internal/transport/grpc/gen/goosev1;goosev1b\x06proto3"
+	"\bShutdown\x12\x19.goose.v1.ShutdownRequest\x1a\x1a.goose.v1.ShutdownResponse\x12K\n" +
+	"\n" +
+	"ChatStream\x12\x1b.goose.v1.ChatStreamRequest\x1a\x1c.goose.v1.ChatStreamResponse(\x010\x01BFZDgithub.com/modu-ai/goose/internal/transport/grpc/gen/goosev1;goosev1b\x06proto3"
 
 var (
 	file_goose_v1_daemon_proto_rawDescOnce sync.Once
@@ -387,27 +733,39 @@ func file_goose_v1_daemon_proto_rawDescGZIP() []byte {
 	return file_goose_v1_daemon_proto_rawDescData
 }
 
-var file_goose_v1_daemon_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_goose_v1_daemon_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_goose_v1_daemon_proto_goTypes = []any{
-	(*PingRequest)(nil),      // 0: goose.v1.PingRequest
-	(*PingResponse)(nil),     // 1: goose.v1.PingResponse
-	(*GetInfoRequest)(nil),   // 2: goose.v1.GetInfoRequest
-	(*GetInfoResponse)(nil),  // 3: goose.v1.GetInfoResponse
-	(*ShutdownRequest)(nil),  // 4: goose.v1.ShutdownRequest
-	(*ShutdownResponse)(nil), // 5: goose.v1.ShutdownResponse
+	(*ChatStreamRequest)(nil),  // 0: goose.v1.ChatStreamRequest
+	(*ChatStreamResponse)(nil), // 1: goose.v1.ChatStreamResponse
+	(*Message)(nil),            // 2: goose.v1.Message
+	(*TextEvent)(nil),          // 3: goose.v1.TextEvent
+	(*ErrorEvent)(nil),         // 4: goose.v1.ErrorEvent
+	(*DoneEvent)(nil),          // 5: goose.v1.DoneEvent
+	(*PingRequest)(nil),        // 6: goose.v1.PingRequest
+	(*PingResponse)(nil),       // 7: goose.v1.PingResponse
+	(*GetInfoRequest)(nil),     // 8: goose.v1.GetInfoRequest
+	(*GetInfoResponse)(nil),    // 9: goose.v1.GetInfoResponse
+	(*ShutdownRequest)(nil),    // 10: goose.v1.ShutdownRequest
+	(*ShutdownResponse)(nil),   // 11: goose.v1.ShutdownResponse
 }
 var file_goose_v1_daemon_proto_depIdxs = []int32{
-	0, // 0: goose.v1.DaemonService.Ping:input_type -> goose.v1.PingRequest
-	2, // 1: goose.v1.DaemonService.GetInfo:input_type -> goose.v1.GetInfoRequest
-	4, // 2: goose.v1.DaemonService.Shutdown:input_type -> goose.v1.ShutdownRequest
-	1, // 3: goose.v1.DaemonService.Ping:output_type -> goose.v1.PingResponse
-	3, // 4: goose.v1.DaemonService.GetInfo:output_type -> goose.v1.GetInfoResponse
-	5, // 5: goose.v1.DaemonService.Shutdown:output_type -> goose.v1.ShutdownResponse
-	3, // [3:6] is the sub-list for method output_type
-	0, // [0:3] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	2,  // 0: goose.v1.ChatStreamRequest.message:type_name -> goose.v1.Message
+	3,  // 1: goose.v1.ChatStreamResponse.text:type_name -> goose.v1.TextEvent
+	4,  // 2: goose.v1.ChatStreamResponse.error:type_name -> goose.v1.ErrorEvent
+	5,  // 3: goose.v1.ChatStreamResponse.done:type_name -> goose.v1.DoneEvent
+	6,  // 4: goose.v1.DaemonService.Ping:input_type -> goose.v1.PingRequest
+	8,  // 5: goose.v1.DaemonService.GetInfo:input_type -> goose.v1.GetInfoRequest
+	10, // 6: goose.v1.DaemonService.Shutdown:input_type -> goose.v1.ShutdownRequest
+	0,  // 7: goose.v1.DaemonService.ChatStream:input_type -> goose.v1.ChatStreamRequest
+	7,  // 8: goose.v1.DaemonService.Ping:output_type -> goose.v1.PingResponse
+	9,  // 9: goose.v1.DaemonService.GetInfo:output_type -> goose.v1.GetInfoResponse
+	11, // 10: goose.v1.DaemonService.Shutdown:output_type -> goose.v1.ShutdownResponse
+	1,  // 11: goose.v1.DaemonService.ChatStream:output_type -> goose.v1.ChatStreamResponse
+	8,  // [8:12] is the sub-list for method output_type
+	4,  // [4:8] is the sub-list for method input_type
+	4,  // [4:4] is the sub-list for extension type_name
+	4,  // [4:4] is the sub-list for extension extendee
+	0,  // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_goose_v1_daemon_proto_init() }
@@ -415,13 +773,18 @@ func file_goose_v1_daemon_proto_init() {
 	if File_goose_v1_daemon_proto != nil {
 		return
 	}
+	file_goose_v1_daemon_proto_msgTypes[1].OneofWrappers = []any{
+		(*ChatStreamResponse_Text)(nil),
+		(*ChatStreamResponse_Error)(nil),
+		(*ChatStreamResponse_Done)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_goose_v1_daemon_proto_rawDesc), len(file_goose_v1_daemon_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

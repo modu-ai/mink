@@ -22,9 +22,10 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	DaemonService_Ping_FullMethodName     = "/goose.v1.DaemonService/Ping"
-	DaemonService_GetInfo_FullMethodName  = "/goose.v1.DaemonService/GetInfo"
-	DaemonService_Shutdown_FullMethodName = "/goose.v1.DaemonService/Shutdown"
+	DaemonService_Ping_FullMethodName       = "/goose.v1.DaemonService/Ping"
+	DaemonService_GetInfo_FullMethodName    = "/goose.v1.DaemonService/GetInfo"
+	DaemonService_Shutdown_FullMethodName   = "/goose.v1.DaemonService/Shutdown"
+	DaemonService_ChatStream_FullMethodName = "/goose.v1.DaemonService/ChatStream"
 )
 
 // DaemonServiceClient is the client API for DaemonService service.
@@ -46,6 +47,9 @@ type DaemonServiceClient interface {
 	// REQ-TR-010: 토큰 누락 시 Unauthenticated
 	// REQ-TR-011: GOOSE_SHUTDOWN_TOKEN 미설정 시 Unimplemented
 	Shutdown(ctx context.Context, in *ShutdownRequest, opts ...grpc.CallOption) (*ShutdownResponse, error)
+	// ChatStream은 LLM과의 대화형 채팅을 위한 bidirectional streaming RPC다.
+	// REQ-CLI-009: 클라이언트는 메시지를 전송하고 서버로부터 스트리밍 응답을 수신한다.
+	ChatStream(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ChatStreamRequest, ChatStreamResponse], error)
 }
 
 type daemonServiceClient struct {
@@ -86,6 +90,19 @@ func (c *daemonServiceClient) Shutdown(ctx context.Context, in *ShutdownRequest,
 	return out, nil
 }
 
+func (c *daemonServiceClient) ChatStream(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ChatStreamRequest, ChatStreamResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &DaemonService_ServiceDesc.Streams[0], DaemonService_ChatStream_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[ChatStreamRequest, ChatStreamResponse]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type DaemonService_ChatStreamClient = grpc.BidiStreamingClient[ChatStreamRequest, ChatStreamResponse]
+
 // DaemonServiceServer is the server API for DaemonService service.
 // All implementations must embed UnimplementedDaemonServiceServer
 // for forward compatibility.
@@ -105,6 +122,9 @@ type DaemonServiceServer interface {
 	// REQ-TR-010: 토큰 누락 시 Unauthenticated
 	// REQ-TR-011: GOOSE_SHUTDOWN_TOKEN 미설정 시 Unimplemented
 	Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error)
+	// ChatStream은 LLM과의 대화형 채팅을 위한 bidirectional streaming RPC다.
+	// REQ-CLI-009: 클라이언트는 메시지를 전송하고 서버로부터 스트리밍 응답을 수신한다.
+	ChatStream(grpc.BidiStreamingServer[ChatStreamRequest, ChatStreamResponse]) error
 	mustEmbedUnimplementedDaemonServiceServer()
 }
 
@@ -123,6 +143,9 @@ func (UnimplementedDaemonServiceServer) GetInfo(context.Context, *GetInfoRequest
 }
 func (UnimplementedDaemonServiceServer) Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Shutdown not implemented")
+}
+func (UnimplementedDaemonServiceServer) ChatStream(grpc.BidiStreamingServer[ChatStreamRequest, ChatStreamResponse]) error {
+	return status.Error(codes.Unimplemented, "method ChatStream not implemented")
 }
 func (UnimplementedDaemonServiceServer) mustEmbedUnimplementedDaemonServiceServer() {}
 func (UnimplementedDaemonServiceServer) testEmbeddedByValue()                       {}
@@ -199,6 +222,13 @@ func _DaemonService_Shutdown_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DaemonService_ChatStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(DaemonServiceServer).ChatStream(&grpc.GenericServerStream[ChatStreamRequest, ChatStreamResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type DaemonService_ChatStreamServer = grpc.BidiStreamingServer[ChatStreamRequest, ChatStreamResponse]
+
 // DaemonService_ServiceDesc is the grpc.ServiceDesc for DaemonService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -219,6 +249,13 @@ var DaemonService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _DaemonService_Shutdown_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "ChatStream",
+			Handler:       _DaemonService_ChatStream_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+	},
 	Metadata: "goose/v1/daemon.proto",
 }

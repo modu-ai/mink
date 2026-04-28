@@ -23,7 +23,48 @@ service DaemonService {
   // REQ-TR-010: 토큰 누락 시 Unauthenticated
   // REQ-TR-011: GOOSE_SHUTDOWN_TOKEN 미설정 시 Unimplemented
   rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
+
+  // ChatStream은 LLM과의 대화형 채팅을 위한 bidirectional streaming RPC다.
+  // REQ-CLI-009: 클라이언트는 메시지를 전송하고 서버로부터 스트리밍 응답을 수신한다.
+  rpc ChatStream(stream ChatStreamRequest) returns (stream ChatStreamResponse);
 }
+
+// ChatStreamRequest는 ChatStream RPC 요청 메시지다.
+message ChatStreamRequest {
+  // Message는 사용자 메시지나 시스템 프롬프트를 나타낸다.
+  Message message = 1;
+}
+
+// ChatStreamResponse는 ChatStream RPC 응답 메시지다.
+message ChatStreamResponse {
+  oneof event {
+    // TextEvent는 LLM 생성 텍스트 조각을 전달한다.
+    TextEvent text = 1;
+    // ErrorEvent는 처리 중 오류를 전달한다.
+    ErrorEvent error = 2;
+    // DoneEvent는 스트림 종료를 알린다.
+    DoneEvent done = 3;
+  }
+}
+
+// Message는 채팅 메시지를 나타낸다.
+message Message {
+  string role = 1;    // "user", "assistant", "system"
+  string content = 2; // 메시지 내용
+}
+
+// TextEvent는 텍스트 응답 조각을 나타낸다.
+message TextEvent {
+  string content = 1; // 텍스트 조각
+}
+
+// ErrorEvent는 오류를 나타낸다.
+message ErrorEvent {
+  string message = 1; // 오류 메시지
+}
+
+// DoneEvent는 스트림 종료를 나타낸다.
+message DoneEvent {}
 
 // PingRequest는 Ping RPC 요청 메시지다.
 message PingRequest {}
