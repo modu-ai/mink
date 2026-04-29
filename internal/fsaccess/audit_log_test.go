@@ -22,7 +22,7 @@ func TestAuditLogger_LogDecision(t *testing.T) {
 
 	writer, err := audit.NewFileWriter(logPath)
 	require.NoError(t, err)
-	defer writer.Close()
+	defer func() { require.NoError(t, writer.Close()) }()
 
 	auditLogger := NewAuditLogger(writer)
 
@@ -143,7 +143,7 @@ func TestAuditLogger_Completeness(t *testing.T) {
 
 	writer, err := audit.NewFileWriter(logPath)
 	require.NoError(t, err)
-	defer writer.Close()
+	defer func() { require.NoError(t, writer.Close()) }()
 
 	auditLogger := NewAuditLogger(writer)
 

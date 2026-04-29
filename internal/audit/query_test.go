@@ -30,9 +30,13 @@ func TestQuery_ReadsCurrentLogFile(t *testing.T) {
 	}
 	for _, event := range events {
 		data, _ := json.Marshal(event)
-		file.Write(append(data, '\n'))
+		if _, err := file.Write(append(data, '\n')); err != nil {
+			t.Fatalf("Failed to write to log file: %v", err)
+		}
 	}
-	file.Close()
+	if err := file.Close(); err != nil {
+		t.Fatalf("Failed to close log file: %v", err)
+	}
 
 	// Act: Query all events
 	result, err := Query(tmpDir, QueryOptions{})
@@ -63,9 +67,15 @@ func TestQuery_ReadsRotatedGzFiles(t *testing.T) {
 	}
 	gzWriter := gzip.NewWriter(file)
 	data, _ := json.Marshal(event)
-	gzWriter.Write(append(data, '\n'))
-	gzWriter.Close()
-	file.Close()
+	if _, err := gzWriter.Write(append(data, '\n')); err != nil {
+		t.Fatalf("Failed to write to gzip writer: %v", err)
+	}
+	if err := gzWriter.Close(); err != nil {
+		t.Fatalf("Failed to close gzip writer: %v", err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatalf("Failed to close rotated file: %v", err)
+	}
 
 	// Act: Query all events
 	result, err := Query(tmpDir, QueryOptions{})
@@ -99,9 +109,13 @@ func TestQuery_FiltersByTimeRange(t *testing.T) {
 	}
 	for _, event := range events {
 		data, _ := json.Marshal(event)
-		file.Write(append(data, '\n'))
+		if _, err := file.Write(append(data, '\n')); err != nil {
+			t.Fatalf("Failed to write to log file: %v", err)
+		}
 	}
-	file.Close()
+	if err := file.Close(); err != nil {
+		t.Fatalf("Failed to close log file: %v", err)
+	}
 
 	// Act & Assert: Query with since filter
 	since := baseTime.Add(15 * time.Minute)
@@ -153,9 +167,13 @@ func TestQuery_FiltersByEventType(t *testing.T) {
 	}
 	for _, event := range events {
 		data, _ := json.Marshal(event)
-		file.Write(append(data, '\n'))
+		if _, err := file.Write(append(data, '\n')); err != nil {
+			t.Fatalf("Failed to write to log file: %v", err)
+		}
 	}
-	file.Close()
+	if err := file.Close(); err != nil {
+		t.Fatalf("Failed to close log file: %v", err)
+	}
 
 	// Act: Query with type filter
 	types := []EventType{EventTypeFSWrite, EventTypePermissionGrant}
@@ -195,9 +213,13 @@ func TestQuery_SortsByTimestamp(t *testing.T) {
 	}
 	for _, event := range events {
 		data, _ := json.Marshal(event)
-		file.Write(append(data, '\n'))
+		if _, err := file.Write(append(data, '\n')); err != nil {
+				t.Fatalf("Failed to write to log file: %v", err)
+			}
 	}
-	file.Close()
+	if err := file.Close(); err != nil {
+				t.Fatalf("Failed to close log file: %v", err)
+			}
 
 	// Act: Query all events
 	result, err := Query(tmpDir, QueryOptions{})
@@ -233,15 +255,23 @@ func TestQuery_HandlesCorruptJSONLines(t *testing.T) {
 
 	// Valid event
 	data, _ := json.Marshal(validEvent)
-	file.Write(append(data, '\n'))
+	if _, err := file.Write(append(data, '\n')); err != nil {
+		t.Fatalf("Failed to write to log file: %v", err)
+	}
 
 	// Corrupt line
-	file.Write([]byte("{invalid json\n"))
+	if _, err := file.Write([]byte("{invalid json\n")); err != nil {
+		t.Fatalf("Failed to write to log file: %v", err)
+	}
 
 	// Another valid event
-	file.Write(append(data, '\n'))
+	if _, err := file.Write(append(data, '\n')); err != nil {
+		t.Fatalf("Failed to write to log file: %v", err)
+	}
 
-	file.Close()
+	if err := file.Close(); err != nil {
+		t.Fatalf("Failed to close log file: %v", err)
+	}
 
 	// Act: Query should handle corrupt data gracefully
 	result, err := Query(tmpDir, QueryOptions{})
@@ -271,9 +301,13 @@ func TestQuery_StreamReadsFiles(t *testing.T) {
 	for i := range 100 {
 		event := NewAuditEvent(now.Add(time.Duration(i)*time.Second), EventTypeFSWrite, SeverityInfo, "Event", nil)
 		data, _ := json.Marshal(event)
-		file.Write(append(data, '\n'))
+		if _, err := file.Write(append(data, '\n')); err != nil {
+			t.Fatalf("Failed to write to log file: %v", err)
+		}
 	}
-	file.Close()
+	if err := file.Close(); err != nil {
+		t.Fatalf("Failed to close log file: %v", err)
+	}
 
 	// Act: Query should stream-read the file
 	result, err := Query(tmpDir, QueryOptions{})
@@ -304,9 +338,15 @@ func TestQuery_CombinesCurrentAndRotatedFiles(t *testing.T) {
 	gzWriter := gzip.NewWriter(file1)
 	event1 := NewAuditEvent(now, EventTypeFSWrite, SeverityInfo, "Rotated event", nil)
 	data1, _ := json.Marshal(event1)
-	gzWriter.Write(append(data1, '\n'))
-	gzWriter.Close()
-	file1.Close()
+	if _, err := gzWriter.Write(append(data1, '\n')); err != nil {
+		t.Fatalf("Failed to write to gzip writer: %v", err)
+	}
+	if err := gzWriter.Close(); err != nil {
+		t.Fatalf("Failed to close gzip writer: %v", err)
+	}
+	if err := file1.Close(); err != nil {
+		t.Fatalf("Failed to close rotated file: %v", err)
+	}
 
 	// Write to current file
 	file2, err := os.Create(currentLog)
@@ -315,8 +355,12 @@ func TestQuery_CombinesCurrentAndRotatedFiles(t *testing.T) {
 	}
 	event2 := NewAuditEvent(now.Add(time.Second), EventTypePermissionGrant, SeverityInfo, "Current event", nil)
 	data2, _ := json.Marshal(event2)
-	file2.Write(append(data2, '\n'))
-	file2.Close()
+	if _, err := file2.Write(append(data2, '\n')); err != nil {
+		t.Fatalf("Failed to write to log file: %v", err)
+	}
+	if err := file2.Close(); err != nil {
+		t.Fatalf("Failed to close current log file: %v", err)
+	}
 
 	// Act: Query should combine both files
 	result, err := Query(tmpDir, QueryOptions{})
@@ -399,8 +443,12 @@ func TestQuery_InvalidTimeRange(t *testing.T) {
 		t.Fatalf("Failed to create log file: %v", err)
 	}
 	data, _ := json.Marshal(event)
-	file.Write(append(data, '\n'))
-	file.Close()
+	if _, err := file.Write(append(data, '\n')); err != nil {
+		t.Fatalf("Failed to write to log file: %v", err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatalf("Failed to close log file: %v", err)
+	}
 
 	// Act: Query with since after until
 	since := now.Add(24 * time.Hour)

@@ -476,7 +476,7 @@ func TestProxyAddr(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go proxy.Start(ctx)
+	go func() { _ = proxy.Start(ctx) }()
 	time.Sleep(100 * time.Millisecond)
 
 	addr := proxy.Addr()

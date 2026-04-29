@@ -198,7 +198,11 @@ func (p *Proxy) createHandler() http.Handler {
 // handleHealth handles health check requests.
 func (p *Proxy) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
+	if _, err := w.Write([]byte("OK")); err != nil {
+		// Log warning but response is already sent
+		// Health check failures are non-critical
+		p.cfg.Logger.Warn("Failed to write health check response", zap.Error(err))
+	}
 }
 
 // handleProxy handles proxy requests.
@@ -312,7 +316,13 @@ func (p *Proxy) forwardRequest(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to reach upstream API", http.StatusBadGateway)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			// Log warning but response body will be closed on GC
+			// This is after the response has been copied, so close error is non-critical
+			p.cfg.Logger.Warn("Failed to close response body", zap.Error(err))
+		}
+	}()
 
 	// Copy response headers
 	for name, values := range resp.Header {

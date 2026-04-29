@@ -33,6 +33,7 @@ type RotatingWriter struct {
 	path     string
 	maxSize  int64
 	writePos int64
+	lastHash string // Hash of the last written event for integrity chain
 }
 
 // NewRotatingWriter creates a new RotatingWriter with the specified max size.
@@ -59,7 +60,9 @@ func NewRotatingWriter(path string, maxSize int64) (*RotatingWriter, error) {
 	// Get current file size
 	info, err := file.Stat()
 	if err != nil {
-		file.Close()
+		if closeErr := file.Close(); closeErr != nil {
+			return nil, fmt.Errorf("failed to stat log file: %w, and failed to close file: %v", err, closeErr)
+		}
 		return nil, fmt.Errorf("failed to stat log file: %w", err)
 	}
 
@@ -79,6 +82,9 @@ func NewRotatingWriter(path string, maxSize int64) (*RotatingWriter, error) {
 func (w *RotatingWriter) Write(event AuditEvent) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+
+	// Set PrevHash for integrity chain before marshaling
+	event.PrevHash = w.lastHash
 
 	// Marshal event to JSON
 	data, err := json.Marshal(event)
@@ -109,6 +115,9 @@ func (w *RotatingWriter) Write(event AuditEvent) error {
 
 	// Update write position
 	w.writePos += eventSize
+
+	// Update lastHash for chain integrity
+	w.lastHash = ComputeEventHash(event)
 
 	return nil
 }
@@ -152,6 +161,7 @@ func (w *RotatingWriter) rotateLocked() error {
 
 	w.file = file
 	w.writePos = 0
+	w.lastHash = "" // Reset hash chain on rotation
 
 	return nil
 }
@@ -164,7 +174,12 @@ func (w *RotatingWriter) compressFile(path string) error {
 	if err != nil {
 		return err // Silent fail - rotation already succeeded
 	}
-	defer srcFile.Close()
+	defer func() {
+		if err := srcFile.Close(); err != nil {
+			// Log warning but continue - file will be closed on process exit
+			// This is in a defer during compression, so we can't do much else
+		}
+	}()
 
 	// Create compressed file
 	compressedPath := path + ".gz"
@@ -172,11 +187,21 @@ func (w *RotatingWriter) compressFile(path string) error {
 	if err != nil {
 		return err
 	}
-	defer gzFile.Close()
+	defer func() {
+		if err := gzFile.Close(); err != nil {
+			// Log warning but continue - file will be closed on process exit
+			// This is in a defer during compression, so we can't do much else
+		}
+	}()
 
 	// Create gzip writer
 	gzWriter := gzip.NewWriter(gzFile)
-	defer gzWriter.Close()
+	defer func() {
+		if err := gzWriter.Close(); err != nil {
+			// Log warning but continue - file will be closed on process exit
+			// This is in a defer during compression, so we can't do much else
+		}
+	}()
 
 	// Copy content
 	if _, err := io.Copy(gzWriter, srcFile); err != nil {

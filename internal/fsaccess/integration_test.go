@@ -135,7 +135,7 @@ func TestAC05_AuditLogCompleteness(t *testing.T) {
 
 	writer, err := audit.NewFileWriter(logPath)
 	require.NoError(t, err)
-	defer writer.Close()
+	defer func() { require.NoError(t, writer.Close()) }()
 
 	auditLogger := NewAuditLogger(writer)
 

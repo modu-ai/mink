@@ -1,13 +1,16 @@
 //go:build linux
-// +build linux
 
 // Package sandbox provides tests for Linux Landlock implementation.
 // SPEC-GOOSE-SECURITY-SANDBOX-001 REQ-SANDBOX-003
 package sandbox
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/modu-ai/goose/internal/fsaccess"
 	"go.uber.org/zap/zaptest"
@@ -21,6 +24,7 @@ func TestLandlockSandbox(t *testing.T) {
 		FallbackBehavior: "refuse",
 		AuditWriter:      &mockAuditWriter{},
 		Logger:           zaptest.NewLogger(t),
+		TimeFunc:         time.Now,
 	}
 
 	// Test with Landlock available (if kernel supports it)
@@ -50,8 +54,8 @@ func TestLandlockSandbox(t *testing.T) {
 
 	// Test Activate with a sample policy
 	policy := &fsaccess.SecurityPolicy{
-		WritePaths:    []string{"/tmp/goose"},
-		ReadPaths:     []string{"/home/user"},
+		WritePaths:    []string{t.TempDir()}, // Use temp directory for testing
+		ReadPaths:     []string{"/tmp"},
 		BlockedAlways: []string{"/etc/passwd"},
 	}
 
@@ -63,93 +67,135 @@ func TestLandlockSandbox(t *testing.T) {
 		t.Error("IsActive() = false, want true after activation")
 	}
 
-	// Test that ruleset was generated
-	if landlock.ruleset == "" {
-		t.Error("GenerateLandlockRuleset() produced empty ruleset")
+	// Verify that stub mode is disabled
+	if LandlockStubActive {
+		t.Error("LandlockStubActive = true, want false (real enforcement)")
 	}
 }
 
-// TestGenerateLandlockRuleset tests the Landlock ruleset generation logic.
-// REQ-SANDBOX-003: Block write access to ~/.ssh, /etc, /var, /proc, /sys, /dev
-// AC-SANDBOX-01: Same blocked_always enforcement across platforms
-// AC-SANDBOX-02: Block /proc/self/root/* traversal attempts
-// @MX:TEST: [AUTO] Landlock ruleset generation test
-func TestGenerateLandlockRuleset(t *testing.T) {
-	cfg := Config{
-		Enabled:          true,
-		FallbackBehavior: "refuse",
-		AuditWriter:      &mockAuditWriter{},
-		Logger:           zaptest.NewLogger(t),
+// TestLandlockAccessRights tests that Landlock access right constants are correct.
+// @MX:TEST: [AUTO] Landlock access rights constant validation
+func TestLandlockAccessRights(t *testing.T) {
+	// Test that access rights are unique powers of two
+	rights := []uint64{
+		accessFSExecute,
+		accessFSWriteFile,
+		accessFSReadFile,
+		accessFSReadDir,
+		accessFSRemoveDir,
+		accessFSRemoveFile,
+		accessFSMakeChar,
+		accessFSMakeDir,
+		accessFSMakeReg,
+		accessFSMakeSock,
+		accessFSMakeFifo,
+		accessFSMakeBlock,
+		accessFSMakeSym,
+		accessFSTruncate,
 	}
 
-	sb, err := newLandlockSandbox(cfg)
-	if err != nil {
-		// Landlock not available, skip test
-		if strings.Contains(err.Error(), "landlock not available") && cfg.FallbackBehavior == "refuse" {
-			t.Skip("Landlock not available on this kernel (requires 5.13+)")
+	seen := make(map[uint64]bool)
+	for _, right := range rights {
+		if seen[right] {
+			t.Errorf("Duplicate access right: %d", right)
 		}
-		t.Fatalf("newLandlockSandbox() error = %v", err)
-	}
+		seen[right] = true
 
-	// If we got a noopSandbox, Landlock is not available
-	if _, ok := sb.(*noopSandbox); ok {
+		// Check that each right is a power of two
+		if right != 0 && (right&(right-1)) != 0 {
+			t.Errorf("Access right %d is not a power of two", right)
+		}
+	}
+}
+
+// TestLandlockCreateRuleset tests the Landlock ruleset creation syscall.
+// @MX:TEST: [AUTO] Landlock ruleset creation test
+func TestLandlockCreateRuleset(t *testing.T) {
+	if !isLandlockAvailable() {
 		t.Skip("Landlock not available on this kernel (requires 5.13+)")
 	}
 
-	landlock := sb.(*landlockSandbox)
-
-	policy := &fsaccess.SecurityPolicy{
-		WritePaths:    []string{"/tmp/goose", "/var/tmp/goose"},
-		ReadPaths:     []string{"/home/user", "/usr/share"},
-		BlockedAlways: []string{"/etc/shadow", "/root/.ssh"},
+	// Create a minimal ruleset
+	attr := &landlockRulesetAttr{
+		HandledAccessFS: accessFSReadFile | accessFSReadDir,
 	}
 
-	ruleset, err := landlock.generateLandlockRuleset(policy)
+	fd, err := landlockCreateRuleset(attr, unsafeSizeofLandlockRulesetAttr, 0)
 	if err != nil {
-		t.Fatalf("generateLandlockRuleset() error = %v", err)
+		t.Fatalf("landlockCreateRuleset() error = %v", err)
 	}
 
-	// Verify ruleset is not empty
-	if strings.TrimSpace(ruleset) == "" {
-		t.Error("Landlock ruleset is empty")
+	if fd < 0 {
+		t.Errorf("landlockCreateRuleset() returned invalid fd = %d", fd)
 	}
 
-	// Verify ruleset is a shell script
-	if !strings.Contains(ruleset, "#!/bin/bash") {
-		t.Error("Landlock ruleset missing shebang")
+	// Clean up
+	if err := syscall.Close(fd); err != nil {
+		t.Errorf("Failed to close ruleset fd: %v", err)
+	}
+}
+
+// TestLandlockEnforce tests end-to-end Landlock enforcement.
+// @MX:TEST: [AUTO] End-to-end Landlock enforcement test
+func TestLandlockEnforce(t *testing.T) {
+	if !isLandlockAvailable() {
+		t.Skip("Landlock not available on this kernel (requires 5.13+)")
 	}
 
-	// Verify ruleset contains blocking rules for sensitive paths (REQ-SANDBOX-003)
-	sensitivePaths := []string{"/etc", "/var", "/proc", "/sys", "/dev"}
-	for _, path := range sensitivePaths {
-		if !strings.Contains(ruleset, "Blocking: "+path) {
-			t.Errorf("Landlock ruleset missing block for sensitive path %s", path)
-		}
+	// Create a temporary directory for testing
+	tempDir := t.TempDir()
+
+	// Create a test file in the temp directory
+	testFile := filepath.Join(tempDir, "test.txt")
+	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	// Verify ruleset blocks /proc/self/root/* traversal (AC-SANDBOX-02)
-	if !strings.Contains(ruleset, "/proc/*/root/*") {
-		t.Error("Landlock ruleset missing /proc/*/root/* traversal block")
+	// Create a minimal ruleset
+	attr := &landlockRulesetAttr{
+		HandledAccessFS: accessFSReadFile | accessFSWriteFile | accessFSReadDir,
 	}
 
-	// Verify ruleset includes allowed write paths
-	if !strings.Contains(ruleset, "Allowing write: /tmp/goose") {
-		t.Error("Landlock ruleset missing allowed write path /tmp/goose")
+	rulesetFd, err := landlockCreateRuleset(attr, unsafeSizeofLandlockRulesetAttr, 0)
+	if err != nil {
+		t.Fatalf("landlockCreateRuleset() error = %v", err)
+	}
+	defer syscall.Close(rulesetFd)
+
+	// Add a rule to allow read/write access to the temp directory
+	fd, err := openPathFd(tempDir)
+	if err != nil {
+		t.Fatalf("openPathFd() error = %v", err)
+	}
+	defer syscall.Close(fd)
+
+	ruleAttr := &landlockPathBeneathAttr{
+		AllowedAccess: accessFSReadFile | accessFSWriteFile | accessFSReadDir,
+		ParentFd:      int32(fd),
 	}
 
-	// Verify ruleset includes allowed read paths
-	if !strings.Contains(ruleset, "Allowing read: /home/user") {
-		t.Error("Landlock ruleset missing allowed read path /home/user")
+	if err := landlockAddPathRule(rulesetFd, landlockRulePathBeneath, ruleAttr); err != nil {
+		t.Fatalf("landlockAddPathRule() error = %v", err)
 	}
 
-	// Verify ruleset includes blocked_always paths (AC-SANDBOX-01)
-	if !strings.Contains(ruleset, "Blocking (always): /etc/shadow") {
-		t.Error("Landlock ruleset missing blocked_always path /etc/shadow")
+	// Enforce the ruleset
+	if err := landlockRestrictSelf(rulesetFd); err != nil {
+		t.Fatalf("landlockRestrictSelf() error = %v", err)
 	}
 
-	// Verify ruleset contains stub warning
-	if !strings.Contains(ruleset, "STUB") {
-		t.Error("Landlock ruleset missing stub implementation warning")
+	// Test that we can still read the test file
+	if _, err := os.ReadFile(testFile); err != nil {
+		t.Errorf("Failed to read allowed file after Landlock enforcement: %v", err)
+	}
+
+	// Test that we can write to the test file
+	if err := os.WriteFile(testFile, []byte("updated"), 0644); err != nil {
+		t.Errorf("Failed to write to allowed file after Landlock enforcement: %v", err)
+	}
+
+	// Test that we cannot read /etc/passwd (should be blocked)
+	if _, err := os.ReadFile("/etc/passwd"); err == nil {
+		t.Error("Was able to read /etc/passwd after Landlock enforcement, expected denial")
 	}
 }
 
@@ -161,6 +207,7 @@ func TestLandlockDeactivate(t *testing.T) {
 		FallbackBehavior: "refuse",
 		AuditWriter:      &mockAuditWriter{},
 		Logger:           zaptest.NewLogger(t),
+		TimeFunc:         time.Now,
 	}
 
 	sb, err := newLandlockSandbox(cfg)
@@ -185,7 +232,9 @@ func TestLandlockDeactivate(t *testing.T) {
 	}
 
 	// Activate sandbox
-	policy := &fsaccess.SecurityPolicy{}
+	policy := &fsaccess.SecurityPolicy{
+		ReadPaths: []string{t.TempDir()},
+	}
 	if err := landlock.Activate(policy); err != nil {
 		t.Fatalf("Activate() error = %v", err)
 	}
@@ -196,50 +245,10 @@ func TestLandlockDeactivate(t *testing.T) {
 	}
 }
 
-// TestValidateRuleset tests the Landlock ruleset validation.
-// @MX:TEST: [AUTO] Landlock ruleset validation test
-func TestValidateRuleset(t *testing.T) {
-	cfg := Config{
-		Enabled:          true,
-		FallbackBehavior: "refuse",
-		AuditWriter:      &mockAuditWriter{},
-		Logger:           zaptest.NewLogger(t),
-	}
-
-	sb, err := newLandlockSandbox(cfg)
-	if err != nil {
-		// Landlock not available, skip test
-		if strings.Contains(err.Error(), "landlock not available") && cfg.FallbackBehavior == "refuse" {
-			t.Skip("Landlock not available on this kernel (requires 5.13+)")
-		}
-		t.Fatalf("newLandlockSandbox() error = %v", err)
-	}
-
-	// If we got a noopSandbox, Landlock is not available
-	if _, ok := sb.(*noopSandbox); ok {
-		t.Skip("Landlock not available on this kernel (requires 5.13+)")
-	}
-
-	landlock := sb.(*landlockSandbox)
-
-	// Test valid ruleset
-	validRuleset := "#!/bin/bash\necho 'test'\n"
-	if err := landlock.validateRuleset(validRuleset); err != nil {
-		t.Errorf("validateRuleset() with valid ruleset error = %v, want nil", err)
-	}
-
-	// Test empty ruleset
-	emptyRuleset := ""
-	if err := landlock.validateRuleset(emptyRuleset); err == nil {
-		t.Error("validateRuleset() with empty ruleset error = nil, want error")
-	}
-}
-
 // TestIsLandlockAvailable tests the Landlock availability detection.
 // @MX:TEST: [AUTO] Landlock availability detection test
 func TestIsLandlockAvailable(t *testing.T) {
 	// This test may pass or fail depending on the kernel version
-	// We just log the result for informational purposes
 	available := isLandlockAvailable()
 	t.Logf("Landlock available: %v", available)
 
@@ -247,6 +256,41 @@ func TestIsLandlockAvailable(t *testing.T) {
 		t.Log("This kernel supports Landlock (5.13+)")
 	} else {
 		t.Log("This kernel does not support Landlock (requires 5.13+)")
+	}
+}
+
+// TestGetLandlockAbiVersion tests the ABI version detection.
+// @MX:TEST: [AUTO] Landlock ABI version detection test
+func TestGetLandlockAbiVersion(t *testing.T) {
+	abiVersion := getLandlockAbiVersion()
+	t.Logf("Detected Landlock ABI version: %d", abiVersion)
+
+	switch abiVersion {
+	case 0:
+		t.Log("Landlock not available (kernel < 5.13)")
+	case LandlockAbiVersion1:
+		t.Log("Landlock ABI v1 available (kernel 5.13-5.18)")
+	case LandlockAbiVersion2:
+		t.Log("Landlock ABI v2 available (kernel 5.19+)")
+	default:
+		t.Errorf("Unexpected ABI version: %d", abiVersion)
+	}
+}
+
+// TestGetKernelVersion tests kernel version parsing.
+// @MX:TEST: [AUTO] Kernel version parsing test
+func TestGetKernelVersion(t *testing.T) {
+	major, minor, err := getKernelVersion()
+	if err != nil {
+		t.Fatalf("getKernelVersion() error = %v", err)
+	}
+
+	t.Logf("Kernel version: %d.%d", major, minor)
+
+	if major < 5 || (major == 5 && minor < 13) {
+		t.Log("Kernel version is too old for Landlock (requires 5.13+)")
+	} else {
+		t.Log("Kernel version supports Landlock")
 	}
 }
 
@@ -258,6 +302,7 @@ func TestLandlockStubActive(t *testing.T) {
 		FallbackBehavior: "refuse",
 		AuditWriter:      &mockAuditWriter{},
 		Logger:           zaptest.NewLogger(t),
+		TimeFunc:         time.Now,
 	}
 
 	sb, err := newLandlockSandbox(cfg)
@@ -282,16 +327,40 @@ func TestLandlockStubActive(t *testing.T) {
 	}
 
 	// Activate sandbox
-	policy := &fsaccess.SecurityPolicy{}
+	policy := &fsaccess.SecurityPolicy{
+		ReadPaths: []string{t.TempDir()},
+	}
 	if err := landlock.Activate(policy); err != nil {
 		t.Fatalf("Activate() error = %v", err)
 	}
 
-	// After activation, stub flag should be true (this is a stub implementation)
-	if !LandlockStubActive {
-		t.Error("LandlockStubActive = false after activation, want true (stub mode)")
+	// After activation, stub flag should be false (real enforcement)
+	if LandlockStubActive {
+		t.Error("LandlockStubActive = true after activation, want false (real enforcement)")
 	}
 
 	// Reset flag for other tests
 	LandlockStubActive = false
+}
+
+// TestGetAccessMaskForPolicy tests the access mask generation.
+// @MX:TEST: [AUTO] Access mask generation test
+func TestGetAccessMaskForPolicy(t *testing.T) {
+	// Test read-only mask
+	readMask := getAccessMaskForPolicy(false)
+	if readMask&accessFSWriteFile != 0 {
+		t.Error("Read-only mask includes write access")
+	}
+	if readMask&accessFSReadFile == 0 {
+		t.Error("Read-only mask missing read access")
+	}
+
+	// Test write mask
+	writeMask := getAccessMaskForPolicy(true)
+	if writeMask&accessFSWriteFile == 0 {
+		t.Error("Write mask missing write access")
+	}
+	if writeMask&accessFSReadFile == 0 {
+		t.Error("Write mask missing read access")
+	}
 }

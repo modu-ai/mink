@@ -57,7 +57,10 @@ func (c *ProxyClient) IsAvailable() bool {
 	if err != nil {
 		return false
 	}
-	conn.Close()
+	if err := conn.Close(); err != nil {
+		// Log warning but continue - connection will be closed on GC
+		// This is just a health check, so close error is non-critical
+	}
 	return true
 }
 

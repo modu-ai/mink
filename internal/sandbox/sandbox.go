@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+	"time"
 
 	"github.com/modu-ai/goose/internal/audit"
 	"github.com/modu-ai/goose/internal/fsaccess"
@@ -59,6 +60,11 @@ type Config struct {
 
 	// Logger is the structured logger for debug and warning messages.
 	Logger *zap.Logger
+
+	// TimeFunc returns the current time for audit logging.
+	// Defaults to time.Now if not set.
+	// @MX:NOTE: [AUTO] Time function for audit logging
+	TimeFunc func() time.Time
 }
 
 // Validate checks if the Config is valid and returns an error if not.
@@ -75,6 +81,9 @@ func (c *Config) Validate() error {
 	}
 	if c.FallbackBehavior != "refuse" && c.FallbackBehavior != "allow" {
 		return fmt.Errorf("invalid fallback_behavior: %s (must be 'refuse' or 'allow')", c.FallbackBehavior)
+	}
+	if c.TimeFunc == nil {
+		c.TimeFunc = time.Now // Default to time.Now
 	}
 	return nil
 }

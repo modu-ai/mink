@@ -18,7 +18,7 @@ func TestFileWriter_Write(t *testing.T) {
 	writer, err := NewFileWriter(logPath)
 	require.NoError(t, err)
 	require.NotNil(t, writer)
-	defer writer.Close()
+	defer func() { require.NoError(t, writer.Close()) }()
 
 	event := NewAuditEvent(
 		time.Now().UTC(),
@@ -59,7 +59,7 @@ func TestFileWriter_WriteMultiple(t *testing.T) {
 
 	writer, err := NewFileWriter(logPath)
 	require.NoError(t, err)
-	defer writer.Close()
+	defer func() { require.NoError(t, writer.Close()) }()
 
 	// Act: Write multiple events
 	events := []AuditEvent{
@@ -100,12 +100,12 @@ func TestFileWriter_AppendOnly(t *testing.T) {
 	event1 := NewAuditEvent(time.Now().UTC(), EventTypeFSWrite, SeverityInfo, "First event", nil)
 	err = writer1.Write(event1)
 	require.NoError(t, err)
-	writer1.Close()
+	require.NoError(t, writer1.Close())
 
 	// Act: Create a new writer and append to the same file
 	writer2, err := NewFileWriter(logPath)
 	require.NoError(t, err)
-	defer writer2.Close()
+	defer func() { require.NoError(t, writer2.Close()) }()
 
 	event2 := NewAuditEvent(time.Now().UTC(), EventTypePermissionGrant, SeverityWarning, "Second event", nil)
 	err = writer2.Write(event2)
@@ -126,7 +126,7 @@ func TestFileWriter_ConcurrentWrites(t *testing.T) {
 
 	writer, err := NewFileWriter(logPath)
 	require.NoError(t, err)
-	defer writer.Close()
+	defer func() { require.NoError(t, writer.Close()) }()
 
 	// Act: Write concurrently from multiple goroutines
 	numGoroutines := 10
@@ -214,13 +214,40 @@ func TestFileWriter_CreateDirectory(t *testing.T) {
 	// Assert: Should succeed
 	require.NoError(t, err)
 	require.NotNil(t, writer)
-	defer writer.Close()
+	defer func() { require.NoError(t, writer.Close()) }()
 
 	// Verify directory was created
 	dir := filepath.Dir(logPath)
 	info, err := os.Stat(dir)
 	require.NoError(t, err)
 	assert.True(t, info.IsDir(), "Parent directory should exist")
+}
+
+func TestFileWriter_Path(t *testing.T) {
+	// Arrange: Create a temporary log file
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "audit.log")
+
+	writer, err := NewFileWriter(logPath)
+	require.NoError(t, err)
+	defer func() { require.NoError(t, writer.Close()) }()
+
+	// Act: Get path
+	result := writer.Path()
+
+	// Assert: Should return configured path
+	assert.Equal(t, logPath, result)
+}
+
+func TestFileWriter_Path_NilWriter(t *testing.T) {
+	// Arrange: Create nil file writer
+	var writer *FileWriter
+
+	// Act: Get path from nil writer
+	result := writer.Path()
+
+	// Assert: Should return empty string
+	assert.Empty(t, result, "Path should be empty for nil writer")
 }
 
 // Helper functions

@@ -79,7 +79,9 @@ func TestProxyClientHTTPClient(t *testing.T) {
 	proxyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Verify the request is being proxied
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("proxied"))
+		if _, err := w.Write([]byte("proxied")); err != nil {
+				t.Fatalf("Failed to write response: %v", err)
+			}
 	}))
 	defer proxyServer.Close()
 
@@ -96,7 +98,7 @@ func TestProxyClientHTTPClient(t *testing.T) {
 	// Make a request through the proxy
 	resp, err := httpClient.Get(proxyServer.URL)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
@@ -185,7 +187,9 @@ func TestProxyClientProxiedRequest(t *testing.T) {
 		<-state.mu
 		// Verify the request was received (Host header might be empty in test proxy)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("response from target"))
+		if _, err := w.Write([]byte("response from target")); err != nil {
+				t.Fatalf("Failed to write response: %v", err)
+			}
 	}))
 	defer proxyServer.Close()
 
@@ -201,7 +205,7 @@ func TestProxyClientProxiedRequest(t *testing.T) {
 	// Make a request through the proxy
 	resp, err := httpClient.Get(proxyServer.URL)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.True(t, state.received, "proxy should have received the request")
@@ -216,7 +220,9 @@ func TestProxyClientConcurrentRequests(t *testing.T) {
 	proxyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestCount.Add(1)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		if _, err := w.Write([]byte("OK")); err != nil {
+				t.Fatalf("Failed to write response: %v", err)
+			}
 	}))
 	defer proxyServer.Close()
 
@@ -231,7 +237,9 @@ func TestProxyClientConcurrentRequests(t *testing.T) {
 		go func() {
 			resp, _ := httpClient.Get(proxyServer.URL)
 			if resp != nil {
-				resp.Body.Close()
+				if err := resp.Body.Close(); err != nil {
+				t.Errorf("Failed to close response body: %v", err)
+			}
 			}
 			done <- true
 		}()
@@ -301,7 +309,9 @@ func BenchmarkProxyClientHTTPClient(b *testing.B) {
 func BenchmarkProxyClientRequest(b *testing.B) {
 	proxyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		if _, err := w.Write([]byte("OK")); err != nil {
+				b.Fatalf("Failed to write response: %v", err)
+			}
 	}))
 	defer proxyServer.Close()
 
@@ -313,7 +323,7 @@ func BenchmarkProxyClientRequest(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		resp, _ := httpClient.Get(proxyServer.URL)
 		if resp != nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 		}
 	}
 }

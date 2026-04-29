@@ -123,7 +123,12 @@ func readEventsFromFile(filePath string) ([]AuditEvent, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			// Log warning but continue - file will be closed on process exit
+			fmt.Fprintf(os.Stderr, "Warning: failed to close file %s: %v\n", filePath, err)
+		}
+	}()
 
 	// Check if file is gzip-compressed
 	if strings.HasSuffix(filePath, ".gz") {
@@ -131,7 +136,12 @@ func readEventsFromFile(filePath string) ([]AuditEvent, error) {
 		if err != nil {
 			return nil, err
 		}
-		defer gzReader.Close()
+		defer func() {
+			if err := gzReader.Close(); err != nil {
+				// Log warning but continue - file will be closed on process exit
+				fmt.Fprintf(os.Stderr, "Warning: failed to close gzip reader for %s: %v\n", filePath, err)
+			}
+		}()
 		reader = gzReader
 	} else {
 		reader = file

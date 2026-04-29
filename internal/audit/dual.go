@@ -52,9 +52,11 @@ func NewDualWriter(config DualWriterConfig) (*DualWriter, error) {
 	if config.EnableLocal && config.LocalPath != "" {
 		localWriter, err = NewRotatingWriter(config.LocalPath, config.MaxSize)
 		if err != nil {
-			// If local writer creation fails, log warning but don't fail
-			// Project-local logging is optional
-			globalWriter.Close()
+			// If local writer creation fails, close global writer and return error
+			// Project-local logging is optional, but creation failure is still an error
+			if closeErr := globalWriter.Close(); closeErr != nil {
+				return nil, fmt.Errorf("failed to create local writer: %w, and failed to close global writer: %v", err, closeErr)
+			}
 			return nil, fmt.Errorf("failed to create local writer: %w", err)
 		}
 		enabled = true

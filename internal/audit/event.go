@@ -102,6 +102,8 @@ type AuditEvent struct {
 	Message string `json:"message"`
 	// Metadata contains additional event-specific key-value pairs
 	Metadata map[string]string `json:"metadata,omitempty"`
+	// PrevHash is the SHA256 hash of the previous event in the chain (for integrity verification)
+	PrevHash string `json:"prev_hash,omitempty"`
 }
 
 // NewAuditEvent creates a new AuditEvent with the given fields.
@@ -127,6 +129,7 @@ func (e AuditEvent) MarshalJSON() ([]byte, error) {
 		Severity  Severity          `json:"severity"`
 		Message   string            `json:"message"`
 		Metadata  map[string]string `json:"metadata,omitempty"`
+		PrevHash  string            `json:"prev_hash,omitempty"`
 	}
 
 	return json.Marshal(jsonAuditEvent{
@@ -135,6 +138,7 @@ func (e AuditEvent) MarshalJSON() ([]byte, error) {
 		Severity:  e.Severity,
 		Message:   e.Message,
 		Metadata:  e.Metadata,
+		PrevHash:  e.PrevHash,
 	})
 }
 
@@ -148,6 +152,7 @@ func (e *AuditEvent) UnmarshalJSON(data []byte) error {
 		Severity  Severity          `json:"severity"`
 		Message   string            `json:"message"`
 		Metadata  map[string]string `json:"metadata,omitempty"`
+		PrevHash  string            `json:"prev_hash,omitempty"`
 	}
 
 	var tmp jsonAuditEvent
@@ -166,6 +171,7 @@ func (e *AuditEvent) UnmarshalJSON(data []byte) error {
 	e.Severity = tmp.Severity
 	e.Message = tmp.Message
 	e.Metadata = tmp.Metadata
+	e.PrevHash = tmp.PrevHash
 
 	return nil
 }

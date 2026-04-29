@@ -77,7 +77,9 @@ func TestIntegrationFullWorkflow(t *testing.T) {
 		// Verify the Authorization header was injected
 		if targetServerAuthHeader == "" {
 			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte("missing authorization header"))
+			if _, err := w.Write([]byte("missing authorization header")); err != nil {
+				t.Fatalf("Failed to write response: %v", err)
+			}
 			return
 		}
 
@@ -85,12 +87,16 @@ func TestIntegrationFullWorkflow(t *testing.T) {
 		expectedAuth := fmt.Sprintf("Bearer %s", string(testSecret))
 		if targetServerAuthHeader != expectedAuth {
 			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte("invalid authorization header"))
+			if _, err := w.Write([]byte("invalid authorization header")); err != nil {
+				t.Fatalf("Failed to write response: %v", err)
+			}
 			return
 		}
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("authorized"))
+		if _, err := w.Write([]byte("authorized")); err != nil {
+				t.Fatalf("Failed to write response: %v", err)
+			}
 	}))
 	defer targetServer.Close()
 

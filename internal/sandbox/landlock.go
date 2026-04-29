@@ -1,18 +1,15 @@
 //go:build linux
-// +build linux
 
 // Package sandbox provides Linux Landlock LSM-based sandbox implementation.
 // SPEC-GOOSE-SECURITY-SANDBOX-001 REQ-SANDBOX-003
 package sandbox
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/modu-ai/goose/internal/audit"
 	"github.com/modu-ai/goose/internal/fsaccess"
@@ -20,8 +17,8 @@ import (
 )
 
 // LandlockStubActive indicates whether the Landlock sandbox is running in stub mode.
-// When true, no kernel-level isolation is active; only the goose-sandbox helper
-// binary provides real enforcement. Callers can check this variable programmatically.
+// When true, no kernel-level isolation is active; the sandbox is a no-op.
+// This flag is set to false when real Landlock enforcement is active.
 //
 // @MX:NOTE: [AUTO] Stub mode indicator for runtime detection
 // @MX:SPEC: SPEC-GOOSE-SECURITY-SANDBOX-001 REQ-SANDBOX-003
@@ -37,9 +34,9 @@ var LandlockStubActive = false
 // @MX:REASON: Primary sandbox implementation for Linux, fan_in >= 3
 // @MX:SPEC: SPEC-GOOSE-SECURITY-SANDBOX-001 REQ-SANDBOX-003
 type landlockSandbox struct {
-	cfg     Config
-	active  bool
-	ruleset string // Cached Landlock ruleset
+	cfg        Config
+	active     bool
+	abiVersion int
 }
 
 // newLandlockSandbox creates a new Linux Landlock sandbox instance.
@@ -47,7 +44,8 @@ type landlockSandbox struct {
 // @MX:REASON: Factory function called by New(), fan_in >= 3
 func newLandlockSandbox(cfg Config) (Sandbox, error) {
 	// Check if Landlock is available
-	if !isLandlockAvailable() {
+	abiVersion := getLandlockAbiVersion()
+	if abiVersion == 0 {
 		cfg.Logger.Warn("Landlock not available in kernel (requires 5.13+), using fallback")
 		if cfg.FallbackBehavior == "refuse" {
 			return nil, fmt.Errorf("landlock not available (kernel < 5.13) and fallback_behavior: refuse")
@@ -57,9 +55,17 @@ func newLandlockSandbox(cfg Config) (Sandbox, error) {
 		return &noopSandbox{}, nil
 	}
 
+	abiName := "ABI v1"
+	if abiVersion == LandlockAbiVersion2 {
+		abiName = "ABI v2"
+	}
+
+	cfg.Logger.Info(fmt.Sprintf("Landlock available (%s)", abiName))
+
 	return &landlockSandbox{
-		cfg:    cfg,
-		active: false,
+		cfg:        cfg,
+		active:     false,
+		abiVersion: abiVersion,
 	}, nil
 }
 
@@ -70,72 +76,169 @@ func newSeatbeltSandbox(cfg Config) (Sandbox, error) {
 }
 
 // Activate enables the Linux Landlock sandbox with the given policy.
-// It generates Landlock rules from the SecurityPolicy and applies them.
+// It creates a Landlock ruleset, adds path rules, and enforces sandboxing.
 //
 // REQ-SANDBOX-003: Use Landlock LSM for FS access rules
-// REQ-SANDBOX-003: Seccomp-BPF filter for syscall restriction
 // REQ-SANDBOX-005: Blocked syscall → audit.log event + return to parent process
 //
 // AC-SANDBOX-03: Sandbox failure → refuse fallback
 //
 // @MX:ANCHOR: [AUTO] Landlock activation function
-// @MX:REASON: Converts policy to kernel rules, fan_in >= 3
+// @MX:REASON: Converts policy to kernel rules and enforces them, fan_in >= 3
 // @MX:SPEC: SPEC-GOOSE-SECURITY-SANDBOX-001 REQ-SANDBOX-003, REQ-SANDBOX-005, AC-SANDBOX-03
 func (s *landlockSandbox) Activate(policy *fsaccess.SecurityPolicy) error {
-	// Emit runtime warning that this is a stub implementation
-	s.cfg.Logger.Warn(
-		"Landlock sandbox is a STUB — no kernel-level isolation is active",
-		zap.String("warning", "Production deployment requires the goose-sandbox helper binary"),
-	)
+	s.cfg.Logger.Info("Activating Linux Landlock sandbox (real kernel enforcement)")
 
-	// Set stub mode flag
-	LandlockStubActive = true
-
-	s.cfg.Logger.Info("Activating Linux Landlock sandbox (stub mode)")
-
-	// Generate Landlock ruleset from security policy
-	ruleset, err := s.generateLandlockRuleset(policy)
-	if err != nil {
-		s.cfg.Logger.Error("Failed to generate Landlock ruleset", zap.Error(err))
-		return fmt.Errorf("failed to generate Landlock ruleset: %w", err)
+	// Determine which access rights to handle based on ABI version
+	var handledAccessFS uint64
+	if s.abiVersion >= LandlockAbiVersion2 {
+		// ABI v2: include all rights including accessFSRefer
+		handledAccessFS = accessFSExecute |
+			accessFSWriteFile |
+			accessFSReadFile |
+			accessFSReadDir |
+			accessFSRemoveDir |
+			accessFSRemoveFile |
+			accessFSMakeChar |
+			accessFSMakeDir |
+			accessFSMakeReg |
+			accessFSMakeSock |
+			accessFSMakeFifo |
+			accessFSMakeBlock |
+			accessFSMakeSym |
+			accessFSTruncate |
+			accessFSRefer
+	} else {
+		// ABI v1: exclude accessFSRefer
+		handledAccessFS = accessFSExecute |
+			accessFSWriteFile |
+			accessFSReadFile |
+			accessFSReadDir |
+			accessFSRemoveDir |
+			accessFSRemoveFile |
+			accessFSMakeChar |
+			accessFSMakeDir |
+			accessFSMakeReg |
+			accessFSMakeSock |
+			accessFSMakeFifo |
+			accessFSMakeBlock |
+			accessFSMakeSym |
+			accessFSTruncate
 	}
 
-	s.ruleset = ruleset
-	s.cfg.Logger.Debug("Generated Landlock ruleset", zap.String("ruleset", ruleset))
+	// Create the Landlock ruleset
+	s.cfg.Logger.Debug("Creating Landlock ruleset", zap.Int("abi_version", s.abiVersion))
+	attr := &landlockRulesetAttr{
+		HandledAccessFS: handledAccessFS,
+	}
 
-	// Validate the ruleset
-	if err := s.validateRuleset(ruleset); err != nil {
-		s.cfg.Logger.Error("Landlock ruleset validation failed", zap.Error(err))
+	rulesetFd, err := landlockCreateRuleset(attr, unsafeSizeofLandlockRulesetAttr, 0)
+	if err != nil {
+		s.cfg.Logger.Error("Failed to create Landlock ruleset", zap.Error(err))
 
 		// Log to audit log
 		_ = s.cfg.AuditWriter.Write(audit.NewAuditEvent(
-			time.Now(),
+			s.cfg.TimeFunc(),
 			audit.EventTypeSandboxBlockedSyscall,
 			audit.SeverityCritical,
-			"Sandbox activation failed: ruleset validation error",
+			"Sandbox activation failed: ruleset creation error",
 			map[string]string{
-				"error": err.Error(),
-				"ruleset": ruleset,
+				"error":       err.Error(),
+				"abi_version": fmt.Sprintf("%d", s.abiVersion),
 			},
 		))
 
-		return fmt.Errorf("Landlock ruleset validation failed: %w", err)
+		return fmt.Errorf("failed to create Landlock ruleset: %w", err)
+	}
+	defer syscall.Close(rulesetFd)
+
+	// Add allowed paths from policy
+	// Landlock uses a whitelist approach: only explicitly allowed paths are accessible
+
+	// Add read paths
+	for _, path := range policy.ReadPaths {
+		if err := s.addReadPathRule(rulesetFd, path); err != nil {
+			s.cfg.Logger.Warn("Failed to add read path rule",
+				zap.String("path", path),
+				zap.Error(err))
+			// Continue with other paths; optional paths may not exist
+		}
 	}
 
-	s.active = true
+	// Add write paths
+	for _, path := range policy.WritePaths {
+		if err := s.addWritePathRule(rulesetFd, path); err != nil {
+			s.cfg.Logger.Warn("Failed to add write path rule",
+				zap.String("path", path),
+				zap.Error(err))
+			// Continue with other paths; optional paths may not exist
+		}
+	}
 
-	// Log activation with stub warning to audit log
+	// Add default safe paths (required for basic process operation)
+	// These are paths that almost all processes need access to
+	defaultPaths := []string{
+		"/dev/null",      // For null device access
+		"/dev/zero",      // For zero device access
+		"/dev/urandom",   // For random number generation
+		"/tmp",           // For temporary files
+		"/var/tmp",       // For temporary files
+	}
+
+	for _, path := range defaultPaths {
+		if err := s.addReadPathRule(rulesetFd, path); err != nil {
+			s.cfg.Logger.Debug("Failed to add default path rule",
+				zap.String("path", path),
+				zap.Error(err))
+			// Default paths are optional; continue if they don't exist
+		}
+	}
+
+	// Apply the ruleset to the current process
+	s.cfg.Logger.Debug("Enforcing Landlock ruleset on current process")
+	if err := landlockRestrictSelf(rulesetFd); err != nil {
+		s.cfg.Logger.Error("Failed to enforce Landlock ruleset", zap.Error(err))
+
+		// Log to audit log
+		_ = s.cfg.AuditWriter.Write(audit.NewAuditEvent(
+			s.cfg.TimeFunc(),
+			audit.EventTypeSandboxBlockedSyscall,
+			audit.SeverityCritical,
+			"Sandbox activation failed: enforcement error",
+			map[string]string{
+				"error":       err.Error(),
+				"abi_version": fmt.Sprintf("%d", s.abiVersion),
+			},
+		))
+
+		return fmt.Errorf("failed to enforce Landlock ruleset: %w", err)
+	}
+
+	// Mark sandbox as active and disable stub mode
+	s.active = true
+	LandlockStubActive = false
+
+	// Log successful activation to audit log
 	_ = s.cfg.AuditWriter.Write(audit.NewAuditEvent(
-		time.Now(),
+		s.cfg.TimeFunc(),
 		audit.EventTypeGoosedStart,
-		audit.SeverityWarning,
-		"Linux Landlock sandbox activated in STUB mode — no kernel-level enforcement",
+		audit.SeverityInfo,
+		"Linux Landlock sandbox activated with real kernel-level enforcement",
 		map[string]string{
-			"ruleset": s.ruleset,
-			"stub_mode": "true",
-			"warning": "Production deployment requires the goose-sandbox helper binary",
+			"abi_version":     fmt.Sprintf("%d", s.abiVersion),
+			"read_paths":      fmt.Sprintf("%d", len(policy.ReadPaths)),
+			"write_paths":     fmt.Sprintf("%d", len(policy.WritePaths)),
+			"blocked_always":  fmt.Sprintf("%d", len(policy.BlockedAlways)),
+			"enforcement":     "kernel",
+			"stub_mode":       "false",
 		},
 	))
+
+	s.cfg.Logger.Info("Landlock sandbox activated successfully",
+		zap.Int("abi_version", s.abiVersion),
+		zap.Int("read_paths", len(policy.ReadPaths)),
+		zap.Int("write_paths", len(policy.WritePaths)),
+	)
 
 	return nil
 }
@@ -155,118 +258,85 @@ func (s *landlockSandbox) IsActive() bool {
 	return s.active
 }
 
-// generateLandlockRuleset converts a SecurityPolicy to Landlock ruleset format.
-//
-// REQ-SANDBOX-003: Block write access to ~/.ssh, /etc, /var, /proc, /sys, /dev
-// REQ-SANDBOX-003: Block /proc/self/root/* traversal (symlink escape prevention)
-// AC-SANDBOX-01: Same blocked_always enforcement across platforms
-// AC-SANDBOX-02: Block /proc/self/root/* traversal attempts
-//
-// @MX:ANCHOR: [AUTO] Landlock ruleset generator
-// @MX:REASON: Converts fsaccess policy to Landlock format, fan_in >= 3
-// @MX:SPEC: SPEC-GOOSE-SECURITY-SANDBOX-001 REQ-SANDBOX-003, AC-SANDBOX-01, AC-SANDBOX-02
-func (s *landlockSandbox) generateLandlockRuleset(policy *fsaccess.SecurityPolicy) (string, error) {
-	var buf bytes.Buffer
-
-	// Since we can't directly use Landlock syscalls without CGo,
-	// we generate a shell script that uses the landlock-restrict tool
-	// This is a simplified implementation; production use would require
-	// a native Go Landlock wrapper or the goose-sandbox helper binary
-
-	buf.WriteString("#!/bin/bash\n")
-	buf.WriteString("# Landlock sandbox ruleset generated by goose\n")
-	buf.WriteString("# WARNING: This is a stub implementation.\n")
-	buf.WriteString("# Full Landlock enforcement requires the goose-sandbox helper binary.\n")
-	buf.WriteString("\n")
-
-	// Block sensitive paths (REQ-SANDBOX-003, AC-SANDBOX-01)
-	sensitivePaths := []string{
-		"/etc",
-		"/var",
-		"/proc",
-		"/sys",
-		"/dev",
+// addReadPathRule adds a read-only rule for a path.
+// @MX:ANCHOR: [AUTO] Add read-only path rule to Landlock ruleset
+// @MX:REASON: Reusable function for adding read path rules, fan_in >= 3
+// @MX:SPEC: SPEC-GOOSE-SECURITY-SANDBOX-001 REQ-SANDBOX-003
+func (s *landlockSandbox) addReadPathRule(rulesetFd int, path string) error {
+	// Resolve the path to an absolute path
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return fmt.Errorf("failed to resolve absolute path for %s: %w", path, err)
 	}
 
-	// Add user SSH path
-	homeDir, err := os.UserHomeDir()
-	if err == nil {
-		sensitivePaths = append(sensitivePaths, filepath.Join(homeDir, ".ssh"))
-	}
-
-	// Generate rules for blocking sensitive paths
-	buf.WriteString("# Blocked paths (read/write denied)\n")
-	for _, path := range sensitivePaths {
-		// Expand globs and add to ruleset
-		buf.WriteString(fmt.Sprintf("echo \"Blocking: %s\"\n", path))
-	}
-
-	// Block /proc/self/root/* traversal (AC-SANDBOX-02)
-	buf.WriteString("\n# Block /proc/self/root/* traversal (symlink escape)\n")
-	buf.WriteString("echo \"Blocking: /proc/*/root/*\"\n")
-
-	// Allow write access to explicitly allowed paths (from policy)
-	if len(policy.WritePaths) > 0 {
-		buf.WriteString("\n# Allowed write paths\n")
-		for _, path := range policy.WritePaths {
-			buf.WriteString(fmt.Sprintf("echo \"Allowing write: %s\"\n", path))
+	// Check if path exists before adding rule
+	if _, err := os.Stat(absPath); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("path %s does not exist", absPath)
 		}
+		return fmt.Errorf("failed to stat path %s: %w", absPath, err)
 	}
 
-	// Allow read access to explicitly allowed paths (from policy)
-	if len(policy.ReadPaths) > 0 {
-		buf.WriteString("\n# Allowed read paths\n")
-		for _, path := range policy.ReadPaths {
-			buf.WriteString(fmt.Sprintf("echo \"Allowing read: %s\"\n", path))
-		}
+	s.cfg.Logger.Debug("Adding read path rule", zap.String("path", absPath))
+
+	// Add the path rule with read-only access
+	if err := addPathRule(rulesetFd, absPath, false, s.abiVersion); err != nil {
+		return err
 	}
 
-	// Block all paths in blocked_always (AC-SANDBOX-01)
-	for _, path := range policy.BlockedAlways {
-		buf.WriteString(fmt.Sprintf("echo \"Blocking (always): %s\"\n", path))
-	}
-
-	// Note: This is a stub. Real Landlock enforcement would require:
-	// 1. A native Go Landlock wrapper using raw syscalls
-	// 2. Or the goose-sandbox helper binary with setuid capabilities
-	// For now, we log the ruleset for manual verification
-	buf.WriteString("\n# STUB: Ruleset generated but not enforced\n")
-	buf.WriteString("# Real enforcement requires goose-sandbox helper binary\n")
-
-	return buf.String(), nil
+	return nil
 }
 
-// validateRuleset checks if the Landlock ruleset is valid.
-// Since this is a stub implementation, we do basic validation.
-func (s *landlockSandbox) validateRuleset(ruleset string) error {
-	// Basic validation: check that ruleset is not empty
-	if strings.TrimSpace(ruleset) == "" {
-		return fmt.Errorf("landlock ruleset is empty")
+// addWritePathRule adds a read-write rule for a path.
+// @MX:ANCHOR: [AUTO] Add read-write path rule to Landlock ruleset
+// @MX:REASON: Reusable function for adding write path rules, fan_in >= 3
+// @MX:SPEC: SPEC-GOOSE-SECURITY-SANDBOX-001 REQ-SANDBOX-003
+func (s *landlockSandbox) addWritePathRule(rulesetFd int, path string) error {
+	// Resolve the path to an absolute path
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return fmt.Errorf("failed to resolve absolute path for %s: %w", path, err)
 	}
 
-	// In a full implementation, this would:
-	// 1. Parse the ruleset syntax
-	// 2. Check that all referenced paths exist
-	// 3. Verify Landlock ABI version
-	// 4. Test with a dry-run of the goose-sandbox helper
+	// Check if path exists before adding rule
+	if _, err := os.Stat(absPath); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("path %s does not exist", absPath)
+		}
+		return fmt.Errorf("failed to stat path %s: %w", absPath, err)
+	}
 
-	s.cfg.Logger.Debug("Landlock ruleset validation passed (stub)")
+	s.cfg.Logger.Debug("Adding write path rule", zap.String("path", absPath))
+
+	// Add the path rule with read-write access
+	if err := addPathRule(rulesetFd, absPath, true, s.abiVersion); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 // isLandlockAvailable checks if the kernel supports Landlock.
 // It reads /proc/sys/kernel/landlock_* to check availability.
+//
+// @MX:ANCHOR: [AUTO] Landlock availability detection
+// @MX:REASON: Required for runtime capability detection, fan_in >= 3
+// @MX:SPEC: SPEC-GOOSE-SECURITY-SANDBOX-001 REQ-SANDBOX-003
 func isLandlockAvailable() bool {
-	// Check for Landlock support by reading sysfs
-	_, err := os.Stat("/proc/sys/kernel/landlock_access_fs")
-	if err != nil {
-		return false
-	}
+	abiVersion := getLandlockAbiVersion()
+	return abiVersion > 0
+}
 
-	// Additional check: verify kernel version is 5.13+
+// getKernelVersion extracts the kernel version from uname.
+// Returns major, minor, and release version as integers.
+//
+// @MX:ANCHOR: [AUTO] Extract kernel version from uname
+// @MX:REASON: Required for Landlock availability check, fan_in >= 3
+// @MX:SPEC: SPEC-GOOSE-SECURITY-SANDBOX-001 REQ-SANDBOX-003
+func getKernelVersion() (major int, minor int, err error) {
 	var uname syscall.Utsname
 	if err := syscall.Uname(&uname); err != nil {
-		return false
+		return 0, 0, fmt.Errorf("failed to get uname: %w", err)
 	}
 
 	// Parse release version (uname.Release is [65]int8 on Linux)
@@ -279,22 +349,31 @@ func isLandlockAvailable() bool {
 	}
 	release := string(releaseBytes)
 
-	// Simple version check (e.g., "5.13.0-generic")
+	// Parse version (e.g., "5.13.0-generic")
 	parts := strings.Split(release, ".")
 	if len(parts) < 2 {
-		return false
+		return 0, 0, fmt.Errorf("invalid kernel version format: %s", release)
 	}
 
-	major := parts[0]
-	minor := parts[1]
+	// Parse major and minor version numbers
+	majorStr := parts[0]
+	minorStr := parts[1]
 
-	// Check if major > 5 or (major == 5 and minor >= 13)
-	if major == "5" && minor >= "13" {
-		return true
-	}
-	if major > "5" {
-		return true
+	// Remove non-digit characters from minor version (e.g., "13-generic" -> "13")
+	for i, c := range minorStr {
+		if c < '0' || c > '9' {
+			minorStr = minorStr[:i]
+			break
+		}
 	}
 
-	return false
+	// Convert to integers
+	if _, err := fmt.Sscanf(majorStr, "%d", &major); err != nil {
+		return 0, 0, fmt.Errorf("failed to parse major version: %w", err)
+	}
+	if _, err := fmt.Sscanf(minorStr, "%d", &minor); err != nil {
+		return 0, 0, fmt.Errorf("failed to parse minor version: %w", err)
+	}
+
+	return major, minor, nil
 }
