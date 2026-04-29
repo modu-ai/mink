@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -19,6 +18,14 @@ import (
 	"github.com/modu-ai/goose/internal/fsaccess"
 	"go.uber.org/zap"
 )
+
+// LandlockStubActive indicates whether the Landlock sandbox is running in stub mode.
+// When true, no kernel-level isolation is active; only the goose-sandbox helper
+// binary provides real enforcement. Callers can check this variable programmatically.
+//
+// @MX:NOTE: [AUTO] Stub mode indicator for runtime detection
+// @MX:SPEC: SPEC-GOOSE-SECURITY-SANDBOX-001 REQ-SANDBOX-003
+var LandlockStubActive = false
 
 // landlockSandbox implements Sandbox using Linux Landlock LSM (kernel 5.13+).
 //
@@ -75,7 +82,16 @@ func newSeatbeltSandbox(cfg Config) (Sandbox, error) {
 // @MX:REASON: Converts policy to kernel rules, fan_in >= 3
 // @MX:SPEC: SPEC-GOOSE-SECURITY-SANDBOX-001 REQ-SANDBOX-003, REQ-SANDBOX-005, AC-SANDBOX-03
 func (s *landlockSandbox) Activate(policy *fsaccess.SecurityPolicy) error {
-	s.cfg.Logger.Info("Activating Linux Landlock sandbox")
+	// Emit runtime warning that this is a stub implementation
+	s.cfg.Logger.Warn(
+		"Landlock sandbox is a STUB — no kernel-level isolation is active",
+		zap.String("warning", "Production deployment requires the goose-sandbox helper binary"),
+	)
+
+	// Set stub mode flag
+	LandlockStubActive = true
+
+	s.cfg.Logger.Info("Activating Linux Landlock sandbox (stub mode)")
 
 	// Generate Landlock ruleset from security policy
 	ruleset, err := s.generateLandlockRuleset(policy)
@@ -108,14 +124,16 @@ func (s *landlockSandbox) Activate(policy *fsaccess.SecurityPolicy) error {
 
 	s.active = true
 
-	// Log successful activation to audit log
+	// Log activation with stub warning to audit log
 	_ = s.cfg.AuditWriter.Write(audit.NewAuditEvent(
 		time.Now(),
 		audit.EventTypeGoosedStart,
-		audit.SeverityInfo,
-		"Linux Landlock sandbox activated successfully",
+		audit.SeverityWarning,
+		"Linux Landlock sandbox activated in STUB mode — no kernel-level enforcement",
 		map[string]string{
 			"ruleset": s.ruleset,
+			"stub_mode": "true",
+			"warning": "Production deployment requires the goose-sandbox helper binary",
 		},
 	))
 
@@ -251,10 +269,15 @@ func isLandlockAvailable() bool {
 		return false
 	}
 
-	// Parse release version
-	release := string(uname.Release[:])
-	// Remove null bytes
-	release = strings.TrimRight(release, "\x00")
+	// Parse release version (uname.Release is [65]int8 on Linux)
+	var releaseBytes []byte
+	for _, b := range uname.Release {
+		if b == 0 {
+			break
+		}
+		releaseBytes = append(releaseBytes, byte(b))
+	}
+	release := string(releaseBytes)
 
 	// Simple version check (e.g., "5.13.0-generic")
 	parts := strings.Split(release, ".")

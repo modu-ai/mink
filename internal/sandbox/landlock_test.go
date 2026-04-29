@@ -249,3 +249,49 @@ func TestIsLandlockAvailable(t *testing.T) {
 		t.Log("This kernel does not support Landlock (requires 5.13+)")
 	}
 }
+
+// TestLandlockStubActive tests that the stub mode flag is set correctly.
+// @MX:TEST: [AUTO] Landlock stub mode flag test
+func TestLandlockStubActive(t *testing.T) {
+	cfg := Config{
+		Enabled:          true,
+		FallbackBehavior: "refuse",
+		AuditWriter:      &mockAuditWriter{},
+		Logger:           zaptest.NewLogger(t),
+	}
+
+	sb, err := newLandlockSandbox(cfg)
+	if err != nil {
+		// Landlock not available, skip test
+		if strings.Contains(err.Error(), "landlock not available") && cfg.FallbackBehavior == "refuse" {
+			t.Skip("Landlock not available on this kernel (requires 5.13+)")
+		}
+		t.Fatalf("newLandlockSandbox() error = %v", err)
+	}
+
+	// If we got a noopSandbox, Landlock is not available
+	if _, ok := sb.(*noopSandbox); ok {
+		t.Skip("Landlock not available on this kernel (requires 5.13+)")
+	}
+
+	landlock := sb.(*landlockSandbox)
+
+	// Before activation, stub flag should be false
+	if LandlockStubActive {
+		t.Error("LandlockStubActive = true before activation, want false")
+	}
+
+	// Activate sandbox
+	policy := &fsaccess.SecurityPolicy{}
+	if err := landlock.Activate(policy); err != nil {
+		t.Fatalf("Activate() error = %v", err)
+	}
+
+	// After activation, stub flag should be true (this is a stub implementation)
+	if !LandlockStubActive {
+		t.Error("LandlockStubActive = false after activation, want true (stub mode)")
+	}
+
+	// Reset flag for other tests
+	LandlockStubActive = false
+}

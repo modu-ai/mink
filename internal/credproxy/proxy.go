@@ -242,6 +242,10 @@ func (p *Proxy) handleProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// CRITICAL: Zeroize secret bytes after use to prevent credential leakage in memory
+	// This ensures Bearer tokens don't remain in memory dumps, core files, or debugger access
+	defer zeroBytes(secret)
+
 	// Log credential access (without value)
 	p.logAuditEvent("credential.accessed", "info",
 		fmt.Sprintf("Credential accessed for provider: %s", provider),
@@ -368,5 +372,19 @@ func (p *Proxy) logAuditEvent(eventType, severity, message string, metadata map[
 			zap.String("event_type", eventType),
 			zap.Error(err),
 		)
+	}
+}
+
+// zeroBytes securely clears a byte slice by overwriting all bytes with zeros.
+//
+// CRITICAL: This must be called on all secret byte slices after use to prevent
+// credential leakage in memory dumps, core files, or debugger access. The defer
+// pattern ensures zeroization happens even on error paths (panic, early return).
+//
+// @MX:NOTE: [AUTO] Memory security for credential zeroization
+// @MX:SECURITY: Prevents secret material from remaining in heap memory after use
+func zeroBytes(b []byte) {
+	for i := range b {
+		b[i] = 0
 	}
 }

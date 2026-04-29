@@ -4,6 +4,7 @@ package audit
 
 import (
 	"encoding/json"
+	"strings"
 	"time"
 )
 
@@ -64,6 +65,26 @@ func (s Severity) String() string {
 	return string(s)
 }
 
+// sanitizeMessage removes control characters that could enable log injection.
+// Replaces newlines, carriage returns, and other control chars with escaped equivalents.
+// This prevents attackers from injecting fake log entries or breaking log parsing.
+//
+// @MX:ANCHOR: [AUTO] Message sanitization for all audit events
+// @MX:REASON: Called by NewAuditEvent, used by all event creation paths, fan_in >= 5
+// @MX:SPEC: SPEC-GOOSE-AUDIT-001 security requirement for log injection prevention
+func sanitizeMessage(msg string) string {
+	// Replace common control characters with escaped representations
+	// This prevents log injection attacks while preserving readability
+	replacer := strings.NewReplacer(
+		"\n", "\\n",
+		"\r", "\\r",
+		"\t", "\\t",
+		"\x00", "\\x00",
+		"\x1b", "\\x1b", // ESC character
+	)
+	return replacer.Replace(msg)
+}
+
 // AuditEvent represents a single audit log entry.
 // AC-AUDIT-01: JSON line format for all events
 //
@@ -85,12 +106,13 @@ type AuditEvent struct {
 
 // NewAuditEvent creates a new AuditEvent with the given fields.
 // This is a convenience constructor to ensure all required fields are set.
+// Message field is sanitized to prevent log injection attacks.
 func NewAuditEvent(timestamp time.Time, eventType EventType, severity Severity, message string, metadata map[string]string) AuditEvent {
 	return AuditEvent{
 		Timestamp: timestamp,
 		Type:      eventType,
 		Severity:  severity,
-		Message:   message,
+		Message:   sanitizeMessage(message),
 		Metadata:  metadata,
 	}
 }

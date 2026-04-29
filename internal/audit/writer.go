@@ -17,9 +17,10 @@ import (
 // @MX:REASON: Used by all audit logging components, fan_in >= 3
 // @MX:SPEC: SPEC-GOOSE-AUDIT-001 REQ-AUDIT-001
 type FileWriter struct {
-	mu   sync.Mutex
-	file *os.File
-	path string
+	mu         sync.Mutex
+	file       *os.File
+	path       string
+	writeCount uint64 // Counter for batched sync optimization
 }
 
 // NewFileWriter creates a new FileWriter that appends to the specified log file.
@@ -39,7 +40,8 @@ func NewFileWriter(path string) (*FileWriter, error) {
 	// O_APPEND: Ensure atomic writes at OS level
 	// O_CREATE: Create file if it doesn't exist
 	// O_WRONLY: Write-only mode
-	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	// 0600: Owner read-write only (CRITICAL: prevents other users from modifying logs)
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open log file: %w", err)
 	}
@@ -78,13 +80,19 @@ func (w *FileWriter) Write(event AuditEvent) error {
 		return fmt.Errorf("failed to write event: %w", err)
 	}
 
-	// Sync to disk immediately for durability
-	// This ensures events are written even on crash
-	return w.file.Sync()
+	// Batched sync for performance (MEDIUM: sync every 100 writes)
+	// This reduces disk I/O while maintaining acceptable durability
+	w.writeCount++
+	if w.writeCount%100 == 0 {
+		return w.file.Sync()
+	}
+
+	return nil
 }
 
 // Close closes the log file and releases resources.
 // After Close is called, any further Write calls will fail.
+// Performs a final sync before closing to ensure durability.
 func (w *FileWriter) Close() error {
 	if w == nil || w.file == nil {
 		return nil
@@ -92,6 +100,9 @@ func (w *FileWriter) Close() error {
 
 	w.mu.Lock()
 	defer w.mu.Unlock()
+
+	// Final sync to ensure any pending writes are flushed
+	_ = w.file.Sync()
 
 	err := w.file.Close()
 	w.file = nil

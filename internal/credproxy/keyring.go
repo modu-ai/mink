@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"syscall"
 )
 
 // KeyringBackend abstracts OS-specific credential storage.
@@ -50,6 +51,11 @@ type fileKeyring struct {
 // REQ-CREDPROXY-001: References stored in ~/.goose/secrets/providers.yaml
 // The actual secret values are stored separately in the keyring backend.
 func newFileKeyring(dir string) (*fileKeyring, error) {
+	// SECURITY: Set umask to 0 before creating secret directory to ensure
+	// exact 0700 permissions regardless of process umask.
+	oldUmask := syscall.Umask(0)
+	defer syscall.Umask(oldUmask)
+
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create keyring directory: %w", err)
 	}
@@ -212,6 +218,11 @@ func (fk *fileKeyring) loadFromDisk() error {
 // saveToDisk saves a secret to disk.
 func (fk *fileKeyring) saveToDisk(service, key string, secret []byte) error {
 	filePath := fk.getFilePath(service, key)
+
+	// SECURITY: Set umask to 0 before writing secret file to ensure
+	// exact 0600 permissions regardless of process umask.
+	oldUmask := syscall.Umask(0)
+	defer syscall.Umask(oldUmask)
 
 	// Write secret file with restrictive permissions
 	if err := os.WriteFile(filePath, secret, 0600); err != nil {
