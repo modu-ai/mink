@@ -67,7 +67,7 @@ func TestCollector_MultipleSessionsFlush(t *testing.T) {
 	cfg := defaultCfg(home)
 	c := newTestCollector(t, cfg, w)
 
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		sid := fmt.Sprintf("multi-sess-%d", i)
 		c.OnTurn(sid, []trajectory.TrajectoryEntry{{From: trajectory.RoleHuman, Value: "hello"}})
 		c.OnTerminal(sid, true, trajectory.TrajectoryMetadata{})
@@ -87,7 +87,7 @@ func TestCollector_MultipleSessionsFlush(t *testing.T) {
 	count := 0
 	for _, l := range lines {
 		if len(l) > 0 {
-			var m map[string]interface{}
+			var m map[string]any
 			require.NoError(t, json.Unmarshal(l, &m))
 			count++
 		}
@@ -161,7 +161,7 @@ func TestCollector_OnTurn_ChannelFull(t *testing.T) {
 
 	// Flood the channel — must not block or panic.
 	assert.NotPanics(t, func() {
-		for i := 0; i < 10000; i++ {
+		for range 10000 {
 			c.OnTurn("flood", []trajectory.TrajectoryEntry{{From: trajectory.RoleHuman, Value: "x"}})
 		}
 	})
@@ -180,7 +180,7 @@ func TestWriter_RotationMultipleRounds(t *testing.T) {
 	w := trajectory.NewWriter(home, 100, clk, zap.NewNop())
 	defer w.Close()
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		traj := &trajectory.Trajectory{
 			SessionID: fmt.Sprintf("rot-%d", i),
 			Completed: true,
@@ -223,14 +223,14 @@ func TestCollector_SystemRoleNotRedacted(t *testing.T) {
 	lines := readJSONLLines(t, path)
 	require.Len(t, lines, 1)
 
-	convs := lines[0]["conversations"].([]interface{})
+	convs := lines[0]["conversations"].([]any)
 	require.Len(t, convs, 2)
 
-	sys := convs[0].(map[string]interface{})
+	sys := convs[0].(map[string]any)
 	assert.Equal(t, "system", sys["from"])
 	assert.Contains(t, sys["value"], "support@goose.ai", "system email must not be redacted")
 
-	human := convs[1].(map[string]interface{})
+	human := convs[1].(map[string]any)
 	assert.Equal(t, "human", human["from"])
 	assert.Contains(t, human["value"], "<REDACTED:email>", "human email must be redacted")
 	assert.NotContains(t, human["value"], "user@example.com")

@@ -40,7 +40,7 @@ type Trajectory struct {
 	Model         string             `json:"model"`
 	Completed     bool               `json:"completed"`
 	SessionID     string             `json:"session_id"`
-	Metadata      TrajectoryMetadata `json:"metadata,omitempty"`
+	Metadata      TrajectoryMetadata `json:"metadata,omitzero"`
 }
 
 // TrajectoryMetadata carries per-trajectory auxiliary fields.

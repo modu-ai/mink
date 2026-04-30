@@ -57,16 +57,16 @@ func defaultCfg(home string) trajectory.TelemetryConfig {
 	return cfg
 }
 
-func readJSONLLines(t *testing.T, path string) []map[string]interface{} {
+func readJSONLLines(t *testing.T, path string) []map[string]any {
 	t.Helper()
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
-	var lines []map[string]interface{}
+	var lines []map[string]any
 	for _, raw := range splitLines(data) {
 		if len(raw) == 0 {
 			continue
 		}
-		var m map[string]interface{}
+		var m map[string]any
 		require.NoError(t, json.Unmarshal(raw, &m), "invalid JSON line: %s", raw)
 		lines = append(lines, m)
 	}
@@ -139,22 +139,22 @@ func TestCollector_OnTerminalSuccess_WritesToSuccessDir(t *testing.T) {
 	assert.Equal(t, true, line["completed"])
 	assert.Equal(t, sessionID, line["session_id"])
 
-	convs, ok := line["conversations"].([]interface{})
+	convs, ok := line["conversations"].([]any)
 	require.True(t, ok)
 	require.Len(t, convs, 2)
 
-	entry0 := convs[0].(map[string]interface{})
+	entry0 := convs[0].(map[string]any)
 	assert.Equal(t, "human", entry0["from"])
 	assert.Equal(t, "hi", entry0["value"])
 
-	entry1 := convs[1].(map[string]interface{})
+	entry1 := convs[1].(map[string]any)
 	assert.Equal(t, "gpt", entry1["from"])
 	assert.Equal(t, "hello", entry1["value"])
 
 	// Verify allowed roles only.
 	allowedRoles := map[string]bool{"system": true, "human": true, "gpt": true, "tool": true}
 	for _, conv := range convs {
-		e := conv.(map[string]interface{})
+		e := conv.(map[string]any)
 		assert.True(t, allowedRoles[e["from"].(string)], "unexpected from: %s", e["from"])
 	}
 }
@@ -186,7 +186,7 @@ func TestCollector_OnTerminalFailure_WritesToFailedDir(t *testing.T) {
 	lines := readJSONLLines(t, failedPath)
 	require.Len(t, lines, 1)
 	assert.Equal(t, false, lines[0]["completed"])
-	meta2 := lines[0]["metadata"].(map[string]interface{})
+	meta2 := lines[0]["metadata"].(map[string]any)
 	assert.Equal(t, "context_overflow", meta2["failure_reason"])
 
 	// Must not appear in success/.
@@ -209,7 +209,7 @@ func TestWriter_RotatesOnMaxBytes(t *testing.T) {
 	dir := filepath.Join(home, "trajectories", "success")
 
 	// Write enough data to exceed 200 bytes.
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		t := &trajectory.Trajectory{
 			SessionID:     "sess",
 			Completed:     true,
@@ -371,7 +371,7 @@ func TestConcurrentSessions_NoInterleaving(t *testing.T) {
 	const turnsPerSession = 10
 
 	var wg sync.WaitGroup
-	for i := 0; i < numSessions; i++ {
+	for i := range numSessions {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
@@ -469,7 +469,7 @@ func TestCollector_OnTurnLatencyUnder1ms(t *testing.T) {
 	const iterations = 1000
 	latencies := make([]time.Duration, iterations)
 
-	for i := 0; i < iterations; i++ {
+	for i := range iterations {
 		start := time.Now()
 		c.OnTurn("sess-latency", []trajectory.TrajectoryEntry{
 			{From: trajectory.RoleHuman, Value: "test"},
@@ -511,7 +511,7 @@ func TestCollector_SpillOnBufferCap(t *testing.T) {
 	sessionID := "spill-test"
 
 	// Send 150 turns — should trigger spill at 101st.
-	for i := 0; i < 150; i++ {
+	for i := range 150 {
 		c.OnTurn(sessionID, []trajectory.TrajectoryEntry{
 			{From: trajectory.RoleHuman, Value: fmt.Sprintf("turn-%d", i)},
 		})
@@ -534,7 +534,7 @@ func TestCollector_SpillOnBufferCap(t *testing.T) {
 	// At least one line must have partial=true.
 	hasPartial := false
 	for _, line := range lines {
-		meta, ok := line["metadata"].(map[string]interface{})
+		meta, ok := line["metadata"].(map[string]any)
 		if ok {
 			if p, ok := meta["partial"].(bool); ok && p {
 				hasPartial = true

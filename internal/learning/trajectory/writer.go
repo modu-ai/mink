@@ -226,7 +226,7 @@ func (w *Writer) logWarn(msg, sessionID, path string, err error) {
 	if w.logger == nil {
 		return
 	}
-	w.logger.Warn("trajectory write failed",
+	w.logger.Warn(msg,
 		zap.String("session_id", sessionID),
 		zap.String("path", path),
 		zap.Error(err),
@@ -235,6 +235,8 @@ func (w *Writer) logWarn(msg, sessionID, path string, err error) {
 
 // currentFilePathForBucket returns the current open file path for a bucket.
 // Used by tests and retention to avoid deleting open handles.
+//
+//nolint:unused // Accessed via export_test.go for black-box test packages.
 func (w *Writer) currentFilePathForBucket(bucket string) string {
 	w.mu.Lock()
 	defer w.mu.Unlock()
