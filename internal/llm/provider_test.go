@@ -44,8 +44,8 @@ func (m *mockLLMProvider) Capabilities(ctx context.Context, model string) (Capab
 // TestCompletionRequest_Validation validates CompletionRequest field requirements.
 func TestCompletionRequest_Validation(t *testing.T) {
 	tests := []struct {
-		name string
-		req  CompletionRequest
+		name  string
+		req   CompletionRequest
 		valid bool
 	}{
 		{
@@ -74,8 +74,8 @@ func TestCompletionRequest_Validation(t *testing.T) {
 		{
 			name: "valid with temperature",
 			req: CompletionRequest{
-				Model:    "qwen2.5:3b",
-				Messages: []Message{{Role: "user", Content: "hello"}},
+				Model:       "qwen2.5:3b",
+				Messages:    []Message{{Role: "user", Content: "hello"}},
 				Temperature: ptr(0.7),
 			},
 			valid: true,
@@ -83,9 +83,9 @@ func TestCompletionRequest_Validation(t *testing.T) {
 		{
 			name: "valid with max tokens",
 			req: CompletionRequest{
-				Model:      "qwen2.5:3b",
-				Messages:   []Message{{Role: "user", Content: "hello"}},
-				MaxTokens:  ptr(1000),
+				Model:     "qwen2.5:3b",
+				Messages:  []Message{{Role: "user", Content: "hello"}},
+				MaxTokens: ptr(1000),
 			},
 			valid: true,
 		},

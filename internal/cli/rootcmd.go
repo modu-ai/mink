@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/modu-ai/goose/internal/cli/commands"
-	"github.com/modu-ai/goose/internal/cli/tui"
 	"github.com/modu-ai/goose/internal/cli/transport"
+	"github.com/modu-ai/goose/internal/cli/tui"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )

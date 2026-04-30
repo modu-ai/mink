@@ -157,9 +157,9 @@ func TestNoopSandbox(t *testing.T) {
 
 	// Test Activate always succeeds
 	policy := &fsaccess.SecurityPolicy{
-		WritePaths:     []string{"/tmp"},
-		ReadPaths:      []string{"/home"},
-		BlockedAlways:  []string{"/etc"},
+		WritePaths:    []string{"/tmp"},
+		ReadPaths:     []string{"/home"},
+		BlockedAlways: []string{"/etc"},
 	}
 
 	if err := sb.Activate(policy); err != nil {

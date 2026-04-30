@@ -11,7 +11,7 @@ import (
 
 func TestConversation_Append(t *testing.T) {
 	// REQ-AG-002: Thread-safe append
- conv := NewConversation()
+	conv := NewConversation()
 
 	// Test basic append
 	msg := Message{Role: "user", Content: "hello"}
@@ -96,7 +96,7 @@ func TestConversation_TokenCount(t *testing.T) {
 	conv := NewConversation()
 
 	conv.Append(Message{Role: "user", Content: "hello world"}) // ~11 chars / 4 = 3 tokens
-	conv.Append(Message{Role: "assistant", Content: "hi!"})      // ~3 chars / 4 = 1 token
+	conv.Append(Message{Role: "assistant", Content: "hi!"})    // ~3 chars / 4 = 1 token
 
 	count := conv.TokenCount()
 	assert.Greater(t, count, 0)

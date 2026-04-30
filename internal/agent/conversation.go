@@ -10,7 +10,7 @@ import (
 // @MX:ANCHOR: [AUTO] Thread-safe conversation history management
 // @MX:REASON: Concurrent access from user goroutine (append) and observer goroutines (read)
 type Conversation struct {
-	mu     sync.RWMutex
+	mu       sync.RWMutex
 	messages []Message
 }
 

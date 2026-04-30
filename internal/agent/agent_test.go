@@ -15,10 +15,10 @@ import (
 
 // mockLLMProvider is a test double for provider.Provider
 type mockLLMProvider struct {
-	responses   []string
-	errors      []error
+	responses    []string
+	errors       []error
 	capabilities provider.Capabilities
-	callCount   int
+	callCount    int
 }
 
 func (m *mockLLMProvider) Complete(ctx context.Context, req provider.CompletionRequest) (*provider.CompletionResponse, error) {

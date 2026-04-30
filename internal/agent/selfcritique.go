@@ -17,10 +17,10 @@ import (
 
 // Precompiled regex patterns for self-critique output parsing.
 var (
-	scorePattern  = regexp.MustCompile(`SCORE:\s*([0-9.]+)`)
-	gapPattern    = regexp.MustCompile(`GAP:\s*([\s\S]*?)(?:\nINCONSISTENCY:|\nUNSUPPORTED:|$)`)
-	incPattern    = regexp.MustCompile(`INCONSISTENCY:\s*([\s\S]*?)(?:\nUNSUPPORTED:|$)`)
-	unsupPattern  = regexp.MustCompile(`UNSUPPORTED:\s*([\s\S]*?)$`)
+	scorePattern = regexp.MustCompile(`SCORE:\s*([0-9.]+)`)
+	gapPattern   = regexp.MustCompile(`GAP:\s*([\s\S]*?)(?:\nINCONSISTENCY:|\nUNSUPPORTED:|$)`)
+	incPattern   = regexp.MustCompile(`INCONSISTENCY:\s*([\s\S]*?)(?:\nUNSUPPORTED:|$)`)
+	unsupPattern = regexp.MustCompile(`UNSUPPORTED:\s*([\s\S]*?)$`)
 )
 
 const (

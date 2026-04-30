@@ -95,8 +95,8 @@ func TestIntegrationFullWorkflow(t *testing.T) {
 
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write([]byte("authorized")); err != nil {
-				t.Fatalf("Failed to write response: %v", err)
-			}
+			t.Fatalf("Failed to write response: %v", err)
+		}
 	}))
 	defer targetServer.Close()
 

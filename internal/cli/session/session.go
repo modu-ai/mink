@@ -16,9 +16,9 @@ import (
 // Message represents a single message in a session.
 // @MX:ANCHOR Message is used across session, TUI, and transport layers.
 type Message struct {
-	Role      string `json:"role"`      // "user", "assistant", "system"
-	Content   string `json:"content"`   // Message content
-	Timestamp int64  `json:"ts"`        // Unix timestamp in milliseconds
+	Role      string `json:"role"`    // "user", "assistant", "system"
+	Content   string `json:"content"` // Message content
+	Timestamp int64  `json:"ts"`      // Unix timestamp in milliseconds
 }
 
 // testDir is overridden in tests to use temporary directories.

@@ -37,16 +37,16 @@ func TestNewToolCommand(t *testing.T) {
 // TestToolListCommand verifies the list subcommand behavior.
 func TestToolListCommand(t *testing.T) {
 	tests := []struct {
-		name        string
-		registry    ToolRegistry
-		args        []string
-		exitCode    int
-		verifyOut   func(*testing.T, string)
+		name      string
+		registry  ToolRegistry
+		args      []string
+		exitCode  int
+		verifyOut func(*testing.T, string)
 	}{
 		{
-			name: "list default tools",
+			name:     "list default tools",
 			registry: NewStaticToolRegistry(),
-			args: []string{"list"},
+			args:     []string{"list"},
 			exitCode: 0,
 			verifyOut: func(t *testing.T, out string) {
 				// Verify some default tools are listed
@@ -65,7 +65,7 @@ func TestToolListCommand(t *testing.T) {
 					{Name: "custom_tool", Description: "A custom tool"},
 				},
 			},
-			args: []string{"list"},
+			args:     []string{"list"},
 			exitCode: 0,
 			verifyOut: func(t *testing.T, out string) {
 				if !strings.Contains(out, "custom_tool") {

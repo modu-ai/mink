@@ -237,10 +237,42 @@ EARS 5 패턴: Ubiquitous (항상), Event-Driven (WHEN), State-Driven (WHILE/IF)
 
 ### 5.6 contract / 호환성 검증
 
-**AC-OBS-METRICS-018**: consumer SPEC `SPEC-GOOSE-CMDCTX-TELEMETRY-001` 의 `MetricsSink` interface 정의가 본 SPEC 의 `metrics.Sink` interface 와 호환됨을 다음 방법 중 하나로 검증한다:
+**AC-OBS-METRICS-018**: consumer SPEC `SPEC-GOOSE-CMDCTX-TELEMETRY-001` 의 `MetricsSink` interface 정의가 본 SPEC 의 `metrics.Sink` interface 와 호환됨을 다음 방법으로 **필수 검증** (run phase 시 (b) 옵션을 채택):
 - (a) consumer SPEC TELEMETRY-001 의 `internal/command/adapter/metrics.go` 가 `type MetricsSink = metrics.Sink` (alias) 또는 `import "github.com/modu-ai/goose/internal/observability/metrics"` 후 직접 사용.
-- (b) 별도 컴파일 검증 테스트 (`internal/observability/metrics/contract_test.go`) 가 `var _ MetricsSinkContract = (*expvarSink)(nil)` 패턴으로 contract assertion.
+- (b) **[필수]** 별도 컴파일 검증 테스트 (`internal/observability/metrics/contract_test.go`) 가 `var _ MetricsSinkContract = (*expvarSink)(nil)` 패턴으로 contract assertion (plan-audit 2026-04-30 권장에 따라 "선택" → "필수" 격상).
 - 본 AC 는 consumer SPEC 의 implementation 시점에 해소되며, 본 SPEC 은 sink contract 가 consumer 의 6 메서드 emission 패턴 (calls counter + errors counter + duration histogram) 을 모두 지원함을 spec.md 본문 + research.md §4.3 으로 보장한다. (REQ-OBS-METRICS-003)
+
+### 5.7 REQ ↔ AC 커버리지 매트릭스 (2026-04-30 추가, plan-audit CONDITIONAL GO 해소)
+
+| REQ | EARS 카테고리 | 매핑된 AC | 비고 |
+|---|---|---|---|
+| REQ-OBS-METRICS-001 (Sink interface 3 메서드) | Ubiquitous | AC-001, AC-002 | interface 정의 + 정적 검증 |
+| REQ-OBS-METRICS-002 (Counter / Histogram / Gauge handle) | Ubiquitous | AC-003, AC-004 | handle 동작 + 누적 |
+| REQ-OBS-METRICS-003 (Labels map[string]string) | Ubiquitous | AC-005, AC-018 | labels propagate + contract |
+| REQ-OBS-METRICS-004 (handle reuse — same name+labels = same handle) | Ubiquitous | AC-006 (신규 매핑) | sink.Counter("x", L1) == sink.Counter("x", L1) 검증 |
+| REQ-OBS-METRICS-005 (Labels static — handle 생성 후 mutate 금지) | Ubiquitous | AC-006 (신규 매핑), AC-013 | runtime mutate 시도 → no-op 또는 panic 차단 |
+| REQ-OBS-METRICS-006 (Counter monotonic) | Event-Driven | AC-007 | Inc/Add 후 expvar 값 증가 |
+| REQ-OBS-METRICS-007 (Histogram bucket 분류) | Event-Driven | AC-008 | Observe 후 bucket count 증가 |
+| REQ-OBS-METRICS-008 (Gauge Set/Add) | Event-Driven | AC-009 | Set 후 readback, Add 후 누적 |
+| REQ-OBS-METRICS-009 (env GOOSE_METRICS_ENABLED gating) | State-Driven | AC-010, AC-011 | true 시 expvar, false/unset 시 noop |
+| REQ-OBS-METRICS-010 (label cardinality 100 cap) | State-Driven | AC-012 | 101번째 unique combo drop + log |
+| REQ-OBS-METRICS-011 (concurrent emission race-free) | Ubiquitous | AC-014 | -race detector PASS |
+| REQ-OBS-METRICS-012 (PII 금지) | Unwanted | AC-015, AC-016 | label key/value PII grep 차단 |
+| REQ-OBS-METRICS-013 (panic isolation) | Unwanted | (간접) | sink panic 시 caller 전파 금지 — run phase 검증 |
+| REQ-OBS-METRICS-014 (외부 import 0건) | Unwanted | AC-017 | go.mod direct require 검증 |
+| REQ-OBS-METRICS-015 (zero-cost noop) | Optional | AC-018 (간접) | benchmark NFR-003 ≤10ns |
+| REQ-OBS-METRICS-016 (handle lifecycle 0 — GC만으로 정리) | Ubiquitous | AC-006 (신규 매핑) | Close() 메서드 부재 검증 + handle reuse 보장 |
+| REQ-OBS-METRICS-017 (metric name convention) | Optional | AC-013 (정적) | naming pattern grep |
+| REQ-OBS-METRICS-018 (label key naming) | Optional | AC-013 (정적) | snake_case 검증 |
+| REQ-OBS-METRICS-019 (Logger.Debug fallback option) | Optional | (informational) | TELEMETRY-001 partial fallback 시 사용 |
+| REQ-OBS-METRICS-020 (consumer SPEC contract) | Ubiquitous | AC-018 | TELEMETRY-001 alias / contract test |
+
+**커버리지 결론**: 모든 normative REQ (Optional/informational 제외) 는 최소 1개 AC 와 1:1 매핑. AC-006 이 REQ-004/005/016 세 REQ 를 동시 검증 (handle reuse 가 lifecycle 0 + Labels static 의 invariant 통합 검증).
+
+**plan-audit defect 해소**:
+- D1 (REQ-AC 매트릭스 부재): 본 §5.7 표 추가 (2026-04-30)
+- D2 (REQ-004/005/016 직접 매핑 부재): AC-006 에 다중 REQ 매핑 명시
+- D3 (AC-018 contract test 선택 → 필수): §5.6 본문 "선택" → "[필수]" 갱신
 
 ---
 

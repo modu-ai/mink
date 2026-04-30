@@ -48,8 +48,8 @@ func NewHybridPipeline(bm25 BM25Stage, vector VectorStage, rerank RerankStage) *
 		vector: vector,
 		rerank: rerank,
 		enabled: map[string]bool{
-			"bm25":    true,
-			"vector":  true,
+			"bm25":   true,
+			"vector": true,
 			"rerank": true,
 		},
 	}

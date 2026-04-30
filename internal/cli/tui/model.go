@@ -40,14 +40,14 @@ type DaemonClient interface {
 // @MX:ANCHOR This model manages all TUI state and implements tea.Model interface.
 type Model struct {
 	// Client connection
-	client      DaemonClient // Daemon client interface
-	daemonAddr  string       // Daemon address
+	client     DaemonClient // Daemon client interface
+	daemonAddr string       // Daemon address
 
 	// App integration
 	app AppInterface // Dispatcher integration (may be nil)
 
 	// Session state
-	sessionName string // Current session name
+	sessionName string        // Current session name
 	messages    []ChatMessage // Chat history
 
 	// UI components
@@ -119,4 +119,3 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 }
-

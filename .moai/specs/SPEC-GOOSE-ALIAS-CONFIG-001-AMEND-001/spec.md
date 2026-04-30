@@ -156,13 +156,16 @@ The `aliasconfig` package **shall** expose `ErrorCode(err error) string` returni
 
 근거: HOTRELOAD-001 §REQ-HOTRELOAD-033 와 정합 — reload 실패 시 호출자가 기존 map 보존 가능.
 
-#### REQ-AMEND-031 — LoadEntries backward graceful
+### 4.5 Optional Features
 
-**If** the parsed YAML uses the legacy flat `aliases: {alias: "provider/model"}` form, **then** `LoadEntries() (map[string]AliasEntry, error)` **shall** transparently lift each value into `AliasEntry{Canonical: "provider/model"}` with all extension fields zero-valued, returning the same logical content as the legacy form.
+#### REQ-AMEND-031 — LoadEntries backward graceful (재분류 — plan-audit 2026-04-30: Unwanted → Event-Driven)
+
+**When** `LoadEntries() (map[string]AliasEntry, error)` is invoked with a YAML file in legacy flat form (`aliases: {alias: "provider/model"}`), the method **shall** transparently lift each value into `AliasEntry{Canonical: "provider/model"}` with all extension fields zero-valued, returning the same logical content as the legacy form.
 
 근거: schema 확장이 backward-compat 보장. 기존 yaml 파일 그대로 동작.
 
-### 4.5 Optional Features
+(메모: 초기 작성 시 Unwanted 카테고리에 분류되었으나, "legacy form 감지 시 graceful lift"는 negative 패턴이 아닌 Event-Driven 정상 분기 동작이므로 §4.5 Optional 또는 §4.2 Event-Driven 으로 재분류. plan-audit 2026-04-30 권장에 따라 §4.5 Optional 직속으로 이동 — Optional 패턴이 "권장 동작" 의미를 가장 잘 표현.)
+
 
 #### REQ-AMEND-040 — Extended schema with metadata
 

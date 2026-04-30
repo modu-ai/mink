@@ -16,11 +16,11 @@ import (
 //
 // REQ-CREDPROXY-002: Agent API calls relayed through goose-proxy
 type ProxyConfig struct {
-	ListenAddr string               // Default: "127.0.0.1:18080"
-	Keyring    KeyringBackend       // OS keyring backend
-	Store      *ProviderStore       // Provider reference store
-	AuditWriter auditWriter         // Audit log writer
-	Logger     *zap.Logger          // Logger instance
+	ListenAddr  string         // Default: "127.0.0.1:18080"
+	Keyring     KeyringBackend // OS keyring backend
+	Store       *ProviderStore // Provider reference store
+	AuditWriter auditWriter    // Audit log writer
+	Logger      *zap.Logger    // Logger instance
 }
 
 // auditWriter is the interface for writing audit events.
@@ -31,11 +31,11 @@ type auditWriter interface {
 
 // auditEvent represents an audit event (matches internal/audit.AuditEvent).
 type auditEvent struct {
-	Timestamp time.Time              `json:"timestamp"`
-	Type      string                 `json:"type"`
-	Severity  string                 `json:"severity"`
-	Message   string                 `json:"message"`
-	Metadata  map[string]string      `json:"metadata,omitempty"`
+	Timestamp time.Time         `json:"timestamp"`
+	Type      string            `json:"type"`
+	Severity  string            `json:"severity"`
+	Message   string            `json:"message"`
+	Metadata  map[string]string `json:"metadata,omitempty"`
 }
 
 // Proxy is the credential injection proxy server.
@@ -254,9 +254,9 @@ func (p *Proxy) handleProxy(w http.ResponseWriter, r *http.Request) {
 	p.logAuditEvent("credential.accessed", "info",
 		fmt.Sprintf("Credential accessed for provider: %s", provider),
 		map[string]string{
-			"provider":  provider,
+			"provider":   provider,
 			"keyring_id": ref.KeyringID,
-			"host":      host,
+			"host":       host,
 		},
 	)
 

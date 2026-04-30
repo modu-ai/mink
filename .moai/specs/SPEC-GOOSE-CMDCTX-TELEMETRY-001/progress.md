@@ -9,7 +9,7 @@
 - Greenfield 여부: 부분적 — `internal/command/adapter/metrics.go` 신규, `adapter.go` / `adapter_test.go` / `race_test.go` 는 implemented FROZEN 자산을 amend
 - Branch base: feature/SPEC-CMDCTX-FOLLOWUPS-batch-plan (현재 브랜치, 작업 중)
 - Parent SPEC: SPEC-GOOSE-CMDCTX-001 (implemented v0.1.1, PR #52 — c018ec5 / 6593705) — 본 SPEC 이 v0.x.0 amendment 발생
-- Prerequisite SPEC (BLOCKER): SPEC-GOOSE-OBS-METRICS-001 (**TBD — 부재, 본 SPEC implementation 의 blocker**)
+- Prerequisite SPEC: SPEC-GOOSE-OBS-METRICS-001 (**planned, plan phase 완료 2026-04-30 commit b84506c — BLOCKER 해소 경로 확보. run phase 진입 후 implementation 시 BLOCKER 완전 해소**)
 - Sibling amendment SPEC (동일 base v0.1.1):
   - SPEC-GOOSE-CMDCTX-PERMISSIVE-ALIAS-001 (planned, P4)
   - SPEC-GOOSE-CMDCTX-HOTRELOAD-001 (TBD, 미작성)
@@ -25,7 +25,7 @@
     - `internal/` 의 Go 코드에서 `go.opentelemetry.io/otel`, `github.com/prometheus`, `expvar.`, `statsd` import 0건.
     - `go.mod` direct require 의 metrics 라이브러리 0건. OTel 패키지는 **indirect** 만 (connectrpc/otelconnect transit).
     - `.moai/specs/` 의 `metric*` / `telemetr*` / `observ*` SPEC 0건.
-    - **결론: 본 레포는 metrics 인프라를 도입한 적이 없다. 선행 SPEC `SPEC-GOOSE-OBS-METRICS-001` (TBD) 가 본 SPEC implementation 의 blocker.**
+    - **결론: 본 레포는 metrics 인프라를 도입한 적이 없으나, 선행 SPEC `SPEC-GOOSE-OBS-METRICS-001` plan phase 완료 (2026-04-30, commit b84506c). 20 REQ / 18 AC 명세 + stdlib expvar backend 결정. plan-auditor CONDITIONAL GO (REQ-AC 매트릭스 보강 후 run 진입 권장). run phase 완료 시 본 SPEC implementation BLOCKER 완전 해소.**
   - 부모 자산 확인 (read-only):
     - `internal/command/adapter/adapter.go:1-201` (PR #52 머지본, 본 SPEC 이 amend — Options 필드 추가, 6 메서드 instrument 호출 추가).
     - `internal/command/adapter/errors.go` (`ErrUnknownModel`, `ErrLoopControllerUnavailable` 정의 — error_type 라벨 분류 입력).
@@ -53,14 +53,14 @@
       - invariant/amendment 검증 (§5.3): 3개 (AC-016~018)
     - REQ-AC 매핑: 모든 REQ 가 1개 이상 AC 와 cross-reference (spec.md §5 본문 참고).
   - Risks:
-    - **R1 (🔴 높음/blocker)**: 선행 metrics 인프라 SPEC `SPEC-GOOSE-OBS-METRICS-001` 부재 → 본 SPEC implementation 불가. 권장 경로: prerequisite SPEC 별도 신규 작성. 임시 대안: §4.5 REQ-CMDCTX-TEL-018 (Logger.Debug fallback) — P3 우선순위에서만 권장.
+    - **R1 (🟡 중간/완화 — 2026-04-30 갱신)**: 선행 metrics 인프라 SPEC `SPEC-GOOSE-OBS-METRICS-001` plan 작성 완료 (b84506c). run phase 완료 시 BLOCKER 완전 해소. 임시 대안 §4.5 REQ-CMDCTX-TEL-018 (Logger.Debug fallback) 은 본 SPEC 우선 진행 시 P3 fallback 으로 유지.
     - R2 (중): CMDCTX-001 v0.x.0 amendment 가 sibling amendment SPEC 와 머지 충돌 가능 — sibling 먼저 머지되면 다음 minor 위에 본 SPEC amendment 발생.
     - R3 (중): emission overhead 가 hot path latency 에 영향 — nil sink fast-path (NFR-003 ≤ 10ns), non-nil sink 목표 (NFR-004 ≤ 200ns), run phase benchmark.
     - R4 (낮음): error_type cardinality 폭발 — 3-tier 분류 + AC-018 정적 검증.
     - R5 (낮음): sink panic 이 메서드 깨짐 — REQ-011 (defer recover) + AC-009.
     - R6 (낮음): WithContext shallow copy invariant — REQ-005 + AC-010.
-  - blocker:
-    - 본 SPEC 은 plan phase 완료. run phase 진입은 **prerequisite SPEC `SPEC-GOOSE-OBS-METRICS-001` 의 implemented status 충족 후** 또는 §4.5 REQ-CMDCTX-TEL-018 임시 대안만 부분 구현 (manager-spec 협의 필요).
+  - blocker (2026-04-30 갱신):
+    - 본 SPEC 은 plan phase 완료. run phase 진입은 **prerequisite SPEC `SPEC-GOOSE-OBS-METRICS-001` 의 run phase 완료 후** 권장 (plan 단계는 b84506c 에서 작성 완료, run 진입은 plan-auditor CONDITIONAL GO 보강 후 가능). 임시 대안 §4.5 REQ-CMDCTX-TEL-018 (Logger.Debug fallback) 은 prereq run 지연 시 P3 partial implementation 후보.
 
 ### 다음 단계 (run phase 진입 조건)
 

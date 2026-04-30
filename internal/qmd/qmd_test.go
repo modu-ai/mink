@@ -23,9 +23,9 @@ func TestDocumentValidation(t *testing.T) {
 		{
 			name: "valid document",
 			doc: Document{
-				ID:      "doc1",
-				Path:    "/path/to/doc.md",
-				Content: "test content",
+				ID:       "doc1",
+				Path:     "/path/to/doc.md",
+				Content:  "test content",
 				Modified: time.Now(),
 			},
 			wantErr: false,

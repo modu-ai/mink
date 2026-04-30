@@ -11,10 +11,10 @@ import (
 
 // Exit codes for testing
 const (
-	ExitOK         = 0
-	ExitError      = 1
-	ExitUsage      = 2
-	ExitConfig     = 78
+	ExitOK          = 0
+	ExitError       = 1
+	ExitUsage       = 2
+	ExitConfig      = 78
 	ExitUnavailable = 69
 )
 
@@ -29,9 +29,9 @@ func ExecuteWithCommand(cmd *cobra.Command) int {
 // mockConfigStore is a mock implementation of ConfigStore for testing.
 // @MX:ANCHOR This mock enables testing without real config persistence.
 type mockConfigStore struct {
-	config map[string]string
-	getErr error
-	setErr error
+	config  map[string]string
+	getErr  error
+	setErr  error
 	listErr error
 }
 
@@ -182,11 +182,11 @@ func TestConfigSetCommand(t *testing.T) {
 		verifyStore func(*testing.T, *mockConfigStore)
 	}{
 		{
-			name: "set key value",
-			store: newMockConfigStore(),
-			args: []string{"set", "test.key", "test-value"},
+			name:        "set key value",
+			store:       newMockConfigStore(),
+			args:        []string{"set", "test.key", "test-value"},
 			expectedOut: "Config updated: test.key = test-value\n",
-			exitCode: 0,
+			exitCode:    0,
 			verifyStore: func(t *testing.T, store *mockConfigStore) {
 				if val, ok := store.config["test.key"]; !ok || val != "test-value" {
 					t.Errorf("key not set correctly: got '%s'", val)
@@ -194,16 +194,16 @@ func TestConfigSetCommand(t *testing.T) {
 			},
 		},
 		{
-			name:        "set without args",
-			store:       newMockConfigStore(),
-			args:        []string{"set"},
-			exitCode:    ExitError,
+			name:     "set without args",
+			store:    newMockConfigStore(),
+			args:     []string{"set"},
+			exitCode: ExitError,
 		},
 		{
-			name:        "set with missing value",
-			store:       newMockConfigStore(),
-			args:        []string{"set", "key"},
-			exitCode:    ExitError,
+			name:     "set with missing value",
+			store:    newMockConfigStore(),
+			args:     []string{"set", "key"},
+			exitCode: ExitError,
 		},
 	}
 

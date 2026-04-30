@@ -32,34 +32,34 @@ func TestPlanCommand_Metadata(t *testing.T) {
 // TestPlanCommand_Status verifies /plan and /plan status return current state.
 func TestPlanCommand_Status(t *testing.T) {
 	tests := []struct {
-		name         string
+		name           string
 		planModeActive bool
-		args         []string
-		wantText     string
+		args           []string
+		wantText       string
 	}{
 		{
-			name:         "no args when inactive",
+			name:           "no args when inactive",
 			planModeActive: false,
-			args:         nil,
-			wantText:     "plan mode: off",
+			args:           nil,
+			wantText:       "plan mode: off",
 		},
 		{
-			name:         "no args when active",
+			name:           "no args when active",
 			planModeActive: true,
-			args:         nil,
-			wantText:     "plan mode: on",
+			args:           nil,
+			wantText:       "plan mode: on",
 		},
 		{
-			name:         "status subcommand when inactive",
+			name:           "status subcommand when inactive",
 			planModeActive: false,
-			args:         []string{"status"},
-			wantText:     "plan mode: off",
+			args:           []string{"status"},
+			wantText:       "plan mode: off",
 		},
 		{
-			name:         "status subcommand when active",
+			name:           "status subcommand when active",
 			planModeActive: true,
-			args:         []string{"status"},
-			wantText:     "plan mode: on",
+			args:           []string{"status"},
+			wantText:       "plan mode: on",
 		},
 	}
 
@@ -82,22 +82,22 @@ func TestPlanCommand_Status(t *testing.T) {
 // TestPlanCommand_On verifies /plan on activates plan mode.
 func TestPlanCommand_On(t *testing.T) {
 	tests := []struct {
-		name         string
+		name          string
 		initialActive bool
-		wantText     string
-		wantFinal    bool
+		wantText      string
+		wantFinal     bool
 	}{
 		{
-			name:         "activate when inactive",
+			name:          "activate when inactive",
 			initialActive: false,
-			wantText:     "plan mode: on",
-			wantFinal:    true,
+			wantText:      "plan mode: on",
+			wantFinal:     true,
 		},
 		{
-			name:         "already active",
+			name:          "already active",
 			initialActive: true,
-			wantText:     "plan mode: on (already active)",
-			wantFinal:    true,
+			wantText:      "plan mode: on (already active)",
+			wantFinal:     true,
 		},
 	}
 
@@ -138,22 +138,22 @@ func TestPlanCommand_On_CaseInsensitive(t *testing.T) {
 // TestPlanCommand_Off verifies /plan off deactivates plan mode.
 func TestPlanCommand_Off(t *testing.T) {
 	tests := []struct {
-		name         string
+		name          string
 		initialActive bool
-		wantText     string
-		wantFinal    bool
+		wantText      string
+		wantFinal     bool
 	}{
 		{
-			name:         "deactivate when active",
+			name:          "deactivate when active",
 			initialActive: true,
-			wantText:     "plan mode: off",
-			wantFinal:    false,
+			wantText:      "plan mode: off",
+			wantFinal:     false,
 		},
 		{
-			name:         "already inactive",
+			name:          "already inactive",
 			initialActive: false,
-			wantText:     "plan mode: off (already inactive)",
-			wantFinal:    false,
+			wantText:      "plan mode: off (already inactive)",
+			wantFinal:     false,
 		},
 	}
 
@@ -195,22 +195,22 @@ func TestPlanCommand_Off_CaseInsensitive(t *testing.T) {
 // TestPlanCommand_Toggle verifies toggle inverts current state.
 func TestPlanCommand_Toggle(t *testing.T) {
 	tests := []struct {
-		name         string
+		name          string
 		initialActive bool
-		wantText     string
-		wantFinal    bool
+		wantText      string
+		wantFinal     bool
 	}{
 		{
-			name:         "toggle off to on",
+			name:          "toggle off to on",
 			initialActive: false,
-			wantText:     "plan mode: on",
-			wantFinal:    true,
+			wantText:      "plan mode: on",
+			wantFinal:     true,
 		},
 		{
-			name:         "toggle on to off",
+			name:          "toggle on to off",
 			initialActive: true,
-			wantText:     "plan mode: off",
-			wantFinal:    false,
+			wantText:      "plan mode: off",
+			wantFinal:     false,
 		},
 	}
 
@@ -271,9 +271,9 @@ func TestPlanCommand_NilSctx(t *testing.T) {
 // Used to test graceful degradation when PlanModeSetter is not available.
 type mockSctxNoSetter struct{}
 
-func (m *mockSctxNoSetter) OnClear() error { return nil }
+func (m *mockSctxNoSetter) OnClear() error                        { return nil }
 func (m *mockSctxNoSetter) OnModelChange(command.ModelInfo) error { return nil }
-func (m *mockSctxNoSetter) OnCompactRequest(int) error { return nil }
+func (m *mockSctxNoSetter) OnCompactRequest(int) error            { return nil }
 func (m *mockSctxNoSetter) ResolveModelAlias(string) (*command.ModelInfo, error) {
 	return nil, command.ErrUnknownModel
 }
@@ -296,7 +296,7 @@ func TestPlanCommand_NoPlanModeSetter(t *testing.T) {
 // TestPlanCommand_ExecuteNeverErrors verifies all Execute branches return nil error.
 func TestPlanCommand_ExecuteNeverErrors(t *testing.T) {
 	tests := []struct {
-		name string
+		name  string
 		setup func() (context.Context, command.Args)
 	}{
 		{

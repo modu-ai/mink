@@ -69,8 +69,8 @@ func TestPolicyReloader_DetectsFileChange(t *testing.T) {
 
 func TestPolicyReloader_EmptyPath(t *testing.T) {
 	policy := &SecurityPolicy{
-		WritePaths:   []string{"./**"},
-		ReadPaths:    []string{"./**"},
+		WritePaths:    []string{"./**"},
+		ReadPaths:     []string{"./**"},
 		BlockedAlways: []string{},
 	}
 	engine := NewDecisionEngine(policy)

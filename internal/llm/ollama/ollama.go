@@ -134,7 +134,7 @@ func (p *Provider) Capabilities(ctx context.Context, model string) (llm.Capabili
 	// Convert to capabilities
 	caps := llm.Capabilities{
 		MaxContextTokens: showResp.Details.ContextLength,
-		SupportsTools:    true, // Ollama supports tools
+		SupportsTools:    true,  // Ollama supports tools
 		SupportsJSON:     false, // Ollama does not have native JSON mode
 		Family:           showResp.Details.Family,
 	}

@@ -63,7 +63,7 @@ func TestNewAgentRunner(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "missing factory",
+			name: "missing factory",
 			cfg: AgentRunnerConfig{
 				Logger:     zap.NewNop(),
 				MaxReplans: 2,
@@ -362,9 +362,9 @@ func TestTaskState_String(t *testing.T) {
 // TestParseCritiqueOutput tests the critique response parser.
 func TestParseCritiqueOutput(t *testing.T) {
 	tests := []struct {
-		name   string
-		input  string
-		want   *ReflectResult
+		name  string
+		input string
+		want  *ReflectResult
 	}{
 		{
 			name:  "valid output",
@@ -477,7 +477,7 @@ func TestNewSelfCritiqueHook(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "missing LLMCall",
+			name: "missing LLMCall",
 			cfg: SelfCritiqueConfig{
 				LLMCall: nil,
 				Logger:  zap.NewNop(),
@@ -709,8 +709,7 @@ func TestRunTask_ReflectHookError(t *testing.T) {
 
 // Helper function to check if a string contains a substring.
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && (
-		s[:len(substr)] == substr ||
+	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && (s[:len(substr)] == substr ||
 		s[len(s)-len(substr):] == substr ||
 		containsMiddle(s, substr)))
 }

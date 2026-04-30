@@ -230,11 +230,11 @@ func TestRetryPolicy_NextDelay(t *testing.T) {
 		expectedMinDelay time.Duration
 		expectedMaxDelay time.Duration
 	}{
-		{0, 100 * time.Millisecond, 100 * time.Millisecond},     // 100ms * 2^0 = 100ms
-		{1, 200 * time.Millisecond, 200 * time.Millisecond},     // 100ms * 2^1 = 200ms
-		{2, 400 * time.Millisecond, 400 * time.Millisecond},     // 100ms * 2^2 = 400ms
-		{3, 500 * time.Millisecond, 500 * time.Millisecond},     // 100ms * 2^3 = 800ms → capped at 500ms
-		{4, 500 * time.Millisecond, 500 * time.Millisecond},     // Capped at MaxDelay
+		{0, 100 * time.Millisecond, 100 * time.Millisecond}, // 100ms * 2^0 = 100ms
+		{1, 200 * time.Millisecond, 200 * time.Millisecond}, // 100ms * 2^1 = 200ms
+		{2, 400 * time.Millisecond, 400 * time.Millisecond}, // 100ms * 2^2 = 400ms
+		{3, 500 * time.Millisecond, 500 * time.Millisecond}, // 100ms * 2^3 = 800ms → capped at 500ms
+		{4, 500 * time.Millisecond, 500 * time.Millisecond}, // Capped at MaxDelay
 	}
 
 	for _, tt := range tests {

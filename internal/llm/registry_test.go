@@ -88,7 +88,7 @@ func TestRegistry_DefaultNotConfigured(t *testing.T) {
 func TestRegistry_DefaultNotFound(t *testing.T) {
 	config := LLMConfig{
 		DefaultProvider: "nonexistent",
-		Providers:      map[string]ProviderConfig{},
+		Providers:       map[string]ProviderConfig{},
 	}
 
 	_, err := NewRegistryFromConfig(config)
@@ -122,4 +122,3 @@ func TestRegistry_SetDefault(t *testing.T) {
 		t.Errorf("expected default 'test', got %q", defaultProvider.Name())
 	}
 }
-

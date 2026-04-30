@@ -22,10 +22,10 @@ type LLMError interface {
 
 // BaseLLMError provides common implementation for LLM errors.
 type BaseLLMError struct {
-	Msg        string
-	Err        error
+	Msg         string
+	Err         error
 	IsTemporary bool
-	TypeName   string
+	TypeName    string
 }
 
 func (e *BaseLLMError) Error() string {
@@ -59,9 +59,9 @@ type ErrRateLimited struct {
 func NewErrRateLimited(message string, retryAfter string) *ErrRateLimited {
 	return &ErrRateLimited{
 		BaseLLMError: &BaseLLMError{
-			Msg:        message,
+			Msg:         message,
 			IsTemporary: true,
-			TypeName:   "rate_limited",
+			TypeName:    "rate_limited",
 		},
 		RetryAfter: retryAfter,
 	}
@@ -81,9 +81,9 @@ type ErrContextTooLong struct {
 func NewErrContextTooLong(message string, maxTokens, providedTokens int) *ErrContextTooLong {
 	return &ErrContextTooLong{
 		BaseLLMError: &BaseLLMError{
-			Msg:        message,
+			Msg:         message,
 			IsTemporary: false,
-			TypeName:   "context_too_long",
+			TypeName:    "context_too_long",
 		},
 		MaxTokens:      maxTokens,
 		ProvidedTokens: providedTokens,
@@ -102,9 +102,9 @@ type ErrServerUnavailable struct {
 func NewErrServerUnavailable(message string, statusCode int) *ErrServerUnavailable {
 	return &ErrServerUnavailable{
 		BaseLLMError: &BaseLLMError{
-			Msg:        message,
+			Msg:         message,
 			IsTemporary: true,
-			TypeName:   "server_unavailable",
+			TypeName:    "server_unavailable",
 		},
 		StatusCode: statusCode,
 	}
@@ -122,9 +122,9 @@ type ErrInvalidRequest struct {
 func NewErrInvalidRequest(message string, statusCode int) *ErrInvalidRequest {
 	return &ErrInvalidRequest{
 		BaseLLMError: &BaseLLMError{
-			Msg:        message,
+			Msg:         message,
 			IsTemporary: false,
-			TypeName:   "invalid_request",
+			TypeName:    "invalid_request",
 		},
 		StatusCode: statusCode,
 	}
@@ -142,9 +142,9 @@ type ErrUnauthorized struct {
 func NewErrUnauthorized(message string, statusCode int) *ErrUnauthorized {
 	return &ErrUnauthorized{
 		BaseLLMError: &BaseLLMError{
-			Msg:        message,
+			Msg:         message,
 			IsTemporary: false,
-			TypeName:   "unauthorized",
+			TypeName:    "unauthorized",
 		},
 		StatusCode: statusCode,
 	}
@@ -162,9 +162,9 @@ type ErrModelNotFound struct {
 func NewErrModelNotFound(model string) *ErrModelNotFound {
 	return &ErrModelNotFound{
 		BaseLLMError: &BaseLLMError{
-			Msg:        fmt.Sprintf("model %q not found", model),
+			Msg:         fmt.Sprintf("model %q not found", model),
 			IsTemporary: false,
-			TypeName:   "model_not_found",
+			TypeName:    "model_not_found",
 		},
 		Model: model,
 	}
@@ -182,10 +182,10 @@ type ErrMalformedStream struct {
 func NewErrMalformedStream(line string, err error) *ErrMalformedStream {
 	return &ErrMalformedStream{
 		BaseLLMError: &BaseLLMError{
-			Msg:        fmt.Sprintf("malformed stream line: %q", line),
-			Err:        err,
+			Msg:         fmt.Sprintf("malformed stream line: %q", line),
+			Err:         err,
 			IsTemporary: false,
-			TypeName:   "malformed_stream",
+			TypeName:    "malformed_stream",
 		},
 		Line: line,
 	}
@@ -203,9 +203,9 @@ type ErrInvalidConfig struct {
 func NewErrInvalidConfig(message, configKey string) *ErrInvalidConfig {
 	return &ErrInvalidConfig{
 		BaseLLMError: &BaseLLMError{
-			Msg:        message,
+			Msg:         message,
 			IsTemporary: false,
-			TypeName:   "invalid_config",
+			TypeName:    "invalid_config",
 		},
 		ConfigKey: configKey,
 	}
@@ -246,9 +246,9 @@ type ErrServerUnexpected struct {
 func NewErrServerUnexpected(message string) *ErrServerUnexpected {
 	return &ErrServerUnexpected{
 		BaseLLMError: &BaseLLMError{
-			Msg:        message,
+			Msg:         message,
 			IsTemporary: true,
-			TypeName:   "server_unexpected",
+			TypeName:    "server_unexpected",
 		},
 	}
 }
