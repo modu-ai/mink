@@ -1,7 +1,9 @@
 ## SPEC-GOOSE-ALIAS-CONFIG-001 Progress
 
 - Started: 2026-04-27 (plan phase)
-- Status: planned
+- **Status: ✅ COMPLETED 2026-04-27** (구현 완료, spec.md frontmatter `completed: 2026-04-27`와 정합)
+- **Recovery date: 2026-04-30** (메타 정합성 정정 — 기존 'planned' 표기는 progress.md 갱신 누락이며, 실제 구현은 `internal/command/adapter/aliasconfig/`에 loader.go + validate_test.go + integration_test.go + loader_test.go + loader_p3_test.go 5종 파일로 완료)
+- **잔여 개선 작업**: SPEC-GOOSE-ALIAS-CONFIG-001-AMEND-001 (별도 신설, 2026-04-30 사용자 결정)
 - Mode: TDD (quality.yaml development_mode=tdd 가정 — run phase 진입 시 재확인)
 - Harness: standard (file_count<10 예상, 단일 Go domain, 보안/결제 영역 아님)
 - Scale-Based Mode: Standard

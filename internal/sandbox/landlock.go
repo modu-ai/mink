@@ -178,11 +178,11 @@ func (s *landlockSandbox) Activate(policy *fsaccess.SecurityPolicy) error {
 	// Add default safe paths (required for basic process operation)
 	// These are paths that almost all processes need access to
 	defaultPaths := []string{
-		"/dev/null",      // For null device access
-		"/dev/zero",      // For zero device access
-		"/dev/urandom",   // For random number generation
-		"/tmp",           // For temporary files
-		"/var/tmp",       // For temporary files
+		"/dev/null",    // For null device access
+		"/dev/zero",    // For zero device access
+		"/dev/urandom", // For random number generation
+		"/tmp",         // For temporary files
+		"/var/tmp",     // For temporary files
 	}
 
 	for _, path := range defaultPaths {
@@ -225,12 +225,12 @@ func (s *landlockSandbox) Activate(policy *fsaccess.SecurityPolicy) error {
 		audit.SeverityInfo,
 		"Linux Landlock sandbox activated with real kernel-level enforcement",
 		map[string]string{
-			"abi_version":     fmt.Sprintf("%d", s.abiVersion),
-			"read_paths":      fmt.Sprintf("%d", len(policy.ReadPaths)),
-			"write_paths":     fmt.Sprintf("%d", len(policy.WritePaths)),
-			"blocked_always":  fmt.Sprintf("%d", len(policy.BlockedAlways)),
-			"enforcement":     "kernel",
-			"stub_mode":       "false",
+			"abi_version":    fmt.Sprintf("%d", s.abiVersion),
+			"read_paths":     fmt.Sprintf("%d", len(policy.ReadPaths)),
+			"write_paths":    fmt.Sprintf("%d", len(policy.WritePaths)),
+			"blocked_always": fmt.Sprintf("%d", len(policy.BlockedAlways)),
+			"enforcement":    "kernel",
+			"stub_mode":      "false",
 		},
 	))
 

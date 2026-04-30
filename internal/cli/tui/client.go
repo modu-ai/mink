@@ -146,8 +146,8 @@ func RunWithApp(app AppInterface, addr string, noColor bool) error {
 
 	// Create and start program
 	p := tea.NewProgram(model,
-		tea.WithAltScreen(),        // Use alternate screen
-		tea.WithMouseCellMotion(),  // Enable mouse support
+		tea.WithAltScreen(),       // Use alternate screen
+		tea.WithMouseCellMotion(), // Enable mouse support
 	)
 
 	if _, err := p.Run(); err != nil {

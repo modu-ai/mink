@@ -120,7 +120,6 @@ func (r *PolicyReloader) reload() error {
 		return fmt.Errorf("load policy failed: %w", err)
 	}
 
-
 	r.mu.Lock()
 	r.engine.UpdatePolicy(policy)
 	r.modTime = time.Now()

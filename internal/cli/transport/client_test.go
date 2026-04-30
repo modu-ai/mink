@@ -11,9 +11,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	_ "google.golang.org/grpc/resolver/passthrough"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
-	_ "google.golang.org/grpc/resolver/passthrough"
 )
 
 // mockDaemonServer is a mock implementation of DaemonService for testing.
@@ -66,11 +66,11 @@ func bufDialer(lis *bufconn.Listener) func(context.Context, string) (net.Conn, e
 
 func TestNewDaemonClient(t *testing.T) {
 	tests := []struct {
-		name      string
-		addr      string
-		timeout   time.Duration
-		wantErr   bool
-		errIs     error
+		name    string
+		addr    string
+		timeout time.Duration
+		wantErr bool
+		errIs   error
 	}{
 		{
 			name:    "valid address",
@@ -208,19 +208,19 @@ func TestDaemonClient_Ping(t *testing.T) {
 
 func TestDaemonClient_ChatStream(t *testing.T) {
 	tests := []struct {
-		name    string
+		name     string
 		messages []Message
-		wantErr bool
+		wantErr  bool
 	}{
 		{
-			name:    "successful stream",
+			name:     "successful stream",
 			messages: []Message{{Role: "user", Content: "Hello"}},
-			wantErr: false,
+			wantErr:  false,
 		},
 		{
-			name:    "empty messages",
+			name:     "empty messages",
 			messages: []Message{},
-			wantErr: true,
+			wantErr:  true,
 		},
 	}
 	for _, tt := range tests {
@@ -321,10 +321,10 @@ func TestDaemonClient_Close(t *testing.T) {
 	// Create client
 	dialer := bufDialer(lis)
 	conn, err := grpc.NewClient(
-				"passthrough:///bufnet",
-				grpc.WithContextDialer(dialer),
-				grpc.WithTransportCredentials(insecure.NewCredentials()),
-			)
+		"passthrough:///bufnet",
+		grpc.WithContextDialer(dialer),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
 	if err != nil {
 		t.Fatalf("failed to dial mock server: %v", err)
 	}

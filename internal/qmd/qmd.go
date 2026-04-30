@@ -60,11 +60,11 @@ func (q *Query) Validate() error {
 
 // Result represents a single search result with relevance scores.
 type Result struct {
-	DocumentID string // ID of the matching document
-	Path       string // Path to the document
-	Content    string // Snippet of matching content
+	DocumentID string  // ID of the matching document
+	Path       string  // Path to the document
+	Content    string  // Snippet of matching content
 	Score      float64 // Final relevance score (after rerank)
-	Source     string // Source stage: "bm25", "vector", or "rerank"
+	Source     string  // Source stage: "bm25", "vector", or "rerank"
 }
 
 // IndexStats represents index statistics.

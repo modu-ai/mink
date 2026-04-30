@@ -154,9 +154,9 @@ func loadAliasConfig(aliasFile string, strict bool, registry *router.ProviderReg
 }
 
 var (
-	appOnce    sync.Once
+	appOnce     sync.Once
 	appInstance *App
-	initErr    error
+	initErr     error
 )
 
 // InitApp creates or returns the singleton App instance.

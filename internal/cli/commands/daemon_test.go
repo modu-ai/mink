@@ -59,11 +59,11 @@ func TestNewDaemonCommand(t *testing.T) {
 // TestDaemonStatusCommand verifies the status subcommand behavior.
 func TestDaemonStatusCommand(t *testing.T) {
 	tests := []struct {
-		name        string
-		client      *mockPingClient
-		args        []string
-		exitCode    int
-		verifyOut   func(*testing.T, string)
+		name      string
+		client    *mockPingClient
+		args      []string
+		exitCode  int
+		verifyOut func(*testing.T, string)
 	}{
 		{
 			name:     "daemon is running",

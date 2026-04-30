@@ -214,12 +214,12 @@ func TestQuery_SortsByTimestamp(t *testing.T) {
 	for _, event := range events {
 		data, _ := json.Marshal(event)
 		if _, err := file.Write(append(data, '\n')); err != nil {
-				t.Fatalf("Failed to write to log file: %v", err)
-			}
+			t.Fatalf("Failed to write to log file: %v", err)
+		}
 	}
 	if err := file.Close(); err != nil {
-				t.Fatalf("Failed to close log file: %v", err)
-			}
+		t.Fatalf("Failed to close log file: %v", err)
+	}
 
 	// Act: Query all events
 	result, err := Query(tmpDir, QueryOptions{})

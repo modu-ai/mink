@@ -40,8 +40,8 @@ type KeyringBackend interface {
 // @MX:NOTE: [AUTO] File-based keyring for testing without CGO dependencies
 // @MX:TEST: Use mockFileKeyring in tests to avoid OS keyring dependencies
 type fileKeyring struct {
-	mu   sync.RWMutex
-	dir  string
+	mu      sync.RWMutex
+	dir     string
 	secrets map[string]map[string][]byte // service -> key -> secret
 }
 
@@ -61,7 +61,7 @@ func newFileKeyring(dir string) (*fileKeyring, error) {
 	}
 
 	fk := &fileKeyring{
-		dir:  dir,
+		dir:     dir,
 		secrets: make(map[string]map[string][]byte),
 	}
 

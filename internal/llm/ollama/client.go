@@ -92,10 +92,10 @@ func newHTTPClient(baseURL string) *httpClient {
 
 // chatRequest is the Ollama /api/chat request format.
 type chatRequest struct {
-	Model    string            `json:"model"`
-	Messages []message         `json:"messages"`
-	Stream   bool              `json:"stream"`
-	Options  requestOptions    `json:"options,omitempty"`
+	Model    string         `json:"model"`
+	Messages []message      `json:"messages"`
+	Stream   bool           `json:"stream"`
+	Options  requestOptions `json:"options,omitempty"`
 }
 
 // message is the Ollama message format.
@@ -113,10 +113,10 @@ type requestOptions struct {
 
 // chatResponse is the non-streaming Ollama /api/chat response format.
 type chatResponse struct {
-	Message              responseMessage `json:"message"`
-	Done                 bool            `json:"done"`
-	PromptEvalCount      int             `json:"prompt_eval_count"`
-	EvalCount            int             `json:"eval_count"`
+	Message         responseMessage `json:"message"`
+	Done            bool            `json:"done"`
+	PromptEvalCount int             `json:"prompt_eval_count"`
+	EvalCount       int             `json:"eval_count"`
 }
 
 // responseMessage is the Ollama message format in responses.
@@ -127,28 +127,28 @@ type responseMessage struct {
 
 // chatStreamLine is a single line in the streaming Ollama /api/chat response.
 type chatStreamLine struct {
-	Message              responseMessage `json:"message"`
-	Done                 bool            `json:"done"`
-	PromptEvalCount      int             `json:"prompt_eval_count,omitempty"`
-	EvalCount            int             `json:"eval_count,omitempty"`
+	Message         responseMessage `json:"message"`
+	Done            bool            `json:"done"`
+	PromptEvalCount int             `json:"prompt_eval_count,omitempty"`
+	EvalCount       int             `json:"eval_count,omitempty"`
 }
 
 // showResponse is the Ollama /api/show response format.
 type showResponse struct {
-	License  string       `json:"license"`
+	License   string       `json:"license"`
 	Modelfile string       `json:"modelfile"`
-	Details  modelDetails `json:"details"`
+	Details   modelDetails `json:"details"`
 }
 
 // modelDetails contains model metadata.
 type modelDetails struct {
-	ParentModel     string `json:"parent_model"`
-	Format          string `json:"format"`
-	Family          string `json:"family"`
-	Families       []string `json:"families"`
-	ParameterSize   string `json:"parameter_size"`
-	QuantizationLevel string `json:"quantization_level"`
-	ContextLength   int    `json:"context_length"`
+	ParentModel       string   `json:"parent_model"`
+	Format            string   `json:"format"`
+	Family            string   `json:"family"`
+	Families          []string `json:"families"`
+	ParameterSize     string   `json:"parameter_size"`
+	QuantizationLevel string   `json:"quantization_level"`
+	ContextLength     int      `json:"context_length"`
 }
 
 // PostChat performs a non-streaming chat completion request.

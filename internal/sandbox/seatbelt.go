@@ -87,7 +87,7 @@ func (s *seatbeltSandbox) Activate(policy *fsaccess.SecurityPolicy) error {
 			audit.SeverityCritical,
 			"Sandbox activation failed: profile validation error",
 			map[string]string{
-				"error": err.Error(),
+				"error":   err.Error(),
 				"profile": profile,
 			},
 		))
@@ -162,8 +162,8 @@ func (s *seatbeltSandbox) generateSBPLProfile(policy *fsaccess.SecurityPolicy) (
 		"/proc",
 		"/sys",
 		"/dev",
-		"/.ssh",                // Block root SSH
-		"/private/etc",         // macOS /etc is symlink to /private/etc
+		"/.ssh",        // Block root SSH
+		"/private/etc", // macOS /etc is symlink to /private/etc
 		"/private/var",
 	}
 

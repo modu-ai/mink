@@ -37,10 +37,10 @@ func TestMessage_Metadata(t *testing.T) {
 		Role:    "user",
 		Content: "test",
 		Metadata: MessageMetadata{
-			Timestamp:   now,
-			TokenCount:  10,
-			ModelName:   "test-model",
-			ResponseID:  "resp-123",
+			Timestamp:  now,
+			TokenCount: 10,
+			ModelName:  "test-model",
+			ResponseID: "resp-123",
 		},
 	}
 

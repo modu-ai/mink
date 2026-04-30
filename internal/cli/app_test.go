@@ -292,15 +292,15 @@ func TestApp_CommandProcessing(t *testing.T) {
 			expectPrompt: "hello world",
 		},
 		{
-			name:         "slash help",
-			input:        "/help",
-			expectedKind: command.ProcessLocal,
+			name:           "slash help",
+			input:          "/help",
+			expectedKind:   command.ProcessLocal,
 			expectMessages: 1, // /help returns local reply
 		},
 		{
-			name:         "unknown slash command",
-			input:        "/unknown",
-			expectedKind: command.ProcessLocal,
+			name:           "unknown slash command",
+			input:          "/unknown",
+			expectedKind:   command.ProcessLocal,
 			expectMessages: 1, // unknown command returns error message
 		},
 	}

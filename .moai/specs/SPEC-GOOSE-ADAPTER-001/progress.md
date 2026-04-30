@@ -1,6 +1,9 @@
 ## SPEC-GOOSE-ADAPTER-001 Progress
 
 - Started: 2026-04-24
+- **Status: ✅ COMPLETED 2026-04-27** (M0~M5 전수 GREEN, AC-001~012 ✓, Round 1+Round 2 합계 ~6,450 LOC, 10 commits, spec.md frontmatter `completed: 2026-04-27`와 정합)
+- **Recovery date: 2026-04-30** (메타 정합성 정정 — ROADMAP/IMPLEMENTATION-ORDER 'Round 2 진행 중' 표기는 잘못된 상태이며, 실제는 Phase 2A/2B/2.X/2.Y/2.Z 모두 완료)
+- **잔여 개선 작업**: SPEC-GOOSE-ADAPTER-001-AMEND-001 (별도 신설 — deferred AC-016 JSON mode + AC-017 UserID forwarding, 2026-04-30 사용자 결정)
 - Worktree: /Users/goos/.moai/worktrees/goose/SPEC-GOOSE-ADAPTER-001
 - Branch: feature/SPEC-GOOSE-ADAPTER-001
 - Base commit: 103803b (main)

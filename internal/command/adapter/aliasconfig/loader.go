@@ -8,8 +8,8 @@ import (
 	"io/fs"
 	"log"
 	"os"
-	"slices"
 	"path/filepath"
+	"slices"
 
 	"gopkg.in/yaml.v3"
 

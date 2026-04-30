@@ -39,13 +39,13 @@ type Agent interface {
 // defaultAgent is the standard Agent implementation.
 // @MX:NOTE: [SPEC-GOOSE-AGENT-001] Core agent runtime implementation
 type defaultAgent struct {
-	spec        *AgentSpec
-	provider    provider.Provider
-	observer    InteractionObserver
-	toolInvoker ToolInvoker
+	spec         *AgentSpec
+	provider     provider.Provider
+	observer     InteractionObserver
+	toolInvoker  ToolInvoker
 	conversation *Conversation
 	capabilities provider.Capabilities
-	logger      *slog.Logger
+	logger       *slog.Logger
 }
 
 // AgentOption is a functional option for configuring Agent creation.
@@ -69,12 +69,12 @@ func NewAgent(spec *AgentSpec, llmProvider provider.Provider, observer Interacti
 	}
 
 	agent := &defaultAgent{
-		spec:        spec,
-		provider:    llmProvider,
-		observer:    observer,
-		toolInvoker: &NoopToolInvoker{},
+		spec:         spec,
+		provider:     llmProvider,
+		observer:     observer,
+		toolInvoker:  &NoopToolInvoker{},
 		conversation: NewConversation(),
-		logger:      slog.Default(), // Default to slog.Default()
+		logger:       slog.Default(), // Default to slog.Default()
 	}
 
 	// Apply functional options
@@ -164,21 +164,21 @@ func (a *defaultAgent) Ask(ctx context.Context, userMsg string) (string, error) 
 		Role:    "assistant",
 		Content: responseText,
 		Metadata: MessageMetadata{
-			Timestamp:   time.Now(),
-			TokenCount:  resp.Usage.OutputTokens,
-			ModelName:   modelName,
-			ResponseID:  resp.ResponseID,
+			Timestamp:  time.Now(),
+			TokenCount: resp.Usage.OutputTokens,
+			ModelName:  modelName,
+			ResponseID: resp.ResponseID,
 		},
 	}
 	a.conversation.Append(assistantMessage)
 
 	// Notify observer (REQ-AG-014)
 	a.notifyObserver(Interaction{
-		Timestamp:     time.Now(),
-		AgentName:     a.spec.Name,
-		UserMsg:       userMsg,
-		AssistantMsg:  responseText,
-		Err:           nil,
+		Timestamp:    time.Now(),
+		AgentName:    a.spec.Name,
+		UserMsg:      userMsg,
+		AssistantMsg: responseText,
+		Err:          nil,
 		TokenUsage: TokenUsage{
 			InputTokens:  resp.Usage.InputTokens,
 			OutputTokens: resp.Usage.OutputTokens,

@@ -80,8 +80,8 @@ func TestProxyClientHTTPClient(t *testing.T) {
 		// Verify the request is being proxied
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write([]byte("proxied")); err != nil {
-				t.Fatalf("Failed to write response: %v", err)
-			}
+			t.Fatalf("Failed to write response: %v", err)
+		}
 	}))
 	defer proxyServer.Close()
 
@@ -188,8 +188,8 @@ func TestProxyClientProxiedRequest(t *testing.T) {
 		// Verify the request was received (Host header might be empty in test proxy)
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write([]byte("response from target")); err != nil {
-				t.Fatalf("Failed to write response: %v", err)
-			}
+			t.Fatalf("Failed to write response: %v", err)
+		}
 	}))
 	defer proxyServer.Close()
 
@@ -221,8 +221,8 @@ func TestProxyClientConcurrentRequests(t *testing.T) {
 		requestCount.Add(1)
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write([]byte("OK")); err != nil {
-				t.Fatalf("Failed to write response: %v", err)
-			}
+			t.Fatalf("Failed to write response: %v", err)
+		}
 	}))
 	defer proxyServer.Close()
 
@@ -238,8 +238,8 @@ func TestProxyClientConcurrentRequests(t *testing.T) {
 			resp, _ := httpClient.Get(proxyServer.URL)
 			if resp != nil {
 				if err := resp.Body.Close(); err != nil {
-				t.Errorf("Failed to close response body: %v", err)
-			}
+					t.Errorf("Failed to close response body: %v", err)
+				}
 			}
 			done <- true
 		}()
@@ -310,8 +310,8 @@ func BenchmarkProxyClientRequest(b *testing.B) {
 	proxyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write([]byte("OK")); err != nil {
-				b.Fatalf("Failed to write response: %v", err)
-			}
+			b.Fatalf("Failed to write response: %v", err)
+		}
 	}))
 	defer proxyServer.Close()
 

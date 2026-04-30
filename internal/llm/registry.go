@@ -13,10 +13,10 @@ import (
 // @MX:ANCHOR: [AUTO] Registry — provider instance registry and factory
 // @MX:REASON: All provider lookups (Get, Default) go through this central registry
 type Registry struct {
-	mu        sync.RWMutex
-	providers map[string]LLMProvider
+	mu              sync.RWMutex
+	providers       map[string]LLMProvider
 	defaultProvider string
-	logger    *zap.Logger
+	logger          *zap.Logger
 }
 
 // NewRegistry creates an empty Registry.
