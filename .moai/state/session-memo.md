@@ -2,7 +2,7 @@
 
 ## P1: Session Context
 
-session_id: 64dd0bd7-1aec-413d-9540-84e2f34558ee
+session_id: 5cbdb44b-fee8-449b-92ef-ba8471bda913
 cwd: /Users/goos/MoAI/AI-Goose
 event: PreCompact
 
