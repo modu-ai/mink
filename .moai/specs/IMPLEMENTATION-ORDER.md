@@ -3,17 +3,20 @@
 > **⚠ v0.2 Amendment (2026-04-24)**
 > SPEC-GOOSE-ARCH-REDESIGN-v0.2 에 따라 Milestone 재정렬. 아래 본문(v6.2)은 **참조용**이며, 실제 구현은 v0.2 Milestone 순서를 따른다.
 >
-> **v0.2 Milestone 순서 (최종)**:
-> - **M0 Foundation** ✅ CORE-001 완료
-> - **M1 Multi-LLM + QMD** CREDPOOL · ROUTER · ADAPTER · **QMD-001** · PROVIDER-FALLBACK
-> - **M2 4 Primitives** SKILLS · MCP · HOOK · SUBAGENT · **PERMISSION-001**
-> - **M3 Core Workflow** COMMAND · CLI · TUI · Plan-Run-Sync · **SELF-CRITIQUE-001**
-> - **M4 Self-Evolution** TRAJECTORY · COMPRESSOR · INSIGHTS · auto-skill 제안
-> - **M5 Safety (★ 대폭 확장)** SAFETY · ROLLBACK · **SECURITY-SANDBOX-001** · **CREDENTIAL-PROXY-001** · **FS-ACCESS-001** · **AUDIT-001**
-> - **M6 Channels (축소)** TELEGRAM-001 · **WEBUI-001** (MOBILE/WIDGET/SYNC/CLOUD/DISCOVERY/Email 제거)
-> - **M7 Daily Companion v1.0** RITUAL-001 · BRIEFING · JOURNAL · **PAI-CONTEXT-001** · GROWTH
-> - **M8 Deep Personalization** IDENTITY-001 · VECTOR · LORA · Kuzu 도입 · Affective
-> - **M9 Ecosystem v2.0** plugin marketplace · additional channels
+> **v0.2 Milestone 순서 (최종)** (★ 2026-04-30 진행 상태 갱신):
+> - **M0 Foundation** ✅ **완료** — CORE-001 ✅ · QUERY-001 ✅ · CONTEXT-001 ✅ · TRANSPORT-001 ✅ · CONFIG-001 ✅ (5/5)
+> - **M1 Multi-LLM + QMD** 🟡 **거의 완료** — CREDPOOL ✅ · ROUTER ✅ · RATELIMIT ✅ · PROMPT-CACHE ✅ · **ADAPTER-001 🟡 Round 2** · QMD-001 🟡 · PROVIDER-FALLBACK 📋
+> - **M2 4 Primitives** ✅ **완료** — SKILLS ✅ · MCP ✅ · HOOK ✅ · SUBAGENT ✅ · PLUGIN ✅ · PERMISSION-001 ✅ (6/6)
+> - **M3 Core Workflow** 🟡 **진행 중** — COMMAND ✅ · TOOLS ✅ · **CLI-001 🟡 TUI 보강** · Plan-Run-Sync 📋 · SELF-CRITIQUE-001 ✅
+> - **M4 Self-Evolution** 🟡 **부분** — ERROR-CLASS ✅ · MEMORY-001 ✅ · TRAJECTORY 📋 · COMPRESSOR 📋 · INSIGHTS 📋 · auto-skill 📋
+> - **M5 Safety (★ 대폭 확장)** 🟡 **부분** — AUDIT-001 ✅ · CREDENTIAL-PROXY-001 🟡 · FS-ACCESS-001 🟡 · SECURITY-SANDBOX-001 🟡 · SIGNING-001 🟡 · SAFETY 📋 · ROLLBACK 📋
+> - **M6 Channels (축소)** 📋 **계획** — TELEGRAM-001 📋 · WEBUI-001 📋 (MOBILE/WIDGET/SYNC/CLOUD/DISCOVERY/Email 제거)
+> - **M7 Daily Companion v1.0** 📋 **계획** — RITUAL-001 📋 · BRIEFING 📋 · JOURNAL 📋 · PAI-CONTEXT-001 📋 · GROWTH 📋
+> - **M8 Deep Personalization** 📋 **계획** — IDENTITY-001 📋 · VECTOR 📋 · LORA 📋 · Kuzu 도입 📋 · Affective 📋
+> - **M9 Ecosystem v2.0** 📋 **계획** — plugin marketplace · additional channels
+>
+> **진행 요약** (2026-04-30 기준): M0/M2 완료 ✅ · M1/M3/M4/M5 부분 진행 🟡 · M6+ 계획 📋
+> **다음 Critical Path**: ADAPTER-001 Round 2 → CLI-001 TUI 보강 → Phase 4 Self-Evolution (TRAJECTORY → COMPRESSOR → INSIGHTS)
 >
 > 자세한 근거: `.moai/design/goose-runtime-architecture-v0.2.md` §10 · `.moai/specs/SPEC-GOOSE-ARCH-REDESIGN-v0.2/spec.md`
 

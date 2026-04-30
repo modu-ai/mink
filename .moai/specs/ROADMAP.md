@@ -17,6 +17,42 @@
 
 ---
 
+## 0. 진행 상태 스냅샷 ★ (2026-04-30 갱신)
+
+**SPEC-META-CLEANUP-2026-04-30 일괄 정리** — commit log 기반 분류로 81개 활성 SPEC 분류 완료.
+
+| 카테고리 | SPEC 수 | 비율 | Phase 분포 |
+|---|---|---|---|
+| ✅ COMPLETED | 31건 | 38% | Phase 0~3 거의 완성 + 일부 Phase 4~5 |
+| 🟡 PARTIAL/IN PROGRESS | 21건 | 26% | Phase 1, 5~7 분산 + CMDCTX-* 8건 |
+| 🔵 PLAN ONLY | 26건 | 32% | Phase 6~9 위주 |
+| 📦 SUPERSEDED | 3건 | 4% | GEMMA4-001, TRAIN-001, WEATHER-001 |
+
+### COMPLETED 31건 — 핵심 Foundation 거의 완성
+
+**Phase 0** (5/5 ✅): CORE-001 · QUERY-001 · CONTEXT-001 · TRANSPORT-001 · CONFIG-001
+**Phase 1** (4/5): CREDPOOL-001 · ROUTER-001 · RATELIMIT-001 · PROMPT-CACHE-001 · ADAPTER-001(🟡)
+**Phase 2** (6/6 ✅): SKILLS-001 · MCP-001 · HOOK-001 · SUBAGENT-001 · PLUGIN-001 · PERMISSION-001
+**Phase 3** (2/3): TOOLS-001 · COMMAND-001 · CLI-001(🟡)
+**Phase 4** (2/5): ERROR-CLASS-001 · MEMORY-001 (TRAJECTORY/COMPRESSOR/INSIGHTS PLAN)
+**Phase 5** (1/3): AUDIT-001 (REFLECT/SAFETY/ROLLBACK PLAN)
+**v0.2 Amendment 보안** (5/9 신규 중): AUDIT · CREDENTIAL-PROXY(🟡) · FS-ACCESS(🟡) · SECURITY-SANDBOX(🟡) · SIGNING(🟡)
+**메타 작업**: ARCH-REDESIGN-v0.2 · BRAND-RENAME-001 · AGENCY-ABSORB-001 · AGENCY-CLEANUP-002 · AGENT-RUNNER-001 · SELF-CRITIQUE-001 · DAEMON-WIRE-001 · CMDCTX-001 · CMDLOOP-WIRE-001 · CMDCTX-CREDPOOL-WIRE-001
+
+### PARTIAL/IN PROGRESS 21건 — 부분 구현, 추가 작업 필요
+
+ADAPTER-001(Round 2 진입), CLI-001(TUI 보강), AGENT-001, LLM-001, QMD-001, CREDENTIAL-PROXY-001, FS-ACCESS-001, SECURITY-SANDBOX-001, SIGNING-001, BRIDGE-001, CALENDAR-001, FORTUNE-001, CROSSPLAT-001, ONBOARDING-001, CMDCTX-CLI-INTEG-001, CMDCTX-DAEMON-INTEG-001, CMDCTX-HOTRELOAD-001, CMDCTX-PERMISSIVE-ALIAS-001, CMDCTX-TELEMETRY-001, ALIAS-CONFIG-001, PLANMODE-CMD-001
+
+### 진행 진단
+
+- **Foundation 완성도**: M0~M2 거의 완료 (15/16 SPEC ✅)
+- **다음 Critical Path**: ADAPTER-001 Round 2 + CLI-001 TUI 보강 + Phase 4 Self-Evolution (TRAJECTORY → COMPRESSOR → INSIGHTS)
+- **차단 요소**: OBS-METRICS-001 미존재 (CMDCTX-TELEMETRY 블록), ALIAS-CONFIG-001 (HOTRELOAD 블록)
+- **자세한 SPEC별 상태**: 각 SPEC 디렉터리의 `progress.md`
+- **CMDCTX 8건 의존성 분석**: `.moai/specs/CMDCTX-DEPENDENCY-ANALYSIS.md`
+
+---
+
 > **프로젝트**: GOOSE — Daily Companion AI (self-hosted, project-local workspace)
 > **작성일**: 2026-04-22 (v6.2) · 2026-04-24 (v0.2 amendment)
 > **이전 버전**: v5.0 (47 SPEC) · v6.0 (48) · v6.1 (52) · v6.2 (58) · **v0.2 (54, 재편본)**
