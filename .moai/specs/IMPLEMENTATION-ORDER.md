@@ -5,7 +5,7 @@
 >
 > **v0.2 Milestone 순서 (최종)** (★ 2026-04-30 진행 상태 갱신):
 > - **M0 Foundation** ✅ **완료** — CORE-001 ✅ · QUERY-001 ✅ · CONTEXT-001 ✅ · TRANSPORT-001 ✅ · CONFIG-001 ✅ (5/5)
-> - **M1 Multi-LLM + QMD** 🟡 **거의 완료** — CREDPOOL ✅ · ROUTER ✅ · RATELIMIT ✅ · PROMPT-CACHE ✅ · **ADAPTER-001 🟡 Round 2** · QMD-001 🟡 · PROVIDER-FALLBACK 📋
+> - **M1 Multi-LLM + QMD** ✅ **완료** — CREDPOOL ✅ · ROUTER ✅ · RATELIMIT ✅ · PROMPT-CACHE ✅ · **ADAPTER-001 ✅ (Round 1+2 완료 2026-04-27, M0~M5 전수 GREEN)** · QMD-001 🟡 · PROVIDER-FALLBACK 📋 · **ADAPTER-001-AMEND-001 📋 (deferred AC-016/017)**
 > - **M2 4 Primitives** ✅ **완료** — SKILLS ✅ · MCP ✅ · HOOK ✅ · SUBAGENT ✅ · PLUGIN ✅ · PERMISSION-001 ✅ (6/6)
 > - **M3 Core Workflow** 🟡 **진행 중** — COMMAND ✅ · TOOLS ✅ · **CLI-001 🟡 TUI 보강** · Plan-Run-Sync 📋 · SELF-CRITIQUE-001 ✅
 > - **M4 Self-Evolution** 🟡 **부분** — ERROR-CLASS ✅ · MEMORY-001 ✅ · TRAJECTORY 📋 · COMPRESSOR 📋 · INSIGHTS 📋 · auto-skill 📋
@@ -15,8 +15,10 @@
 > - **M8 Deep Personalization** 📋 **계획** — IDENTITY-001 📋 · VECTOR 📋 · LORA 📋 · Kuzu 도입 📋 · Affective 📋
 > - **M9 Ecosystem v2.0** 📋 **계획** — plugin marketplace · additional channels
 >
-> **진행 요약** (2026-04-30 기준): M0/M2 완료 ✅ · M1/M3/M4/M5 부분 진행 🟡 · M6+ 계획 📋
-> **다음 Critical Path**: ADAPTER-001 Round 2 → CLI-001 TUI 보강 → Phase 4 Self-Evolution (TRAJECTORY → COMPRESSOR → INSIGHTS)
+> **진행 요약** (2026-04-30 갱신): M0/M1/M2 완료 ✅ · M3/M4/M5 부분 진행 🟡 · M6+ 계획 📋
+> **다음 Critical Path**: CLI-001 TUI 보강 → Phase 4 Self-Evolution (TRAJECTORY → COMPRESSOR → INSIGHTS) → OBS-METRICS-001 plan (TELEMETRY-001 BLOCKER 해소)
+>
+> **메타 정정 (2026-04-30)**: ADAPTER-001 / ALIAS-CONFIG-001 모두 spec.md frontmatter `completed: 2026-04-27` 정합. 이전 'Round 2 진행 중' / 'planned' 표기는 progress.md 미갱신에 따른 메타 불일치였으며, 실제 구현은 완료 상태. 추가 개선은 별도 amendment SPEC(ADAPTER-001-AMEND-001, ALIAS-CONFIG-001-AMEND-001)로 분리.
 >
 > 자세한 근거: `.moai/design/goose-runtime-architecture-v0.2.md` §10 · `.moai/specs/SPEC-GOOSE-ARCH-REDESIGN-v0.2/spec.md`
 
