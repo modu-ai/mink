@@ -196,3 +196,54 @@
 - beta release 직전 (production observability 본격 도입).
 - distributed tracing 도입 결정 시.
 - 사용자 / 운영자가 OTLP collector / Grafana / Datadog 통합 요청 시.
+
+---
+
+### 2026-04-30 run phase 진입
+
+#### Phase 1 — 전략 분석 (manager-strategy, UltraThink applied)
+
+- 산출: 9 atomic TDD task 분해 (T-001 ~ T-009), 11 신규 파일, ~700 LOC 추정.
+- Architectural decisions:
+  - `seriesKey` = `name + "|" + sort(labels)` canonical form
+  - histogram = sorted bucket array + parallel `[]atomic.Int64` + `+Inf` overflow bucket
+  - cardinality cap = `sync.Map` + `atomic.Int64` count + `sync.Once` warn-once per metric
+  - default buckets `[0.1, 1, 10, 100, 1000]` ms-scale (REQ-007)
+- Risks 평가: R1~R6 모두 구체 완화 액션 + 검증 방법 도출.
+
+#### Decision Point 1 — Plan Approval Gate
+
+- 사용자 결정 (2026-04-30):
+  - **Logger 타입: `*zap.Logger`** (프로젝트 일관성, internal/ 20+ 파일 사용)
+    - spec.md §6.2 의 `*slog.Logger` 표기는 implemented 전환 시 HISTORY 1줄 정정.
+  - **계획 승인 (Proceed)**: 9 task TDD 진행.
+
+#### Phase 1.5 — Task Decomposition (tasks.md)
+
+- 작성: `.moai/specs/SPEC-GOOSE-OBS-METRICS-001/tasks.md` (9 task + REQ/AC 매핑 표 + HARD 제약 6종).
+- 18 AC 모두 T-XXX 매핑 (AC-018 [필수] 는 T-003 + T-006 closure).
+
+#### Phase 1.6 — Acceptance Criteria 등록
+
+- tasks.md 의 §"Acceptance Criteria Mapping (18 AC)" 표가 "failing checklist" 역할.
+- TaskCreate 18건 별도 등록은 부담 대비 효익 낮음 — tasks.md 매핑 표로 충족.
+
+#### Phase 1.7 — Stub 파일 + LSP Baseline
+
+- 디렉토리: `internal/observability/metrics/{,/expvar,/noop}` 신규 생성.
+- Stub 파일 3건 (production source, package declaration only):
+  - `internal/observability/metrics/metrics.go`
+  - `internal/observability/metrics/expvar/expvar.go`
+  - `internal/observability/metrics/noop/noop.go`
+- Test 파일 / `series_key.go` / bench 파일 8건은 manager-tdd 가 RED phase 에서 신규 작성 (의도된 RED 컴파일 fail 흐름 보존).
+- LSP baseline: `go build ./internal/observability/metrics/...` + `go vet` PASS — 0 errors / 0 warnings (빈 패키지 valid Go).
+
+#### Phase 1.8 — Pre-Implementation MX Context Scan
+
+- **Skip** (greenfield, 기존 파일 0건 수정).
+
+#### 다음 — Phase 2B (manager-tdd, TDD RED-GREEN-REFACTOR)
+
+- 9 task 순차 실행 (T-001 → T-009).
+- 각 task 끝에 quality gate (go vet, go test, -race, lint).
+- HARD: 영어 주석, zap logger, MX 4종, go.mod 변동 0.
