@@ -89,6 +89,12 @@ func (a *OllamaAdapter) Capabilities() provider.Capabilities {
 		Vision:           true,
 		Embed:            false,
 		AdaptiveThinking: false,
+		// JSONMode is supported via the top-level "format" field (REQ-AMEND-002).
+		// @MX:SPEC SPEC-GOOSE-ADAPTER-001-AMEND-001 REQ-AMEND-002
+		JSONMode: true,
+		// UserID is unsupported — local LLM has no abuse-tracking identifier field.
+		// @MX:SPEC SPEC-GOOSE-ADAPTER-001-AMEND-001 REQ-AMEND-002
+		UserID: false,
 	}
 }
 
@@ -98,6 +104,9 @@ type ollamaRequest struct {
 	Messages []ollamaMsg     `json:"messages"`
 	Tools    []ollamaToolDef `json:"tools,omitempty"`
 	Stream   bool            `json:"stream"`
+	// Format requests structured JSON output when set to "json" (REQ-AMEND-008).
+	// omitempty ensures the field is absent when ResponseFormat is empty.
+	Format string `json:"format,omitempty"`
 }
 
 // ollamaMsg는 Ollama 메시지 형식이다.
@@ -155,6 +164,11 @@ func (a *OllamaAdapter) Stream(ctx context.Context, req provider.CompletionReque
 		Messages: msgs,
 		Tools:    tools,
 		Stream:   true,
+	}
+
+	// JSON mode: set format field when requested (REQ-AMEND-008).
+	if req.ResponseFormat == "json" {
+		apiReq.Format = "json"
 	}
 
 	if a.logger != nil {

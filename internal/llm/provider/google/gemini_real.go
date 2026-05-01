@@ -31,8 +31,16 @@ func (c *realGeminiClient) GenerateStream(ctx context.Context, req GeminiRequest
 	// 메시지를 genai 형식으로 변환
 	contents := convertMessagesToGenai(req.Messages)
 
+	// Build optional GenerateContentConfig for JSON mode (REQ-AMEND-007).
+	var config *genai.GenerateContentConfig
+	if req.ResponseFormat == "json" {
+		config = &genai.GenerateContentConfig{
+			ResponseMIMEType: "application/json",
+		}
+	}
+
 	// 스트리밍 생성 시작 — iter.Seq2[*genai.GenerateContentResponse, error]
-	seqIter := client.Models.GenerateContentStream(ctx, req.Model, contents, nil)
+	seqIter := client.Models.GenerateContentStream(ctx, req.Model, contents, config)
 	return &realGeminiStream{seqIter: seqIter}, nil
 }
 

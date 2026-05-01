@@ -27,6 +27,15 @@ type Capabilities struct {
 	MaxContextTokens int
 	// MaxOutputTokens는 최대 출력 토큰 수이다.
 	MaxOutputTokens int
+	// JSONMode indicates whether the provider supports structured JSON output
+	// via response_format / responseMimeType / format fields.
+	// Zero value (false) means unsupported — capability gate will block json requests.
+	// @MX:SPEC SPEC-GOOSE-ADAPTER-001-AMEND-001 REQ-AMEND-001
+	JSONMode bool
+	// UserID indicates whether the provider accepts an end-user identifier for
+	// abuse-tracking purposes. Zero value (false) means silent drop at capability gate.
+	// @MX:SPEC SPEC-GOOSE-ADAPTER-001-AMEND-001 REQ-AMEND-001
+	UserID bool
 }
 
 // ThinkingConfig는 LLM thinking 모드 설정이다.

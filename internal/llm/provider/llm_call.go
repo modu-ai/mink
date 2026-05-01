@@ -51,25 +51,54 @@ func NewLLMCall(
 			)
 		}
 
+		caps := p.Capabilities()
+
+		// JSON mode fail-fast gate (REQ-AMEND-003, AC-AMEND-002).
+		// Block before any HTTP call; use ProviderName (not Provider) per Correction 3.
+		// @MX:NOTE: [AUTO] Capability gate — single-point JSON mode enforcement
+		// @MX:SPEC SPEC-GOOSE-ADAPTER-001-AMEND-001 REQ-AMEND-003
+		if req.ResponseFormat == "json" && !caps.JSONMode {
+			return nil, ErrCapabilityUnsupported{Feature: "json_mode", ProviderName: p.Name()}
+		}
+
 		// Vision capability pre-check (REQ-ADAPTER-017, AC-ADAPTER-011)
-		// 이미지 ContentBlock이 포함된 요청인데 provider가 Vision을 지원하지 않으면 즉시 에러 반환.
-		if !p.Capabilities().Vision && hasImageContent(req.Messages) {
+		// Block before any HTTP call when provider does not support vision.
+		if !caps.Vision && hasImageContent(req.Messages) {
 			return nil, ErrCapabilityUnsupported{Feature: "vision", ProviderName: p.Name()}
 		}
 
-		compReq := CompletionRequest{
-			Route:           req.Route,
-			Messages:        req.Messages,
-			Tools:           req.Tools,
-			MaxOutputTokens: req.MaxOutputTokens,
-			Temperature:     req.Temperature,
-			FallbackModels:  req.FallbackModels,
+		// UserID silent drop gate (REQ-AMEND-004, AC-AMEND-008).
+		// Operate on a copy of req — caller-owned struct must not be mutated (REQ-AMEND-011).
+		// @MX:NOTE: [AUTO] UserID silent drop — reqCopy guards caller immutability
+		// @MX:SPEC SPEC-GOOSE-ADAPTER-001-AMEND-001 REQ-AMEND-004
+		reqCopy := req
+		if reqCopy.Metadata.UserID != "" && !caps.UserID {
+			if logger != nil {
+				logger.Debug("user_id_dropped",
+					zap.String("provider", p.Name()),
+					zap.String("user_id_redacted", redactUserID(reqCopy.Metadata.UserID)),
+				)
+			}
+			reqCopy.Metadata.UserID = ""
 		}
-		if req.Thinking != nil {
+
+		compReq := CompletionRequest{
+			Route:           reqCopy.Route,
+			Messages:        reqCopy.Messages,
+			Tools:           reqCopy.Tools,
+			MaxOutputTokens: reqCopy.MaxOutputTokens,
+			Temperature:     reqCopy.Temperature,
+			FallbackModels:  reqCopy.FallbackModels,
+			ResponseFormat:  reqCopy.ResponseFormat,
+			Metadata: RequestMetadata{
+				UserID: reqCopy.Metadata.UserID,
+			},
+		}
+		if reqCopy.Thinking != nil {
 			compReq.Thinking = &ThinkingConfig{
-				Enabled:      req.Thinking.Enabled,
-				Effort:       req.Thinking.Effort,
-				BudgetTokens: req.Thinking.BudgetTokens,
+				Enabled:      reqCopy.Thinking.Enabled,
+				Effort:       reqCopy.Thinking.Effort,
+				BudgetTokens: reqCopy.Thinking.BudgetTokens,
 			}
 		}
 
@@ -90,4 +119,13 @@ func hasImageContent(msgs []message.Message) bool {
 		}
 	}
 	return false
+}
+
+// redactUserID returns the first 4 characters of s followed by "..." to avoid
+// logging personally identifying information at INFO level or higher (REQ-AMEND-010).
+func redactUserID(s string) string {
+	if len(s) <= 4 {
+		return "..."
+	}
+	return s[:4] + "..."
 }

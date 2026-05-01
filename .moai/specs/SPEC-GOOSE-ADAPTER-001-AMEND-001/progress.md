@@ -1,7 +1,8 @@
 ## SPEC-GOOSE-ADAPTER-001-AMEND-001 Progress
 
 - Started: 2026-04-30
-- **Status: PLANNED (Phase 1 — plan phase 진행 중)**
+- Implemented: 2026-04-30
+- **Status: IMPLEMENTED (commit 0ab6004 — main branch)**
 - Parent SPEC: SPEC-GOOSE-ADAPTER-001 v1.0.0 (FROZEN, completed 2026-04-27)
 - Author (Phase 1 draft): manager-spec
 - Harness 후보: standard (단일 도메인 amendment, 신규 surface 추가 없음, 신규 LoC ~+130 production / ~+400 tests)
@@ -46,3 +47,27 @@
 2. DeepSeek `user` field 미문서 처리 — silent drop(권장) vs OpenAI 호환 가정 forwarding
 3. Anthropic structured output(`output_config.format=json_schema`)을 본 amendment에 포함할지 — 권장: OUT(별도 SPEC)
 4. UserID redaction 패턴 — 첫 4글자 + `...`(권장) vs 해시 vs 완전 제거
+
+### Phase 2 — Run phase completion (2026-04-30)
+
+TDD 10 atomic tasks (T-001 ~ T-010) 완료. commit 0ab6004.
+
+| Task | Status | Evidence |
+|------|--------|---------|
+| T-001 | DONE | `TestCapabilities_NewFields`, `TestCapabilities_ExistingFieldsUnchanged` PASS |
+| T-002 | DONE | openai `TestJSONMode_*`, `TestUserID_*` PASS |
+| T-003 | DONE | anthropic `TestUserID_*` PASS |
+| T-004 | DONE | google `TestJSONMode_*` PASS |
+| T-005 | DONE | ollama `TestJSONMode_*` PASS |
+| T-006 | DONE | deepseek `TestDeepSeek_AmendCapabilities` PASS |
+| T-007 | DONE | `TestNewLLMCall_JSONModeUnsupportedFails`, `TestNewLLMCall_UserIDSilentDrop`, `TestNewLLMCall_RequestImmutability` PASS |
+| T-008 | DONE | `TestLLMCallMatrix` 24-case PASS |
+| T-009 | DONE | xAI capabilities literal updated, 4 matrix cases PASS |
+| T-010 | DONE | `go vet` 0 warnings, `gofmt -l` empty, lint issues all pre-existing, `go.mod`/`go.sum` unchanged |
+
+**Quality gates:**
+- `go test -race -cover ./internal/llm/provider/... ./internal/query/...` → all packages PASS, 0 failures
+- `internal/llm/provider`: 87.0% coverage
+- Parent 24 unit tests: 0 modified, 0 failures (regression-free)
+- `go.mod`/`go.sum`: byte-identical (`git diff HEAD -- go.mod go.sum` = empty)
+- golangci-lint: 0 issues in amendment files (27 issues all pre-existing in parent files)

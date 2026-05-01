@@ -22,6 +22,17 @@ type ThinkingConfig struct {
 	BudgetTokens int
 }
 
+// RequestMetadata holds optional per-request metadata fields.
+// It mirrors provider.RequestMetadata to avoid an import cycle
+// (provider already imports query; query must not import provider).
+// @MX:SPEC SPEC-GOOSE-ADAPTER-001-AMEND-001 REQ-AMEND-011
+type RequestMetadata struct {
+	// UserID is an opaque end-user identifier for abuse tracking.
+	// Zero value means no identifier. Forwarded to providers that support it;
+	// silently dropped by the capability gate for providers that do not.
+	UserID string
+}
+
 // LLMCallReq는 LLM 호출 요청이다.
 // QUERY-001의 LLMCall 시그니처에서 사용된다.
 type LLMCallReq struct {
@@ -44,6 +55,16 @@ type LLMCallReq struct {
 	//
 	// @MX:NOTE: [AUTO] TeammateIdentity system header 경로 - engine이 주입, LLMCallFunc 구현이 소비.
 	SystemHeader map[string]any
+	// ResponseFormat specifies the desired output format ("json" or "").
+	// Zero value means no format constraint.
+	// When set to "json", the capability gate in NewLLMCall checks JSONMode support;
+	// providers without JSONMode return ErrCapabilityUnsupported.
+	// @MX:SPEC SPEC-GOOSE-ADAPTER-001-AMEND-001 REQ-AMEND-003
+	ResponseFormat string
+	// Metadata carries optional per-request metadata (currently UserID).
+	// Zero value is backward compatible — existing callers need no changes.
+	// @MX:SPEC SPEC-GOOSE-ADAPTER-001-AMEND-001 REQ-AMEND-004
+	Metadata RequestMetadata
 }
 
 // LLMCallFunc는 QUERY-001의 LLMCall 인터페이스 함수 타입이다.

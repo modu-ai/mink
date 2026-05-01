@@ -1,7 +1,7 @@
 ---
 id: SPEC-GOOSE-ADAPTER-001-AMEND-001
 version: 0.1.0
-status: planned
+status: implemented
 created_at: 2026-04-30
 updated_at: 2026-04-30
 author: manager-spec

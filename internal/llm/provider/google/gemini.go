@@ -25,6 +25,10 @@ var ErrStreamDone = errors.New("stream done")
 type GeminiRequest struct {
 	Model    string
 	Messages []message.Message
+	// ResponseFormat carries the requested output format ("json" or "").
+	// When set to "json", the real client injects ResponseMIMEType="application/json".
+	// @MX:SPEC SPEC-GOOSE-ADAPTER-001-AMEND-001 REQ-AMEND-007
+	ResponseFormat string
 }
 
 // GeminiChunk는 Gemini 스트림 청크이다.
@@ -127,6 +131,12 @@ func (a *GoogleAdapter) Capabilities() provider.Capabilities {
 		AdaptiveThinking: false,
 		MaxContextTokens: 1000000,
 		MaxOutputTokens:  8192,
+		// JSONMode is supported via generationConfig.responseMimeType (REQ-AMEND-002).
+		// @MX:SPEC SPEC-GOOSE-ADAPTER-001-AMEND-001 REQ-AMEND-002
+		JSONMode: true,
+		// UserID is unsupported — GenerateContentRequest schema has no user identifier field.
+		// @MX:SPEC SPEC-GOOSE-ADAPTER-001-AMEND-001 REQ-AMEND-002
+		UserID: false,
 	}
 }
 
@@ -176,8 +186,9 @@ func (a *GoogleAdapter) Stream(ctx context.Context, req provider.CompletionReque
 	_ = cred // 프로덕션 경로에서만 non-nil; SDK 기반이므로 직접 rotation은 별도 구현 필요
 
 	gemReq := GeminiRequest{
-		Model:    req.Route.Model,
-		Messages: req.Messages,
+		Model:          req.Route.Model,
+		Messages:       req.Messages,
+		ResponseFormat: req.ResponseFormat,
 	}
 
 	if a.logger != nil {
