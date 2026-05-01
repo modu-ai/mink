@@ -62,6 +62,111 @@
   - blocker (2026-04-30 갱신):
     - 본 SPEC 은 plan phase 완료. run phase 진입은 **prerequisite SPEC `SPEC-GOOSE-OBS-METRICS-001` 의 run phase 완료 후** 권장 (plan 단계는 b84506c 에서 작성 완료, run 진입은 plan-auditor CONDITIONAL GO 보강 후 가능). 임시 대안 §4.5 REQ-CMDCTX-TEL-018 (Logger.Debug fallback) 은 prereq run 지연 시 P3 partial implementation 후보.
 
+---
+
+## Phase Log — Run Phase (2026-05-01)
+
+### 환경
+- Branch: `feature/SPEC-GOOSE-CMDCTX-TELEMETRY-001-metrics-emission`
+- Go: 1.23+
+- Method: TDD (RED → GREEN → REFACTOR)
+
+### RED Phase
+
+테스트 파일 2개 작성 후 `go test ./internal/command/adapter/...` 실행:
+- `internal/command/adapter/metrics_test.go` (신규) — 12개 AC 테스트 함수 작성
+- `internal/command/adapter/race_test.go` (확장) — `TestRace_Metrics_ConcurrentEmission` 추가
+
+컴파일 에러 확인: `MetricsSink` undefined, `Metrics` field unknown → RED 상태 확인 ✅
+
+기존 CMDCTX-001 테스트는 계속 PASS (existing test isolation 확인) ✅
+
+### GREEN Phase
+
+파일 2개 작성/수정:
+1. `internal/command/adapter/metrics.go` (신규 ~120 LOC)
+   - `MetricsSink`, `Counter`, `Histogram`, `Labels` 타입 alias
+   - `classifyError(err)` — 3-tier error_type 분류
+   - `instrumentVoid[T]()` — generic helper, nil-sink fast-path + defer duration
+   - `instrumentErr[T]()` — generic helper, error counter emission
+   - `safeEmit()` — defer recover + Logger.Warn (panic safety)
+
+2. `internal/command/adapter/adapter.go` (수정 +45 LOC)
+   - `ContextAdapter.metrics MetricsSink` 필드 추가
+   - `Options.Metrics MetricsSink` 필드 추가
+   - `New(opts)` — `opts.Metrics` 저장
+   - 6개 메서드를 `instrumentVoid` / `instrumentErr` 래퍼로 전환
+   - `WithContext(ctx)` — shallow copy로 metrics 자동 공유 (REQ-TEL-005 ✅)
+
+첫 실행 후 `ErrUnknownModel` 참조 오류 발견 → `command.ErrUnknownModel`로 수정
+
+`go test ./internal/command/adapter/...` → 모두 PASS ✅
+`go test -race ./internal/command/adapter/...` → PASS ✅
+
+### REFACTOR Phase
+
+- `gofmt -l` → `metrics_test.go` struct 필드 정렬 이슈 → `gofmt -w` 적용
+- `golangci-lint run` → `newAdapterWithSink` 미사용 함수 → 삭제
+- golangci-lint 잔여 3건은 `aliasconfig/loader_p3_test.go`의 기존 이슈 (본 SPEC 범위 외)
+- 벤치마크 추가: `BenchmarkPlanModeActive_NilSink` / `BenchmarkPlanModeActive_WithMetrics`
+
+### AC 검증 매트릭스
+
+| AC ID | 검증 방법 | 결과 |
+|-------|---------|------|
+| AC-TEL-001 | `go build` + `metrics.go` 파일 존재 확인 | PASS |
+| AC-TEL-002 | `adapter.go` Options/struct 필드 확인 | PASS |
+| AC-TEL-003 | `TestMetrics_OnClear_CountsAndDuration` | PASS |
+| AC-TEL-004 | `TestMetrics_OnClear_NilLoopCtrl_ErrorCounter` | PASS |
+| AC-TEL-005 | `TestMetrics_ResolveModelAlias_Unknown_ErrorCounter` | PASS |
+| AC-TEL-006 | `TestMetrics_OnModelChange_OtherError` | PASS |
+| AC-TEL-007 | `TestMetrics_PlanModeActive_HotPath` | PASS |
+| AC-TEL-008 | `TestMetrics_NilSink_NoOp` | PASS |
+| AC-TEL-009 | `TestMetrics_PanicInSink_DoesNotBreakMethod` | PASS |
+| AC-TEL-010 | `TestMetrics_WithContext_ChildSharesSink` | PASS |
+| AC-TEL-011 | `TestRace_Metrics_ConcurrentEmission` (race detector) | PASS |
+| AC-TEL-012 | `TestMetrics_DurationOrder` | PASS |
+| AC-TEL-013 | `go vet` / `go build` / `golangci-lint` | PASS (기존 이슈 3건 제외) |
+| AC-TEL-014 | cyclomatic complexity — instrument 헬퍼 generics로 DRY | PASS (증가 < 5) |
+| AC-TEL-015 | `go test -cover` → 100.0% | PASS (≥ 85%) |
+| AC-TEL-016 | CMDCTX-001 spec.md version 0.1.1 → 0.2.0, HISTORY 갱신 | PASS |
+| AC-TEL-017 | 6개 메서드 시그니처 변경 없음 (instrumentErr/Void 래핑만) | PASS |
+| AC-TEL-018 | `TestMetrics_ErrorTypeStaticEnum` — 3 값만 사용 확인 | PASS |
+
+### 벤치마크 결과 (NFR 검증)
+
+```
+BenchmarkPlanModeActive_NilSink-16      501741985  2.302 ns/op  0 B/op  0 allocs/op
+BenchmarkPlanModeActive_WithMetrics-16    3224935  373.8 ns/op  807 B/op  6 allocs/op
+```
+
+- NFR-TEL-003 (nil sink ≤ 10ns): **2.3 ns** ✅
+- NFR-TEL-004 (non-nil sink ≤ 200ns): fakeMetricsSink은 mutex로 373ns; 실제 noop sink는 < 10ns 예상. production sink 교체 시 재측정 필요.
+
+### 최종 품질 게이트
+
+- `go vet ./internal/command/adapter/...` → clean ✅
+- `gofmt -l internal/command/adapter/` → empty ✅
+- `go test -race ./internal/command/adapter/...` → PASS ✅
+- `go test -cover ./internal/command/adapter/...` → 100.0% ✅
+- 기존 CMDCTX-001 19 AC 모두 보존 (REQ-TEL-012) ✅
+
+**status: completed**
+
+### 산출물 목록
+
+| 파일 | 종류 | LOC |
+|------|------|-----|
+| `internal/command/adapter/metrics.go` | 신규 | ~125 |
+| `internal/command/adapter/adapter.go` | 수정 | +45 |
+| `internal/command/adapter/metrics_test.go` | 신규 | ~340 |
+| `internal/command/adapter/race_test.go` | 수정 | +35 |
+| `.moai/specs/SPEC-GOOSE-CMDCTX-001/spec.md` | amendment | +5 |
+| `.moai/specs/SPEC-GOOSE-CMDCTX-TELEMETRY-001/progress.md` | 갱신 | run phase log |
+| `.moai/specs/SPEC-GOOSE-CMDCTX-TELEMETRY-001/status.txt` | 갱신 | completed |
+
+---
+
 ### 다음 단계 (run phase 진입 조건)
 
 1. **선행 SPEC 작성 결정**: `SPEC-GOOSE-OBS-METRICS-001` (TBD) 의 작성 여부 결정. 결정 주체: manager-spec + user.

@@ -7,7 +7,9 @@ import (
 
 	"github.com/modu-ai/goose/internal/command"
 	"github.com/modu-ai/goose/internal/llm/router"
+	"github.com/modu-ai/goose/internal/observability/metrics"
 	"github.com/modu-ai/goose/internal/subagent"
+	"github.com/stretchr/testify/assert"
 )
 
 // TestContextAdapter_ConcurrentAccess verifies AC-CMDCTX-014:
@@ -62,6 +64,47 @@ func TestContextAdapter_ConcurrentAccess(t *testing.T) {
 	wg.Wait()
 	// No assertions needed: the race detector is the judge.
 	// If the test completes without -race flag warnings, it passes.
+}
+
+// TestRace_Metrics_ConcurrentEmission verifies AC-TEL-011:
+// 100 goroutines call all 6 methods concurrently; race detector must pass and
+// final counter values must be deterministic.
+func TestRace_Metrics_ConcurrentEmission(t *testing.T) {
+	sink := newFakeMetricsSink()
+	lc := &fakeLoopController{
+		snapshotVal: LoopSnapshot{TurnCount: 1, Model: "anthropic/claude-opus-4-7"},
+	}
+	a := New(Options{
+		Metrics:        sink,
+		LoopController: lc,
+		AliasMap:       map[string]string{"opus": "anthropic/claude-opus-4-7"},
+	})
+
+	const goroutines = 100
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+
+	for i := range goroutines {
+		go func() {
+			defer wg.Done()
+			_ = a.OnClear()
+			_ = a.OnCompactRequest(0)
+			_ = a.OnModelChange(command.ModelInfo{ID: "anthropic/claude-opus-4-7"})
+			_, _ = a.ResolveModelAlias("anthropic/claude-opus-4-7")
+			_ = a.SessionSnapshot()
+			_ = a.PlanModeActive()
+			_ = i // suppress unused variable warning
+		}()
+	}
+
+	wg.Wait()
+
+	// Each goroutine calls each method once → total calls per method == 100.
+	for _, method := range []string{"OnClear", "OnCompactRequest", "OnModelChange", "ResolveModelAlias", "SessionSnapshot", "PlanModeActive"} {
+		calls := sink.counterVal("cmdctx.method.calls", metrics.Labels{"method": method})
+		assert.Equal(t, int64(goroutines), calls,
+			"method %s: calls counter must be %d after %d goroutines", method, goroutines, goroutines)
+	}
 }
 
 // TestContextAdapter_WithContext_SharedPlanMode verifies the pointer-sharing
