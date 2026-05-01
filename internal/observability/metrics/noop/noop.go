@@ -36,8 +36,8 @@ func (noopSink) Gauge(_ string, _ metrics.Labels) metrics.Gauge {
 // noopCounter is an empty Counter handle.
 type noopCounter struct{}
 
-func (noopCounter) Inc()             {}
-func (noopCounter) Add(_ float64)    {}
+func (noopCounter) Inc()          {}
+func (noopCounter) Add(_ float64) {}
 
 // noopHistogram is an empty Histogram handle.
 type noopHistogram struct{}

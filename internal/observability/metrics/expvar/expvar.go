@@ -135,9 +135,9 @@ type expvarCounter struct {
 	ev *stdexpvar.Float
 }
 
-func (c *expvarCounter) Inc()             { c.ev.Add(1) }
-func (c *expvarCounter) Add(d float64)    { c.ev.Add(d) }
-func (c *expvarCounter) value() float64   { return c.ev.Value() }
+func (c *expvarCounter) Inc()           { c.ev.Add(1) }
+func (c *expvarCounter) Add(d float64)  { c.ev.Add(d) }
+func (c *expvarCounter) value() float64 { return c.ev.Value() }
 
 // ─── Gauge ────────────────────────────────────────────────────────────────────
 
@@ -166,8 +166,8 @@ type expvarGauge struct {
 	ev *stdexpvar.Float
 }
 
-func (g *expvarGauge) Set(v float64) { g.ev.Set(v) }
-func (g *expvarGauge) Add(d float64) { g.ev.Add(d) }
+func (g *expvarGauge) Set(v float64)  { g.ev.Set(v) }
+func (g *expvarGauge) Add(d float64)  { g.ev.Add(d) }
 func (g *expvarGauge) value() float64 { return g.ev.Value() }
 
 // ─── Histogram ────────────────────────────────────────────────────────────────
@@ -229,8 +229,8 @@ func normalizeBuckets(input []float64) []float64 {
 // expvarHistogram implements metrics.Histogram using atomic per-bucket counters
 // and binary search placement. The last slot is the +Inf overflow bucket.
 type expvarHistogram struct {
-	bounds []float64        // upper bounds; len(counts) == len(bounds)+1
-	counts []atomic.Int64  // parallel counters; counts[len(bounds)] is +Inf
+	bounds []float64      // upper bounds; len(counts) == len(bounds)+1
+	counts []atomic.Int64 // parallel counters; counts[len(bounds)] is +Inf
 }
 
 // Observe records value into the appropriate bucket via binary search (O(log n)).

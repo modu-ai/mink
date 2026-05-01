@@ -152,10 +152,10 @@ func TestExpvarSink_Histogram_BucketsObserve(t *testing.T) {
 	s := newTestSink()
 
 	h := s.Histogram("test.hist", nil, []float64{1, 10, 100})
-	h.Observe(0.5)  // → bucket[0] (<=1)
-	h.Observe(5)    // → bucket[1] (<=10)
-	h.Observe(50)   // → bucket[2] (<=100)
-	h.Observe(500)  // → bucket[3] (+Inf)
+	h.Observe(0.5) // → bucket[0] (<=1)
+	h.Observe(5)   // → bucket[1] (<=10)
+	h.Observe(50)  // → bucket[2] (<=100)
+	h.Observe(500) // → bucket[3] (+Inf)
 
 	counts := metricsexpvar.HistogramCounts(h)
 	require.Len(t, counts, 4, "3 explicit buckets + 1 +Inf = 4 slots")
