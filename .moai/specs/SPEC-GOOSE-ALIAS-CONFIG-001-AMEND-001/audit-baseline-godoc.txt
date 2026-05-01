@@ -1,0 +1,61 @@
+package aliasconfig // import "github.com/modu-ai/goose/internal/command/adapter/aliasconfig"
+
+Package aliasconfig는 모델 별칭(alias) 설정 파일 로더를 제공한다. SPEC-GOOSE-ALIAS-CONFIG-001
+
+VARIABLES
+
+var (
+	// ErrConfigNotFound는 aliases.yaml 파일을 찾을 수 없을 때 반환된다.
+	ErrConfigNotFound = errors.New("aliasconfig: config file not found")
+)
+    Sentinel errors
+
+
+FUNCTIONS
+
+func Validate(aliasMap map[string]string, registry *router.ProviderRegistry, strict bool) []error
+    Validate는 alias 맵을 검증하고 에러 목록을 반환한다. strict=true인 경우 에러가 있으면 빈 맵을 반환하지 않는다.
+
+
+TYPES
+
+type AliasConfig struct {
+	// Aliases는 별칭 → provider/model 맵핑이다.
+	Aliases map[string]string `yaml:"aliases"`
+}
+    AliasConfig는 alias 설정 파일 구조이다.
+
+type Loader struct {
+	// Has unexported fields.
+}
+    Loader는 alias 설정 로더이다.
+
+func New(opts Options) *Loader
+    New는 새 Loader를 생성한다.
+
+func (l *Loader) Load() (map[string]string, error)
+    Load는 설정 파일을 로드하고 alias 맵을 반환한다. P3 기능: fs.FS 인터페이스를 사용하여 테스트 가능한 파일 읽기.
+
+func (l *Loader) LoadDefault() (map[string]string, error)
+    LoadDefault는 기본 경로에서 설정을 로드한다.
+
+type Logger interface {
+	Debug(string, ...zap.Field)
+	Info(string, ...zap.Field)
+	Warn(string, ...zap.Field)
+	Error(string, ...zap.Field)
+}
+    Logger는 로깅 인터페이스이다.
+
+type Options struct {
+	// ConfigPath는 설정 파일 경로이다. 비어 있으면 기본 경로 사용.
+	ConfigPath string
+	// FS는 파일 시스템 인터페이스이다. 비어 있으면 os.DirFS("/") 사용.
+	FS fs.FS
+	// Logger는 구조화된 로거이다. 비어 있으면 zap.NewNop() 사용.
+	Logger Logger
+	// StdLogger는 표준 로거이다. 비어 있으면 logging 비활성화.
+	StdLogger *log.Logger
+}
+    Options는 Loader 생성 옵션이다.
+

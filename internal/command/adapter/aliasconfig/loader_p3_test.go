@@ -32,7 +32,7 @@ func TestProjectLocalAliasFile(t *testing.T) {
 
 		// Change working directory to temp dir
 		originalWd, _ := os.Getwd()
-		defer os.Chdir(originalWd)
+		defer func() { _ = os.Chdir(originalWd) }()
 		if err := os.Chdir(tmpDir); err != nil {
 			t.Fatalf("chdir: %v", err)
 		}
@@ -70,7 +70,7 @@ func TestProjectLocalAliasFile(t *testing.T) {
 		tmpDir := t.TempDir()
 
 		originalWd, _ := os.Getwd()
-		defer os.Chdir(originalWd)
+		defer func() { _ = os.Chdir(originalWd) }()
 		if err := os.Chdir(tmpDir); err != nil {
 			t.Fatalf("chdir: %v", err)
 		}
@@ -109,7 +109,7 @@ func TestProjectLocalAliasFile(t *testing.T) {
 		}
 
 		originalWd, _ := os.Getwd()
-		defer os.Chdir(originalWd)
+		defer func() { _ = os.Chdir(originalWd) }()
 		if err := os.Chdir(tmpDir); err != nil {
 			t.Fatalf("chdir: %v", err)
 		}

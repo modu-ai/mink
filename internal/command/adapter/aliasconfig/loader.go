@@ -1,5 +1,5 @@
-// Package aliasconfig는 모델 별칭(alias) 설정 파일 로더를 제공한다.
-// SPEC-GOOSE-ALIAS-CONFIG-001
+// Package aliasconfig provides an alias configuration file loader for model aliases.
+// SPEC-GOOSE-ALIAS-CONFIG-001, SPEC-GOOSE-ALIAS-CONFIG-001-AMEND-001
 package aliasconfig
 
 import (
@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"time"
 
 	"gopkg.in/yaml.v3"
 
@@ -20,17 +21,17 @@ import (
 
 // Sentinel errors
 var (
-	// ErrConfigNotFound는 aliases.yaml 파일을 찾을 수 없을 때 반환된다.
+	// ErrConfigNotFound is returned when the aliases.yaml config file cannot be found.
 	ErrConfigNotFound = errors.New("aliasconfig: config file not found")
 )
 
-// defaultConfigPath는 기본 설정 파일 경로이다.
+// defaultConfigPath is the default config file path relative to the home directory.
 const defaultConfigPath = ".goose/aliases.yaml"
 
-// homeEnv는 홈 디렉토리 환경변수 키이다.
+// homeEnv is the environment variable key for the Goose home directory.
 const homeEnv = "GOOSE_HOME"
 
-// Logger는 로깅 인터페이스이다.
+// Logger is the logging interface used by Loader.
 type Logger interface {
 	Debug(string, ...zap.Field)
 	Info(string, ...zap.Field)
@@ -38,27 +39,50 @@ type Logger interface {
 	Error(string, ...zap.Field)
 }
 
-// Loader는 alias 설정 로더이다.
+// Loader is the alias config loader.
+// @MX:ANCHOR: [AUTO] Public API boundary; LoadDefault/Validate satisfy HOTRELOAD-001 §6.7 Loader/Validator interfaces
+// @MX:REASON: fan_in >= 3 — consumed by ContextAdapter, Watcher (HOTRELOAD-001), and LoadEntries callers
+// @MX:SPEC: SPEC-GOOSE-ALIAS-CONFIG-001-AMEND-001 REQ-AMEND-001/002
 type Loader struct {
-	configPath string
-	fsys       fs.FS
-	logger     Logger
-	stdLogger  *log.Logger
+	configPath  string
+	fsys        fs.FS
+	logger      Logger
+	stdLogger   *log.Logger
+	mergePolicy MergePolicy
+	metrics     Metrics
 }
 
-// Options는 Loader 생성 옵션이다.
+// Options holds construction options for Loader.
+// Existing fields are preserved byte-identical; new fields use zero-value defaults
+// to maintain backward compatibility.
+//
+// SPEC-GOOSE-ALIAS-CONFIG-001-AMEND-001
 type Options struct {
-	// ConfigPath는 설정 파일 경로이다. 비어 있으면 기본 경로 사용.
+	// ConfigPath is the config file path. Empty string uses the default fallback chain.
 	ConfigPath string
-	// FS는 파일 시스템 인터페이스이다. 비어 있으면 os.DirFS("/") 사용.
+	// FS is the filesystem interface. Nil uses os-backed filesystem.
 	FS fs.FS
-	// Logger는 구조화된 로거이다. 비어 있으면 zap.NewNop() 사용.
+	// Logger is the structured logger. Nil uses zap.NewNop().
 	Logger Logger
-	// StdLogger는 표준 로거이다. 비어 있으면 logging 비활성화.
+	// StdLogger is the standard logger. Nil disables std logging.
 	StdLogger *log.Logger
+
+	// MergePolicy controls user/project file overlay behavior.
+	// Zero value (MergePolicyProjectOverride) is the default and applies project-override semantics.
+	//
+	// SPEC-GOOSE-ALIAS-CONFIG-001-AMEND-001 REQ-AMEND-020
+	MergePolicy MergePolicy
+
+	// Metrics receives observability events from Load/Reload/LoadDefault.
+	// Nil uses an internal noop implementation — no allocation in steady state.
+	//
+	// SPEC-GOOSE-ALIAS-CONFIG-001-AMEND-001 REQ-AMEND-022
+	Metrics Metrics
 }
 
-// New는 새 Loader를 생성한다.
+// New creates a new Loader with the given options.
+// Zero-value Options fields produce a Loader with default behavior
+// identical to the v0.1.0 parent SPEC implementation.
 func New(opts Options) *Loader {
 	configPath := opts.ConfigPath
 	if configPath == "" {
@@ -79,7 +103,7 @@ func New(opts Options) *Loader {
 
 	filesystem := opts.FS
 	if filesystem == nil {
-		// When no custom filesystem provided, use os.ReadFile directly for full path support
+		// When no custom filesystem provided, use os-backed FS for full path support
 		filesystem = &osFS{}
 	}
 
@@ -88,26 +112,51 @@ func New(opts Options) *Loader {
 		logger = zap.NewNop()
 	}
 
+	m := opts.Metrics
+	if m == nil {
+		m = noopMetrics{}
+	}
+
 	return &Loader{
-		configPath: configPath,
-		fsys:       filesystem,
-		logger:     logger,
-		stdLogger:  opts.StdLogger,
+		configPath:  configPath,
+		fsys:        filesystem,
+		logger:      logger,
+		stdLogger:   opts.StdLogger,
+		mergePolicy: opts.MergePolicy,
+		metrics:     m,
 	}
 }
 
-// AliasConfig는 alias 설정 파일 구조이다.
+// ConfigPath returns the effective config path resolved at New(...) time,
+// including any fallback chain result (project-local / GOOSE_HOME / HOME).
+//
+// SPEC-GOOSE-ALIAS-CONFIG-001-AMEND-001 REQ-AMEND-001
+func (l *Loader) ConfigPath() string {
+	return l.configPath
+}
+
+// Reload re-reads the alias file from disk with semantics identical to Load().
+// Exported as a separate symbol so hot-reload call sites are grep-able and
+// intent-aligned with HOTRELOAD-001's reload chain.
+//
+// SPEC-GOOSE-ALIAS-CONFIG-001-AMEND-001 REQ-AMEND-002
+func (l *Loader) Reload() (map[string]string, error) {
+	return l.Load()
+}
+
+// AliasConfig is the alias configuration file structure (flat form).
+// Extended form uses AliasEntry values — see entries.go.
 type AliasConfig struct {
-	// Aliases는 별칭 → provider/model 맵핑이다.
+	// Aliases maps alias name → provider/model canonical string.
 	Aliases map[string]string `yaml:"aliases"`
 }
 
 // maxAliasFileSize is the maximum allowed size for the alias file (1 MiB).
 const maxAliasFileSize = 1 * 1024 * 1024
 
-// detectProjectLocalAliasFile는 프로젝트 로컬 별칭 파일을 감지한다.
-// $CWD/.goose/aliases.yaml 경로를 확인하고 파일이 존재하면 경로를 반환한다.
-// P3 기능: 프로젝트 로컬 설정 오버레이 지원.
+// detectProjectLocalAliasFile probes $CWD/.goose/aliases.yaml and returns
+// its absolute path when it exists. Returns empty string otherwise.
+// Supports project-local config overlay (P3 feature).
 func detectProjectLocalAliasFile() string {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -122,9 +171,11 @@ func detectProjectLocalAliasFile() string {
 	return ""
 }
 
-// Load는 설정 파일을 로드하고 alias 맵을 반환한다.
-// P3 기능: fs.FS 인터페이스를 사용하여 테스트 가능한 파일 읽기.
+// Load reads the alias config file and returns the parsed alias map.
+// Uses the fs.FS interface for testability (P3 feature).
+// Emits metrics via Options.Metrics when configured.
 func (l *Loader) Load() (map[string]string, error) {
+	start := time.Now()
 	l.logger.Debug("loading alias config", zap.String("path", l.configPath))
 
 	if l.stdLogger != nil {
@@ -139,8 +190,12 @@ func (l *Loader) Load() (map[string]string, error) {
 			if l.stdLogger != nil {
 				l.stdLogger.Printf("[aliasconfig] config file not found: %s", l.configPath)
 			}
+			l.metrics.IncLoadCount(true)
+			l.metrics.RecordLoadDuration(time.Since(start))
+			l.metrics.ObserveEntryCount(0)
 			return nil, nil // File not found is not an error (return nil map)
 		}
+		l.metrics.IncLoadCount(false)
 		return nil, fmt.Errorf("%w: %w", ErrConfigNotFound, err)
 	}
 
@@ -149,6 +204,7 @@ func (l *Loader) Load() (map[string]string, error) {
 		if l.stdLogger != nil {
 			l.stdLogger.Printf("[aliasconfig] file too large: %d bytes (max %d)", fileInfo.Size(), maxAliasFileSize)
 		}
+		l.metrics.IncLoadCount(false)
 		return nil, command.ErrAliasFileTooLarge
 	}
 
@@ -160,8 +216,10 @@ func (l *Loader) Load() (map[string]string, error) {
 			if l.stdLogger != nil {
 				l.stdLogger.Printf("[aliasconfig] permission denied reading: %s", l.configPath)
 			}
+			l.metrics.IncLoadCount(false)
 			return nil, fmt.Errorf("aliasconfig: permission denied reading %s: %w", l.configPath, err)
 		}
+		l.metrics.IncLoadCount(false)
 		return nil, fmt.Errorf("%w: %w", ErrConfigNotFound, err)
 	}
 
@@ -171,6 +229,7 @@ func (l *Loader) Load() (map[string]string, error) {
 		if l.stdLogger != nil {
 			l.stdLogger.Printf("[aliasconfig] yaml parsing error: %v", err)
 		}
+		l.metrics.IncLoadCount(false)
 		return nil, fmt.Errorf("%w: %w", command.ErrMalformedAliasFile, err)
 	}
 
@@ -179,16 +238,28 @@ func (l *Loader) Load() (map[string]string, error) {
 		l.stdLogger.Printf("[aliasconfig] loaded %d alias entries", len(config.Aliases))
 	}
 
+	d := time.Since(start)
+	l.metrics.IncLoadCount(true)
+	l.metrics.RecordLoadDuration(d)
+	l.metrics.ObserveEntryCount(len(config.Aliases))
 	return config.Aliases, nil
 }
 
-// LoadDefault는 기본 경로에서 설정을 로드한다.
+// LoadDefault loads from the default path with multi-source merge support.
+// When both user file and project file exist and MergePolicy is
+// MergePolicyProjectOverride (zero value), the two files are merged with
+// project entries overriding user entries on conflict, per REQ-AMEND-010.
+//
+// SPEC-GOOSE-ALIAS-CONFIG-001-AMEND-001 REQ-AMEND-010, REQ-AMEND-020
 func (l *Loader) LoadDefault() (map[string]string, error) {
-	return l.Load()
+	return loadDefaultWithMerge(l)
 }
 
-// Validate는 alias 맵을 검증하고 에러 목록을 반환한다.
-// strict=true인 경우 에러가 있으면 빈 맵을 반환하지 않는다.
+// Validate validates each entry in aliasMap and returns per-entry errors.
+// When strict is true, provider and model existence are checked against registry.
+// The input map is not mutated. This function signature is preserved from v0.1.0.
+//
+// For an immutable-input pruning variant, see ValidateAndPrune in policy.go.
 func Validate(aliasMap map[string]string, registry *router.ProviderRegistry, strict bool) []error {
 	if aliasMap == nil {
 		return nil
@@ -235,9 +306,10 @@ func Validate(aliasMap map[string]string, registry *router.ProviderRegistry, str
 	return errs
 }
 
-// parseModelTarget은 "provider/model" 형식의 문자열을 파싱한다.
+// parseModelTarget parses a "provider/model" canonical string.
+// Returns (provider, model, true) on success; ("", "", false) on invalid input.
 func parseModelTarget(target string) (provider, model string, ok bool) {
-	// 슬래시가 하나여야 함 (provider/model)
+	// Exactly one slash required (provider/model)
 	slashCount := 0
 	slashIndex := -1
 	for i := 0; i < len(target); i++ {
@@ -249,7 +321,6 @@ func parseModelTarget(target string) (provider, model string, ok bool) {
 		}
 	}
 
-	// 슬래시가 정확히 하나가 아니면 invalid
 	if slashCount != 1 {
 		return "", "", false
 	}
@@ -257,7 +328,6 @@ func parseModelTarget(target string) (provider, model string, ok bool) {
 	provider = target[:slashIndex]
 	model = target[slashIndex+1:]
 
-	// provider나 model이 비어 있으면 invalid
 	if provider == "" || model == "" {
 		return "", "", false
 	}
@@ -265,16 +335,16 @@ func parseModelTarget(target string) (provider, model string, ok bool) {
 	return provider, model, true
 }
 
-// yamlUnmarshal는 YAML 언마샬링 함수이다.
+// yamlUnmarshal unmarshals YAML bytes into an AliasConfig (flat form).
 func yamlUnmarshal(data []byte, config *AliasConfig) error {
 	return yaml.Unmarshal(data, config)
 }
 
-// osFS는 os 패키지 함수를 사용하는 fs.FS 구현체이다.
-// P3 기능: 기본 파일 시스템으로 os.DirFS 대신 절대 경로 지원.
+// osFS is an fs.FS implementation backed by the os package.
+// Supports absolute paths, unlike os.DirFS which requires a root directory.
 type osFS struct{}
 
-// Open는 fs.FS 인터페이스를 구현한다.
+// Open implements fs.FS using os.Open, supporting absolute paths.
 func (o *osFS) Open(name string) (fs.File, error) {
 	return os.Open(name)
 }
