@@ -14,7 +14,11 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	goleak.VerifyTestMain(m)
+	// google genai SDK imports go.opencensus.io which starts a background goroutine.
+	// This is a known false-positive; ignore it so matrix tests can import the google adapter.
+	goleak.VerifyTestMain(m,
+		goleak.IgnoreTopFunction("go.opencensus.io/stats/view.(*worker).start"),
+	)
 }
 
 // TestFileSecretStore_Resolve_ReadsAccessToken은 JSON 파일에서 access_token을 읽는지 검증한다.

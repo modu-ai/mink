@@ -53,9 +53,15 @@ func New(opts Options) (*openai.OpenAIAdapter, error) {
 		Capabilities: provider.Capabilities{
 			Streaming:        true,
 			Tools:            true,
-			Vision:           false, // DeepSeek은 vision 미지원
+			Vision:           false, // DeepSeek does not support vision
 			Embed:            false,
 			AdaptiveThinking: false,
+			// JSONMode is supported via OpenAI-compat response_format (REQ-AMEND-012).
+			// @MX:SPEC SPEC-GOOSE-ADAPTER-001-AMEND-001 REQ-AMEND-012
+			JSONMode: true,
+			// UserID is undocumented in DeepSeek API — silent drop adopted (REQ-AMEND-012).
+			// @MX:SPEC SPEC-GOOSE-ADAPTER-001-AMEND-001 REQ-AMEND-012
+			UserID: false,
 		},
 		Logger: opts.Logger,
 	})

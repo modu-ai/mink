@@ -95,12 +95,15 @@ func New(opts OpenAIOptions) (*OpenAIAdapter, error) {
 	}
 
 	caps := opts.Capabilities
-	// 기본 Capabilities 설정
+	// Default capabilities when none are explicitly set.
+	// JSONMode and UserID default to true for OpenAI-compat providers (REQ-AMEND-012).
 	if !caps.Streaming && !caps.Tools && !caps.Vision {
 		caps = provider.Capabilities{
 			Streaming: true,
 			Tools:     true,
 			Vision:    true,
+			JSONMode:  true,
+			UserID:    true,
 		}
 	}
 
@@ -138,15 +141,24 @@ func (a *OpenAIAdapter) Name() string { return a.providerName }
 // Capabilities는 어댑터의 기능 목록을 반환한다.
 func (a *OpenAIAdapter) Capabilities() provider.Capabilities { return a.caps }
 
+// openAIResponseFormat is the response_format object for JSON mode.
+// Using a pointer in openAIRequest ensures omitempty suppresses the field when nil.
+// @MX:SPEC SPEC-GOOSE-ADAPTER-001-AMEND-001 REQ-AMEND-005
+type openAIResponseFormat struct {
+	Type string `json:"type"`
+}
+
 // openAIRequest는 OpenAI chat completions API 요청 바디이다.
 type openAIRequest struct {
-	Model       string          `json:"model"`
-	Messages    []openAIMsg     `json:"messages"`
-	Tools       []OpenAIToolDef `json:"tools,omitempty"`
-	ToolChoice  any             `json:"tool_choice,omitempty"`
-	MaxTokens   int             `json:"max_tokens,omitempty"`
-	Temperature float64         `json:"temperature,omitempty"`
-	Stream      bool            `json:"stream"`
+	Model          string                `json:"model"`
+	Messages       []openAIMsg           `json:"messages"`
+	Tools          []OpenAIToolDef       `json:"tools,omitempty"`
+	ToolChoice     any                   `json:"tool_choice,omitempty"`
+	MaxTokens      int                   `json:"max_tokens,omitempty"`
+	Temperature    float64               `json:"temperature,omitempty"`
+	Stream         bool                  `json:"stream"`
+	ResponseFormat *openAIResponseFormat `json:"response_format,omitempty"`
+	User           string                `json:"user,omitempty"`
 }
 
 // openAIMsg는 OpenAI chat completions API 메시지이다.
@@ -218,6 +230,16 @@ func (a *OpenAIAdapter) stream(ctx context.Context, req provider.CompletionReque
 		MaxTokens:   req.MaxOutputTokens,
 		Temperature: req.Temperature,
 		Stream:      true,
+	}
+
+	// JSON mode: inject response_format when requested (REQ-AMEND-005).
+	if req.ResponseFormat == "json" {
+		apiReq.ResponseFormat = &openAIResponseFormat{Type: "json_object"}
+	}
+
+	// UserID forwarding: top-level "user" field (REQ-AMEND-005).
+	if req.Metadata.UserID != "" {
+		apiReq.User = req.Metadata.UserID
 	}
 
 	if a.logger != nil {

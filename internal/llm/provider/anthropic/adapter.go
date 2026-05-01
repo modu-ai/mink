@@ -120,7 +120,21 @@ func (a *AnthropicAdapter) Capabilities() provider.Capabilities {
 		AdaptiveThinking: true,
 		MaxContextTokens: 200000,
 		MaxOutputTokens:  16000,
+		// JSONMode is unsupported — Anthropic Messages API has no response_format field.
+		// Capability gate in NewLLMCall will block json requests with ErrCapabilityUnsupported.
+		// @MX:SPEC SPEC-GOOSE-ADAPTER-001-AMEND-001 REQ-AMEND-002
+		JSONMode: false,
+		// UserID is supported via the nested metadata.user_id field.
+		// @MX:SPEC SPEC-GOOSE-ADAPTER-001-AMEND-001 REQ-AMEND-002
+		UserID: true,
 	}
+}
+
+// anthropicMetadata holds the optional user identifier for abuse tracking.
+// Serialized as {"user_id": "..."} and omitted entirely when nil.
+// @MX:SPEC SPEC-GOOSE-ADAPTER-001-AMEND-001 REQ-AMEND-006
+type anthropicMetadata struct {
+	UserID string `json:"user_id,omitempty"`
 }
 
 // anthropicAPIRequest는 Anthropic Messages API 요청 바디이다.
@@ -133,6 +147,9 @@ type anthropicAPIRequest struct {
 	Temperature float64                 `json:"temperature,omitempty"`
 	Thinking    *AnthropicThinkingParam `json:"thinking,omitempty"`
 	Stream      bool                    `json:"stream"`
+	// Metadata carries optional user_id for abuse tracking (REQ-AMEND-006).
+	// Pointer + omitempty ensures the field is absent when UserID is empty.
+	Metadata *anthropicMetadata `json:"metadata,omitempty"`
 }
 
 // Stream은 스트리밍 방식으로 LLM 응답을 반환한다.
@@ -200,6 +217,11 @@ func (a *AnthropicAdapter) stream(ctx context.Context, req provider.CompletionRe
 		Temperature: req.Temperature,
 		Thinking:    thinking,
 		Stream:      true,
+	}
+
+	// UserID forwarding: inject as nested metadata.user_id when provided (REQ-AMEND-006).
+	if req.Metadata.UserID != "" {
+		apiReq.Metadata = &anthropicMetadata{UserID: req.Metadata.UserID}
 	}
 
 	// 로깅: PII 미포함 (REQ-ADAPTER-014)

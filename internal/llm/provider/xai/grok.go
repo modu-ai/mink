@@ -56,6 +56,10 @@ func New(opts Options) (*openai.OpenAIAdapter, error) {
 			Vision:           true,
 			Embed:            false,
 			AdaptiveThinking: false,
+			// xAI inherits OpenAI-compat response_format and user fields (REQ-AMEND-012).
+			// @MX:SPEC SPEC-GOOSE-ADAPTER-001-AMEND-001 REQ-AMEND-012
+			JSONMode: true,
+			UserID:   true,
 		},
 		Logger: opts.Logger,
 	})
