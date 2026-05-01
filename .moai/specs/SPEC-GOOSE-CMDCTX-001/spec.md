@@ -1,10 +1,10 @@
 ---
 id: SPEC-GOOSE-CMDCTX-001
-version: 0.1.1
+version: 0.2.0
 status: completed
 completed: 2026-04-27
 created_at: 2026-04-27
-updated_at: 2026-04-27
+updated_at: 2026-05-01
 author: manager-spec
 priority: P1
 issue_number: null
@@ -22,6 +22,7 @@ labels: [area/cli, area/runtime, area/router, type/feature, priority/p1-high]
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-27 | 초안 작성. PR #50 (SPEC-GOOSE-COMMAND-001 implemented)에서 정의된 `SlashCommandContext` 인터페이스의 구현체(adapter) wiring SPEC 신설. 6개 메서드를 ROUTER-001 / CONTEXT-001 / SUBAGENT-001 에 위임. | manager-spec |
 | 0.1.1 | 2026-04-27 | plan-auditor iter1 FAIL 결함 수정: M1 (ErrUnknownModel stale claim 정정 — PR #50 internal/command/errors.go:23-25 에 이미 정의됨), M2 (planMode *atomic.Bool 포인터 indirection 으로 변경 — sync/atomic.Bool noCopy 위반 해소), M3 (AC-CMDCTX-019 신설 — adapter 비-mutation invariant 정적 분석), M4 (REQ-CMDCTX-016 §4.4 Unwanted → §4.1 Ubiquitous 재배치), M5 (AC-CMDCTX-016 확장 — logger.Warn 호출 검증 추가), N2 (Exclusions #7-9 placeholder 명시) | manager-spec |
+| 0.2.0 | 2026-05-01 | SPEC-GOOSE-CMDCTX-TELEMETRY-001 amendment: ContextAdapter 6개 메서드에 metrics emission 추가. Options.Metrics 필드 신설 (MetricsSink, nil 허용). CMDCTX-001의 19 AC는 모두 보존, 신규 18 AC는 TELEMETRY-001 거주. | manager-tdd |
 
 ---
 
@@ -313,6 +314,7 @@ type Options struct {
     AliasMap       map[string]string
     GetwdFn        func() (string, error) // defaults to os.Getwd
     Logger         Logger
+    Metrics        MetricsSink // optional, may be nil (see SPEC-GOOSE-CMDCTX-TELEMETRY-001)
 }
 
 // New constructs a ContextAdapter with the given options. nil dependencies
@@ -613,7 +615,7 @@ go test -race -count=10 ./internal/command/adapter/...
 3. **모델 alias config 파일 로드** — `~/.goose/aliases.yaml` 또는 등가. 후속 config SPEC.
 4. **OnModelChange 후 OAuth refresh / credential pool swap** — SPEC-GOOSE-CREDPOOL-001 후속 wiring.
 5. **Plan mode top-level orchestrator setter** — `/plan` slash command 또는 등가 진입점. COMMAND-001 후속.
-6. **Telemetry / metrics emission** — adapter 호출 카운트 / latency 수집. 후속 observability SPEC.
+6. **Telemetry / metrics emission** — (see SPEC-GOOSE-CMDCTX-TELEMETRY-001 v0.1.1, run phase)
 7. **Permissive alias mode** — SuggestedModels 에 없는 모델 허용 옵션. 본 SPEC은 strict only. 후속 SPEC (본 SPEC 머지 후 별도 plan 필요).
 8. **Hot-reload of registry / aliasMap** — `New(...)` 시점 immutable. 후속 SPEC (본 SPEC 머지 후 별도 plan 필요).
 9. **Multi-session adapter** — 단일 프로세스 단일 세션 가정. 다중 세션 multiplexing 은 후속 SPEC (본 SPEC 머지 후 별도 plan 필요).
