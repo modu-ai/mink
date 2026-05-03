@@ -2,6 +2,8 @@
 package tui
 
 import (
+	"fmt"
+
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -54,12 +56,18 @@ func (m *Model) renderStatusBar(applyStyle func(lipgloss.Style) lipgloss.Style) 
 		daemonStatus += " [Streaming...]"
 	}
 
+	// Phase C4: surface chat history depth so users can see at a glance how
+	// long the current session has grown.
+	msgCount := fmt.Sprintf(" | Messages: %d", len(m.messages))
+
+	rendered := statusText + daemonStatus + msgCount
+
 	// Apply faint style if color is enabled
 	if !m.noColor {
 		baseStyle := lipgloss.NewStyle().Faint(true)
-		return applyStyle(baseStyle).Render(statusText + daemonStatus)
+		return applyStyle(baseStyle).Render(rendered)
 	}
-	return statusText + daemonStatus
+	return rendered
 }
 
 // renderInputArea generates the input field with prompt.
