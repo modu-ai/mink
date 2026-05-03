@@ -71,7 +71,8 @@ func NewDaemonClient(addr string, timeout time.Duration) (*DaemonClient, error) 
 	// Verify daemon is reachable within timeout
 	_, err = goosev1.NewDaemonServiceClient(conn).Ping(ctx, &goosev1.PingRequest{})
 	if err != nil {
-		conn.Close()
+		// Best-effort cleanup; the meaningful error is the Ping failure below.
+		_ = conn.Close()
 		return nil, fmt.Errorf("failed to connect to daemon at %s: %w", addr, err)
 	}
 
