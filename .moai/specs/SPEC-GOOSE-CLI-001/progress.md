@@ -110,13 +110,78 @@
 | GREEN | ConnectClient 구현 + helpers |
 | REFACTOR | factory 함수 정리, godoc 보강, lint clean |
 
-## 다음 단계
+## Phase Log — Run Phase Phase A (2026-05-04)
 
-- (a) Phase A run (manager-tdd, isolation worktree) → PR 생성
+### 환경 준비
+
+- `buf` 미설치 → `protoc` + 개별 플러그인으로 대체
+- `protoc-gen-connect-go v1.19.1` go install 설치
+- feature 브랜치: `feature/SPEC-GOOSE-CLI-001-phase-a-proto-transport`
+
+### RED Phase
+
+| RED # | 테스트 | 결과 | 비고 |
+|-------|--------|------|------|
+| #1 | `TestProto_GeneratedCode_Constants` | RED → GREEN | proto 3파일 + generate 성공; `ChatStreamRequest`/`Message` 이름 충돌 → Agent prefix 적용 |
+| #2 | `TestConnectClient_Ping_Success`, `TestConnectClient_Ping_Timeout` | RED → GREEN | DaemonService Connect handler 생성 포함 |
+| #3 | `TestConnectClient_Chat_Unary_Success`, `TestConnectClient_Chat_Error` | RED → GREEN | AgentService.Chat unary |
+| #4 | `TestConnectClient_ChatStream_ReceivesEvents`, `TestConnectClient_ChatStream_CtxCancel` | RED → GREEN | server streaming, goroutine 패턴 |
+| #5 | `TestConnectClient_ListTools_Success`, `TestConnectClient_ListTools_Empty` | RED → GREEN | ToolService.List |
+| #6 | `TestConnectClient_GetConfig_Found`, `TestConnectClient_GetConfig_NotFound`, `TestConnectClient_SetConfig`, `TestConnectClient_ListConfig_Prefix` | RED → GREEN | ConfigService 4개 |
+| #7 | `TestRace_ConnectClient_ConcurrentCalls` (50 goroutines) | RED → GREEN | race PASS |
+| #8 | `TestExisting_GRPCGoClient_NoRegression` | GREEN (-count=10) | 기존 client_test.go 30번 PASS |
+
+### GREEN Phase (connect.go)
+
+- `internal/cli/transport/connect.go` 신규 (284 LoC)
+- `NewConnectClient` + `WithHTTPClient/WithDialTimeout/WithInterceptor` 옵션 패턴
+- 7개 메서드: Ping/Chat/ChatStream/ListTools/GetConfig/SetConfig/ListConfig
+- `ChatStreamEvent`, `ToolDescriptor`, `ChatResponse` wrapper type 정의
+
+### REFACTOR Phase
+
+- `buf.gen.yaml`에 `protoc-gen-connect-go` 플러그인 추가
+- `connectrpc.com/connect` indirect → direct 승격 (`go mod tidy`)
+- `@MX:ANCHOR` + `@MX:WARN` 태그 추가 (ConnectClient, NewConnectClient, ChatStream)
+- 추가 테스트: 8개 (options, nil-value, server-error, session-id 등) → 커버리지 85.8% 달성
+
+### Phase A AC 검증 매트릭스
+
+| AC | 설명 | 결과 | 증거 |
+|----|------|------|------|
+| Phase A-AC-001 | 3 proto 파일 컴파일 + generated code 배치 | PASS | `go build ./internal/transport/grpc/gen/...` 성공; goosev1connect/ 4파일 생성 |
+| Phase A-AC-002 | ConnectClient 7 메서드 PASS | PASS | 30개 테스트 전체 PASS (race) |
+| Phase A-AC-003 | 기존 gRPC-go client 회귀 0건 | PASS | `-count=10` 10회 반복 100% PASS |
+| Phase A-AC-004 | mock Connect server 기반 unit test (race PASS) | PASS | `TestRace_ConnectClient_ConcurrentCalls` 50 goroutines PASS |
+| Phase A-AC-005 | coverage >= 85% (transport package) | PASS | 85.8% (`go test -cover`) |
+
+### 품질 게이트
+
+| Gate | 결과 |
+|------|------|
+| `go vet ./internal/cli/transport/...` | PASS |
+| `gofmt -l internal/cli/transport/` | PASS (empty) |
+| `go build ./...` | PASS |
+| `go test -race -count=1` | 30/30 PASS |
+| `go test -race -count=10` | 100% PASS |
+| `go test -cover` | 85.8% |
+| `golangci-lint` 신규 파일 | 0 issues (connect.go, connect_test.go) |
+| `go.mod` connectrpc | indirect → direct 승격 완료 |
+
+### 알려진 한계 / 주의사항
+
+- `buf` 미설치로 `buf generate` 대신 `protoc` 직접 사용 — buf.gen.yaml은 업데이트했으나 buf 설치 후 검증 권장
+- `daemon.proto`의 `ChatStream`이 bidirectional (bidi) streaming — Connect-Go bidi 핸들러 생성됨
+- `agent.proto`의 메시지 이름을 `AgentChatRequest` 등으로 prefix 적용 (daemon.proto와 충돌 방지)
+- `golangci-lint` 기존 파일(`client.go`, `client_test.go`) 이슈 11건: Phase A 범위 밖, 별도 hygiene PR 권장
+
+### 다음 단계
+
+- (a) PR 생성 (orchestrator 담당)
 - (b) Phase A 머지 후 Phase B (cobra commands wiring) 다음 세션 진입
 - (c) Phase C (TUI), Phase D (slash + E2E) 후속 세션
 
 ---
 
-Last Updated: 2026-05-04 (Phase A 진입 자격 확보, ~800-1200 LoC scope 명세)
-Status Source: 사용자 결정 (Phase A만 본 세션 진행)
+Last Updated: 2026-05-04 (Phase A 완료)
+Status: Phase A DONE — Phase B/C/D pending

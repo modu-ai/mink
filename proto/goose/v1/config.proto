@@ -1,0 +1,79 @@
+// Package goose.v1 defines the ConfigService RPC contract.
+// SPEC-GOOSE-CLI-001 Phase A REQ-CLI-005
+syntax = "proto3";
+
+package goose.v1;
+
+option go_package = "github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1;goosev1";
+
+// ConfigService provides configuration key-value operations.
+service ConfigService {
+  // Get retrieves a single configuration value by key.
+  rpc Get(GetConfigRequest) returns (GetConfigResponse);
+
+  // Set stores a configuration value for the given key.
+  rpc Set(SetConfigRequest) returns (SetConfigResponse);
+
+  // List returns all configuration entries with an optional key prefix filter.
+  rpc List(ListConfigRequest) returns (ListConfigResponse);
+}
+
+// ConfigKey identifies a configuration entry.
+message ConfigKey {
+  // key is the configuration key name.
+  string key = 1;
+}
+
+// ConfigValue holds a configuration value with an existence flag.
+message ConfigValue {
+  // value is the string representation of the configuration entry.
+  string value = 1;
+  // exists indicates whether the key is present in the configuration store.
+  bool exists = 2;
+}
+
+// ConfigEntry is a key-value pair in the configuration store.
+message ConfigEntry {
+  // key is the configuration key name.
+  string key = 1;
+  // value is the string representation of the configuration entry.
+  string value = 2;
+}
+
+// GetConfigRequest is the request message for ConfigService.Get.
+message GetConfigRequest {
+  // key is the configuration key to retrieve.
+  string key = 1;
+}
+
+// GetConfigResponse is the response message for ConfigService.Get.
+message GetConfigResponse {
+  // value contains the retrieved configuration value and existence flag.
+  ConfigValue value = 1;
+}
+
+// SetConfigRequest is the request message for ConfigService.Set.
+message SetConfigRequest {
+  // key is the configuration key to set.
+  string key = 1;
+  // value is the string value to store.
+  string value = 2;
+}
+
+// SetConfigResponse is the response message for ConfigService.Set.
+message SetConfigResponse {
+  // success indicates whether the configuration was stored successfully.
+  bool success = 1;
+}
+
+// ListConfigRequest is the request message for ConfigService.List.
+message ListConfigRequest {
+  // prefix is an optional key prefix filter. Empty string returns all entries.
+  string prefix = 1;
+}
+
+// ListConfigResponse is the response message for ConfigService.List.
+message ListConfigResponse {
+  // entries contains all matching configuration key-value pairs.
+  repeated ConfigEntry entries = 1;
+}
