@@ -9,6 +9,8 @@ package transport
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -60,6 +62,132 @@ func (a *PingClientAdapter) Ping(ctx context.Context, addr string, writer io.Wri
 		resp.Version, resp.State, resp.UptimeMs)
 	return nil
 }
+
+// TranslatedChatEvent is the simplified two-field event shape consumed by
+// the commands layer (commands.StreamEvent has the same structure). The
+// type is duplicated here to keep transport free of a back-edge import on
+// commands. Callers in cli package map TranslatedChatEvent → commands.StreamEvent.
+type TranslatedChatEvent struct {
+	Type    string
+	Content string
+}
+
+// chatTextPayload mirrors the {"text": "..."} envelope emitted by the
+// daemon for a "text" event.
+type chatTextPayload struct {
+	Text string `json:"text"`
+}
+
+// chatErrorPayload mirrors the {"message": "..."} or {"error": "..."}
+// envelope emitted by the daemon for an "error" event.
+type chatErrorPayload struct {
+	Message string `json:"message"`
+	Error   string `json:"error"`
+}
+
+// TranslateChatEvent converts a wire ChatStreamEvent into the simplified
+// two-field shape used by ask/tui. The boolean return is true when the
+// event should be dropped (Phase B does not surface tool_use yet).
+//
+// @MX:NOTE Translation is shared between ask command and tui chat panel
+// to keep payload-handling in one place.
+func TranslateChatEvent(ev ChatStreamEvent) (TranslatedChatEvent, bool) {
+	switch ev.Type {
+	case "text":
+		var p chatTextPayload
+		if err := json.Unmarshal(ev.PayloadJSON, &p); err == nil && p.Text != "" {
+			return TranslatedChatEvent{Type: "text", Content: p.Text}, false
+		}
+		return TranslatedChatEvent{Type: "text", Content: string(ev.PayloadJSON)}, false
+	case "error":
+		var p chatErrorPayload
+		if err := json.Unmarshal(ev.PayloadJSON, &p); err == nil {
+			if p.Message != "" {
+				return TranslatedChatEvent{Type: "error", Content: p.Message}, false
+			}
+			if p.Error != "" {
+				return TranslatedChatEvent{Type: "error", Content: p.Error}, false
+			}
+		}
+		return TranslatedChatEvent{Type: "error", Content: string(ev.PayloadJSON)}, false
+	case "done":
+		return TranslatedChatEvent{Type: "done", Content: ""}, false
+	case "tool_use":
+		return TranslatedChatEvent{}, true
+	default:
+		return TranslatedChatEvent{Type: ev.Type, Content: string(ev.PayloadJSON)}, false
+	}
+}
+
+// PickLastUserMessage returns the Content of the last "user" role message
+// in the slice. If none has role "user", the last element's Content is
+// returned. The empty slice yields ("", false).
+//
+// Phase B simplification: AgentService.ChatStream takes a single user
+// message string; multi-turn replay is Phase C scope.
+func PickLastUserMessage(messages []ChatMessageView) (string, bool) {
+	if len(messages) == 0 {
+		return "", false
+	}
+	for i := len(messages) - 1; i >= 0; i-- {
+		if messages[i].Role == "user" {
+			return messages[i].Content, true
+		}
+	}
+	return messages[len(messages)-1].Content, true
+}
+
+// ChatMessageView is a transport-agnostic view of a chat message, used by
+// PickLastUserMessage to remain free of an import on commands.
+type ChatMessageView struct {
+	Role    string
+	Content string
+}
+
+// ChatStreamFanIn drains the (events, errors) pair returned by
+// ConnectClient.ChatStream into a single channel of TranslatedChatEvent.
+// A trailing error from errCh is emitted as a synthetic
+// TranslatedChatEvent{Type: "error"} so callers can keep a single
+// for-range loop. The returned channel is closed when both upstream
+// channels are exhausted.
+//
+// @MX:WARN This goroutine runs until both upstream channels close or ctx
+// is cancelled — leaking the goroutine requires both abandonment of the
+// returned channel and a never-cancelled ctx.
+// @MX:REASON SPEC-GOOSE-CLI-001 Phase B2; ConnectClient already documents
+// goroutine lifecycle dependent on ctx cancel.
+func ChatStreamFanIn(ctx context.Context, rawEvents <-chan ChatStreamEvent, errCh <-chan error) <-chan TranslatedChatEvent {
+	out := make(chan TranslatedChatEvent, 16)
+	go func() {
+		defer close(out)
+		for ev := range rawEvents {
+			translated, drop := TranslateChatEvent(ev)
+			if drop {
+				continue
+			}
+			select {
+			case out <- translated:
+			case <-ctx.Done():
+				return
+			}
+		}
+		if streamErr, ok := <-errCh; ok && streamErr != nil {
+			select {
+			case out <- TranslatedChatEvent{Type: "error", Content: streamErr.Error()}:
+			case <-ctx.Done():
+			}
+		}
+	}()
+	return out
+}
+
+// errEmptyMessages is exported for adapter tests; the commands wrapper in
+// the cli package surfaces this when AskCommand is invoked with no input.
+var errEmptyMessages = errors.New("ask: empty messages")
+
+// ErrEmptyMessages is the sentinel returned when a chat call is invoked
+// with no messages.
+func ErrEmptyMessages() error { return errEmptyMessages }
 
 // NormalizeDaemonURL prepends "http://" to a bare host:port address.
 // Inputs that already carry an http:// or https:// scheme are returned

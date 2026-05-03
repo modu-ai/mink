@@ -4,7 +4,6 @@ package cli
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/modu-ai/goose/internal/cli/commands"
 	"github.com/modu-ai/goose/internal/cli/transport"
@@ -84,8 +83,10 @@ func NewRootCommand(version, commit, builtAt string) *cobra.Command {
 	pingClient := transport.NewPingClientAdapter()
 	rootCmd.AddCommand(commands.NewPingCommand(pingClient, "127.0.0.1:9005"))
 
-	// Ask command with gRPC client adapter
-	askClient := &askClientAdapter{newClient: transport.NewDaemonClient}
+	// Ask command — Phase B2 wiring: askClientAdapter delegates to
+	// ConnectClient.ChatStream and uses transport-package helpers
+	// (TranslateChatEvent + ChatStreamFanIn) for event translation.
+	askClient := newAskClientAdapter("127.0.0.1:9005")
 	rootCmd.AddCommand(commands.NewAskCommand(askClient, "127.0.0.1:9005"))
 
 	// Session commands
@@ -127,51 +128,59 @@ func newLogger(level string) *zap.Logger {
 	return logger
 }
 
-// askClientAdapter adapts transport.DaemonClient to commands.AskClient interface.
-// @MX:ANCHOR This adapter bridges transport and command layers for ask command.
+// askClientAdapter wraps the Connect-protocol ConnectClient as a
+// commands.AskClient. Translation between the wire ChatStreamEvent and
+// the simpler StreamEvent shape lives in the transport package
+// (TranslateChatEvent + ChatStreamFanIn) so the same logic is shared
+// with future tui chat consumers.
+//
+// @MX:ANCHOR askClientAdapter bridges Connect transport to the ask
+// subcommand; replaces the legacy gRPC-go adapter as of Phase B2.
+// @MX:REASON SPEC-GOOSE-CLI-001 Phase B2; fan_in == 1 today.
 type askClientAdapter struct {
-	newClient func(addr string, timeout time.Duration) (*transport.DaemonClient, error)
+	daemonAddr string
+	newClient  func(daemonURL string, opts ...transport.ConnectOption) (*transport.ConnectClient, error)
 }
 
-// ChatStream implements commands.AskClient interface.
-func (a *askClientAdapter) ChatStream(ctx context.Context, messages []commands.Message) (<-chan commands.StreamEvent, error) {
-	// Get daemon address from context (set by command)
-	addr := "127.0.0.1:9005" // Default
+func newAskClientAdapter(daemonAddr string) *askClientAdapter {
+	return &askClientAdapter{
+		daemonAddr: daemonAddr,
+		newClient:  transport.NewConnectClient,
+	}
+}
 
-	client, err := a.newClient(addr, 30*time.Second)
+// ChatStream implements commands.AskClient.
+func (a *askClientAdapter) ChatStream(ctx context.Context, messages []commands.Message) (<-chan commands.StreamEvent, error) {
+	if len(messages) == 0 {
+		return nil, transport.ErrEmptyMessages()
+	}
+
+	client, err := a.newClient(transport.NormalizeDaemonURL(a.daemonAddr))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect: %w", err)
 	}
 
-	// Convert commands.Message to transport.Message
-	transportMessages := make([]transport.Message, len(messages))
-	for i, msg := range messages {
-		transportMessages[i] = transport.Message{
-			Role:    msg.Role,
-			Content: msg.Content,
-		}
+	views := make([]transport.ChatMessageView, len(messages))
+	for i, m := range messages {
+		views[i] = transport.ChatMessageView{Role: m.Role, Content: m.Content}
 	}
+	lastMsg, _ := transport.PickLastUserMessage(views)
 
-	eventCh, err := client.ChatStream(ctx, transportMessages)
-	if err != nil {
-		client.Close()
-		return nil, err
-	}
+	rawEvents, errCh := client.ChatStream(ctx, "", lastMsg)
+	fan := transport.ChatStreamFanIn(ctx, rawEvents, errCh)
 
-	// Convert transport events to command events
-	resultCh := make(chan commands.StreamEvent, 10)
+	out := make(chan commands.StreamEvent, 16)
 	go func() {
-		defer client.Close()
-		defer close(resultCh)
-		for event := range eventCh {
-			resultCh <- commands.StreamEvent{
-				Type:    event.Type,
-				Content: event.Content,
+		defer close(out)
+		for ev := range fan {
+			select {
+			case out <- commands.StreamEvent{Type: ev.Type, Content: ev.Content}:
+			case <-ctx.Done():
+				return
 			}
 		}
 	}()
-
-	return resultCh, nil
+	return out, nil
 }
 
 // ExecuteWithCommand is a test helper that executes a command and returns the exit code.

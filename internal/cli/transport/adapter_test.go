@@ -143,6 +143,197 @@ func TestNewPingClientAdapter_DefaultsToNewConnectClient(t *testing.T) {
 	}
 }
 
+// RED #4 (text path): TranslateChatEvent extracts the JSON-encoded
+// {"text": ...} payload into a flat StreamEvent.
+func TestTranslateChatEvent_TextPayloadExtracted(t *testing.T) {
+	t.Parallel()
+
+	ev := ChatStreamEvent{Type: "text", PayloadJSON: []byte(`{"text":"hello world"}`)}
+	got, drop := TranslateChatEvent(ev)
+	if drop {
+		t.Fatal("text events must not be dropped")
+	}
+	if got.Type != "text" || got.Content != "hello world" {
+		t.Errorf("unexpected translation: %+v", got)
+	}
+}
+
+// TranslateChatEvent falls back to the raw JSON when the text envelope is
+// missing the expected key.
+func TestTranslateChatEvent_TextPayloadFallback(t *testing.T) {
+	t.Parallel()
+
+	ev := ChatStreamEvent{Type: "text", PayloadJSON: []byte(`{"unknown":"value"}`)}
+	got, drop := TranslateChatEvent(ev)
+	if drop {
+		t.Fatal("text events must not be dropped")
+	}
+	if got.Type != "text" || got.Content != `{"unknown":"value"}` {
+		t.Errorf("expected raw fallback, got %+v", got)
+	}
+}
+
+// TranslateChatEvent prefers {"message"} over {"error"} for error envelopes.
+func TestTranslateChatEvent_ErrorPayloadVariants(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name    string
+		payload string
+		want    string
+	}{
+		{"message field", `{"message":"boom"}`, "boom"},
+		{"error field", `{"error":"kaput"}`, "kaput"},
+		{"raw fallback", `oops`, "oops"},
+	}
+	for _, tc := range cases {
+		ev := ChatStreamEvent{Type: "error", PayloadJSON: []byte(tc.payload)}
+		got, _ := TranslateChatEvent(ev)
+		if got.Type != "error" {
+			t.Errorf("%s: expected error type, got %q", tc.name, got.Type)
+		}
+		if got.Content != tc.want {
+			t.Errorf("%s: content = %q, want %q", tc.name, got.Content, tc.want)
+		}
+	}
+}
+
+// TranslateChatEvent drops tool_use frames in Phase B.
+func TestTranslateChatEvent_ToolUseDropped(t *testing.T) {
+	t.Parallel()
+
+	ev := ChatStreamEvent{Type: "tool_use", PayloadJSON: []byte(`{"name":"x"}`)}
+	if _, drop := TranslateChatEvent(ev); !drop {
+		t.Fatal("tool_use must be dropped")
+	}
+}
+
+// TranslateChatEvent leaves done events with empty content.
+func TestTranslateChatEvent_Done(t *testing.T) {
+	t.Parallel()
+
+	ev := ChatStreamEvent{Type: "done", PayloadJSON: []byte(`{}`)}
+	got, drop := TranslateChatEvent(ev)
+	if drop {
+		t.Fatal("done must not be dropped")
+	}
+	if got.Type != "done" || got.Content != "" {
+		t.Errorf("unexpected done translation: %+v", got)
+	}
+}
+
+// PickLastUserMessage prefers the last role=user entry.
+func TestPickLastUserMessage_PrefersLastUser(t *testing.T) {
+	t.Parallel()
+
+	msgs := []ChatMessageView{
+		{Role: "user", Content: "first"},
+		{Role: "assistant", Content: "ack"},
+		{Role: "user", Content: "second"},
+		{Role: "assistant", Content: "ack2"},
+	}
+	got, ok := PickLastUserMessage(msgs)
+	if !ok || got != "second" {
+		t.Errorf("got (%q,%v), want (%q,true)", got, ok, "second")
+	}
+}
+
+// PickLastUserMessage falls back to the trailing element when no user role exists.
+func TestPickLastUserMessage_FallbackToTail(t *testing.T) {
+	t.Parallel()
+
+	msgs := []ChatMessageView{
+		{Role: "system", Content: "sys"},
+		{Role: "assistant", Content: "ack"},
+	}
+	got, ok := PickLastUserMessage(msgs)
+	if !ok || got != "ack" {
+		t.Errorf("got (%q,%v), want (%q,true)", got, ok, "ack")
+	}
+}
+
+// PickLastUserMessage on an empty slice returns ("", false).
+func TestPickLastUserMessage_Empty(t *testing.T) {
+	t.Parallel()
+
+	got, ok := PickLastUserMessage(nil)
+	if ok || got != "" {
+		t.Errorf("got (%q,%v), want (\"\",false)", got, ok)
+	}
+}
+
+// RED #5: ChatStreamFanIn forwards translated events and emits a synthetic
+// error event when the upstream errCh delivers a non-nil error.
+func TestChatStreamFanIn_ForwardsAndEmitsError(t *testing.T) {
+	t.Parallel()
+
+	rawEvents := make(chan ChatStreamEvent, 3)
+	errCh := make(chan error, 1)
+
+	rawEvents <- ChatStreamEvent{Type: "text", PayloadJSON: []byte(`{"text":"a"}`)}
+	rawEvents <- ChatStreamEvent{Type: "tool_use", PayloadJSON: []byte(`{}`)}
+	rawEvents <- ChatStreamEvent{Type: "text", PayloadJSON: []byte(`{"text":"b"}`)}
+	close(rawEvents)
+	errCh <- errors.New("stream busted")
+	close(errCh)
+
+	out := ChatStreamFanIn(context.Background(), rawEvents, errCh)
+
+	var got []TranslatedChatEvent
+	for ev := range out {
+		got = append(got, ev)
+	}
+
+	want := []TranslatedChatEvent{
+		{Type: "text", Content: "a"},
+		{Type: "text", Content: "b"},
+		{Type: "error", Content: "stream busted"},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %d events, want %d: %+v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("event[%d] = %+v, want %+v", i, got[i], want[i])
+		}
+	}
+}
+
+// ChatStreamFanIn closes the output channel even when ctx is cancelled
+// mid-stream.
+func TestChatStreamFanIn_CtxCancel(t *testing.T) {
+	t.Parallel()
+
+	rawEvents := make(chan ChatStreamEvent)
+	errCh := make(chan error)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	out := ChatStreamFanIn(ctx, rawEvents, errCh)
+
+	cancel()
+
+	// Without anything closing the upstream channels, the fan-in goroutine
+	// stays blocked on rawEvents read; close them so the goroutine exits.
+	close(rawEvents)
+	close(errCh)
+
+	// Drain — must close cleanly.
+	for range out {
+	}
+}
+
+// ErrEmptyMessages exposes the sentinel used by AskClientAdapter callers.
+func TestErrEmptyMessages_Sentinel(t *testing.T) {
+	t.Parallel()
+
+	if ErrEmptyMessages() == nil {
+		t.Fatal("expected non-nil sentinel")
+	}
+	if ErrEmptyMessages().Error() == "" {
+		t.Fatal("sentinel must carry a message")
+	}
+}
+
 // NormalizeDaemonURL prepends http:// only when scheme is missing.
 func TestNormalizeDaemonURL(t *testing.T) {
 	t.Parallel()
