@@ -490,5 +490,32 @@ Phase B에서 만든 transport helpers를 Phase C에서 그대로 사용:
 
 ---
 
-Last Updated: 2026-05-04 (Phase B 완료, Phase C Plan 작성)
-Status: Phase A DONE (PR #67) — Phase B DONE (PR #69 merged 4521d3c) — Phase C PLAN READY — Phase D pending
+## Phase C1 완료 로그 (2026-05-04, PR #70 merged)
+
+### 산출물
+- Commit: `a926c32` (squashed merge `1e9bae1`)
+- 파일: `tui/client.go` (+75/-6), `tui/connect_factory_test.go` (+201)
+- 신규 테스트 6개 (StreamingEvents / ErrorEvent / EmptyMessages / FactoryError / Close / Defaults)
+
+### Phase C1 AC 부분 매트릭스
+- C-AC-001 (TUI ConnectClient 사용): PASS — `connectClientFactory` 구현, `RunWithApp` 전환
+- C-AC-003 (streaming/error/done 이벤트 처리): PASS — `TranslateChatEvent` + `ChatStreamFanIn` 통한 변환 검증
+- C-AC-006 (slash_test/tui_test 회귀 0건): PASS — `-count=10` 100% PASS
+- C-AC-007 (race -count=10 PASS): PASS
+- C-AC-009 (transport.NewDaemonClient 보존): PASS — gRPC-go fallback DI 그대로
+
+### C2~C5 후속 세션 진입점
+
+```bash
+git pull --ff-only origin main                           # 1e9bae1 또는 그 이후
+go test -race ./internal/cli/tui/ -count=3              # baseline
+git checkout -b feature/SPEC-GOOSE-CLI-001-phase-c2-c5  # 또는 sub-phase별 분리
+# RED #4: TestModel_HandleStreamingTextAccumulation
+```
+
+C2~C5 sub-spec은 본 progress.md Phase C Plan 섹션 (RED #4~13) 그대로 사용.
+
+---
+
+Last Updated: 2026-05-04 (Phase C1 완료)
+Status: Phase A DONE (#67) — Phase B DONE (#69) — Phase C1 DONE (#70) — Phase C2~C5 / Phase D pending
