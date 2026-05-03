@@ -1,0 +1,34 @@
+// Package goose.v1 defines the ToolService RPC contract.
+// SPEC-GOOSE-CLI-001 Phase A REQ-CLI-004
+syntax = "proto3";
+
+package goose.v1;
+
+option go_package = "github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1;goosev1";
+
+// ToolService provides tool discovery operations.
+service ToolService {
+  // List returns all available tool descriptors.
+  rpc List(ListToolsRequest) returns (ListToolsResponse);
+}
+
+// ListToolsRequest is the request message for ToolService.List.
+message ListToolsRequest {}
+
+// ListToolsResponse is the response message for ToolService.List.
+message ListToolsResponse {
+  // tools contains the list of available tool descriptors.
+  repeated ToolDescriptor tools = 1;
+}
+
+// ToolDescriptor describes a single available tool.
+message ToolDescriptor {
+  // name is the unique tool identifier.
+  string name = 1;
+  // description is a human-readable summary of the tool's purpose.
+  string description = 2;
+  // source identifies the origin of the tool (e.g., "builtin", "plugin").
+  string source = 3;
+  // server_id identifies which server provides the tool (for MCP tools).
+  string server_id = 4;
+}

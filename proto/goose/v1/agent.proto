@@ -1,0 +1,77 @@
+// Package goose.v1 defines the AgentService RPC contract.
+// SPEC-GOOSE-CLI-001 Phase A REQ-CLI-003
+syntax = "proto3";
+
+package goose.v1;
+
+option go_package = "github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1;goosev1";
+
+// AgentService provides chat interaction with a named agent.
+// Supports unary (Chat) and server-streaming (ChatStream) variants.
+service AgentService {
+  // Chat sends a single message and returns a complete response.
+  rpc Chat(AgentChatRequest) returns (AgentChatResponse);
+
+  // ChatStream sends a message and receives a stream of events.
+  rpc ChatStream(AgentChatStreamRequest) returns (stream AgentChatStreamEvent);
+}
+
+// AgentChatRequest is the unary chat request message.
+message AgentChatRequest {
+  // agent is the named agent to route the request to.
+  string agent = 1;
+  // message is the user text input.
+  string message = 2;
+  // initial_messages provides conversation history context.
+  repeated AgentMessage initial_messages = 3;
+  // session_id is an optional session identifier for continuity.
+  string session_id = 4;
+}
+
+// AgentChatResponse is the unary chat response message.
+message AgentChatResponse {
+  // content is the full assistant response text.
+  string content = 1;
+  // tokens_in is the number of input tokens consumed.
+  int64 tokens_in = 2;
+  // tokens_out is the number of output tokens generated.
+  int64 tokens_out = 3;
+}
+
+// AgentChatStreamRequest is the server-streaming chat request message.
+message AgentChatStreamRequest {
+  // agent is the named agent to route the request to.
+  string agent = 1;
+  // message is the user text input.
+  string message = 2;
+  // initial_messages provides conversation history context.
+  repeated AgentMessage initial_messages = 3;
+  // session_id is an optional session identifier for continuity.
+  string session_id = 4;
+}
+
+// AgentChatStreamEvent is a single streaming event in a ChatStream response.
+message AgentChatStreamEvent {
+  // type identifies the event kind (e.g., "text", "tool_use", "done", "error").
+  string type = 1;
+  // payload_json is the JSON-encoded event payload specific to the type.
+  bytes payload_json = 2;
+}
+
+// AgentMessage represents a single turn in a conversation.
+message AgentMessage {
+  // role identifies the speaker: "user", "assistant", or "tool".
+  string role = 1;
+  // content holds the structured content blocks for this message.
+  repeated AgentContentBlock content = 2;
+  // ts_ms is the Unix timestamp in milliseconds for ordering.
+  int64 ts_ms = 3;
+}
+
+// AgentContentBlock represents a typed content element within an AgentMessage.
+message AgentContentBlock {
+  // kind identifies the block type: "text", "tool_use", "tool_result", "image".
+  string kind = 1;
+  // data_json is the JSON-encoded block-specific payload.
+  bytes data_json = 2;
+}

@@ -8,3 +8,7 @@ plugins:
     out: internal/transport/grpc/gen/goosev1
     opt:
       - module=github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1
+  - local: protoc-gen-connect-go
+    out: internal/transport/grpc/gen/goosev1
+    opt:
+      - module=github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1
