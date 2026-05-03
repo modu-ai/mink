@@ -265,22 +265,41 @@
 - `internal/cli/tui/` 변경 0건 (Phase C 책임)
 - daemon shutdown subcommand는 stub 유지 (Phase D 또는 별도 SPEC)
 
-### 신규 ConnectClient 메서드 부족분 점검
+### 신규 ConnectClient 메서드 부족분 점검 (실제 API 기준 정정 2026-05-04)
 
-Phase A `ConnectClient` 7 메서드 vs Phase B 요구:
+Phase A `ConnectClient` 메서드 (connect.go 정독 후 실제 시그니처):
 
-| Phase B 요구 | ConnectClient 메서드 | 상태 |
-|--------------|----------------------|------|
-| ping | `Ping(ctx)` | ✅ 존재 |
-| ask | `ChatStream(ctx, []Message)` | ✅ 존재 |
-| config get | `GetConfig(ctx, key)` | ✅ 존재 |
-| config set | `SetConfig(ctx, k, v)` | ✅ 존재 |
-| config list | `ListConfig(ctx, prefix)` | ✅ 존재 |
-| tool list | `ListTools(ctx)` | ✅ 존재 |
-| daemon status | `Ping(ctx)` (재사용) | ✅ 존재 |
-| daemon shutdown | (없음) | ❌ Phase B scope 외 — stub 유지 |
+| commands 인터페이스 | ConnectClient 실제 시그니처 | Adapter 변환 정책 |
+|---------------------|----------------------------|-------------------|
+| `PingClient.Ping(ctx, addr, w io.Writer) error` | `Ping(ctx) (*PingResponse, error)` | adapter는 ctx로 ConnectClient.Ping 호출 → resp.Version/UptimeMs/State를 writer에 포맷 출력 (기존 NewGRPCPingClient와 동일 출력 패턴 보존) |
+| `AskClient.ChatStream(ctx, []Message) (<-chan StreamEvent, error)` | `ChatStream(ctx, agent, message string, opts...) (<-chan ChatStreamEvent, <-chan error)` | (a) `[]Message`에서 마지막 user role message를 `message` 인자로, 이전 messages는 `WithInitialMessages` opt로 전달 — opt 없으면 1차로 마지막 user message만 전달 (Phase B는 단순 변환 우선, multi-turn은 Phase C 책임). (b) 2채널 → 1채널 fan-in goroutine: event 채널 forward + error 채널 도착 시 마지막 `StreamEvent{Type:"error", Content: err.Error()}` emit 후 close. (c) agent 인자는 빈 문자열 (server-side default agent 가정). (d) error 반환은 immediate error만 (예: nil context) — stream 도중 에러는 channel 내 emit. |
+| `ConfigStore.Get(key) (string, error)` (no ctx) | `GetConfig(ctx, key) (string, bool, error)` | adapter 내부에서 `context.WithTimeout(context.Background(), defaultTimeout)` (기본 5s). `exists=false` 시 `ErrConfigKeyNotFound` 반환. RPC error는 wrap. |
+| `ConfigStore.Set(k, v) error` | `SetConfig(ctx, k, v) error` | adapter 내부 ctx (5s timeout). RPC error 그대로 반환 |
+| `ConfigStore.List() (map[string]string, error)` | `ListConfig(ctx, prefix) (map, error)` | adapter는 prefix="" 호출. ctx 5s. |
+| `ToolRegistry.ListTools() ([]ToolInfo, error)` | `ListTools(ctx) ([]ToolDescriptor, error)` | adapter 내부 ctx (5s timeout). `ToolDescriptor{Name, Description, Source, ServerID}` → `ToolInfo{Name, Description}` 변환 (Source/ServerID drop) |
+| daemon status | `Ping(ctx)` 재사용 | PingClientAdapter 그대로 |
+| daemon shutdown | (없음) | Phase B scope 외 — stub 유지 |
 
-**결론**: Phase B는 ConnectClient API 변경 0건. proto 변경 0건. 순수 wiring 작업.
+**결론**: Phase B는 ConnectClient API 변경 0건. proto 변경 0건. **단, adapter 변환 로직이 비자명** (특히 ChatStream 2채널 → 1채널, ConfigStore context-less → ctx 생성). 이 변환 로직 자체가 RED #2/#4/#5/#6의 핵심 검증 대상.
+
+### Adapter 설계 결정 (HARD — 변경 시 progress.md 정정 필수)
+
+- **adapter 내부 ctx timeout 기본값**: 5초 (config Get/Set/List, tool ListTools)
+- **ChatStream timeout**: ctx는 caller가 관리 (long-running stream — adapter 내부 timeout 부적합)
+- **PingClient writer 출력 포맷**: 기존 `NewGRPCPingClient` 출력과 byte-identical (테스트가 출력 string match로 검증 — characterization)
+- **Agent name 기본값**: 빈 문자열 ("") — 서버 측 default agent
+- **AskClient ChatStream 변환 손실**: 다중 message → 단일 message 변환은 Phase B 한계, Phase C에서 multi-turn 정식 지원
+- **error 변환**: connect.Error code를 그대로 노출 (별도 sentinel 없음 — ErrConfigKeyNotFound만 매핑)
+
+### Scope 재추정 (mismatch 반영)
+
+- B1 (adapter + ping): ~250 LoC (PingClientAdapter + 기존 출력 포맷 보존)
+- B2 (ask): ~250 LoC (2채널 → 1채널 fan-in goroutine + 변환)
+- B3 (config): ~250 LoC (ConnectConfigStore + ctx timeout policy + ErrNotFound 매핑)
+- B4 (tool): ~150 LoC (ConnectToolRegistry — 가장 단순)
+- B5 (rootcmd lifecycle): ~200 LoC (ConnectClient 단일 instance + PreRun/PostRun)
+
+**총량 재추정**: ~1100 LoC (기존 900 → 1100, 변환 로직 복잡도 반영)
 
 ### 위험 / 주의사항
 
