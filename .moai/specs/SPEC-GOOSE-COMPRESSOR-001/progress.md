@@ -47,6 +47,27 @@
 
 - 본 progress.md 작성 (run phase 진입 직전 메타 정합성 회복).
 - plan-auditor iter2 verdict 대기 — verdict 결과에 따라 run phase 진입 또는 추가 보강.
+- **iter2 verdict: CONDITIONAL GO** — D-A/B/C/D 4 Critical defects (CONTEXT-001 패키지/시그니처 불일치) + D-E~J 6 minor.
+
+### 2026-05-04 spec v0.2.1 정정 (CONDITIONAL GO 해소)
+
+- audit 보고서 `.moai/reports/plan-audit/SPEC-GOOSE-COMPRESSOR-001-review-2.md` §"Recommended pre-run actions" 1-6 적용:
+  1. §6.2 import 정정 — `loop.Compactor` → `query.Compactor`, `loop.SnipCompactor` 등 가상 심볼 → `goosecontext.*` 실재 심볼
+  2. assertion 정정 — `var _ query.Compactor = (*CompactorAdapter)(nil)`
+  3. AC-013 반환 타입 정정 — `query.CompactBoundary` (9 필드 enum 포함, `DroppedThinkingCount int` 추가)
+  4. State 필드 정정 — `s.TaskBudget.Remaining` (nested) → `s.TaskBudgetRemaining` (flat int)
+  5. token function 정정 — `goosecontext.CalculateTokenWarningState(used, limit) >= goosecontext.WarningRed`
+  6. HistorySnipOnly — 어댑터 자체 flag (loop.State에 해당 필드 없음)
+- cosmetic 정정 (D-G/H): §6.8 "13 AC" → "22 AC", REQ-019 wording에 Red superset 명시
+- spec.md frontmatter: v0.2.0 → v0.2.1, updated_at 2026-05-04
+- HISTORY 항목 1줄 추가 (iter2 정정 내역)
+- 알고리즘/AC 본질/아키텍처 변경 0건 — patch level 변경 (0.2.0 → 0.2.1)
+
+### 2026-05-04 run phase 진입 자격 확보
+
+- iter3 audit 생략 결정 (build 검증으로 대체 — `go build ./internal/learning/compressor/...` 통과 시 contract 정합성 자동 검증).
+- run phase 진입: manager-tdd subagent (isolation: worktree, mode: acceptEdits).
+- 신규 패키지 `internal/learning/compressor/` 생성, TDD §6.7 RED #1~#22 순서 진행.
 
 ## 핵심 보존 약속 (HARD)
 

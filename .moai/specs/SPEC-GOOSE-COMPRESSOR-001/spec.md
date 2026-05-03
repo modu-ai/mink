@@ -1,9 +1,9 @@
 ---
 id: SPEC-GOOSE-COMPRESSOR-001
-version: 0.2.0
+version: 0.2.1
 status: planned
 created_at: 2026-04-21
-updated_at: 2026-04-25
+updated_at: 2026-05-04
 author: manager-spec
 priority: P0
 issue_number: null
@@ -21,6 +21,7 @@ labels: [learning, compressor, trajectory, llm-summary]
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-21 | 초안 작성 (hermes-learning.md §3 + Hermes `trajectory_compressor.py` 1517 LoC 기반) | manager-spec |
 | 0.2.0 | 2026-04-25 | plan-auditor iter1 FAIL(0.58) 수정: CONTEXT-001 계약 일치화. D3 CompactorAdapter 시그니처를 value receiver(`loop.State`/반환값)로 교정. D4 `ShouldCompact` 80%/ReactiveTriggered/MaxMessageCount/Red override 의미론 추가(REQ-019). D5 `Compact` 전략 선택 순서(ReactiveCompact→AutoCompact→Snip) + Summarizer nil/err → Snip 폴백 명시(REQ-020). D6 `redacted_thinking` 보존 계약 추가(REQ-021). D7-D11 REQ-001/004/012/013/017 전용 AC 신설(AC-014~AC-018). D12 §1 L36 "동일 코드 경로 공유" 문구를 "AutoCompact 변종 제공, Snip/ReactiveCompact는 CONTEXT-001 기본"으로 완화. D13 CompressionConfig에 `AdapterMaxRetries` 명시. D14 AC-001 포인터 의미 정정. D15 AC-010 tail 묘사 정정. D17 `2×` 근거 주석 추가. D19 Metadata deep-copy 요구 추가. `labels` 보강. | manager-spec |
+| 0.2.1 | 2026-05-04 | plan-auditor iter2 CONDITIONAL GO 정정: D-A/B/C/D 4 Critical defects 해소. (1) §6.2/§6.6 import 경로 정정 — `loop.Compactor` → `query.Compactor` (실재 위치 `internal/query/config.go:59`), `loop.CompactBoundary` → `query.CompactBoundary`, `loop.SnipCompactor`/`CompactStrategy`/`Strategy*` → `goosecontext.*` (실재 위치 `internal/context/compactor.go`). (2) `var _ loop.Compactor` → `var _ query.Compactor` assertion 정정. (3) `loop.TokenCountWithEstimation`/`CalculateTokenWarningState` → `goosecontext.*` (실재 위치 `internal/context/tokens.go`). (4) `s.TaskBudget.Remaining` (nested struct, 가상) → `s.TaskBudgetRemaining` (flat int, `loop.State` 실재 필드). (5) `s.HistorySnipOnly` (state에 없음) → 어댑터 자체 `historySnipOnly` flag로 이전. (6) `query.CompactBoundary.DroppedThinkingCount int` 필드 AC-013에 추가. cosmetic D-G/H 정정 — §6.8 "13 AC" → "22 AC", REQ-019 wording에 (d) Red가 (a) 80%의 superset임을 명시. 알고리즘/AC 본질/아키텍처 변경 0건 (보고서 `.moai/reports/plan-audit/SPEC-GOOSE-COMPRESSOR-001-review-2.md`). | manager-spec |
 
 ---
 
@@ -140,7 +141,7 @@ AI.GOOSE **자기진화 파이프라인의 Layer 2**를 정의한다. SPEC-GOOSE
 
 **REQ-COMPRESSOR-018 [Optional]** — **Where** the compressor is invoked via the `CompactorAdapter`, the adapter **shall** implement CONTEXT-001의 `Compactor` 인터페이스를 동일 시그니처(value receiver: `ShouldCompact(s loop.State) bool` + `Compact(s loop.State) (loop.State, loop.CompactBoundary, error)`)로 만족시키며, 컴파일 타임 계약 증명을 위해 패키지에 `var _ loop.Compactor = (*CompactorAdapter)(nil)` assertion을 포함한다. 어댑터는 `State.Messages`를 ephemeral `Trajectory`로 번역한 뒤 inner Compressor의 `AutoCompact` 전략 변종을 실행하고, `Snip`/`ReactiveCompact` 전략은 CONTEXT-001 `DefaultCompactor`의 책임이다.
 
-**REQ-COMPRESSOR-019 [Event-Driven]** — **When** `CompactorAdapter.ShouldCompact(s loop.State)` is called, the adapter **shall** evaluate the trigger set mandated by CONTEXT-001 REQ-CTX-007 + REQ-CTX-011, returning `true` if and only if any of the following holds: (a) `TokenCountWithEstimation(s.Messages) / s.TokenLimit >= 0.80`; (b) `s.AutoCompactTracking.ReactiveTriggered == true`; (c) `len(s.Messages) > s.MaxMessageCount`; (d) `CalculateTokenWarningState(s)` 결과가 `Red` (>92%). 단일 임계치 비교(`Tokenizer.CountTrajectory(traj) > TargetMaxTokens`)만으로 판정하는 것은 금지된다.
+**REQ-COMPRESSOR-019 [Event-Driven]** — **When** `CompactorAdapter.ShouldCompact(s loop.State)` is called, the adapter **shall** evaluate the trigger set mandated by CONTEXT-001 REQ-CTX-007 (3-trigger) + REQ-CTX-011 (Red override), returning `true` if and only if any of the following holds: (a) `goosecontext.TokenCountWithEstimation(s.Messages) / s.TokenLimit >= 0.80`; (b) `s.AutoCompactTracking.ReactiveTriggered == true`; (c) `len(s.Messages) > s.MaxMessageCount`; (d) `goosecontext.CalculateTokenWarningState(used, int64(s.TokenLimit)) >= goosecontext.WarningRed` (>=92%). 의미상 (d)는 (a)의 superset이므로 합집합 동치 — (d) 별도 평가는 idempotent로 보존하나 실 도달 가능성은 0. 단일 임계치 비교(`Tokenizer.CountTrajectory(traj) > TargetMaxTokens`)만으로 판정하는 것은 금지된다.
 
 **REQ-COMPRESSOR-020 [Event-Driven]** — **When** `CompactorAdapter.Compact(s loop.State)` is invoked, the adapter **shall** select a strategy in the priority order `ReactiveCompact` > `AutoCompact` > `Snip` aligned with CONTEXT-001 REQ-CTX-008/017/018: (a) `s.AutoCompactTracking.ReactiveTriggered == true`이면 `ReactiveCompact`; (b) 그 외에 80% 임계 충족이면 `AutoCompact`; (c) 둘 다 아니면 `Snip`. 선택된 전략이 `Summarizer`를 요구하되 `inner.summarizer == nil`이면 `Snip`으로 폴백한다 (CONTEXT-001 REQ-CTX-012). `Summarizer.Summarize`가 에러를 반환하면 `Snip`으로 폴백하고 호출자에게는 에러를 전파하지 않는다 (CONTEXT-001 REQ-CTX-014). `Snip` 실행은 CONTEXT-001 `DefaultCompactor.Snip`에 위임하거나 본 SPEC 범위로 재구현하지 않는다 — 어댑터는 inner `DefaultCompactor` 핸들을 주입받아 위임할 수 있다.
 
@@ -212,10 +213,10 @@ AI.GOOSE **자기진화 파이프라인의 Layer 2**를 정의한다. SPEC-GOOSE
 - **When** `Compress(t)` 후 원본 `p0` 검사
 - **Then** `p0`가 가리키는 슬라이스의 length/content가 변경되지 않음(unsafe copy semantics 확인)
 
-**AC-COMPRESSOR-013 — CONTEXT-001 Compactor 어댑터 계약 (value receiver)**
-- **Given** `CompactorAdapter{inner: compressor, snipDelegate: defaultCompactor}`, stub `State.Messages`를 Trajectory로 변환. 컴파일 단위에 `var _ loop.Compactor = (*CompactorAdapter)(nil)` 포함.
+**AC-COMPRESSOR-013 — CONTEXT-001 Compactor 어댑터 계약 (value-type parameter/return, pointer receiver)**
+- **Given** `CompactorAdapter{inner: compressor, snipDelegate: defaultCompactor}`, stub `State.Messages`를 Trajectory로 변환. 컴파일 단위에 `var _ query.Compactor = (*CompactorAdapter)(nil)` 포함 (`internal/query/config.go:59`의 인터페이스).
 - **When** `adapter.ShouldCompact(s)` 호출 (value 전달), 이어 `adapter.Compact(s)` 호출 (value 전달)
-- **Then** (a) 두 메서드 시그니처 모두 value receiver (`s loop.State`)이며 반환값도 value (`loop.State`, `loop.CompactBoundary`); (b) Go 빌드가 `var _` assertion 포함 상태에서 성공; (c) `Compact` 반환값이 CONTEXT-001의 `loop.CompactBoundary` 필드(`Turn`, `Strategy`, `MessagesBefore`, `MessagesAfter`, `TokensBefore`, `TokensAfter`, `TaskBudgetPreserved`)를 전부 채움; (d) 반환된 newState의 `TaskBudget.Remaining == s.TaskBudget.Remaining` (REQ-CTX-010 호환).
+- **Then** (a) 두 메서드 시그니처 모두 value-type parameter (`s loop.State`)이며 반환값도 value (`loop.State`, `query.CompactBoundary`); receiver는 pointer 허용 (`*CompactorAdapter`); (b) Go 빌드가 `var _ query.Compactor = (*CompactorAdapter)(nil)` assertion 포함 상태에서 성공; (c) `Compact` 반환값이 `query.CompactBoundary`의 9 필드(`Turn`, `Strategy`, `MessagesBefore`, `MessagesAfter`, `TokensBefore int64`, `TokensAfter int64`, `TaskBudgetPreserved int64`, `DroppedThinkingCount int`)를 전부 채움; (d) 반환된 newState의 `TaskBudgetRemaining == s.TaskBudgetRemaining` (flat `int` 필드, REQ-CTX-010 호환).
 
 **AC-COMPRESSOR-014 — 메트릭 non-nil 불변식 (covers REQ-COMPRESSOR-001)**
 - **Given** Summarizer stub이 `panic("boom")` 또는 `ErrPermanent`를 반환하도록 구성, 20턴 20,000 tokens 입력
@@ -435,25 +436,36 @@ func findCompressibleRegion(
 
 // internal/learning/compressor/adapter.go
 //
-// CompactorAdapter는 CONTEXT-001의 Compactor 인터페이스 호환 (value receiver).
-// 시그니처는 CONTEXT-001 §6.2 L321-332 / §6.3 L359-362와 동일해야 함.
+// CompactorAdapter는 query.Compactor 인터페이스를 구현한다 (CONTEXT-001 계약 준수).
+// 시그니처는 internal/query/config.go L59-66 / internal/context/compactor.go L150-188와
+// 동일해야 한다. value-type parameter (s loop.State) + value-type return
+// (loop.State, query.CompactBoundary). receiver 자체는 pointer 허용.
+import (
+    goosecontext "github.com/modu-ai/goose/internal/context"
+    "github.com/modu-ai/goose/internal/query"
+    "github.com/modu-ai/goose/internal/query/loop"
+)
+
 type CompactorAdapter struct {
-    inner          *TrajectoryCompressor
-    snipDelegate   loop.SnipCompactor             // CONTEXT-001 DefaultCompactor의 Snip 수행자; nil이면
-                                                  // 어댑터는 Snip 경로 진입 시 에러 대신 원본 State를 그대로 반환
-    messageToEntry func(m message.Message) trajectory.TrajectoryEntry  // 주입
-    entryToMessage func(e trajectory.TrajectoryEntry) message.Message  // 역변환
+    inner            *TrajectoryCompressor
+    // snipDelegate는 Snip 전략을 수행하는 위임 객체이다. 일반적으로
+    // *goosecontext.DefaultCompactor 인스턴스. nil이면 Snip 진입 시 원본 State를 그대로 반환.
+    snipDelegate     *goosecontext.DefaultCompactor
+    historySnipOnly  bool                                                  // GOOSE_HISTORY_SNIP=1 feature gate (REQ-CTX-016 호환)
+    messageToEntry   func(m message.Message) trajectory.TrajectoryEntry    // 주입
+    entryToMessage   func(e trajectory.TrajectoryEntry) message.Message    // 역변환
 }
 
-// [HARD] 컴파일 타임 계약 증명 (CONTEXT-001 §6.3 L362 호환 확인용)
-var _ loop.Compactor = (*CompactorAdapter)(nil)
+// [HARD] 컴파일 타임 계약 증명 — query.Compactor interface satisfaction.
+// 위 import의 query 패키지 (`internal/query/config.go:59`)에 정의된 인터페이스.
+var _ query.Compactor = (*CompactorAdapter)(nil)
 
-// value receiver 시그니처 (CONTEXT-001 계약 준수)
+// value-type parameter / 반환; receiver는 pointer 허용 (CONTEXT-001 DefaultCompactor와 동일 패턴).
 func (a *CompactorAdapter) ShouldCompact(s loop.State) bool
-func (a *CompactorAdapter) Compact(s loop.State) (loop.State, loop.CompactBoundary, error)
+func (a *CompactorAdapter) Compact(s loop.State) (loop.State, query.CompactBoundary, error)
 ```
 
-`loop.State`, `loop.CompactBoundary`, `loop.Compactor`, `loop.SnipCompactor`는 모두 CONTEXT-001이 지정한 `internal/query/loop/` 패키지 소유이며, 본 SPEC 어댑터는 이 패키지를 import하여 계약에 맞춘다 (CONTEXT-001 research.md §9 단방향 의존).
+`loop.State`는 `internal/query/loop/state.go` 소유. `query.Compactor` / `query.CompactBoundary`는 `internal/query/config.go` 소유 (CONTEXT-001 §6.2/§6.3에 명시된 계약 인터페이스). `goosecontext.DefaultCompactor` / `goosecontext.Strategy*` / `goosecontext.TokenCountWithEstimation` / `goosecontext.CalculateTokenWarningState` / `goosecontext.WarningRed`는 모두 `internal/context` (alias `goosecontext`) 소유. 본 SPEC 어댑터는 `query`/`loop`/`goosecontext` 3개 패키지를 import하여 계약에 맞춘다.
 
 ### 6.3 알고리즘 의사코드 (hermes-learning.md §3 기반)
 
@@ -571,12 +583,15 @@ Jitter 근거: thundering herd 방지 (50개 동시 호출이 동일 시점에 �
 
 ### 6.6 CONTEXT-001 어댑터 세부 (REQ-018/019/020/021 구현 근거)
 
-어댑터는 **value receiver** 시그니처를 유지하고, CONTEXT-001의 `ShouldCompact`/`Compact` 의미론을 그대로 재현한다. 전략 선택 순서는 `ReactiveCompact → AutoCompact → Snip` (CONTEXT-001 REQ-CTX-008/017/018) 이며, `Summarizer == nil` 또는 `Summarize` 에러 시 `Snip` 폴백 (REQ-CTX-012/014).
+어댑터는 **value-type parameter / 반환** (receiver는 pointer) 시그니처를 유지하고, CONTEXT-001의 `ShouldCompact`/`Compact` 의미론을 그대로 재현한다. 전략 선택 순서는 `ReactiveCompact → AutoCompact → Snip` (CONTEXT-001 REQ-CTX-008/017/018)이며, `Summarizer == nil` 또는 `Summarize` 에러 시 `Snip` 폴백 (REQ-CTX-012/014). 패키지 alias: `goosecontext = "github.com/modu-ai/goose/internal/context"`, `query = "github.com/modu-ai/goose/internal/query"`.
 
 ```go
-// REQ-019: 4개 trigger 의미론 (CONTEXT-001 REQ-CTX-007 + REQ-CTX-011)
+// REQ-019: 4개 trigger 의미론 (CONTEXT-001 REQ-CTX-007 3-trigger + REQ-CTX-011 Red override).
+// 의미상 Red(>=92%)는 80% trigger의 superset이므로 (a) ratio>=0.80과 (d) Red는 합집합 동치이며
+// (d)의 별도 평가는 idempotent (Stage-D defect plan-audit iter2 정정).
 func (a *CompactorAdapter) ShouldCompact(s loop.State) bool {
-    ratio := float64(loop.TokenCountWithEstimation(s.Messages)) / float64(s.TokenLimit)
+    used := goosecontext.TokenCountWithEstimation(s.Messages)
+    ratio := float64(used) / float64(s.TokenLimit)
     if ratio >= 0.80 {
         return true
     }
@@ -586,8 +601,8 @@ func (a *CompactorAdapter) ShouldCompact(s loop.State) bool {
     if len(s.Messages) > s.MaxMessageCount {
         return true
     }
-    // Red override (>92%): REQ-CTX-011
-    if loop.CalculateTokenWarningState(s).Level == loop.WarningRed {
+    // Red override (>=92%): REQ-CTX-011 (80% trigger의 superset이므로 도달 가능성 0이지만 명시 보존)
+    if goosecontext.CalculateTokenWarningState(used, int64(s.TokenLimit)) >= goosecontext.WarningRed {
         return true
     }
     return false
@@ -595,29 +610,29 @@ func (a *CompactorAdapter) ShouldCompact(s loop.State) bool {
 
 // REQ-020: 전략 선택 + Summarizer nil/err 폴백
 // REQ-021: redacted_thinking 보존
-func (a *CompactorAdapter) Compact(s loop.State) (loop.State, loop.CompactBoundary, error) {
+func (a *CompactorAdapter) Compact(s loop.State) (loop.State, query.CompactBoundary, error) {
     strategy := a.selectStrategy(s)
 
     // (b) Summarizer == nil 폴백 (CONTEXT-001 REQ-CTX-012)
-    if (strategy == loop.StrategyAutoCompact || strategy == loop.StrategyReactiveCompact) &&
+    if (strategy == goosecontext.StrategyAutoCompact || strategy == goosecontext.StrategyReactiveCompact) &&
        a.inner.summarizer == nil {
-        strategy = loop.StrategySnip
+        strategy = goosecontext.StrategySnip
     }
 
     switch strategy {
-    case loop.StrategySnip:
-        // Snip은 CONTEXT-001 DefaultCompactor 책임 — 어댑터는 위임만 수행
+    case goosecontext.StrategySnip:
+        // Snip은 CONTEXT-001 DefaultCompactor 책임 — 어댑터는 inner DefaultCompactor에 위임
         if a.snipDelegate != nil {
-            return a.snipDelegate.Snip(s)
+            return a.snipDelegate.Compact(s)
         }
         // delegate 미주입 시 no-op (원본 State 반환)
-        return s, loop.CompactBoundary{
-            Turn: s.TurnCount, Strategy: "Snip",
+        return s, query.CompactBoundary{
+            Turn: s.TurnCount, Strategy: goosecontext.StrategySnip,
             MessagesBefore: len(s.Messages), MessagesAfter: len(s.Messages),
-            TaskBudgetPreserved: true,
+            TaskBudgetPreserved: int64(s.TaskBudgetRemaining),
         }, nil
 
-    case loop.StrategyAutoCompact, loop.StrategyReactiveCompact:
+    case goosecontext.StrategyAutoCompact, goosecontext.StrategyReactiveCompact:
         traj := a.messagesToTrajectoryPreservingRedacted(s.Messages)  // REQ-021
         // adapterConfig는 inner.cfg를 AdapterMaxRetries로 override (D13/R5)
         compressed, metrics, err := a.inner.CompressWithRetries(ctx, traj, a.inner.cfg.AdapterMaxRetries)
@@ -626,41 +641,44 @@ func (a *CompactorAdapter) Compact(s loop.State) (loop.State, loop.CompactBounda
             a.inner.logger.Warn("summarizer failed; falling back to Snip",
                 zap.Error(err), zap.String("strategy", string(strategy)))
             if a.snipDelegate != nil {
-                return a.snipDelegate.Snip(s)
+                return a.snipDelegate.Compact(s)
             }
-            return s, loop.CompactBoundary{Turn: s.TurnCount, Strategy: "Snip"}, nil
+            return s, query.CompactBoundary{Turn: s.TurnCount, Strategy: goosecontext.StrategySnip}, nil
         }
         newState := cloneStateDeep(s)
         newState.Messages = a.trajectoryToMessagesPreservingRedacted(compressed)  // REQ-021
-        // TaskBudget.Remaining 보존 (CONTEXT-001 REQ-CTX-010)
-        newState.TaskBudget.Remaining = s.TaskBudget.Remaining
-        boundary := loop.CompactBoundary{
-            Turn:                s.TurnCount,
-            Strategy:            string(strategy),
-            MessagesBefore:      len(s.Messages),
-            MessagesAfter:       len(newState.Messages),
-            TokensBefore:        metrics.OriginalTokens,
-            TokensAfter:         metrics.CompressedTokens,
-            TaskBudgetPreserved: true,
+        // TaskBudgetRemaining 보존 (CONTEXT-001 REQ-CTX-010) — flat int 필드 (loop.State.TaskBudgetRemaining)
+        newState.TaskBudgetRemaining = s.TaskBudgetRemaining
+        boundary := query.CompactBoundary{
+            Turn:                 s.TurnCount,
+            Strategy:             string(strategy),
+            MessagesBefore:       len(s.Messages),
+            MessagesAfter:        len(newState.Messages),
+            TokensBefore:         metrics.OriginalTokens,
+            TokensAfter:          metrics.CompressedTokens,
+            TaskBudgetPreserved:  int64(s.TaskBudgetRemaining),
+            DroppedThinkingCount: metrics.DroppedThinkingCount, // REQ-021 보존 카운트
         }
         return newState, boundary, nil
     }
-    return s, loop.CompactBoundary{}, fmt.Errorf("unknown strategy: %v", strategy)
+    return s, query.CompactBoundary{}, fmt.Errorf("unknown strategy: %v", strategy)
 }
 
-// selectStrategy: CONTEXT-001 REQ-CTX-008/017/018 우선순위
-func (a *CompactorAdapter) selectStrategy(s loop.State) loop.CompactStrategy {
-    if s.HistorySnipOnly {
-        return loop.StrategySnip                                      // REQ-CTX-016
+// selectStrategy: CONTEXT-001 REQ-CTX-008/017/018 우선순위.
+// HistorySnipOnly는 어댑터 자체 flag (loop.State에 해당 필드 없음 — REQ-CTX-016 호환).
+func (a *CompactorAdapter) selectStrategy(s loop.State) string {
+    if a.historySnipOnly {
+        return goosecontext.StrategySnip                              // REQ-CTX-016
     }
     if s.AutoCompactTracking.ReactiveTriggered {
-        return loop.StrategyReactiveCompact                           // REQ-CTX-017
+        return goosecontext.StrategyReactiveCompact                   // REQ-CTX-017
     }
-    ratio := float64(loop.TokenCountWithEstimation(s.Messages)) / float64(s.TokenLimit)
+    used := goosecontext.TokenCountWithEstimation(s.Messages)
+    ratio := float64(used) / float64(s.TokenLimit)
     if ratio >= 0.80 {
-        return loop.StrategyAutoCompact                               // REQ-CTX-018
+        return goosecontext.StrategyAutoCompact                       // REQ-CTX-018
     }
-    return loop.StrategySnip
+    return goosecontext.StrategySnip
 }
 ```
 
@@ -697,7 +715,7 @@ func (a *CompactorAdapter) selectStrategy(s loop.State) loop.CompactStrategy {
 
 | 차원 | 본 SPEC의 달성 방법 |
 |-----|-----------------|
-| **T**ested | 85%+ 커버리지, 13 AC 전부 integration test, `-race` 통과, Summarizer stub + Tokenizer stub으로 격리 |
+| **T**ested | 85%+ 커버리지, 22 AC 전부 integration test, `-race` 통과, Summarizer stub + Tokenizer stub으로 격리 |
 | **R**eadable | 알고리즘 본체(§6.3)가 pseudocode와 1:1, 매직 넘버는 config 상수로 |
 | **U**nified | `golangci-lint` 통과, metrics 필드 명명이 Hermes `TrajectoryMetrics`와 snake_case ↔ PascalCase 1:1 |
 | **S**ecured | per-trajectory timeout 300s 강제, batch 실패 격리(한 궤적이 전체 abort 안 함), Summarizer overshoot 방어 |
