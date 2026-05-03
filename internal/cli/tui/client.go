@@ -4,7 +4,6 @@ package tui
 import (
 	"context"
 	"fmt"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/modu-ai/goose/internal/cli/transport"
@@ -124,6 +123,76 @@ func (a *daemonClientAdapter) Close() error {
 	return a.transport.Close()
 }
 
+// connectClientFactory implements DaemonClient by issuing Connect-protocol
+// streaming RPCs against the daemon. Each ChatStream call constructs a
+// fresh ConnectClient targeting the configured daemon address; this
+// matches the lazy-connect pattern of the legacy gRPC-go factory and
+// avoids holding a long-lived HTTP/2 connection inside the TUI Model.
+//
+// @MX:ANCHOR connectClientFactory bridges the Connect transport layer to
+// the TUI Model; replaces the legacy gRPC-go clientFactory in Phase C1.
+// @MX:REASON SPEC-GOOSE-CLI-001 Phase C1; fan_in == 1 (RunWithApp).
+type connectClientFactory struct {
+	daemonAddr string
+	newClient  func(daemonURL string, opts ...transport.ConnectOption) (*transport.ConnectClient, error)
+}
+
+// NewConnectClientFactory returns a DaemonClient that uses ConnectClient
+// for chat streaming. The address may be supplied as either "host:port" or
+// "http://host:port"; transport.NormalizeDaemonURL handles the conversion.
+func NewConnectClientFactory(daemonAddr string) DaemonClient {
+	return &connectClientFactory{
+		daemonAddr: daemonAddr,
+		newClient:  transport.NewConnectClient,
+	}
+}
+
+// ChatStream satisfies DaemonClient. It dials the daemon, sends the last
+// user message as the agent prompt, and translates wire ChatStreamEvent
+// frames into the simpler tui.StreamEvent shape via the transport
+// package's shared helpers (TranslateChatEvent + ChatStreamFanIn).
+//
+// Phase B/C contract: the AgentService takes a single user message string;
+// multi-turn replay arrives in a later phase.
+func (f *connectClientFactory) ChatStream(ctx context.Context, messages []ChatMessage) (<-chan StreamEvent, error) {
+	if len(messages) == 0 {
+		return nil, transport.ErrEmptyMessages()
+	}
+
+	client, err := f.newClient(transport.NormalizeDaemonURL(f.daemonAddr))
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to daemon: %w", err)
+	}
+
+	views := make([]transport.ChatMessageView, len(messages))
+	for i, m := range messages {
+		views[i] = transport.ChatMessageView{Role: m.Role, Content: m.Content}
+	}
+	lastMsg, _ := transport.PickLastUserMessage(views)
+
+	rawEvents, errCh := client.ChatStream(ctx, "", lastMsg)
+	fan := transport.ChatStreamFanIn(ctx, rawEvents, errCh)
+
+	out := make(chan StreamEvent, 16)
+	go func() {
+		defer close(out)
+		for ev := range fan {
+			select {
+			case out <- StreamEvent{Type: ev.Type, Content: ev.Content}:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	return out, nil
+}
+
+// Close satisfies DaemonClient. The lazy factory holds no persistent
+// connection so there is nothing to release.
+func (f *connectClientFactory) Close() error {
+	return nil
+}
+
 // Run is the main entry point for the TUI.
 // @MX:ANCHOR This function creates the model and starts the bubbletea program.
 func Run(addr string, noColor bool) error {
@@ -134,13 +203,13 @@ func Run(addr string, noColor bool) error {
 // @MX:ANCHOR This function creates the model with App and starts the bubbletea program.
 // @MX:REASON: Called by rootcmd when App is initialized - fan_in >= 2 (rootcmd, tests).
 func RunWithApp(app AppInterface, addr string, noColor bool) error {
-	// Create daemon client factory
-	clientFactory := NewDaemonClientFactory(func(daemonAddr string, timeout int) (*transport.DaemonClient, error) {
-		return transport.NewDaemonClient(daemonAddr, time.Duration(timeout)*time.Second)
-	})
+	// Phase C1 wiring: ConnectClient-backed factory. The legacy gRPC-go
+	// factory (NewDaemonClientFactory) remains in this file as a fallback
+	// path used by tests and for regression coverage.
+	client := NewConnectClientFactory(addr)
 
 	// Create model with App integration
-	model := NewModel(clientFactory, "", noColor)
+	model := NewModel(client, "", noColor)
 	model.app = app
 	model.daemonAddr = addr
 
