@@ -124,5 +124,86 @@ run phase 진입 시 spec.md §6.7 순서를 따른다. 요약:
 
 ---
 
-Last Updated: 2026-05-02
-Status Source: plan phase 진행 중, run phase 진입 대기
+## Phase Log — Run Phase (2026-05-04)
+
+**Status**: planned → completed  
+**Branch**: `feature/SPEC-GOOSE-COMPRESSOR-001-trajectory-compressor`  
+**Methodology**: TDD RED-GREEN-REFACTOR (22 AC, spec.md §6.7)
+
+### 생성 파일
+
+| 파일 | 역할 | LOC (approx) |
+|------|------|---|
+| `config.go` | CompressionConfig + DefaultConfig() | 51 |
+| `tokenizer.go` | Tokenizer interface + SimpleTokenizer | 38 |
+| `protected.go` | findProtectedIndices, findCompressibleRegion | 80 |
+| `summarizer.go` | Summarizer interface + sentinel errors + summarizeWithRetry + buildPrompt | 135 |
+| `metrics.go` | TrajectoryMetrics struct | 30 |
+| `compactor.go` | TrajectoryCompressor + Compress + CompressWithRetries + BatchResult + helpers | 285 |
+| `batch.go` | CompressBatch semaphore pool | 55 |
+| `adapter.go` | CompactorAdapter (query.Compactor satisfaction) | 295 |
+| `config_test.go` | TestCompressionConfig_Defaults | 30 |
+| `tokenizer_test.go` | TestSimpleTokenizer_* | 40 |
+| `protected_test.go` | TestProtected_* | 90 |
+| `compactor_test.go` | TestCompressor_* (15 test functions) | ~470 |
+| `batch_test.go` | TestCompressBatch_* | 100 |
+| `adapter_test.go` | TestAdapter_* | 290 |
+
+### TDD 사이클 증거 (spec.md §6.7 RED #1~#22)
+
+각 AC가 테스트 파일에 명시적으로 커버됨. 하기 22개 ACs 모두 PASS:
+
+| AC | 테스트 함수 | 결과 |
+|----|-----------|------|
+| AC-001 | TestCompressionConfig_Defaults | PASS |
+| AC-002 | TestCompressor_HappyPath | PASS |
+| AC-003 | TestProtected_FourDistinctRolesFirst | PASS |
+| AC-004 | TestProtected_TailFourTurns | PASS |
+| AC-005 | TestSummarizer_RetryOnTransientError | PASS |
+| AC-006 | TestCompressor_RetriesExhausted | PASS |
+| AC-007 | TestCompressor_TimeoutPerTrajectory | PASS |
+| AC-008 | TestCompressBatch_SemaphoreConcurrency | PASS |
+| AC-009 | TestBatch_IndividualFailureIsolated | PASS |
+| AC-010 | TestCompressor_NoCompressibleRegion_FallbackTail | PASS |
+| AC-011 | TestCompressor_SummarizerOvershot | PASS |
+| AC-012 | TestCompressor_InputImmutable | PASS |
+| AC-013 | TestAdapter_QueryCompactorInterfaceCompatible | PASS |
+| AC-014 | TestCompressor_MetricsNonNilOnErrorPath | PASS |
+| AC-015 | TestNoHardcodedTokenRatios | PASS |
+| AC-016 | TestCompress_MiddleRegionShortOfTarget | PASS |
+| AC-017 | TestCompress_ProtectedByteExactPreservation | PASS |
+| AC-018 | TestCompress_CustomPromptTemplateRenders | PASS |
+| AC-019 | TestAdapter_ShouldCompact_FourTriggers | PASS |
+| AC-020 | TestAdapter_Compact_StrategyOrder | PASS |
+| AC-021 | TestCompressor_RedactedThinkingPreserved | PASS |
+| AC-022 | TestCompressor_MetadataDeepCopy | PASS |
+
+### 품질 게이트 결과
+
+```
+go test -race -count=1 -cover ./internal/learning/compressor/...
+ok  github.com/modu-ai/goose/internal/learning/compressor  1.675s  coverage: 91.9% of statements
+
+go vet ./internal/learning/compressor/... → clean
+gofmt -l internal/learning/compressor/ → empty (no files need formatting)
+go build ./internal/learning/compressor/... → success
+golangci-lint run ./internal/learning/compressor/... → 0 issues
+git diff go.mod go.sum → no new external dependencies
+```
+
+### 버그 수정 (GREEN 단계)
+
+1. **`summarizeWithRetry` named-return 버그**: 재시도 성공 시 `finalErr`가 이전 ErrTransient로 오염되는 문제. `finalErr = nil` 명시 추가.
+2. **`TestCompressor_SummarizerOvershot`**: `buildMixedTrajectory` value="content"(1 word)로 total < TargetMaxTokens=100이어서 Summarizer가 호출되지 않는 문제. 테스트 내 trajectory를 10-word entries로 교체.
+3. **`TestAdapter_Compact_StrategyOrder(e)`**: adapter path에서 inner compressor의 TargetMaxTokens(15250)보다 trajectory tokens가 낮아 SkippedUnderTarget으로 성공 반환, Snip 폴백 미동작. `executeAutoCompact`에서 trajectory token count를 직접 측정 후 75%를 target으로 override.
+
+### 어댑터 계약 확인
+
+- `var _ query.Compactor = (*CompactorAdapter)(nil)` → 컴파일 성공
+- `query.CompactBoundary` 9 필드 모두 채움: Turn, Strategy, MessagesBefore, MessagesAfter, TokensBefore int64, TokensAfter int64, TaskBudgetPreserved int64, DroppedThinkingCount int
+- `TaskBudgetRemaining` (flat int) 보존 확인: TestAdapter_Compact_StrategyOrder/TaskBudgetRemaining_preserved_(flat_int) PASS
+
+---
+
+Last Updated: 2026-05-04
+Status Source: run phase 완료
