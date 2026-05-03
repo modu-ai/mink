@@ -177,11 +177,128 @@
 
 ### 다음 단계
 
-- (a) PR 생성 (orchestrator 담당)
-- (b) Phase A 머지 후 Phase B (cobra commands wiring) 다음 세션 진입
+- (a) PR 생성 (orchestrator 담당) — DONE (PR #67 merged)
+- (b) Phase A 머지 후 Phase B (cobra commands wiring) 다음 세션 진입 — DONE (Phase B Plan 작성, 본 섹션 이하)
 - (c) Phase C (TUI), Phase D (slash + E2E) 후속 세션
 
 ---
 
-Last Updated: 2026-05-04 (Phase A 완료)
-Status: Phase A DONE — Phase B/C/D pending
+## Phase B Scope (다음 세션 진입 대상)
+
+### 진입 결정 (2026-05-04 plan session)
+
+- 사용자 결정: **8 commands 전부 점검 + wiring 가능한 것은 wiring**, **단일 PR**
+- 본 세션은 **Plan only** — RED-GREEN-REFACTOR 진입은 다음 세션
+- Base branch: main (`f314834` 시점, Phase A merged)
+- Feature branch (다음 세션 생성): `feature/SPEC-GOOSE-CLI-001-phase-b-commands-wiring`
+
+### 8 Commands 점검 매트릭스
+
+| Command | 현재 backend | Phase B 처리 | 의존 ConnectClient 메서드 |
+|---------|--------------|--------------|---------------------------|
+| **ping** | `NewGRPCPingClient` (transport.NewDaemonClient.Ping) | wiring 전환 | `ConnectClient.Ping` |
+| **ask** | `askClientAdapter` (transport.NewDaemonClient.ChatStream) | wiring 전환 | `ConnectClient.ChatStream` |
+| **config** | `NewMemoryConfigStore` (in-memory) | wiring 전환 + Memory store는 test fallback로 보존 | `ConnectClient.GetConfig/SetConfig/ListConfig` |
+| **tool** | `NewStaticToolRegistry` (hardcoded) | wiring 전환 + Static registry는 offline fallback로 보존 | `ConnectClient.ListTools` |
+| **daemon status** | `pingClient` 재사용 | wiring 전환 (ping과 동일) | `ConnectClient.Ping` |
+| **session** | local file (`internal/cli/session/`) | scope 외 — local-only | (없음) |
+| **audit** | filesystem log (`internal/audit/`) | scope 외 — local-only | (없음) |
+| **plugin** | stub | scope 외 — Phase D 또는 후속 SPEC | (없음) |
+| **version** | ldflags | scope 외 — transport 무관 | (없음) |
+
+> **Note**: session/audit/plugin/version은 **Phase B scope 외**. 사용자 "8개 전부" 의도는 "8개 전부 점검 후 처리 결정"으로 해석. Plan 결과 5개만 wiring 대상이고 4개는 명시적 미처리.
+
+### Phase B Sub-Phases (RED 진입 순서)
+
+| Sub | 단위 | 신규/수정 파일 | LoC est | 의존 |
+|-----|------|----------------|---------|------|
+| **B1** | Adapter 계층 + ping wiring | `transport/adapter.go` (신규), `commands/ping.go` (보강), `rootcmd.go` (수정) | ~200 | Phase A ConnectClient |
+| **B2** | ask wiring | `commands/ask.go` (보강), `rootcmd.go` (수정) | ~200 | B1 (adapter 패턴 확정) |
+| **B3** | config wiring | `commands/config.go` (`ConnectConfigStore` 추가), `rootcmd.go` | ~200 | B1 |
+| **B4** | tool wiring | `commands/tool.go` (`ConnectToolRegistry` 추가), `rootcmd.go` | ~150 | B1 |
+| **B5** | daemon status wiring + rootcmd 통합 | `commands/daemon.go`, `rootcmd.go` (단일 ConnectClient lifecycle) | ~150 | B1~B4 |
+
+총량: **~900 LoC** (progress.md Phase B 추정 800-1000 일치). 단일 PR 산출물.
+
+### Phase B AC 매트릭스
+
+| AC | 검증 |
+|----|------|
+| Phase B-AC-001 | `ConnectClient` adapter (`PingClientAdapter`, `AskClientAdapter`, `ConnectConfigStore`, `ConnectToolRegistry`) 4종 unit test PASS |
+| Phase B-AC-002 | rootcmd.go가 단일 `*ConnectClient` instance를 PersistentPreRunE에서 생성, PersistentPostRunE에서 Close (lifecycle) |
+| Phase B-AC-003 | 5 wiring commands (ping/ask/config/tool/daemon-status) 각 happy path + error path test PASS (mock Connect server) |
+| Phase B-AC-004 | 기존 gRPC-go path 회귀 0건 — `transport.NewDaemonClient` characterization tests `-count=10` PASS |
+| Phase B-AC-005 | `MemoryConfigStore` / `StaticToolRegistry` interface 호환 보존 (test/offline fallback DI) |
+| Phase B-AC-006 | `coverage` >= 85% (신규 adapter + 보강된 commands) |
+| Phase B-AC-007 | `go vet` / `gofmt` / `golangci-lint --new-from-rev=main` clean (신규 코드 0 issue) |
+| Phase B-AC-008 | `go test -race -count=10` 100% PASS (race-free) |
+| Phase B-AC-009 | session/audit/plugin/version 변경 0 LoC (scope discipline — CLAUDE.md §7 Rule 5) |
+| Phase B-AC-010 | `daemon shutdown` subcommand는 stub 유지 (graceful shutdown RPC는 Phase D 또는 별도 SPEC) |
+
+### TDD 진입 순서 (RED 시나리오)
+
+| RED # | Sub | 테스트 | 매핑 AC |
+|-------|-----|--------|---------|
+| #1 | B1 | `TestPingClientAdapter_Ping_Success` (mock Connect server `goosev1connect.NewDaemonServiceHandler`) | B-AC-001, B-AC-003 |
+| #2 | B1 | `TestPingClientAdapter_Ping_Timeout` (`context.DeadlineExceeded` 변환) | B-AC-003 |
+| #3 | B1 | `TestRootCmd_Ping_UsesConnectClient` (rootcmd integration) | B-AC-002 |
+| #4 | B2 | `TestAskClientAdapter_ChatStream_ReceivesEvents` (channel-based event 변환) | B-AC-001, B-AC-003 |
+| #5 | B2 | `TestAskClientAdapter_ChatStream_CtxCancel` (graceful close) | B-AC-003 |
+| #6 | B3 | `TestConnectConfigStore_Get_Found / NotFound` (ErrConfigKeyNotFound 매핑) | B-AC-001, B-AC-005 |
+| #7 | B3 | `TestConnectConfigStore_Set / List` | B-AC-003 |
+| #8 | B3 | `TestMemoryConfigStore_StillWorks` (interface 회귀 baseline) | B-AC-005 |
+| #9 | B4 | `TestConnectToolRegistry_ListTools_Success / Empty` | B-AC-001, B-AC-003 |
+| #10 | B4 | `TestStaticToolRegistry_StillWorks` (회귀 baseline) | B-AC-005 |
+| #11 | B5 | `TestRootCmd_DaemonStatus_UsesConnectClient` | B-AC-002, B-AC-003 |
+| #12 | B5 | `TestRootCmd_ConnectClientLifecycle_OpenClose` (PreRun/PostRun cycle) | B-AC-002 |
+| #13 | B5 | `TestExisting_GRPCGoClient_NoRegression` (-count=10) | B-AC-004 |
+| #14 | B5 | `TestRace_RootCmdConcurrentSubcommands` (병렬 안정성) | B-AC-008 |
+| GREEN | All | adapter 4종 + rootcmd 통합 구현 |
+| REFACTOR | All | godoc 보강, @MX:ANCHOR/WARN 추가, lint clean, coverage 검증 |
+
+### 핵심 보존 약속 (HARD)
+
+- 기존 `transport.NewDaemonClient` (gRPC-go) 시그니처 byte-identical (Phase A에서 이미 확정)
+- 기존 `commands.PingClient`, `commands.AskClient`, `commands.ConfigStore`, `commands.ToolRegistry` 인터페이스 변경 0건 (adapter 추가만)
+- `MemoryConfigStore`, `StaticToolRegistry` 시그니처 byte-identical (DI fallback 보존)
+- session/audit/plugin/version 파일 변경 0건 (scope discipline)
+- `internal/cli/tui/` 변경 0건 (Phase C 책임)
+- daemon shutdown subcommand는 stub 유지 (Phase D 또는 별도 SPEC)
+
+### 신규 ConnectClient 메서드 부족분 점검
+
+Phase A `ConnectClient` 7 메서드 vs Phase B 요구:
+
+| Phase B 요구 | ConnectClient 메서드 | 상태 |
+|--------------|----------------------|------|
+| ping | `Ping(ctx)` | ✅ 존재 |
+| ask | `ChatStream(ctx, []Message)` | ✅ 존재 |
+| config get | `GetConfig(ctx, key)` | ✅ 존재 |
+| config set | `SetConfig(ctx, k, v)` | ✅ 존재 |
+| config list | `ListConfig(ctx, prefix)` | ✅ 존재 |
+| tool list | `ListTools(ctx)` | ✅ 존재 |
+| daemon status | `Ping(ctx)` (재사용) | ✅ 존재 |
+| daemon shutdown | (없음) | ❌ Phase B scope 외 — stub 유지 |
+
+**결론**: Phase B는 ConnectClient API 변경 0건. proto 변경 0건. 순수 wiring 작업.
+
+### 위험 / 주의사항
+
+- **Race condition**: rootcmd가 단일 ConnectClient instance를 모든 subcommands에 공유 → ConnectClient 자체 thread-safety 검증 필요 (Phase A `TestRace_ConnectClient_ConcurrentCalls`로 일부 검증됨)
+- **Connection lifecycle**: PersistentPreRunE에서 connect, PersistentPostRunE에서 close. Subcommand error 시에도 close 보장 (defer 패턴)
+- **Backward-compat**: 기존 gRPC-go path는 `transport/client.go`로 보존. Phase B가 client.go를 deprecate 하지 않음 (Phase C/D에서 결정)
+- **Test isolation**: mock Connect server를 ephemeral httptest server로 spawn (Phase A 패턴 재사용)
+- **Lint hygiene**: PR #68 (lint cleanup 11 issues)에서 `client.go` 정리됨 → 본 PR은 신규 파일만 lint scope
+
+### Phase B 진입 체크리스트 (다음 세션 시작 시)
+
+- [ ] `git pull --ff-only origin main` (이번 PR이 main에 반영되었는지 확인)
+- [ ] `go test -race ./internal/cli/transport/... -count=3` (Phase A baseline 회귀 0건)
+- [ ] `git checkout -b feature/SPEC-GOOSE-CLI-001-phase-b-commands-wiring`
+- [ ] RED #1 (`TestPingClientAdapter_Ping_Success`)부터 순서대로 실행
+- [ ] Sub-phase B1~B5 순차 진행. 각 sub 완료 시 `go test -race ./internal/cli/...` 회귀 점검
+
+---
+
+Last Updated: 2026-05-04 (Phase B Plan 작성)
+Status: Phase A DONE (PR #67) — Phase B PLAN READY — Phase C/D pending
