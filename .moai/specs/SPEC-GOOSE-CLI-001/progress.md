@@ -634,5 +634,36 @@ Phase D Plan 추정 ~500 LoC가 실제로는 ~250 LoC로 축소. 이유:
 
 ---
 
-Last Updated: 2026-05-04 (Phase D 완료, SPEC-GOOSE-CLI-001 4-phase 전체 종료)
-Status: Phase A DONE (#67) — Phase B DONE (#69) — Phase C DONE (#70 C1 + #71 C2~C5) — Phase D DONE (이번 PR)
+## 후속 — Multi-turn chat replay (2026-05-04)
+
+### 동기
+
+Phase B/C는 단일 user message만 daemon에 전달 (기존 PickLastUserMessage). multi-turn 대화가 필요한 사용자 시나리오에서 이전 turn 정보 손실. ConnectClient/proto는 이미 InitialMessages 필드를 정의해 RPC에 포함하지만 외부 ChatOption 빌더가 누락 — 어댑터가 연결만 하면 즉시 활성화 가능.
+
+### 변경
+
+| 파일 | 변경 |
+|------|------|
+| `transport/adapter.go` | `WithInitialMessages([]ChatMessageView) ChatOption` + `SplitMessagesAtLastUser` 신규 |
+| `cli/rootcmd.go` (askClientAdapter) | PickLastUserMessage → SplitMessagesAtLastUser + WithInitialMessages opt 전달 |
+| `cli/tui/client.go` (connectClientFactory) | 동일 변환 |
+
+### Phase A FROZEN 보존
+- `connect.go` 변경 0건 (`chatOptions.initialMessages` 필드는 Phase A부터 존재, RPC도 이미 InitialMessages 포함)
+- 본 후속은 외부 빌더만 export — Phase A API는 byte-identical
+
+### 신규 테스트 (~210 LoC)
+- `TestSplitMessagesAtLastUser` (5 case table-driven)
+- `TestWithInitialMessages_EmptyNoOp`
+- `TestWithInitialMessages_ConvertsToAgentMessage` (`{"text":"..."}` JSON envelope 검증)
+- `TestConnectClient_Chat_UsesInitialMessages` (mock server end-to-end: server 측 InitialMessages 수신 검증)
+
+### 품질 게이트
+- `go vet` / `gofmt` clean
+- `go test -race -count=10 ./internal/cli/...` 100% PASS
+- 기존 PickLastUserMessage tests 회귀 0건 (helper는 그대로 export 유지 — backward compat)
+
+---
+
+Last Updated: 2026-05-04 (Phase D 완료, multi-turn 후속 추가)
+Status: Phase A DONE (#67) — Phase B DONE (#69) — Phase C DONE (#70 + #71) — Phase D DONE (#72) — Multi-turn 후속 (이번 PR)
