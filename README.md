@@ -192,6 +192,7 @@ For a daily-updated picture: [GitHub Discussions](https://github.com/modu-ai/goo
 
 ## 📚 Documentation
 
+- [**CLI User Guide (한국어)**](docs/cli/README.md) — getting started, command reference, TUI guide, troubleshooting
 - [**ROADMAP**](.moai/specs/ROADMAP.md) — full 54-SPEC delivery plan
 - [**Implementation Order**](.moai/specs/IMPLEMENTATION-ORDER.md) — dependency graph + critical path
 - [**Architecture v0.2**](.moai/design/goose-runtime-architecture-v0.2.md) — runtime architecture redesign rationale
