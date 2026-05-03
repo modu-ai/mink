@@ -380,5 +380,115 @@ Phase A `ConnectClient` 메서드 (connect.go 정독 후 실제 시그니처):
 
 ---
 
-Last Updated: 2026-05-04 (Phase B 완료)
-Status: Phase A DONE (PR #67) — Phase B DONE — Phase C/D pending
+## Phase C Plan (2026-05-04, Phase B merged 후 작성)
+
+### 진입 결정
+- 사용자 결정 (2026-05-04): Plan만 작성 + 다음 세션에 RED-GREEN-REFACTOR 진입
+- Base branch: main `4521d3c` (Phase B PR #69 merged 직후)
+- Feature branch (다음 세션 생성): `feature/SPEC-GOOSE-CLI-001-phase-c-tui`
+- 진행 환경: 1M context 활성 후 expert-frontend 위임 권장 (TUI는 visual 검증 비중 큼 — main session 직접 작성 비추천)
+
+### TUI 자산 점검 (8 파일)
+
+| 파일 | LoC | 역할 | Phase C 처리 |
+|------|-----|------|--------------|
+| `tui/model.go` | 3378B | Model struct, ChatMessage/StreamEvent type | 내부 type 보존, ConnectClient 의존 제거 |
+| `tui/update.go` | 7480B | handleKeyMsg, streaming handlers | 변환 로직 transport helper 재사용으로 단순화 |
+| `tui/view.go` | 2002B | View 렌더링 | C4에서 statusbar 추가 |
+| `tui/client.go` | 4837B | **gRPC-go 의존 (Phase C1 wiring 대상)** | **ConnectClient adapter로 전환** |
+| `tui/dispatch.go` | 3748B | AppInterface, ProcessResult (slash dispatcher hook) | 변경 없음 (Phase D COMMAND-001 통합 시 보강) |
+| `tui/slash.go` | 3250B | ParseSlashCmd | 변경 없음 (이미 완성) |
+| `tui/slash_test.go` | 5152B | slash test | 회귀 baseline |
+| `tui/tui_test.go` | 8468B | Model test | 회귀 baseline + 보강 |
+
+### Phase C Sub-Phases
+
+| Sub | 단위 | 신규/수정 | LoC est | 의존 |
+|-----|------|-----------|---------|------|
+| **C1** | TUI transport wiring (client.go gRPC-go → ConnectClient) | client.go 재작성, transport helpers 재사용 (TranslateChatEvent, ChatStreamFanIn) | ~250 | Phase B (transport adapter 패턴 확정) |
+| **C2** | streaming 표시 강화 (viewport scroll, wordwrap, 누적 text 처리) | model.go (state), update.go (streaming buffer) | ~300 | C1 |
+| **C3** | keybindings (Ctrl+C 종료 confirm, Ctrl+L clear, Ctrl+D EOF, /quit, /clear, /reset) | update.go (handleKeyMsg 분기), model.go (modal state) | ~200 | C1 |
+| **C4** | statusbar (daemon connection state, model name, message count, token usage placeholder) | view.go (statusbar 렌더링), model.go (state) | ~250 | C1 |
+| **C5** | integration test (bubbletea teatest harness 또는 view snapshot golden file + race + 회귀) | tui_test.go 보강 + 신규 view_test.go | ~250 | C1~C4 |
+
+총량: **~1250 LoC**
+
+### Phase C AC
+
+| AC | 검증 |
+|----|------|
+| C-AC-001 | TUI client가 ConnectClient 기반 (gRPC-go 의존성 제거 — `transport.NewDaemonClient` 호출 0건 in tui/) |
+| C-AC-002 | chat REPL 동작 검증 (input → ChatStream → text rendering 통합 테스트) |
+| C-AC-003 | streaming/error/done 이벤트 처리 (TranslateChatEvent 활용 확인) |
+| C-AC-004 | keybindings 동작 (Ctrl+C confirm, Ctrl+L clear, /quit, /clear, /reset) |
+| C-AC-005 | statusbar 표시 (connection state, model name, message count) |
+| C-AC-006 | 기존 slash_test/tui_test 회귀 0건 (`-count=10`) |
+| C-AC-007 | race -count=10 PASS |
+| C-AC-008 | tui 패키지 coverage >= 80% (View 렌더링 로직 제외) |
+| C-AC-009 | 기존 `transport.NewDaemonClient` 시그니처 변경 0건 (Phase A FROZEN 보존) |
+| C-AC-010 | Phase D 영역 (slash dispatcher COMMAND-001 통합) 변경 0건 (scope discipline) |
+
+### TDD RED 시나리오
+
+| RED # | Sub | 테스트 | 매핑 AC |
+|-------|-----|--------|---------|
+| #1 | C1 | `TestTUIClientFactory_ChatStream_UsesConnectClient` (Phase B mock Connect server 패턴) | C-AC-001, C-AC-002 |
+| #2 | C1 | `TestTUIClientFactory_ChatStream_StreamingEvents` (text/done 변환) | C-AC-003 |
+| #3 | C1 | `TestTUIClientFactory_ChatStream_ErrorEvent` (error event 변환) | C-AC-003 |
+| #4 | C2 | `TestModel_HandleStreamingTextAccumulation` (consecutive text events 누적) | C-AC-002 |
+| #5 | C2 | `TestModel_ViewportScroll_LongOutput` (다중 message scroll) | C-AC-002 |
+| #6 | C3 | `TestModel_CtrlC_QuitConfirmation` (Ctrl+C 두번 확인) | C-AC-004 |
+| #7 | C3 | `TestModel_CtrlL_ClearScreen` | C-AC-004 |
+| #8 | C3 | `TestModel_SlashClear_ResetsHistory` | C-AC-004 |
+| #9 | C4 | `TestView_StatusBar_RendersConnectionState` | C-AC-005 |
+| #10 | C4 | `TestView_StatusBar_MessageCount` | C-AC-005 |
+| #11 | C5 | `TestTeatest_HappyPath_InputToResponse` (bubbletea teatest E2E) | C-AC-002 |
+| #12 | C5 | `TestExisting_SlashParsing_NoRegression` (slash_test.go -count=10) | C-AC-006 |
+| #13 | C5 | `TestRace_TUIConcurrentStreamEvents` | C-AC-007 |
+| GREEN | All | client.go ConnectClient 전환, model 강화, view statusbar, keybindings |
+| REFACTOR | All | godoc 영어, @MX 태그, lint clean |
+
+### 핵심 보존 약속 (HARD)
+
+- `tui.ChatMessage`, `tui.StreamEvent`, `tui.DaemonClient` 인터페이스 시그니처 byte-identical
+- `tui.AppInterface`, `tui.ProcessResult` (slash dispatcher hook) 변경 0건 (Phase D 책임)
+- `tui.ParseSlashCmd` + slash_test.go 변경 0건
+- `transport.NewDaemonClient` (gRPC-go) 시그니처/호출부 변경 0건
+- `commands/`, `transport/connect.go`, `transport/adapter.go` 변경 0건 (Phase B FROZEN)
+- session/audit/plugin/version commands 변경 0건
+
+### Phase B → C 재사용 자산
+
+Phase B에서 만든 transport helpers를 Phase C에서 그대로 사용:
+
+- `transport.TranslateChatEvent` — 와이어 → 단순 (Type, Content) 변환
+- `transport.ChatStreamFanIn` — 2채널 → 1채널 fan-in
+- `transport.NormalizeDaemonURL` — host:port → http URL
+- `transport.PickLastUserMessage` — 마지막 user message 추출
+
+→ Phase C는 transport.go 변경 0건 + helpers 재사용으로 ~150 LoC 절약 예상.
+
+### 위험 / 주의사항
+
+- **bubbletea Visual 검증**: Model.View() 출력은 ANSI escape 코드 포함 → snapshot test에서 normalization 필요. Phase C5는 `bubbletea/x/exp/teatest` 도입 또는 raw view 비교 결정 필요.
+- **Token 누적 표시**: `ConnectClient.ChatResponse`의 TokensIn/TokensOut은 unary Chat 결과만 — streaming은 토큰 정보 없음. statusbar는 message count만 표시 (token은 Phase D 또는 별도 SPEC).
+- **Ctrl+C race**: bubbletea Update 도중 Ctrl+C 처리 시 streaming goroutine과 race 가능 — confirmation flow가 핵심.
+- **lipgloss theme**: noColor flag 처리 + 기존 tui/view.go가 lipgloss 사용 — Phase C4에서 일관성 점검.
+
+### Phase C 진입 체크리스트 (다음 세션 시작 시)
+
+- [ ] `git pull --ff-only origin main` (4521d3c 또는 그 이후)
+- [ ] `go test -race ./internal/cli/tui/... -count=3` (현재 baseline 회귀 0건)
+- [ ] 1M context 활성 (`/extra-usage`) 또는 expert-frontend 분할 위임 전략 확정
+- [ ] `git checkout -b feature/SPEC-GOOSE-CLI-001-phase-c-tui`
+- [ ] RED #1 (`TestTUIClientFactory_ChatStream_UsesConnectClient`)부터 순서 진행
+
+### 다음 단계
+- 본 세션은 Phase C Plan commit 후 종료
+- 다음 세션: 1M context 환경에서 RED-GREEN-REFACTOR
+- 후속: Phase D (Slash COMMAND-001 통합 + E2E + 문서)
+
+---
+
+Last Updated: 2026-05-04 (Phase B 완료, Phase C Plan 작성)
+Status: Phase A DONE (PR #67) — Phase B DONE (PR #69 merged 4521d3c) — Phase C PLAN READY — Phase D pending
