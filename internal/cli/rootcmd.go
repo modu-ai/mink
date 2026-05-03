@@ -97,8 +97,10 @@ func NewRootCommand(version, commit, builtAt string) *cobra.Command {
 	// in-process fallback used by tests.
 	rootCmd.AddCommand(commands.NewConfigCommand(commands.NewConnectConfigStore("127.0.0.1:9005")))
 
-	// Tool commands
-	rootCmd.AddCommand(commands.NewToolCommand(commands.NewStaticToolRegistry()))
+	// Tool commands — Phase B4 wiring: ConnectToolRegistry delegates to
+	// ConnectClient.ToolService. StaticToolRegistry remains as the
+	// offline fallback used by tests.
+	rootCmd.AddCommand(commands.NewToolCommand(commands.NewConnectToolRegistry("127.0.0.1:9005")))
 
 	// Plugin commands (stub)
 	rootCmd.AddCommand(commands.NewPluginCommand())
