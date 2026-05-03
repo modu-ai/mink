@@ -1,9 +1,10 @@
 ---
 id: SPEC-AGENCY-CLEANUP-002
 version: 0.1.0
-status: implemented
+status: completed
 created_at: 2026-04-25
-updated_at: 2026-04-25
+updated_at: 2026-05-04
+completed: 2026-05-04
 author: manager-spec
 priority: P2
 issue_number: null
