@@ -11,7 +11,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
-	_ "google.golang.org/grpc/resolver/passthrough"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 )
@@ -97,7 +96,7 @@ func TestNewDaemonClient(t *testing.T) {
 			lis := bufconn.Listen(1024 * 1024)
 			s := grpc.NewServer()
 			goosev1.RegisterDaemonServiceServer(s, &mockDaemonServer{})
-			go s.Serve(lis)
+			go func() { _ = s.Serve(lis) }()
 			defer s.Stop()
 
 			// Create client with bufconn dialer
@@ -110,17 +109,17 @@ func TestNewDaemonClient(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to dial mock server: %v", err)
 			}
-			defer conn.Close()
+			defer func() { _ = conn.Close() }()
 
-			// For this test, we're just testing client creation
-			// In real scenario, we'd pass actual address
+			// For this test, we're just verifying that DaemonClient struct fields
+			// are properly populated when constructed via mock connection injection.
 			client := &DaemonClient{
 				conn:   conn,
 				client: goosev1.NewDaemonServiceClient(conn),
 			}
 
-			if client == nil {
-				t.Error("NewDaemonClient returned nil")
+			if client.conn == nil || client.client == nil {
+				t.Error("DaemonClient struct fields are nil after construction")
 			}
 		})
 	}
@@ -160,7 +159,7 @@ func TestDaemonClient_Ping(t *testing.T) {
 			s := grpc.NewServer()
 			mockServer := &mockDaemonServer{pingFunc: tt.mock}
 			goosev1.RegisterDaemonServiceServer(s, mockServer)
-			go s.Serve(lis)
+			go func() { _ = s.Serve(lis) }()
 			defer s.Stop()
 
 			// Create client
@@ -173,7 +172,7 @@ func TestDaemonClient_Ping(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to dial mock server: %v", err)
 			}
-			defer conn.Close()
+			defer func() { _ = conn.Close() }()
 
 			client := &DaemonClient{
 				conn:   conn,
@@ -229,7 +228,7 @@ func TestDaemonClient_ChatStream(t *testing.T) {
 			lis := bufconn.Listen(1024 * 1024)
 			s := grpc.NewServer()
 			goosev1.RegisterDaemonServiceServer(s, &mockDaemonServer{})
-			go s.Serve(lis)
+			go func() { _ = s.Serve(lis) }()
 			defer s.Stop()
 
 			// Create client
@@ -242,7 +241,7 @@ func TestDaemonClient_ChatStream(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to dial mock server: %v", err)
 			}
-			defer conn.Close()
+			defer func() { _ = conn.Close() }()
 
 			client := &DaemonClient{
 				conn:   conn,
@@ -301,7 +300,7 @@ func TestDaemonClient_ConnectionTimeout(t *testing.T) {
 		// Connection error is expected
 		return
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	// Try to ping
 	_, err = client.Ping(ctx)
@@ -315,7 +314,7 @@ func TestDaemonClient_Close(t *testing.T) {
 	lis := bufconn.Listen(1024 * 1024)
 	s := grpc.NewServer()
 	goosev1.RegisterDaemonServiceServer(s, &mockDaemonServer{})
-	go s.Serve(lis)
+	go func() { _ = s.Serve(lis) }()
 	defer s.Stop()
 
 	// Create client
@@ -340,11 +339,8 @@ func TestDaemonClient_Close(t *testing.T) {
 		t.Errorf("Close unexpected error: %v", err)
 	}
 
-	// Double close should return an error (already closed)
-	err = client.Close()
-	// We expect an error here since grpc connection throws error on double-close
-	// But our implementation sets conn to nil, so subsequent calls return nil
-	if err != nil {
-		// This is acceptable - gRPC returns error on double-close
-	}
+	// Double close should return an error (already closed).
+	// Our implementation sets conn to nil after first Close, so subsequent calls return nil.
+	// gRPC may return an error on double-close in other implementations; both behaviors are acceptable.
+	_ = client.Close()
 }
