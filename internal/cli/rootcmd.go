@@ -78,8 +78,10 @@ func NewRootCommand(version, commit, builtAt string) *cobra.Command {
 	// Add subcommands
 	rootCmd.AddCommand(commands.NewVersionCommand(version, commit, builtAt))
 
-	// Ping command with real gRPC client
-	pingClient := commands.NewGRPCPingClient()
+	// Ping command — Phase B1 wiring: PingClientAdapter delegates to
+	// ConnectClient.Ping (Phase A). The legacy NewGRPCPingClient remains
+	// available in commands/ping.go for fallback / regression testing.
+	pingClient := transport.NewPingClientAdapter()
 	rootCmd.AddCommand(commands.NewPingCommand(pingClient, "127.0.0.1:9005"))
 
 	// Ask command with gRPC client adapter
