@@ -14,6 +14,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1"
 )
 
 // connectClientFactory builds a *ConnectClient for the given daemon URL.
@@ -179,6 +181,70 @@ func ChatStreamFanIn(ctx context.Context, rawEvents <-chan ChatStreamEvent, errC
 		}
 	}()
 	return out
+}
+
+// SplitMessagesAtLastUser partitions a chat history into the prior turns
+// (everything strictly before the last user message) and the trailing
+// user prompt content. ok is false only for an empty input slice.
+//
+// When no message has Role == "user", the function treats the whole slice
+// as priors and returns the final element's Content as the prompt — this
+// matches PickLastUserMessage's fallback behaviour and keeps callers
+// from having to special-case roles other than "user".
+//
+// Phase B/C wiring used PickLastUserMessage to surface only the last
+// user message; this split helper enables multi-turn replay by routing
+// everything else through ChatOption WithInitialMessages.
+func SplitMessagesAtLastUser(messages []ChatMessageView) (priors []ChatMessageView, lastUser string, ok bool) {
+	if len(messages) == 0 {
+		return nil, "", false
+	}
+	for i := len(messages) - 1; i >= 0; i-- {
+		if messages[i].Role == "user" {
+			priors = make([]ChatMessageView, 0, i)
+			priors = append(priors, messages[:i]...)
+			return priors, messages[i].Content, true
+		}
+	}
+	priors = make([]ChatMessageView, 0, len(messages)-1)
+	priors = append(priors, messages[:len(messages)-1]...)
+	return priors, messages[len(messages)-1].Content, true
+}
+
+// WithInitialMessages threads a multi-turn history into an Agent.Chat or
+// Agent.ChatStream call. Each ChatMessageView becomes a single-block
+// AgentMessage where the block's kind is "text" and the data is the
+// {"text": "..."} JSON envelope used by the daemon's text payloads.
+//
+// Empty slices produce a no-op (chatOptions.initialMessages stays nil).
+//
+// @MX:NOTE Phase A's connect.go already routes chatOptions.initialMessages
+// into the RPC; this builder simply exposes the field through the public
+// ChatOption surface so adapters can opt in to multi-turn replay.
+func WithInitialMessages(messages []ChatMessageView) ChatOption {
+	return func(o *chatOptions) {
+		if len(messages) == 0 {
+			return
+		}
+		converted := make([]*goosev1.AgentMessage, 0, len(messages))
+		for _, m := range messages {
+			payload, err := json.Marshal(map[string]string{"text": m.Content})
+			if err != nil {
+				// json.Marshal of a string map cannot fail in practice; fall
+				// back to a literal envelope so the caller still sees their
+				// content on the wire even in pathological cases.
+				payload = []byte(`{"text":""}`)
+			}
+			converted = append(converted, &goosev1.AgentMessage{
+				Role: m.Role,
+				Content: []*goosev1.AgentContentBlock{{
+					Kind:     "text",
+					DataJson: payload,
+				}},
+			})
+		}
+		o.initialMessages = converted
+	}
 }
 
 // errEmptyMessages is exported for adapter tests; the commands wrapper in

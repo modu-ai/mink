@@ -168,9 +168,9 @@ func (a *askClientAdapter) ChatStream(ctx context.Context, messages []commands.M
 	for i, m := range messages {
 		views[i] = transport.ChatMessageView{Role: m.Role, Content: m.Content}
 	}
-	lastMsg, _ := transport.PickLastUserMessage(views)
+	priors, lastMsg, _ := transport.SplitMessagesAtLastUser(views)
 
-	rawEvents, errCh := client.ChatStream(ctx, "", lastMsg)
+	rawEvents, errCh := client.ChatStream(ctx, "", lastMsg, transport.WithInitialMessages(priors))
 	fan := transport.ChatStreamFanIn(ctx, rawEvents, errCh)
 
 	out := make(chan commands.StreamEvent, 16)

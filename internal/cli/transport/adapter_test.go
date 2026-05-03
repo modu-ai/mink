@@ -334,6 +334,181 @@ func TestErrEmptyMessages_Sentinel(t *testing.T) {
 	}
 }
 
+// SplitMessagesAtLastUser partitions message slices into priors + final
+// user prompt; falls back to the trailing element when no "user" role
+// exists; reports ok=false only on empty input.
+func TestSplitMessagesAtLastUser(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name       string
+		input      []ChatMessageView
+		wantPriors []ChatMessageView
+		wantLast   string
+		wantOK     bool
+	}{
+		{
+			name:   "empty",
+			input:  nil,
+			wantOK: false,
+		},
+		{
+			name:       "single user",
+			input:      []ChatMessageView{{Role: "user", Content: "hi"}},
+			wantPriors: []ChatMessageView{},
+			wantLast:   "hi",
+			wantOK:     true,
+		},
+		{
+			name: "multi-turn ending with user",
+			input: []ChatMessageView{
+				{Role: "user", Content: "first"},
+				{Role: "assistant", Content: "ack"},
+				{Role: "user", Content: "second"},
+			},
+			wantPriors: []ChatMessageView{
+				{Role: "user", Content: "first"},
+				{Role: "assistant", Content: "ack"},
+			},
+			wantLast: "second",
+			wantOK:   true,
+		},
+		{
+			// Multi-turn shape where the user is the last "user" role
+			// even though an assistant turn trails: priors stay empty,
+			// the prompt is the user content. This matches the realistic
+			// invocation where ChatStream is called *after* the user's
+			// last submit and the assistant turn arrives later.
+			name: "user before trailing assistant — priors empty, prompt = last user",
+			input: []ChatMessageView{
+				{Role: "user", Content: "first"},
+				{Role: "assistant", Content: "tail"},
+			},
+			wantPriors: []ChatMessageView{},
+			wantLast:   "first",
+			wantOK:     true,
+		},
+		{
+			name: "no user at all — fallback",
+			input: []ChatMessageView{
+				{Role: "system", Content: "boot"},
+				{Role: "assistant", Content: "ack"},
+			},
+			wantPriors: []ChatMessageView{
+				{Role: "system", Content: "boot"},
+			},
+			wantLast: "ack",
+			wantOK:   true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			priors, last, ok := SplitMessagesAtLastUser(tc.input)
+			if ok != tc.wantOK {
+				t.Errorf("ok = %v, want %v", ok, tc.wantOK)
+			}
+			if last != tc.wantLast {
+				t.Errorf("lastUser = %q, want %q", last, tc.wantLast)
+			}
+			if len(priors) != len(tc.wantPriors) {
+				t.Fatalf("priors len = %d, want %d", len(priors), len(tc.wantPriors))
+			}
+			for i := range priors {
+				if priors[i] != tc.wantPriors[i] {
+					t.Errorf("priors[%d] = %+v, want %+v", i, priors[i], tc.wantPriors[i])
+				}
+			}
+		})
+	}
+}
+
+// WithInitialMessages on an empty slice leaves chatOptions untouched.
+func TestWithInitialMessages_EmptyNoOp(t *testing.T) {
+	t.Parallel()
+
+	o := &chatOptions{}
+	WithInitialMessages(nil)(o)
+	if o.initialMessages != nil {
+		t.Errorf("empty slice must be a no-op, got %d entries", len(o.initialMessages))
+	}
+	WithInitialMessages([]ChatMessageView{})(o)
+	if o.initialMessages != nil {
+		t.Errorf("empty slice must be a no-op, got %d entries", len(o.initialMessages))
+	}
+}
+
+// WithInitialMessages packs each ChatMessageView into a single-block
+// AgentMessage with a {"text":"..."} JSON envelope.
+func TestWithInitialMessages_ConvertsToAgentMessage(t *testing.T) {
+	t.Parallel()
+
+	o := &chatOptions{}
+	WithInitialMessages([]ChatMessageView{
+		{Role: "user", Content: "hello"},
+		{Role: "assistant", Content: "world"},
+	})(o)
+
+	if got := len(o.initialMessages); got != 2 {
+		t.Fatalf("converted len = %d, want 2", got)
+	}
+	if o.initialMessages[0].Role != "user" || o.initialMessages[1].Role != "assistant" {
+		t.Errorf("roles = [%q,%q], want [user, assistant]", o.initialMessages[0].Role, o.initialMessages[1].Role)
+	}
+	for i, want := range []string{`{"text":"hello"}`, `{"text":"world"}`} {
+		blocks := o.initialMessages[i].Content
+		if len(blocks) != 1 {
+			t.Fatalf("entry[%d] block count = %d, want 1", i, len(blocks))
+		}
+		if blocks[0].Kind != "text" {
+			t.Errorf("entry[%d] kind = %q, want text", i, blocks[0].Kind)
+		}
+		if string(blocks[0].DataJson) != want {
+			t.Errorf("entry[%d] payload = %q, want %q", i, string(blocks[0].DataJson), want)
+		}
+	}
+}
+
+// RED #M-CLI-1: Multi-turn replay end-to-end — Chat receives both the
+// trailing prompt and the prior turns via InitialMessages.
+func TestConnectClient_Chat_UsesInitialMessages(t *testing.T) {
+	t.Parallel()
+
+	var capturedMessage string
+	var capturedInitial []*goosev1.AgentMessage
+	srv := newTestServer(nil, &mockAgentConnectServer{
+		chatFunc: func(_ context.Context, req *connect.Request[goosev1.AgentChatRequest]) (*connect.Response[goosev1.AgentChatResponse], error) {
+			capturedMessage = req.Msg.Message
+			capturedInitial = req.Msg.InitialMessages
+			return connect.NewResponse(&goosev1.AgentChatResponse{Content: "ok"}), nil
+		},
+	}, nil, nil)
+	defer srv.Close()
+
+	client, err := NewConnectClient(srv.URL)
+	if err != nil {
+		t.Fatalf("NewConnectClient: %v", err)
+	}
+
+	priors := []ChatMessageView{
+		{Role: "user", Content: "first"},
+		{Role: "assistant", Content: "ack"},
+	}
+	if _, err := client.Chat(context.Background(), "", "second", WithInitialMessages(priors)); err != nil {
+		t.Fatalf("Chat: %v", err)
+	}
+
+	if capturedMessage != "second" {
+		t.Errorf("server saw message = %q, want %q", capturedMessage, "second")
+	}
+	if got := len(capturedInitial); got != 2 {
+		t.Fatalf("server saw %d initial messages, want 2", got)
+	}
+	if capturedInitial[0].Role != "user" || capturedInitial[1].Role != "assistant" {
+		t.Errorf("server saw roles [%q,%q]", capturedInitial[0].Role, capturedInitial[1].Role)
+	}
+}
+
 // NormalizeDaemonURL prepends http:// only when scheme is missing.
 func TestNormalizeDaemonURL(t *testing.T) {
 	t.Parallel()
