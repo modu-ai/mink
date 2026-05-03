@@ -1,9 +1,10 @@
 ---
 id: SPEC-GOOSE-PLANMODE-CMD-001
 version: 0.1.0
-status: planned
+status: completed
 created_at: 2026-04-27
-updated_at: 2026-04-27
+updated_at: 2026-05-04
+completed: 2026-05-04
 author: manager-spec
 priority: P3
 issue_number: null
