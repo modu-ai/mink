@@ -92,8 +92,10 @@ func NewRootCommand(version, commit, builtAt string) *cobra.Command {
 	// Session commands
 	rootCmd.AddCommand(commands.NewSessionCommand("127.0.0.1:9005"))
 
-	// Config commands
-	rootCmd.AddCommand(commands.NewConfigCommand(commands.NewMemoryConfigStore()))
+	// Config commands — Phase B3 wiring: ConnectConfigStore delegates to
+	// ConnectClient.ConfigService. MemoryConfigStore remains as the
+	// in-process fallback used by tests.
+	rootCmd.AddCommand(commands.NewConfigCommand(commands.NewConnectConfigStore("127.0.0.1:9005")))
 
 	// Tool commands
 	rootCmd.AddCommand(commands.NewToolCommand(commands.NewStaticToolRegistry()))
