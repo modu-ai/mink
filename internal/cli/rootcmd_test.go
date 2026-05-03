@@ -92,6 +92,25 @@ func TestRootCommandDaemonAddrDefault(t *testing.T) {
 	assert.Equal(t, "127.0.0.1:9005", flag.DefValue)
 }
 
+// TestRootCommand_PhaseB_SubcommandsRegistered verifies that the Phase B
+// wiring (ping / ask / config / tool / daemon) is reachable via cobra's
+// command tree. This guards against regressions where a wiring change
+// silently drops a subcommand from the root.
+func TestRootCommand_PhaseB_SubcommandsRegistered(t *testing.T) {
+	t.Parallel()
+
+	rootCmd := cli.NewRootCommand("v0.1.0", "abc123", "2026-04-28")
+
+	have := map[string]bool{}
+	for _, c := range rootCmd.Commands() {
+		have[c.Name()] = true
+	}
+
+	for _, name := range []string{"ping", "ask", "config", "tool", "daemon"} {
+		assert.True(t, have[name], "subcommand %q must be registered", name)
+	}
+}
+
 // TestRootCommand_InitAppWiring verifies that PersistentPreRunE initializes App.
 func TestRootCommand_InitAppWiring(t *testing.T) {
 	t.Parallel()
