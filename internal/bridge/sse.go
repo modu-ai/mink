@@ -66,6 +66,7 @@ func (h *SSEHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	connID := sid + "-" + randSuffix()
 	closer := newSSECloser(w, flusher)
+	sender := newSSESender(w, flusher)
 
 	if err := h.cfg.Registry.Add(WebUISession{
 		ID:           connID,
@@ -78,9 +79,11 @@ func (h *SSEHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.cfg.Registry.RegisterCloser(connID, closer)
+	h.cfg.Registry.RegisterSender(connID, sender)
 
 	defer func() {
 		h.cfg.Registry.UnregisterCloser(connID)
+		h.cfg.Registry.UnregisterSender(connID)
 		h.cfg.Registry.Remove(connID)
 	}()
 
@@ -103,6 +106,35 @@ type sseCloser struct {
 
 func newSSECloser(w http.ResponseWriter, f http.Flusher) *sseCloser {
 	return &sseCloser{w: w, flusher: f, done: make(chan struct{})}
+}
+
+// sseSender implements SessionSender by writing the JSON envelope as an
+// SSE event. The "id:" line carries the sequence so the browser's
+// EventSource exposes it to the next reconnect via Last-Event-ID
+// (M4 resume scaffold).
+type sseSender struct {
+	w       http.ResponseWriter
+	flusher http.Flusher
+	mu      sync.Mutex
+}
+
+func newSSESender(w http.ResponseWriter, f http.Flusher) *sseSender {
+	return &sseSender{w: w, flusher: f}
+}
+
+func (s *sseSender) SendOutbound(msg OutboundMessage) error {
+	body, err := encodeOutboundJSON(msg)
+	if err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, err := fmt.Fprintf(s.w, "id: %d\nevent: %s\ndata: %s\n\n",
+		msg.Sequence, msg.Type, body); err != nil {
+		return err
+	}
+	s.flusher.Flush()
+	return nil
 }
 
 func (c *sseCloser) Close(code CloseCode) error {
@@ -171,7 +203,7 @@ func (h *InboundPostHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, "malformed")
 		return
 	}
-	if err := h.cfg.Adapter.HandleInbound(msg); err != nil {
+	if err := dispatchInbound(h.cfg, msg); err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "adapter_failure")
 		return
 	}

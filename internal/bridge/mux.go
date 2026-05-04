@@ -17,6 +17,12 @@ type MuxConfig struct {
 	Revocation *RevocationStore
 	Adapter    QueryEngineAdapter // optional; nil falls back to noopAdapter
 
+	// PermissionRequester routes InboundPermissionResponse messages to
+	// blocked Bridge.RequestPermission callers. Optional: when nil,
+	// permission_response inbounds are forwarded to Adapter like any
+	// other type.
+	permRequester *permissionRequester
+
 	// WSAcceptOrigins controls coder/websocket's Origin header check.
 	// Empty defaults to {"127.0.0.1:*", "localhost:*", "[::1]:*"}.
 	WSAcceptOrigins []string

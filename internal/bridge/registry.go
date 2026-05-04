@@ -39,6 +39,7 @@ type Registry struct {
 	mu       sync.RWMutex
 	sessions map[string]WebUISession
 	closers  map[string]SessionCloser
+	senders  map[string]SessionSender
 }
 
 // NewRegistry returns an empty Registry ready for use.
@@ -46,6 +47,7 @@ func NewRegistry() *Registry {
 	return &Registry{
 		sessions: make(map[string]WebUISession),
 		closers:  make(map[string]SessionCloser),
+		senders:  make(map[string]SessionSender),
 	}
 }
 
@@ -94,13 +96,40 @@ func (r *Registry) Get(id string) (WebUISession, bool) {
 	return cloneSession(s), true
 }
 
-// Remove deletes the session with the given ID and any registered closer.
-// Removing a missing ID is a no-op (idempotent).
+// Remove deletes the session with the given ID and any registered closer
+// and sender. Removing a missing ID is a no-op (idempotent).
 func (r *Registry) Remove(id string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	delete(r.sessions, id)
 	delete(r.closers, id)
+	delete(r.senders, id)
+}
+
+// RegisterSender associates a transport-level outbound sender with the
+// session ID. Replacing an existing sender for the same ID is allowed.
+func (r *Registry) RegisterSender(id string, s SessionSender) {
+	if id == "" || s == nil {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.senders[id] = s
+}
+
+// UnregisterSender drops the sender associated with the session ID.
+func (r *Registry) UnregisterSender(id string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.senders, id)
+}
+
+// Sender returns the SessionSender registered for sessionID, or nil if
+// none. Useful for the outbound dispatcher.
+func (r *Registry) Sender(id string) SessionSender {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.senders[id]
 }
 
 // RegisterCloser associates a transport-level closer with the session ID.

@@ -81,6 +81,7 @@ func (h *WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	connID := sid + "-" + randSuffix()
 
 	closer := &wsCloser{conn: conn}
+	sender := &wsSender{conn: conn, ctx: r.Context()}
 	if err := h.cfg.Registry.Add(WebUISession{
 		ID:           connID,
 		CookieHash:   cookieHash,
@@ -93,9 +94,11 @@ func (h *WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.cfg.Registry.RegisterCloser(connID, closer)
+	h.cfg.Registry.RegisterSender(connID, sender)
 
 	defer func() {
 		h.cfg.Registry.UnregisterCloser(connID)
+		h.cfg.Registry.UnregisterSender(connID)
 		h.cfg.Registry.Remove(connID)
 		_ = conn.CloseNow()
 	}()
@@ -128,12 +131,23 @@ func (h *WebSocketHandler) runFrameLoop(parent context.Context, conn *websocket.
 			continue
 		}
 
-		if err := h.cfg.Adapter.HandleInbound(msg); err != nil {
+		if err := dispatchInbound(h.cfg, msg); err != nil {
 			_ = conn.Write(parent, websocket.MessageText,
 				[]byte(`{"type":"error","payload":{"error":"adapter_failure"}}`))
 			continue
 		}
 	}
+}
+
+// dispatchInbound routes an InboundMessage to either the permission
+// requester (when permission_response and a requester is wired) or the
+// QueryEngine adapter. Centralizing the branch keeps WS / SSE / POST
+// inbound paths consistent.
+func dispatchInbound(cfg MuxConfig, msg InboundMessage) error {
+	if msg.Type == InboundPermissionResponse && cfg.permRequester != nil {
+		return cfg.permRequester.HandleInboundPermissionResponse(msg.Payload)
+	}
+	return cfg.Adapter.HandleInbound(msg)
 }
 
 // handleReadError translates a coder/websocket read error into the most
@@ -158,6 +172,22 @@ type wsCloser struct {
 	conn *websocket.Conn
 	mu   sync.Mutex
 	done bool
+}
+
+// wsSender implements SessionSender by writing the JSON envelope as a
+// MessageText frame. Safe for concurrent use — coder/websocket's Write
+// is internally synchronized.
+type wsSender struct {
+	conn *websocket.Conn
+	ctx  context.Context
+}
+
+func (s *wsSender) SendOutbound(msg OutboundMessage) error {
+	body, err := encodeOutboundJSON(msg)
+	if err != nil {
+		return err
+	}
+	return s.conn.Write(s.ctx, websocket.MessageText, body)
 }
 
 func (c *wsCloser) Close(code CloseCode) error {
