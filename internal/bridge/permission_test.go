@@ -21,7 +21,7 @@ func permissionTestStack(t *testing.T) (*captureSender, *permissionRequester, *p
 	t.Helper()
 	clk := clockwork.NewFakeClockAt(time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC))
 	reg := NewRegistry()
-	disp := newOutboundDispatcher(reg)
+	disp := newOutboundDispatcher(reg, nil, nil)
 	cs := &captureSender{}
 	reg.RegisterSender("sx", cs)
 	store := newPermissionStore(clk)
@@ -207,7 +207,7 @@ func TestRequestPermission_UnknownSenderReturnsImmediately(t *testing.T) {
 	t.Parallel()
 	clk := clockwork.NewFakeClockAt(time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC))
 	store := newPermissionStore(clk)
-	disp := newOutboundDispatcher(NewRegistry()) // no senders registered
+	disp := newOutboundDispatcher(NewRegistry(), nil, nil) // no senders registered
 	req := newPermissionRequester(store, disp, PermissionTimeout)
 
 	_, err := req.Request(context.Background(), "ghost", nil)

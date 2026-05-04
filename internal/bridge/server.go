@@ -53,7 +53,10 @@ func New(cfg Config) (Bridge, error) {
 	}
 	registry := NewRegistry()
 	revocation := NewRevocationStore(nil)
-	dispatcher := newOutboundDispatcher(registry)
+	buffer := newOutboundBuffer(nil)
+	gate := newFlushGate()
+	dispatcher := newOutboundDispatcher(registry, buffer, gate)
+	resumer := newResumer(buffer)
 	permStore := newPermissionStore(nil)
 	permReq := newPermissionRequester(permStore, dispatcher, PermissionTimeout)
 	return &bridgeServer{
@@ -61,7 +64,10 @@ func New(cfg Config) (Bridge, error) {
 		registry:      registry,
 		auth:          auth,
 		revocation:    revocation,
+		buffer:        buffer,
+		gate:          gate,
 		dispatcher:    dispatcher,
+		resumer:       resumer,
 		permissions:   permStore,
 		permRequester: permReq,
 	}, nil
@@ -75,7 +81,10 @@ type bridgeServer struct {
 	registry      *Registry
 	auth          *Authenticator
 	revocation    *RevocationStore
+	buffer        *outboundBuffer
+	gate          *flushGate
 	dispatcher    *outboundDispatcher
+	resumer       *resumer
 	permissions   *permissionStore
 	permRequester *permissionRequester
 
