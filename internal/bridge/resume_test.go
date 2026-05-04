@@ -50,7 +50,7 @@ func TestResumer_ReplaysAfterLastSequence(t *testing.T) {
 	for i := uint64(1); i <= 5; i++ {
 		buf.Append(mkMsg(sid, i, "x"))
 	}
-	r := newResumer(buf)
+	r := newResumer(buf, nil)
 
 	h := http.Header{}
 	h.Set(HeaderLastSequence, "3")
@@ -70,7 +70,7 @@ func TestResumer_ZeroLastSeqReplaysAll(t *testing.T) {
 	for i := uint64(1); i <= 3; i++ {
 		buf.Append(mkMsg(sid, i, "x"))
 	}
-	r := newResumer(buf)
+	r := newResumer(buf, nil)
 	got := r.Resume(sid, http.Header{})
 	if len(got) != 3 {
 		t.Fatalf("expected full replay, got %d", len(got))
@@ -80,7 +80,7 @@ func TestResumer_ZeroLastSeqReplaysAll(t *testing.T) {
 func TestResumer_NoBufferedMessagesReturnsNil(t *testing.T) {
 	t.Parallel()
 	buf := newOutboundBuffer(clockwork.NewFakeClock())
-	r := newResumer(buf)
+	r := newResumer(buf, nil)
 	if got := r.Resume("nobody", http.Header{}); got != nil {
 		t.Fatalf("expected nil, got %+v", got)
 	}

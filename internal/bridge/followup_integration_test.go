@@ -47,7 +47,7 @@ func followupBufferedSender(t *testing.T, sessionID string, count int) (*resumer
 		})
 	}
 	gate := newFlushGate()
-	return newResumer(buf), &gateBracketSender{gate: gate, sessionID: sessionID}, gate
+	return newResumer(buf, nil), &gateBracketSender{gate: gate, sessionID: sessionID}, gate
 }
 
 // TestFollowupScenario1_WSResumerDrivesSenderBracket — when X-Last-Sequence

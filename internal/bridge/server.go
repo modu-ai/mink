@@ -66,7 +66,7 @@ func New(cfg Config) (Bridge, error) {
 	// (REQ-BR-AMEND-007, AC-BR-AMEND-008). This is a package-internal wiring
 	// step; the hook is a closure over the dispatcher pointer.
 	registry.SetLogoutHook(dispatcher.dropLogicalBuffer)
-	resumer := newResumer(buffer)
+	resumer := newResumer(buffer, registry)
 	permStore := newPermissionStore(nil)
 	permReq := newPermissionRequester(permStore, dispatcher, PermissionTimeout)
 	return &bridgeServer{
