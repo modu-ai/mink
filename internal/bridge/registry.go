@@ -191,6 +191,35 @@ func hashesEqual(a, b []byte) bool {
 	return true
 }
 
+// LogicalID returns the LogicalID associated with the given connID.
+//
+// Returns (LogicalID, true) when a session is registered for connID AND its
+// LogicalID field is non-empty. Returns ("", false) in two cases:
+//
+//   - No session is registered for connID.
+//   - A session exists but its LogicalID is the empty string (pre-amendment
+//     sessions that have not yet been filled with a derived identifier).
+//
+// Lookup is O(1) average-case using the existing session map. This method is
+// the single source of truth for the connID → LogicalID mapping, consumed by
+// the outbound dispatcher (M3) and resumer (M3) without requiring an external
+// cache.
+//
+// @MX:ANCHOR: [AUTO] Single source of truth for connID → LogicalID mapping.
+// @MX:REASON: fan_in >= 3 (outbound dispatcher M3, resumer M3, tests); any
+// change to the return semantics (e.g., treating "" as a valid LogicalID)
+// breaks cross-connection replay invariants in REQ-BR-AMEND-003/004.
+// @MX:SPEC: SPEC-GOOSE-BRIDGE-001-AMEND-001 REQ-BR-AMEND-002 AC-BR-AMEND-002
+func (r *Registry) LogicalID(connID string) (string, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	s, ok := r.sessions[connID]
+	if !ok || s.LogicalID == "" {
+		return "", false
+	}
+	return s.LogicalID, true
+}
+
 // Snapshot returns a copy of all currently registered sessions. Callers are
 // free to mutate the returned slice and its elements (including the
 // CookieHash / CSRFHash byte slices) without affecting the registry.

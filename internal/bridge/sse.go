@@ -96,6 +96,7 @@ func (h *SSEHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		OpenedAt:     time.Now(),
 		LastActivity: time.Now(),
 		State:        SessionStateOpen,
+		LogicalID:    h.cfg.Auth.DeriveLogicalID(cookieHash, TransportSSE),
 	}); err != nil {
 		return
 	}

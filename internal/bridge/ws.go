@@ -122,6 +122,7 @@ func (h *WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		OpenedAt:     time.Now(),
 		LastActivity: time.Now(),
 		State:        SessionStateOpen,
+		LogicalID:    h.cfg.Auth.DeriveLogicalID(cookieHash, TransportWebSocket),
 	}); err != nil {
 		_ = conn.Close(websocket.StatusInternalError, "registry add failed")
 		return
