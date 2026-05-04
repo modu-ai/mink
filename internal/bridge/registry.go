@@ -2,6 +2,10 @@
 // REQ: REQ-BR-001
 // AC: AC-BR-001
 // M0-T4 — in-memory session registry with concurrent-safe CRUD.
+// SPEC: SPEC-GOOSE-BRIDGE-001-AMEND-001
+// REQ: REQ-BR-AMEND-007
+// AC: AC-BR-AMEND-008
+// M3-T5 — logout hook (logoutHook) called before transport closers.
 
 package bridge
 
@@ -35,11 +39,20 @@ type SessionCloser interface {
 // @MX:ANCHOR
 // @MX:REASON Single source of truth for session lifecycle; consumed by
 // server, mux, auth handlers, replay, and OTel exporter.
+// @MX:WARN: [AUTO] logoutHook ordering — CloseSessionsByCookieHash MUST
+// invoke logoutHook BEFORE invoking transport closers (AC-BR-AMEND-008).
+// @MX:REASON: If closers fire first, the transport teardown path may
+// trigger dropSequence on the dispatcher, which is a no-op for transient
+// disconnects but could race with the eager-drop hook for the same
+// LogicalID. The BEFORE ordering is a security invariant:
+// buffered messages MUST be gone before the session is unregistered.
+// @MX:SPEC: SPEC-GOOSE-BRIDGE-001-AMEND-001 REQ-BR-AMEND-007 AC-BR-AMEND-008
 type Registry struct {
-	mu       sync.RWMutex
-	sessions map[string]WebUISession
-	closers  map[string]SessionCloser
-	senders  map[string]SessionSender
+	mu         sync.RWMutex
+	sessions   map[string]WebUISession
+	closers    map[string]SessionCloser
+	senders    map[string]SessionSender
+	logoutHook func(logicalID string) // called before closers in CloseSessionsByCookieHash
 }
 
 // NewRegistry returns an empty Registry ready for use.
@@ -49,6 +62,18 @@ func NewRegistry() *Registry {
 		closers:  make(map[string]SessionCloser),
 		senders:  make(map[string]SessionSender),
 	}
+}
+
+// SetLogoutHook registers a callback that is invoked once per unique
+// LogicalID before CloseSessionsByCookieHash fires the transport closers.
+// This hook is the outbound dispatcher's eager-drop entry point
+// (REQ-BR-AMEND-007). A nil hook is silently ignored. Calling
+// SetLogoutHook after sessions are registered is safe; the hook is read
+// under the existing RWMutex.
+func (r *Registry) SetLogoutHook(fn func(logicalID string)) {
+	r.mu.Lock()
+	r.logoutHook = fn
+	r.mu.Unlock()
 }
 
 // cloneSession deep-copies the byte-slice fields of a WebUISession so the
@@ -158,25 +183,59 @@ func (r *Registry) UnregisterCloser(id string) {
 // Returns the number of closers invoked. Sessions without a registered
 // closer are skipped (logout completes when transports register on next
 // connect attempt and observe the revocation).
+//
+// AMEND-001 M3-T5 ordering (AC-BR-AMEND-008):
+//  1. Collect matching connIDs, their closers, and their unique LogicalIDs.
+//  2. Invoke logoutHook for each unique LogicalID (eager-drop buffer+seq).
+//  3. Then invoke transport closers.
+//
+// The hook MUST fire before closers so that buffer.Len(LogicalID) == 0
+// by the time the transport teardown completes (security invariant,
+// REQ-BR-AMEND-007).
 func (r *Registry) CloseSessionsByCookieHash(cookieHash []byte, code CloseCode) int {
 	if len(cookieHash) == 0 {
 		return 0
 	}
 	r.mu.RLock()
-	matches := make([]SessionCloser, 0)
+	type matchEntry struct {
+		closer    SessionCloser
+		logicalID string
+	}
+	matches := make([]matchEntry, 0)
+	seenLogicalIDs := make(map[string]struct{})
+	hook := r.logoutHook
 	for id, s := range r.sessions {
 		if hashesEqual(s.CookieHash, cookieHash) {
-			if c, ok := r.closers[id]; ok {
-				matches = append(matches, c)
+			var c SessionCloser
+			if cl, ok := r.closers[id]; ok {
+				c = cl
+			}
+			matches = append(matches, matchEntry{closer: c, logicalID: s.LogicalID})
+			if s.LogicalID != "" {
+				seenLogicalIDs[s.LogicalID] = struct{}{}
 			}
 		}
 	}
 	r.mu.RUnlock()
 
-	for _, c := range matches {
-		_ = c.Close(code)
+	// Step 1: fire the logout hook for each unique LogicalID BEFORE closers.
+	// This eager-drops buffer + sequence so no buffered message remains
+	// replayable after logout (REQ-BR-AMEND-007, AC-BR-AMEND-008 step 1-2).
+	if hook != nil {
+		for lid := range seenLogicalIDs {
+			hook(lid)
+		}
 	}
-	return len(matches)
+
+	// Step 2: invoke transport closers.
+	invoked := 0
+	for _, m := range matches {
+		if m.closer != nil {
+			_ = m.closer.Close(code)
+			invoked++
+		}
+	}
+	return invoked
 }
 
 func hashesEqual(a, b []byte) bool {

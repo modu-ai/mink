@@ -2,6 +2,10 @@
 // REQ: REQ-BR-007
 // AC: AC-BR-007
 // M3-T1, M3-T2, M3-T3 — outbound dispatcher + sequence + chunk ordering.
+// SPEC: SPEC-GOOSE-BRIDGE-001-AMEND-001
+// REQ: REQ-BR-AMEND-003
+// AC: AC-BR-AMEND-003
+// M3-T2 — registry-less fallback path verification.
 
 package bridge
 
@@ -273,5 +277,48 @@ func TestEncodeOutboundJSON_OmitsEmptyPayload(t *testing.T) {
 	})
 	if got := string(body); got != `{"type":"status","sequence":1}` {
 		t.Errorf("body = %s, want type+sequence only", got)
+	}
+}
+
+// TestOutboundDispatcher_RegistryLessFallback verifies that when the
+// dispatcher is constructed without a registry (nil registry field),
+// bufferKey falls back to the sessionID directly, preserving v0.2.1
+// unit-test fixture compatibility (REQ-BR-AMEND-003 fallback branch).
+func TestOutboundDispatcher_RegistryLessFallback(t *testing.T) {
+	t.Parallel()
+
+	// Build dispatcher with an explicit nil registry to simulate the
+	// registry-less fixture pattern used in many existing unit tests.
+	reg := NewRegistry()
+	buf := newOutboundBuffer(nil)
+	disp := newOutboundDispatcher(reg, buf, nil, nil)
+
+	// Register a sender directly; no session entry in registry.
+	cs := &captureSender{}
+	reg.RegisterSender("sx-fallback", cs)
+	// Add session with empty LogicalID (triggers fallback path in bufferKey).
+	if err := reg.Add(WebUISession{
+		ID:        "sx-fallback",
+		Transport: TransportWebSocket,
+		State:     SessionStateActive,
+		// LogicalID is intentionally empty → bufferKey falls back to connID.
+	}); err != nil {
+		t.Fatalf("registry add: %v", err)
+	}
+
+	seq, err := disp.SendOutbound("sx-fallback", OutboundChunk, []byte(`null`))
+	if err != nil {
+		t.Fatalf("SendOutbound: %v", err)
+	}
+	if seq != 1 {
+		t.Errorf("seq = %d, want 1", seq)
+	}
+
+	// Buffer must be keyed by "sx-fallback" (connID), not by empty string.
+	if n := buf.Len("sx-fallback"); n != 1 {
+		t.Errorf("Len(sx-fallback) = %d, want 1 (fallback to connID)", n)
+	}
+	if n := buf.Len(""); n != 0 {
+		t.Errorf("Len(\"\") = %d, want 0 (empty key must not be used)", n)
 	}
 }

@@ -2,6 +2,10 @@
 // REQ: REQ-BR-007
 // AC: AC-BR-007
 // M3-T1, M3-T2 — outbound chunk dispatcher + per-session monotonic sequence.
+// SPEC: SPEC-GOOSE-BRIDGE-001-AMEND-001
+// REQ: REQ-BR-AMEND-003, REQ-BR-AMEND-006, REQ-BR-AMEND-007
+// AC: AC-BR-AMEND-003, AC-BR-AMEND-007, AC-BR-AMEND-008
+// M3-T2, M3-T3, M3-T5 — buffer + sequence keying by LogicalID, logout hook.
 
 package bridge
 
@@ -54,40 +58,97 @@ func newOutboundDispatcher(reg *Registry, buf *outboundBuffer, gate *flushGate, 
 	}
 }
 
-// nextSequence returns the next sequence number for the given session,
-// allocating a counter on first use. Sequences start at 1 and increase
-// monotonically; replay correctness depends on this invariant.
-func (d *outboundDispatcher) nextSequence(sessionID string) uint64 {
+// bufferKey returns the key used for buffer Append and sequence tracking.
+// When the registry is present and has a non-empty LogicalID for sessionID,
+// returns that LogicalID (primary path — REQ-BR-AMEND-003). Falls back to
+// sessionID for registry-less dispatcher instances (unit test fixtures) and
+// sessions that have not been assigned a LogicalID yet (pre-amendment
+// compatibility path).
+//
+// @MX:NOTE: [AUTO] bufferKey is the single lookup point for the connID →
+// LogicalID mapping inside the dispatcher. Both SendOutbound and
+// nextSequenceByKey call this helper so the registry lookup happens exactly
+// once per emit.
+func (d *outboundDispatcher) bufferKey(sessionID string) string {
+	if d.registry == nil {
+		return sessionID
+	}
+	if lid, ok := d.registry.LogicalID(sessionID); ok {
+		return lid
+	}
+	return sessionID
+}
+
+// nextSequenceByKey returns the next monotonic sequence number for the
+// given key (LogicalID or fallback connID), allocating a counter on first
+// use. Sequences start at 1 and are shared by all connIDs that map to the
+// same key, ensuring (LogicalID, Sequence) uniqueness per REQ-BR-AMEND-006.
+func (d *outboundDispatcher) nextSequenceByKey(key string) uint64 {
 	d.mu.Lock()
-	c, ok := d.sequences[sessionID]
+	c, ok := d.sequences[key]
 	if !ok {
 		c = &atomic.Uint64{}
-		d.sequences[sessionID] = c
+		d.sequences[key] = c
 	}
 	d.mu.Unlock()
 	return c.Add(1)
 }
 
-// dropSequence releases the sequence counter for a session that has been
-// removed from the registry. Failing to call this on session shutdown leaks
-// counter memory across many connection cycles. Also clears any per-session
-// buffer + flush-gate state so memory does not accumulate.
+// dropSequence releases the sequence counter, buffer, and gate state for a
+// session that has been removed from the registry. The buffer and sequence
+// key is resolved via bufferKey (LogicalID when available, fallback connID).
+//
+// Transient disconnect policy (spec §10 item 5, research §6.1): for sessions
+// with a non-empty LogicalID, dropping the sequence counter means the next
+// connID mapping to the same LogicalID will restart from 1. This is
+// acceptable because the buffer entries remain (they are keyed by LogicalID
+// and have a 24h TTL), and a reconnecting tab will replay them regardless of
+// the new counter value. The sequence counter is a monotonic generator, not a
+// persistent state — gaps in sequence numbers between reconnect cycles are
+// tolerated by the replay protocol.
+//
+// For intentional logout (eager drop), use dropLogicalBuffer instead.
 func (d *outboundDispatcher) dropSequence(sessionID string) {
+	key := d.bufferKey(sessionID)
 	d.mu.Lock()
-	delete(d.sequences, sessionID)
+	delete(d.sequences, key)
 	d.mu.Unlock()
 	if d.buffer != nil {
-		d.buffer.Drop(sessionID)
+		d.buffer.Drop(key)
 	}
 	if d.gate != nil {
-		d.gate.Drop(sessionID)
+		d.gate.Drop(sessionID) // gate is connID-keyed (transport unit)
 	}
+}
+
+// dropLogicalBuffer eagerly removes all buffer entries and sequence counter
+// for logicalID. This is the logout hook invoked by
+// Registry.CloseSessionsByCookieHash BEFORE closing individual transports,
+// ensuring no buffered messages remain replayable after an intentional
+// session invalidation (REQ-BR-AMEND-007, AC-BR-AMEND-008).
+//
+// @MX:ANCHOR: [AUTO] Logout eager-drop: buffer + sequence cleared atomically
+// before transport closers run.
+// @MX:REASON: Security invariant from REQ-BR-AMEND-007 — buffered messages
+// from a deliberately invalidated session MUST NOT be replayable. The hook
+// MUST fire before Registry.CloseSessionsByCookieHash invokes closers;
+// ordering is enforced by the caller (registry.go CloseSessionsByCookieHash).
+// @MX:SPEC: SPEC-GOOSE-BRIDGE-001-AMEND-001 REQ-BR-AMEND-007 AC-BR-AMEND-008
+func (d *outboundDispatcher) dropLogicalBuffer(logicalID string) {
+	if d.buffer != nil {
+		d.buffer.Drop(logicalID)
+	}
+	d.mu.Lock()
+	delete(d.sequences, logicalID)
+	d.mu.Unlock()
+	// Note: gate is connID-keyed, not LogicalID-keyed. Individual transport
+	// teardown (via closers) will handle gate cleanup on the connID side.
 }
 
 // SendOutbound assigns the next sequence number and dispatches the message
 // through the session's registered SessionSender.
 //
-// Behavior matrix (M4 + M5 follow-up):
+// Behavior matrix (M4 + M5 follow-up + AMEND-001 M3):
 //   - No session AND no sender → ErrSessionUnknown (M3 contract).
 //   - Session present, sender absent (reconnecting tab) → buffer for
 //     replay, return seq, no error.
@@ -97,6 +158,24 @@ func (d *outboundDispatcher) dropSequence(sessionID string) {
 //     sender (transport owns ObserveWrite/ObserveDrain bracket so the
 //     gate measures actual wire-write boundaries, not dispatch-call
 //     boundaries — M5 follow-up transport wire-in).
+//
+// AMEND-001 buffer keying (REQ-BR-AMEND-003):
+//
+//	bufferKey(sessionID) resolves the LogicalID for sessionID via the
+//	registry. The sequence counter and buffer entry are both keyed by the
+//	LogicalID (or fallback to sessionID when no mapping exists). The
+//	wire sender still receives the original connID-keyed msg, which is
+//	safe because outboundEnvelope does NOT serialise SessionID — only
+//	Type, Sequence, and Payload reach the wire (spec §7.1 invariant).
+//
+// @MX:WARN: [AUTO] Wire envelope invariant dependency (spec §7.1).
+// @MX:REASON: The buffer-keying swap (bufKeyMsg.SessionID = logicalID)
+// is safe only because outboundEnvelope (outbound.go:147-150) does NOT
+// include a SessionID field. If a future wire schema change adds
+// "session_id" to the JSON envelope, replayed messages would leak the
+// LogicalID to the client instead of the connID. Any envelope schema
+// change MUST revisit this swap pattern and spec §7.1.
+// @MX:SPEC: SPEC-GOOSE-BRIDGE-001-AMEND-001 §7.1
 func (d *outboundDispatcher) SendOutbound(sessionID string, t OutboundType, payload []byte) (uint64, error) {
 	sender := d.registry.Sender(sessionID)
 	_, sessionExists := d.registry.Get(sessionID)
@@ -104,9 +183,13 @@ func (d *outboundDispatcher) SendOutbound(sessionID string, t OutboundType, payl
 		return 0, fmt.Errorf("%w: id=%s", ErrSessionUnknown, sessionID)
 	}
 
-	seq := d.nextSequence(sessionID)
+	// Resolve LogicalID once; used for both sequence counter and buffer key.
+	// Falls back to sessionID when no registry mapping exists (unit-test
+	// fixtures that construct the dispatcher without sessions registered).
+	key := d.bufferKey(sessionID)
+	seq := d.nextSequenceByKey(key)
 	msg := OutboundMessage{
-		SessionID: sessionID,
+		SessionID: sessionID, // wire sender receives the connID-keyed msg
 		Type:      t,
 		Payload:   payload,
 		Sequence:  seq,
@@ -114,8 +197,13 @@ func (d *outboundDispatcher) SendOutbound(sessionID string, t OutboundType, payl
 
 	// Always buffer when buffering is enabled; resume correctness depends
 	// on every sequenced message being recoverable until TTL or eviction.
+	// The buffer entry uses LogicalID as the key (AMEND-001 REQ-BR-AMEND-003).
+	// Safety: swapping SessionID to the logical key is invisible on the wire
+	// because outboundEnvelope does not include a SessionID field (spec §7.1).
 	if d.buffer != nil {
-		d.buffer.Append(msg)
+		bufKeyMsg := msg
+		bufKeyMsg.SessionID = key // key = LogicalID (or fallback connID)
+		d.buffer.Append(bufKeyMsg)
 	}
 
 	// No live transport → message is buffered for resume; not an error.
