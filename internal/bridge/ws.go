@@ -51,6 +51,10 @@ func NewWebSocketHandler(cfg MuxConfig) *WebSocketHandler {
 }
 
 func (h *WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if h.cfg.Metrics != nil {
+		h.cfg.Metrics.RecordReconnect(r.Context(), 1)
+	}
+
 	sid, cookieHash, authErr := AuthRequest(r, h.cfg.Auth, h.cfg.Revocation, false)
 	if authErr != nil {
 		switch authErr.Reason {
@@ -64,6 +68,21 @@ func (h *WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, `{"error":"unauthenticated"}`, http.StatusUnauthorized)
 		}
 		return
+	}
+
+	// Post-auth rate-limit (M5-T1, REQ-BR-018). Only enforced when the
+	// cookie was successfully parsed; pre-auth attempts without a cookie
+	// don't have a stable identity to throttle against.
+	if h.cfg.RateLimiter != nil && len(cookieHash) > 0 {
+		h.cfg.RateLimiter.RecordAttempt(cookieHash)
+		switch h.cfg.RateLimiter.Check(cookieHash) {
+		case RateRequireFreshCookie:
+			http.Error(w, `{"error":"unauthenticated"}`, http.StatusUnauthorized)
+			return
+		case RateLimited:
+			http.Error(w, `{"error":"rate_limited"}`, http.StatusTooManyRequests)
+			return
+		}
 	}
 
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
@@ -95,6 +114,10 @@ func (h *WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	h.cfg.Registry.RegisterCloser(connID, closer)
 	h.cfg.Registry.RegisterSender(connID, sender)
+
+	if h.cfg.RateLimiter != nil && len(cookieHash) > 0 {
+		h.cfg.RateLimiter.RecordSuccess(cookieHash)
+	}
 
 	defer func() {
 		h.cfg.Registry.UnregisterCloser(connID)
@@ -142,8 +165,12 @@ func (h *WebSocketHandler) runFrameLoop(parent context.Context, conn *websocket.
 // dispatchInbound routes an InboundMessage to either the permission
 // requester (when permission_response and a requester is wired) or the
 // QueryEngine adapter. Centralizing the branch keeps WS / SSE / POST
-// inbound paths consistent.
+// inbound paths consistent. Records the inbound metric (M5-T2) before
+// dispatch so a downstream adapter failure still counts the message.
 func dispatchInbound(cfg MuxConfig, msg InboundMessage) error {
+	if cfg.Metrics != nil {
+		cfg.Metrics.RecordInbound(context.Background(), 1)
+	}
 	if msg.Type == InboundPermissionResponse && cfg.permRequester != nil {
 		return cfg.permRequester.HandleInboundPermissionResponse(msg.Payload)
 	}

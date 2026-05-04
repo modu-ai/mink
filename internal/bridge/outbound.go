@@ -6,6 +6,7 @@
 package bridge
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -31,21 +32,24 @@ type SessionSender interface {
 // outboundDispatcher assigns monotonic per-session sequences and delegates
 // to the registered SessionSender for actual wire emission. M4 attached
 // the per-session ring buffer (replay safety) and the flush-gate
-// (backpressure) — both nil-safe so M3 tests that construct the
-// dispatcher without buffering still pass.
+// (backpressure); M5 added the OTel metrics surface — all nil-safe so
+// earlier tests that construct the dispatcher without buffering or
+// metrics still pass.
 type outboundDispatcher struct {
 	registry  *Registry
 	buffer    *outboundBuffer // M4-T1: replay buffer; nil disables buffering
 	gate      *flushGate      // M4-T4: backpressure gate; nil disables
+	metrics   *bridgeMetrics  // M5-T2: OTel counters; nil disables metrics
 	mu        sync.Mutex
 	sequences map[string]*atomic.Uint64
 }
 
-func newOutboundDispatcher(reg *Registry, buf *outboundBuffer, gate *flushGate) *outboundDispatcher {
+func newOutboundDispatcher(reg *Registry, buf *outboundBuffer, gate *flushGate, metrics *bridgeMetrics) *outboundDispatcher {
 	return &outboundDispatcher{
 		registry:  reg,
 		buffer:    buf,
 		gate:      gate,
+		metrics:   metrics,
 		sequences: make(map[string]*atomic.Uint64),
 	}
 }
@@ -123,11 +127,20 @@ func (d *outboundDispatcher) SendOutbound(sessionID string, t OutboundType, payl
 		return seq, nil
 	}
 
+	// Bracket the sender call with ObserveWrite/ObserveDrain so the
+	// gate models in-flight bytes correctly. Under sequential producers
+	// the brackets cancel out (no stall); concurrent producers cause
+	// inflight bytes to accumulate and the gate stalls on subsequent
+	// callers via the Stalled() check above.
 	if d.gate != nil {
 		d.gate.ObserveWrite(sessionID, len(payload))
+		defer d.gate.ObserveDrain(sessionID, len(payload))
 	}
 	if err := sender.SendOutbound(msg); err != nil {
 		return seq, fmt.Errorf("bridge: outbound emit failed (seq=%d): %w", seq, err)
+	}
+	if d.metrics != nil {
+		d.metrics.RecordOutbound(context.Background(), 1)
 	}
 	return seq, nil
 }

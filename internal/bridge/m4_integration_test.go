@@ -19,7 +19,7 @@ func newM4Dispatcher() (*outboundDispatcher, *outboundBuffer, *flushGate, *Regis
 	reg := NewRegistry()
 	buf := newOutboundBuffer(clockwork.NewFakeClock())
 	gate := newFlushGate()
-	disp := newOutboundDispatcher(reg, buf, gate)
+	disp := newOutboundDispatcher(reg, buf, gate, nil)
 	return disp, buf, gate, reg
 }
 
@@ -33,31 +33,31 @@ func registerSession(t *testing.T, reg *Registry, id string, sender SessionSende
 	}
 }
 
-// TestM4_WriteStormStallsThenDrains — write-storm pushes flush-gate above
-// high watermark; subsequent SendOutbound buffers without emit; after
-// ObserveDrain crosses the low watermark, future emit resumes.
+// TestM4_WriteStormStallsThenDrains — simulate a slow transport by
+// pushing the gate above the high watermark via direct ObserveWrite (the
+// dispatcher itself brackets each emit, so the test must drive the gate
+// manually to model concurrent in-flight pressure). While stalled,
+// SendOutbound buffers without emitting; after manual ObserveDrain
+// crosses the low watermark, emit resumes.
 func TestM4_WriteStormStallsThenDrains(t *testing.T) {
 	t.Parallel()
 	disp, buf, gate, reg := newM4Dispatcher()
 	cs := &captureSender{}
 	registerSession(t, reg, "s", cs)
 
-	// Storm: emit until gate stalls. Each payload 8 KiB; 33 frames cross
-	// HighWatermarkBytes=256 KiB. Use a payload size that also stays
-	// under MaxBufferBytes for buffer realism.
+	// Pre-stall the gate by simulating outstanding transport writes.
+	// 40 frames × 8 KiB = 320 KiB > HighWatermarkBytes=256 KiB.
 	payload := make([]byte, 8*1024)
 	for range 40 {
-		if _, err := disp.SendOutbound("s", OutboundChunk, payload); err != nil {
-			t.Fatalf("send err: %v", err)
-		}
+		gate.ObserveWrite("s", len(payload))
 	}
 	if !gate.Stalled("s") {
-		t.Fatalf("write-storm did not stall the gate")
+		t.Fatalf("setup expected stall after manual ObserveWrite")
 	}
 	stallAtFreeze := gate.Stalls()
-	emitsBeforeBuffered := len(cs.snapshot())
 
-	// While stalled, additional sends must buffer but not emit.
+	// While stalled, dispatcher SendOutbound must buffer but not emit.
+	emitsBeforeBuffered := len(cs.snapshot())
 	for range 5 {
 		if _, err := disp.SendOutbound("s", OutboundChunk, payload); err != nil {
 			t.Fatalf("send-while-stalled err: %v", err)
@@ -66,13 +66,12 @@ func TestM4_WriteStormStallsThenDrains(t *testing.T) {
 	if got := len(cs.snapshot()); got != emitsBeforeBuffered {
 		t.Fatalf("emits while stalled: got %d, want unchanged %d", got, emitsBeforeBuffered)
 	}
-	if buf.Len("s") < 45 {
-		t.Fatalf("buffer should retain all 45 sequenced messages, got %d", buf.Len("s"))
+	if buf.Len("s") != 5 {
+		t.Fatalf("buffer should retain all 5 stalled-phase messages, got %d", buf.Len("s"))
 	}
 
-	// Drain: simulate transport flushing the queue. Each ObserveDrain
-	// matches the original ObserveWrite chunk size.
-	for range emitsBeforeBuffered {
+	// Drain: simulate transport flushing the queue.
+	for range 40 {
 		gate.ObserveDrain("s", len(payload))
 	}
 	if gate.Stalled("s") {
@@ -83,12 +82,11 @@ func TestM4_WriteStormStallsThenDrains(t *testing.T) {
 	}
 
 	// Post-drain emit reaches the wire.
-	emitsBeforeResume := len(cs.snapshot())
 	if _, err := disp.SendOutbound("s", OutboundChunk, payload); err != nil {
 		t.Fatalf("post-drain send err: %v", err)
 	}
-	if got := len(cs.snapshot()); got != emitsBeforeResume+1 {
-		t.Fatalf("post-drain emit failed: got %d, want %d", got, emitsBeforeResume+1)
+	if got := len(cs.snapshot()); got != emitsBeforeBuffered+1 {
+		t.Fatalf("post-drain emit failed: got %d, want %d", got, emitsBeforeBuffered+1)
 	}
 }
 
