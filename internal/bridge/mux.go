@@ -32,6 +32,17 @@ type MuxConfig struct {
 	// skips metric emission.
 	Metrics *bridgeMetrics
 
+	// resumer hands buffered outbound messages to a freshly registered
+	// sender on WebSocket upgrade / SSE reconnect (M5 follow-up). Optional:
+	// nil disables transport-level replay.
+	resumer *resumer
+
+	// gate is the flush-gate shared with the dispatcher. Transport senders
+	// (wsSender, sseSender) call gate.ObserveWrite + ObserveDrain around
+	// each wire write so backpressure measures actual transport pressure
+	// (M5 follow-up — moved from dispatcher bracket).
+	gate *flushGate
+
 	// WSAcceptOrigins controls coder/websocket's Origin header check.
 	// Empty defaults to {"127.0.0.1:*", "localhost:*", "[::1]:*"}.
 	WSAcceptOrigins []string

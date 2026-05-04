@@ -161,6 +161,8 @@ func (s *bridgeServer) Start(ctx context.Context) error {
 		permRequester: s.permRequester,
 		RateLimiter:   s.rateLimiter,
 		Metrics:       s.metrics,
+		resumer:       s.resumer,
+		gate:          s.gate,
 	})
 	srv := &http.Server{
 		Handler:           handler,

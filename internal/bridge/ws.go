@@ -57,6 +57,15 @@ func (h *WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	sid, cookieHash, authErr := AuthRequest(r, h.cfg.Auth, h.cfg.Revocation, false)
 	if authErr != nil {
+		// Tally the failed attempt against a stable cookie identity so
+		// RateRequireFreshCookie becomes reachable after the spec'd
+		// 10-failure streak (CodeRabbit Finding #4 / REQ-BR-018). If the
+		// cookie was absent (CookieHash == nil) there is no identity to
+		// throttle.
+		if h.cfg.RateLimiter != nil && len(authErr.CookieHash) > 0 {
+			h.cfg.RateLimiter.RecordAttempt(authErr.CookieHash)
+			h.cfg.RateLimiter.RecordFailure(authErr.CookieHash)
+		}
 		switch authErr.Reason {
 		case "bad_origin":
 			http.Error(w, `{"error":"bad_origin"}`, http.StatusForbidden)
@@ -100,7 +109,12 @@ func (h *WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	connID := sid + "-" + randSuffix()
 
 	closer := &wsCloser{conn: conn}
-	sender := &wsSender{conn: conn, ctx: r.Context()}
+	sender := &wsSender{
+		conn:      conn,
+		ctx:       r.Context(),
+		gate:      h.cfg.gate,
+		sessionID: connID,
+	}
 	if err := h.cfg.Registry.Add(WebUISession{
 		ID:           connID,
 		CookieHash:   cookieHash,
@@ -125,6 +139,20 @@ func (h *WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.cfg.Registry.Remove(connID)
 		_ = conn.CloseNow()
 	}()
+
+	// Replay any buffered outbound messages whose sequence is greater than
+	// X-Last-Sequence. With the current connID-keyed buffer this only
+	// fires when the same connection re-upgrades while its session is
+	// still registered; cookie-hash-keyed logical-session mapping is
+	// scheduled for a separate amendment (handoff prompt §"WebSocket connID
+	// = sid + randSuffix" trap).
+	if h.cfg.resumer != nil {
+		for _, msg := range h.cfg.resumer.Resume(connID, r.Header) {
+			// Best-effort: a sender error here just falls through to
+			// the frame loop's normal error handling.
+			_ = sender.SendOutbound(msg)
+		}
+	}
 
 	h.runFrameLoop(r.Context(), conn, connID)
 }
@@ -154,7 +182,7 @@ func (h *WebSocketHandler) runFrameLoop(parent context.Context, conn *websocket.
 			continue
 		}
 
-		if err := dispatchInbound(h.cfg, msg); err != nil {
+		if err := dispatchInbound(parent, h.cfg, msg); err != nil {
 			_ = conn.Write(parent, websocket.MessageText,
 				[]byte(`{"type":"error","payload":{"error":"adapter_failure"}}`))
 			continue
@@ -167,9 +195,13 @@ func (h *WebSocketHandler) runFrameLoop(parent context.Context, conn *websocket.
 // QueryEngine adapter. Centralizing the branch keeps WS / SSE / POST
 // inbound paths consistent. Records the inbound metric (M5-T2) before
 // dispatch so a downstream adapter failure still counts the message.
-func dispatchInbound(cfg MuxConfig, msg InboundMessage) error {
+//
+// ctx flows through to the OTel metric recording so traces emitted by
+// inbound counters carry the request span context (CodeRabbit Finding #5
+// — dispatchInbound previously hard-coded context.Background()).
+func dispatchInbound(ctx context.Context, cfg MuxConfig, msg InboundMessage) error {
 	if cfg.Metrics != nil {
-		cfg.Metrics.RecordInbound(context.Background(), 1)
+		cfg.Metrics.RecordInbound(ctx, 1)
 	}
 	if msg.Type == InboundPermissionResponse && cfg.permRequester != nil {
 		return cfg.permRequester.HandleInboundPermissionResponse(msg.Payload)
@@ -204,15 +236,26 @@ type wsCloser struct {
 // wsSender implements SessionSender by writing the JSON envelope as a
 // MessageText frame. Safe for concurrent use — coder/websocket's Write
 // is internally synchronized.
+//
+// SendOutbound brackets the wire write with gate.ObserveWrite +
+// defer ObserveDrain so the flush-gate measures actual transport
+// pressure (M5 follow-up: dispatcher bracket moved here for
+// transport-level accuracy).
 type wsSender struct {
-	conn *websocket.Conn
-	ctx  context.Context
+	conn      *websocket.Conn
+	ctx       context.Context
+	gate      *flushGate
+	sessionID string
 }
 
 func (s *wsSender) SendOutbound(msg OutboundMessage) error {
 	body, err := encodeOutboundJSON(msg)
 	if err != nil {
 		return err
+	}
+	if s.gate != nil {
+		s.gate.ObserveWrite(s.sessionID, len(msg.Payload))
+		defer s.gate.ObserveDrain(s.sessionID, len(msg.Payload))
 	}
 	return s.conn.Write(s.ctx, websocket.MessageText, body)
 }
