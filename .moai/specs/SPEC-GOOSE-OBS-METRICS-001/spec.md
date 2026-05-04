@@ -1,9 +1,9 @@
 ---
 id: SPEC-GOOSE-OBS-METRICS-001
-version: 0.1.0
+version: 0.1.1
 status: planned
 created_at: 2026-04-30
-updated_at: 2026-04-30
+updated_at: 2026-05-04
 author: manager-spec
 priority: P2
 issue_number: null
@@ -22,6 +22,7 @@ informed_by: ["SPEC-GOOSE-CMDCTX-TELEMETRY-001"]
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-30 | 초안 작성. consumer SPEC `SPEC-GOOSE-CMDCTX-TELEMETRY-001` (planned, P3) 의 BLOCKER 해소를 위한 metrics sink interface 와 Phase 1 backend (stdlib `expvar`) 정의. backend 비교 결과 `research.md` 참고. Phase 2 (OTel adapter) / Phase 3 (Prometheus adapter) 는 별도 SPEC. | manager-spec |
+| 0.1.1 | 2026-05-04 | plan-audit iteration 2 FAIL fix: §5.7 REQ↔AC 매트릭스 전면 재작성 (15/20 행 분류 오류 정정 — 매트릭스가 sibling/stale REQ 번호와 어긋났음). REQ-004/005 직접 검증 AC-019/AC-020 신규 추가, REQ-016 은 §6.1 godoc + NFR 검증으로 명시. §5 자기주장 블록 정직 재작성. | manager-spec |
 
 ---
 
@@ -237,42 +238,64 @@ EARS 5 패턴: Ubiquitous (항상), Event-Driven (WHEN), State-Driven (WHILE/IF)
 
 ### 5.6 contract / 호환성 검증
 
-**AC-OBS-METRICS-018**: consumer SPEC `SPEC-GOOSE-CMDCTX-TELEMETRY-001` 의 `MetricsSink` interface 정의가 본 SPEC 의 `metrics.Sink` interface 와 호환됨을 다음 방법으로 **필수 검증** (run phase 시 (b) 옵션을 채택):
-- (a) consumer SPEC TELEMETRY-001 의 `internal/command/adapter/metrics.go` 가 `type MetricsSink = metrics.Sink` (alias) 또는 `import "github.com/modu-ai/goose/internal/observability/metrics"` 후 직접 사용.
-- (b) **[필수]** 별도 컴파일 검증 테스트 (`internal/observability/metrics/contract_test.go`) 가 `var _ MetricsSinkContract = (*expvarSink)(nil)` 패턴으로 contract assertion (plan-audit 2026-04-30 권장에 따라 "선택" → "필수" 격상).
-- 본 AC 는 consumer SPEC 의 implementation 시점에 해소되며, 본 SPEC 은 sink contract 가 consumer 의 6 메서드 emission 패턴 (calls counter + errors counter + duration histogram) 을 모두 지원함을 spec.md 본문 + research.md §4.3 으로 보장한다. (REQ-OBS-METRICS-003)
+**AC-OBS-METRICS-018**: consumer SPEC `SPEC-GOOSE-CMDCTX-TELEMETRY-001` 의 `MetricsSink` interface 정의가 본 SPEC 의 `metrics.Sink` interface 와 호환됨을 다음 방법으로 **필수 검증** (run phase 시 (b) 옵션이 검증 경로):
+- (b) **[필수, 검증 경로]** 별도 컴파일 검증 테스트 (`internal/observability/metrics/contract_test.go`) 가 `var _ MetricsSinkContract = (*expvarSink)(nil)` 패턴으로 contract assertion (plan-audit 2026-04-30 권장에 따라 "선택" → "필수" 격상).
+- (a) **[informational, downstream]** consumer SPEC TELEMETRY-001 의 `internal/command/adapter/metrics.go` 가 `type MetricsSink = metrics.Sink` (alias) 또는 `import "github.com/modu-ai/goose/internal/observability/metrics"` 후 직접 사용. consumer SPEC implementation 시점에 해소되며, 본 SPEC 의 run phase 테스트 스위트는 (b) 만 수행한다.
+- 본 SPEC 은 sink contract 가 consumer 의 6 메서드 emission 패턴 (calls counter + errors counter + duration histogram) 을 모두 지원함을 spec.md 본문 + research.md §4.3 으로 보장한다. (REQ-OBS-METRICS-003)
 
-### 5.7 REQ ↔ AC 커버리지 매트릭스 (2026-04-30 추가, plan-audit CONDITIONAL GO 해소)
+### 5.7 REQ-004/005 직접 검증 AC (2026-05-04 신규)
 
-| REQ | EARS 카테고리 | 매핑된 AC | 비고 |
-|---|---|---|---|
-| REQ-OBS-METRICS-001 (Sink interface 3 메서드) | Ubiquitous | AC-001, AC-002 | interface 정의 + 정적 검증 |
-| REQ-OBS-METRICS-002 (Counter / Histogram / Gauge handle) | Ubiquitous | AC-003, AC-004 | handle 동작 + 누적 |
-| REQ-OBS-METRICS-003 (Labels map[string]string) | Ubiquitous | AC-005, AC-018 | labels propagate + contract |
-| REQ-OBS-METRICS-004 (handle reuse — same name+labels = same handle) | Ubiquitous | AC-006 (신규 매핑) | sink.Counter("x", L1) == sink.Counter("x", L1) 검증 |
-| REQ-OBS-METRICS-005 (Labels static — handle 생성 후 mutate 금지) | Ubiquitous | AC-006 (신규 매핑), AC-013 | runtime mutate 시도 → no-op 또는 panic 차단 |
-| REQ-OBS-METRICS-006 (Counter monotonic) | Event-Driven | AC-007 | Inc/Add 후 expvar 값 증가 |
-| REQ-OBS-METRICS-007 (Histogram bucket 분류) | Event-Driven | AC-008 | Observe 후 bucket count 증가 |
-| REQ-OBS-METRICS-008 (Gauge Set/Add) | Event-Driven | AC-009 | Set 후 readback, Add 후 누적 |
-| REQ-OBS-METRICS-009 (env GOOSE_METRICS_ENABLED gating) | State-Driven | AC-010, AC-011 | true 시 expvar, false/unset 시 noop |
-| REQ-OBS-METRICS-010 (label cardinality 100 cap) | State-Driven | AC-012 | 101번째 unique combo drop + log |
-| REQ-OBS-METRICS-011 (concurrent emission race-free) | Ubiquitous | AC-014 | -race detector PASS |
-| REQ-OBS-METRICS-012 (PII 금지) | Unwanted | AC-015, AC-016 | label key/value PII grep 차단 |
-| REQ-OBS-METRICS-013 (panic isolation) | Unwanted | (간접) | sink panic 시 caller 전파 금지 — run phase 검증 |
-| REQ-OBS-METRICS-014 (외부 import 0건) | Unwanted | AC-017 | go.mod direct require 검증 |
-| REQ-OBS-METRICS-015 (zero-cost noop) | Optional | AC-018 (간접) | benchmark NFR-003 ≤10ns |
-| REQ-OBS-METRICS-016 (handle lifecycle 0 — GC만으로 정리) | Ubiquitous | AC-006 (신규 매핑) | Close() 메서드 부재 검증 + handle reuse 보장 |
-| REQ-OBS-METRICS-017 (metric name convention) | Optional | AC-013 (정적) | naming pattern grep |
-| REQ-OBS-METRICS-018 (label key naming) | Optional | AC-013 (정적) | snake_case 검증 |
-| REQ-OBS-METRICS-019 (Logger.Debug fallback option) | Optional | (informational) | TELEMETRY-001 partial fallback 시 사용 |
-| REQ-OBS-METRICS-020 (consumer SPEC contract) | Ubiquitous | AC-018 | TELEMETRY-001 alias / contract test |
+**AC-OBS-METRICS-019**: `TestExpvarSink_HandleReuse_SameKey` 테스트는 동일 `(name, labels)` 조합으로 factory 메서드를 다회 호출 시 (a) 반환된 두 handle 이 동일 underlying counter 에 누적됨을 검증한다 (`h1 := sink.Counter("x", L1); h2 := sink.Counter("x", L1); h1.Inc(); h2.Inc(); expvar.Get("x") == 2`), 또는 (b) 동일 handle 인스턴스를 반환함을 검증한다. 어느 쪽이든 호출자의 handle caching 패턴 미강제 contract 를 만족한다. (REQ-OBS-METRICS-004 직접 매핑)
 
-**커버리지 결론**: 모든 normative REQ (Optional/informational 제외) 는 최소 1개 AC 와 1:1 매핑. AC-006 이 REQ-004/005/016 세 REQ 를 동시 검증 (handle reuse 가 lifecycle 0 + Labels static 의 invariant 통합 검증).
+**AC-OBS-METRICS-020**: `TestExpvarSink_Labels_PostCallMutationInvariance` 테스트는 (a) `labels := Labels{"method": "OnClear"}` 로 `Counter("x", labels)` 등록 후, (b) caller 가 `labels["method"] = "Mutated"` 로 입력 map 을 변형하더라도, (c) 등록된 series 의 label key/value 가 caller 의 mutation 에 의해 영향받지 않음을 검증한다 (sink 가 caller-provided labels 를 정적으로 보존하는지 확인). 변형 가능성이 있는 caller-side 데이터에 대해 sink 가 snapshot 또는 immutable 처리를 채택했음을 확인. (REQ-OBS-METRICS-005 직접 매핑)
 
-**plan-audit defect 해소**:
-- D1 (REQ-AC 매트릭스 부재): 본 §5.7 표 추가 (2026-04-30)
-- D2 (REQ-004/005/016 직접 매핑 부재): AC-006 에 다중 REQ 매핑 명시
-- D3 (AC-018 contract test 선택 → 필수): §5.6 본문 "선택" → "[필수]" 갱신
+### 5.8 REQ ↔ AC 커버리지 매트릭스 (2026-05-04 전면 재작성, plan-audit iteration 2 FAIL fix)
+
+본 매트릭스는 §4 (L138-L188) 의 normative REQ 정의를 line-by-line 재독한 후 작성한다. 이전 iteration 의 매트릭스가 sibling SPEC 의 REQ 번호와 어긋나 15/20 행 분류 오류를 포함했던 회귀 결함을 정정한다.
+
+| REQ ID | EARS Category | Topic | Mapped ACs | Coverage Status |
+|---|---|---|---|---|
+| REQ-OBS-METRICS-001 | Ubiquitous | Sink/Counter/Histogram/Gauge 4 interface + Labels type export, thread-safe godoc | AC-001, AC-002 | Direct (interface 존재 + signature 검증) |
+| REQ-OBS-METRICS-002 | Ubiquitous | Sink 3 factory 메서드 (Counter/Histogram/Gauge) + thread-safe handle | AC-002, AC-003, AC-004, AC-005, AC-008 | Direct (signature + handle 동작) |
+| REQ-OBS-METRICS-003 | Ubiquitous | metrics.Sink ↔ TELEMETRY-001 adapter.Options.Metrics 호환 | AC-018 | Direct (contract assertion 필수) |
+| REQ-OBS-METRICS-004 | Ubiquitous | handle reuse — 동일 (name, labels) factory 다회 호출 시 동일/누적 handle | AC-019 | Direct (2026-05-04 신규 AC) |
+| REQ-OBS-METRICS-005 | Ubiquitous | Labels 정적 보존 — caller 입력 그대로 보존, sink 측 변형 없음 | AC-020, AC-009 (보조) | Direct (2026-05-04 신규 AC) + 보조 검증 |
+| REQ-OBS-METRICS-006 | Event-Driven | WHEN Counter() — 신규 (name,labels) 등록 또는 기존 handle 반환, atomic Inc/Add | AC-006, AC-009 | Direct (counter increment + label distinguish) |
+| REQ-OBS-METRICS-007 | Event-Driven | WHEN Histogram() — bucket init 또는 reuse, nil 시 default bucket | AC-007 | Direct (bucket observe + default fallback) |
+| REQ-OBS-METRICS-008 | Event-Driven | WHEN env GOOSE_METRICS_ENABLED 검사 — expvar/noop sink 분기 | (deferred) | Deferred to SPEC-GOOSE-CMDCTX-CLI-INTEG-001 / DAEMON-INTEG-001 (env wiring 진입점은 본 SPEC scope 외, REQ-008 마지막 문장 명시) |
+| REQ-OBS-METRICS-009 | Event-Driven | WHEN expvar 신규 (name,labels) 등록 시 cardinality cap 초과 → silent drop + 1 warn log | AC-010 | Direct |
+| REQ-OBS-METRICS-010 | State-Driven | WHILE Sink 사용 중 factory+handle 메서드 race-free, -race detector PASS | AC-013, AC-014 | Direct (counter race + histogram race) |
+| REQ-OBS-METRICS-011 | State-Driven | IF Sink == noop, 모든 메서드 no-op + ≤5ns benchmark | AC-005, AC-011, AC-012 | Direct (factory + no-side-effect + benchmark) |
+| REQ-OBS-METRICS-012 | State-Driven | IF Sink == nil, caller wiring noop fallback (caller 책임) | (informational) | Caller responsibility — wiring SPEC scope. 본 SPEC interface 자체는 nil receiver 미지원 |
+| REQ-OBS-METRICS-013 | Unwanted | Labels 값에 PII (prompt/credential/path/email/user-id) 포함 금지 | (informational, deferred) | Caller responsibility — 정적 분석 도입은 별도 SPEC (Exclusions #10, TBD `SPEC-GOOSE-OBS-METRICS-LINT-001`). Run phase 는 godoc + code review 로 enforce |
+| REQ-OBS-METRICS-014 | Unwanted | Sink 구현체는 (name, labels) 변형(normalization/hashing/redaction) 금지 | AC-009 (간접), AC-019/020 (보조) | Indirect — labels 가 그대로 보존됨을 다른 AC 가 입증. 명시적 non-normalization 검증은 godoc contract |
+| REQ-OBS-METRICS-015 | Unwanted | expvar cardinality cap 초과 시 panic 금지 (silent drop + log 만 허용) | AC-010 | Direct (test 가 panic 부재 + warn log 1회 검증) |
+| REQ-OBS-METRICS-016 | Unwanted | 어떤 구현체도 backend SDK lifecycle (init/shutdown/flush) 을 caller 에게 요구하지 않음 | (godoc/NFR-verified) | Verified by §6.1 Sink interface 정의에 Close()/Shutdown()/Flush() 메서드 부재 + godoc 명시 ("MUST NOT require lifecycle calls"). Test 불필요 — interface signature 부재가 contract |
+| REQ-OBS-METRICS-017 | Unwanted | 본 SPEC 의 산출물은 `internal/observability/metrics/` 트리만; consumer 패키지 emission code 작성 안 함 | (NFR/scope) | Scope discipline — §10 Deliverables 표가 산출물 트리 enumerate. PR diff review 로 enforce |
+| REQ-OBS-METRICS-018 | Optional | WHERE daemon + net/http active, /debug/vars 자동 노출 (access control 본 SPEC scope 외) | (deferred) | Deferred to SPEC-GOOSE-CMDCTX-DAEMON-INTEG-001 (HTTP server 활성화 컨텍스트). 본 SPEC 은 expvar `init()` 의 부수효과 godoc 명시만 |
+| REQ-OBS-METRICS-019 | Optional | WHERE 운영자가 cap 변경 원함, v0.2.0 `GOOSE_METRICS_LABEL_CAP` env amendment 가능 (v0.1.0 hardcoded) | (informational, future) | Future amendment — v0.1.0 cap 100 hardcoded. 본 SPEC 검증 대상 아님 |
+| REQ-OBS-METRICS-020 | Optional | WHERE caller 도메인별 bucket customize 원함, Histogram(name, labels, buckets) parameter 로 명시 | AC-007 | Direct (b) — buckets nil 시 default fallback 검증; non-nil 시 caller 책임 |
+
+**커버리지 결론**:
+- 직접 검증 AC 매핑 보유 normative REQ: REQ-001, 002, 003, 004, 005, 006, 007, 009, 010, 011, 015, 020 (12개). 모두 1개 이상의 specific AC 가 검증 책임을 짊.
+- godoc/NFR/scope-verified REQ: REQ-014 (간접 + godoc), REQ-016 (interface signature 부재 + godoc), REQ-017 (Deliverables enumerate + PR review).
+- Out-of-scope deferred REQ: REQ-008 (env wiring → CLI/DAEMON-INTEG SPEC), REQ-018 (HTTP exposure → DAEMON-INTEG SPEC).
+- Caller-responsibility informational REQ: REQ-012 (nil sink fallback), REQ-013 (PII firewall — 정적 분석 SPEC TBD).
+- Future amendment REQ: REQ-019 (v0.2.0 amendment).
+
+AC-006 의 REQ 매핑 정정: 이전 iteration 매트릭스가 AC-006 을 REQ-004/005/016 의 검증으로 over-claim 했으나, AC-006 (`TestExpvarSink_Counter_Increments`) 은 counter increment monotonicity (REQ-006) 만 검증한다. handle reuse (REQ-004) 와 Labels caller-preservation (REQ-005) 은 본 iteration 신규 추가된 AC-019/AC-020 가 직접 검증하며, lifecycle 0 (REQ-016) 은 §6.1 interface signature 부재로 verify 한다.
+
+**plan-audit iteration 2 defect 해소 상태 (정직 보고)**:
+- D1 (§5.7 매트릭스 systematic mislabel, critical): **해소** — 본 §5.8 매트릭스를 §4 line-by-line 재독으로 전면 재작성. 모든 (REQ topic, EARS category) 정정.
+- D2 (자기주장 블록 false-claim, critical): **해소** — 본 절을 정직 보고로 재작성. AC-006 의 REQ-004/005/016 over-mapping 철회.
+- D3 (AC-006 over-mapping, major): **해소** — REQ-004 → AC-019, REQ-005 → AC-020 분리. AC-006 은 REQ-006 단일 매핑.
+- D4 (REQ-008 env-toggle AC fabrication, major): **해소** — 매트릭스에 "Deferred to CLI-INTEG-001 / DAEMON-INTEG-001" 명시.
+- D5 (AC-018 ambiguity, minor): **해소** — §5.6 AC-018 본문에서 (b) "검증 경로", (a) "informational, downstream" 으로 우선순위 명확화.
+
+**iteration 1 prior defect 회귀 검증**:
+- Prior D1 (REQ-AC 매트릭스 부재) → iteration 2 에서 매트릭스 추가했으나 mislabel 회귀 → iteration 3 에서 정정 매트릭스로 진정 해소.
+- Prior D2 (REQ-004/005/016 직접 매핑 부재) → iteration 2 에서 false-claim 회귀 → iteration 3 에서 AC-019/AC-020 신규 + REQ-016 godoc/NFR 명시로 진정 해소.
+- Prior D3 (AC-018 [필수] 격상) → iteration 2 에서 해소 유지.
 
 ---
 
@@ -602,7 +625,7 @@ run phase 시점의 implementation 산출물 (예상):
 
 ---
 
-Version: 0.1.0 (planned, P2, phase 3, size 중(M))
-Last Updated: 2026-04-30
+Version: 0.1.1 (planned, P2, phase 3, size 중(M))
+Last Updated: 2026-05-04
 Status: planned — implementation 은 별도 run phase 진입.
 BLOCKER 해소 대상: `SPEC-GOOSE-CMDCTX-TELEMETRY-001` (planned, P3, 본 SPEC implemented 시 BLOCKER 해소).

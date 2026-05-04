@@ -247,3 +247,17 @@
 - 9 task 순차 실행 (T-001 → T-009).
 - 각 task 끝에 quality gate (go vet, go test, -race, lint).
 - HARD: 영어 주석, zap logger, MX 4종, go.mod 변동 0.
+
+### 2026-05-04 plan-audit gate (iteration 2)
+
+- audit_verdict: FAIL
+- audit_report: .moai/reports/plan-audit/SPEC-GOOSE-OBS-METRICS-001-review-2.md
+- audit_at: 2026-05-04T13:30:00Z
+- auditor_version: plan-auditor (re-audit, prior 2026-04-30 cache expired)
+- run_trigger: automatic (re-entry to /moai run)
+- key_findings:
+    - D2 REQ↔AC mapping FAIL — §5.7 매트릭스 15/20 행 REQ topic/EARS 분류 오류 (sibling/stale REQ 번호 기반 작성 의심)
+    - REQ-004/005/016 직접 AC 부재 (AC-006 over-mapping false claim)
+    - D3 (AC-018 contract test 필수 격상) RESOLVED
+- grace_window_file: .moai/state/audit-gate-merge-at.txt 부재 — grace window 상태 indeterminate
+- next_action: 사용자 결정 — Revise SPEC (권장) / Override / Abort
