@@ -24,10 +24,22 @@ type Config struct {
 
 	// ShutdownTimeout caps the duration of a graceful Stop. Zero defaults to 5s.
 	ShutdownTimeout time.Duration
+
+	// HMACSecret keys session-cookie signing. Empty triggers crypto/rand
+	// generation inside NewAuthenticator (32 bytes).
+	HMACSecret []byte
+
+	// Adapter handles validated InboundMessages. Nil falls back to a noop
+	// adapter so a bridge can serve auth/SSE/static traffic before the
+	// QueryEngine is wired in.
+	Adapter QueryEngineAdapter
 }
 
 // New constructs a Bridge implementation. The server is created in the
 // stopped state; call Start to begin accepting connections.
+//
+// Side effects: an Authenticator and RevocationStore are created at
+// construction time. They live for the bridgeServer's lifetime.
 func New(cfg Config) (Bridge, error) {
 	if err := verifyLoopbackBind(cfg.BindAddr); err != nil {
 		return nil, err
@@ -35,20 +47,28 @@ func New(cfg Config) (Bridge, error) {
 	if cfg.ShutdownTimeout <= 0 {
 		cfg.ShutdownTimeout = 5 * time.Second
 	}
+	auth, err := NewAuthenticator(AuthConfig{HMACSecret: cfg.HMACSecret})
+	if err != nil {
+		return nil, fmt.Errorf("bridge: authenticator init: %w", err)
+	}
+	registry := NewRegistry()
+	revocation := NewRevocationStore(nil)
 	return &bridgeServer{
-		cfg:      cfg,
-		registry: NewRegistry(),
+		cfg:        cfg,
+		registry:   registry,
+		auth:       auth,
+		revocation: revocation,
 	}, nil
 }
 
-// bridgeServer is the default Bridge implementation.
-//
-// M0 wires only the listener lifecycle. The HTTP handler is an empty
-// http.NewServeMux placeholder; M2 attaches the real routing table via
-// BuildMux (REQ-BR-003).
+// bridgeServer is the default Bridge implementation. M2 wires BuildMux
+// onto the listener so the WebSocket / SSE / inbound endpoints become
+// reachable.
 type bridgeServer struct {
-	cfg      Config
-	registry *Registry
+	cfg        Config
+	registry   *Registry
+	auth       *Authenticator
+	revocation *RevocationStore
 
 	mu       sync.Mutex
 	state    serverState
@@ -90,9 +110,14 @@ func (s *bridgeServer) Start(ctx context.Context) error {
 		return fmt.Errorf("bridge: listener bind failed: %w", err)
 	}
 
-	mux := http.NewServeMux() // M2 will replace with BuildMux.
+	handler := BuildMux(MuxConfig{
+		Auth:       s.auth,
+		Registry:   s.registry,
+		Revocation: s.revocation,
+		Adapter:    s.cfg.Adapter,
+	})
 	srv := &http.Server{
-		Handler:           mux,
+		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
