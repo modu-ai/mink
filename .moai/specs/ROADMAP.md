@@ -17,16 +17,31 @@
 
 ---
 
-## 0. 진행 상태 스냅샷 ★ (2026-04-30 갱신)
+## 0. 진행 상태 스냅샷 ★ (2026-05-04 갱신)
 
-**SPEC-META-CLEANUP-2026-04-30 일괄 정리** — commit log 기반 분류로 81개 활성 SPEC 분류 완료.
+**Sync drift 정정 (2026-05-04)** — BRIDGE-001-AMEND-001 종결(#93~#98) 및 implemented→completed 3건(ADAPTER-001-AMEND-001, AGENT-RUNNER-001, CMDCTX-DAEMON-INTEG-001) 정정 반영. 활성 SPEC 83개 (amendment/meta 5건 포함, superseded 3건 제외, 전체 86건).
 
-| 카테고리 | SPEC 수 | 비율 | Phase 분포 |
+| 카테고리 | SPEC 수 | 비율 (활성 83 기준) | Phase 분포 |
 |---|---|---|---|
-| ✅ COMPLETED | 31건 | 38% | Phase 0~3 거의 완성 + 일부 Phase 4~5 |
-| 🟡 PARTIAL/IN PROGRESS | 21건 | 26% | Phase 1, 5~7 분산 + CMDCTX-* 8건 |
-| 🔵 PLAN ONLY | 26건 | 32% | Phase 6~9 위주 |
-| 📦 SUPERSEDED | 3건 | 4% | GEMMA4-001, TRAIN-001, WEATHER-001 |
+| ✅ COMPLETED | 44건 | 53% | Phase 0~2 완성 · Phase 3 2/3 · Phase 4 3/5 · Phase 5 1/3 · Bridge 2/2 · CMDCTX 5/8 |
+| 🟡 IN PROGRESS (draft) | 5건 | 6% | BRIEFING / CROSSPLAT / I18N / ONBOARDING / SCHEDULER |
+| 🔵 PLAN ONLY | 34건 | 41% | Phase 4~9 잔여 + v0.2 보안 4건 + Channel 4종 |
+| 📦 SUPERSEDED | 3건 | (제외) | GEMMA4-001, TRAIN-001, WEATHER-001 (file status 미정정) |
+
+**진척률 ≈ 51% (44/86 전체) — Foundation Phase 0~2 완성, Phase 3~5 진행 중, Channel/ML 백로그.**
+
+### 2026-05-04 신규 completed 3건 (drift fix)
+
+- ADAPTER-001-AMEND-001 (PR #62 — JSON mode + UserID forwarding, T-001~T-010 GREEN, 87% coverage)
+- AGENT-RUNNER-001 (commit 3cdf8c8 — Plan-Run-Reflect outer orchestration)
+- CMDCTX-DAEMON-INTEG-001 (commit e241702 — daemon ContextAdapter wiring, AC-DINTEG-001~011 GREEN)
+
+### BRIDGE-001-AMEND-001 종결 (2026-05-04)
+
+- 6 PRs (#93 spec, #94 M1, #95 M2, #96 M3, #97 M4, #98 종결 메타) 모두 머지
+- internal/bridge coverage 85.1% race-clean
+- cross-connection replay + multi-tab semantics + logout security invariant
+- 누적 학습: HMAC 도메인 분리(NIST SP 800-108), Wire-vs-buffer SessionID swap, AC↔REQ bijection
 
 ### COMPLETED 31건 — 핵심 Foundation 거의 완성
 
