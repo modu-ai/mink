@@ -97,16 +97,20 @@ func TestVerifySessionCookie_RejectsTamperedHMAC(t *testing.T) {
 	a, _ := newTestAuth(t)
 	cookie, _, _ := a.IssueSessionCookie()
 
-	// Flip the last character of the HMAC segment.
+	// Flip the FIRST character of the HMAC segment. Mutating the last
+	// base64url character is unreliable: RawURLEncoding's tail char encodes
+	// only some of its 6 bits as significant (the rest are zero-padding),
+	// so a flip of the unused upper bits decodes to the same HMAC byte and
+	// the tamper escapes detection.
 	parts := strings.Split(cookie, ".")
 	if len(parts) != 2 {
 		t.Fatalf("cookie format unexpected: %q", cookie)
 	}
 	hmacBytes := []byte(parts[1])
-	if hmacBytes[len(hmacBytes)-1] == 'A' {
-		hmacBytes[len(hmacBytes)-1] = 'B'
+	if hmacBytes[0] == 'A' {
+		hmacBytes[0] = 'B'
 	} else {
-		hmacBytes[len(hmacBytes)-1] = 'A'
+		hmacBytes[0] = 'A'
 	}
 	tampered := parts[0] + "." + string(hmacBytes)
 
