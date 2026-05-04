@@ -222,13 +222,21 @@ sequenceDiagram
 
 ### QueryEngine → Agent
 ```go
+// internal/agent/agent.go:18 — actual public surface
 type Agent interface {
-    Execute(ctx context.Context, task Task) (Result, error)
-    LearnFrom(interaction Interaction) error
+    Name() string
+    Spec() *AgentSpec
+    Ask(ctx context.Context, userMsg string) (string, error)
+    AskStream(ctx context.Context, userMsg string) (<-chan message.StreamEvent, error)
+    History() []Message
+    Close() error
 }
+
+// internal/agent/runner.go:68 — task-orchestration entrypoint
+func (r *AgentRunner) RunTask(ctx context.Context, task *Task) (*TaskResult, error)
 ```
-- **Invariant**: Result는 streamed response이거나 error
-- **Guarantee**: LearnFrom은 비차단 (fire-and-forget)
+- **Invariant**: `Ask` returns final assistant text; `AskStream` emits incremental `StreamEvent`s.
+- **Guarantee**: `RunTask` orchestrates Plan-Run-Reflect; reflection hook is non-blocking.
 
 ### Agent → LLMProvider
 ```go

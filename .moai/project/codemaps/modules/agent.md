@@ -16,40 +16,59 @@
 
 ### Agent
 ```go
+// internal/agent/agent.go:18
+// @MX:ANCHOR [AUTO] Agent interface — core runtime contract
+// @MX:REASON: Primary interface for agent lifecycle (Create-Load-Ask-Close)
 type Agent interface {
-    // @MX:ANCHOR [AUTO] Core execution loop
-    // @MX:REASON: Fan-in ≥3 (Query, Core, Subagent)
-    Execute(ctx context.Context, task Task) (Result, error)
-    
-    LearnFrom(interaction Interaction) error
+    // Name returns the agent's name.
+    Name() string
+
+    // Spec returns the agent's immutable spec.
+    Spec() *AgentSpec
+
+    // Ask performs a single-turn synchronous conversation.
+    // Implements REQ-AG-004: Complete Ask workflow.
+    Ask(ctx context.Context, userMsg string) (string, error)
+
+    // AskStream performs a single-turn streaming conversation.
+    AskStream(ctx context.Context, userMsg string) (<-chan message.StreamEvent, error)
+
+    // History returns a copy of the conversation history.
+    History() []Message
+
+    // Close releases resources.
+    Close() error
 }
 
+// internal/agent/task.go:44
 type Task struct {
-    Prompt       string
-    Messages     []Message
-    Tools        []Tool
-    Budget       int64
+    ID       string                 // Unique task identifier
+    Prompt   string                 // User prompt for this task
+    State    TaskState              // Current lifecycle state
+    Metadata map[string]any         // Arbitrary task metadata
 }
 
-type Result struct {
-    FinalMessage   string
-    ToolUses       []ToolUse
-    TokensUsed     int64
-    InteractionLog Interaction
+// internal/agent/task.go:56
+type TaskResult struct {
+    TaskID      string         // ID of the completed task
+    FinalState  interface{}    // Final loop.State (from internal/query/loop)
+    Reflect     *ReflectResult // Reflection result if hooks were run
+    ReplanCount int            // Number of re-plan iterations performed
+    Error       error          // Any error during execution
 }
 ```
 
 ### AgentRunner
 ```go
-type AgentRunner struct {
-    manifest      Manifest        // Agent definition (YAML)
-    llm           llm.Provider    // LLM for reasoning
-    memory        memory.Provider // Context recall
-    toolExecutor  *ToolExecutor
-    logger        *zap.Logger
-}
+// internal/agent/runner.go:50
+type AgentRunner struct { /* private fields */ }
 
-func (ar *AgentRunner) Execute(ctx context.Context, task Task) (Result, error)
+// internal/agent/runner.go:50
+func NewAgentRunner(cfg AgentRunnerConfig) (*AgentRunner, error)
+
+// internal/agent/runner.go:68
+// Note: parameter is *Task (pointer); return is *TaskResult (pointer)
+func (r *AgentRunner) RunTask(ctx context.Context, task *Task) (*TaskResult, error)
 ```
 
 ---

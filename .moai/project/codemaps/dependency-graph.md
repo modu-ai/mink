@@ -36,7 +36,7 @@ bridge → transport, message, permission
 |----|------|--------|--------|--------|------|
 | 1 | **QueryEngine.SubmitMessage** | query | 4 | CLI, Transport, Subagent, Test | ✅ @MX:ANCHOR |
 | 2 | **Dispatcher.ProcessUserInput** | command | 3+ | QUERY-001, Test, Integration | ✅ @MX:ANCHOR |
-| 3 | **Agent.Execute** | agent | 3+ | Query, Core, Subagent | ✅ @MX:ANCHOR |
+| 3 | **AgentRunner.RunTask** | agent | 3+ | Query, Core, Subagent | ✅ @MX:ANCHOR |
 | 4 | **outboundBuffer.Replay** | bridge | 2+ | reconnect resumer | ✅ @MX:ANCHOR |
 | 5 | **MemoryProvider.Recall** | memory | 3+ | Agent, Learning, CLI | ✅ @MX:ANCHOR |
 | 6 | **LLMProvider interface** | llm | 2+ | Agent, Tool routing | ✅ Interface |
@@ -145,9 +145,9 @@ Layer 1 (foundation)
 - internal/message (messages)
 
 **Public API**:
-- `Agent` interface
-- `Execute(ctx Task) Result` — main execution loop
-- `Manifest` — agent YAML definition
+- `Agent` interface — Name/Spec/Ask/AskStream/History/Close (internal/agent/agent.go:18)
+- `AgentRunner.RunTask(ctx, *Task) (*TaskResult, error)` — Plan-Run-Reflect orchestrator (internal/agent/runner.go:68)
+- `AgentSpec` — agent definition loaded from YAML manifest
 
 ---
 

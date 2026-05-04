@@ -31,7 +31,10 @@ func (e *QueryEngine) SubmitMessage(ctx context.Context, prompt string) (<-chan 
 // REQ-QUERY-005: 10ms 내 반환
 // Returns unbuffered channel (non-blocking)
 
-func (e *QueryEngine) ResolvePermission(toolUseID string, approved bool) error
+// internal/query/engine.go:293
+// behavior is the permission decision (approval/denial encoded as int per
+// PermissionBehavior constants); reason is operator-facing rationale.
+func (e *QueryEngine) ResolvePermission(toolUseID string, behavior int, reason string) error
 // REQ-QUERY-013: Unknown ID silent drop 방지
 ```
 
