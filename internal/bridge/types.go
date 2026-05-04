@@ -63,6 +63,13 @@ type WebUISession struct {
 	OpenedAt     time.Time
 	LastActivity time.Time
 	State        SessionState
+	// LogicalID is an HMAC-derived stable identifier scoped to (CookieHash,
+	// Transport). All connIDs sharing the same cookie and transport share the
+	// same LogicalID, enabling cross-connection outbound replay. Empty string
+	// signals "no LogicalID assigned yet" — callers treat this as a miss.
+	// Derived via Authenticator.DeriveLogicalID; see logical_id.go.
+	// SPEC: SPEC-GOOSE-BRIDGE-001-AMEND-001 REQ-BR-AMEND-001.
+	LogicalID string
 }
 
 // Transport identifies the wire protocol used by a session.
