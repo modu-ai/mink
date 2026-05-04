@@ -55,7 +55,12 @@ func New(cfg Config) (Bridge, error) {
 	revocation := NewRevocationStore(nil)
 	buffer := newOutboundBuffer(nil)
 	gate := newFlushGate()
-	dispatcher := newOutboundDispatcher(registry, buffer, gate)
+	rateLim := newRateLimiter(nil)
+	metrics, err := newBridgeMetrics(registry, gate, nil)
+	if err != nil {
+		return nil, fmt.Errorf("bridge: metrics init: %w", err)
+	}
+	dispatcher := newOutboundDispatcher(registry, buffer, gate, metrics)
 	resumer := newResumer(buffer)
 	permStore := newPermissionStore(nil)
 	permReq := newPermissionRequester(permStore, dispatcher, PermissionTimeout)
@@ -66,6 +71,8 @@ func New(cfg Config) (Bridge, error) {
 		revocation:    revocation,
 		buffer:        buffer,
 		gate:          gate,
+		rateLimiter:   rateLim,
+		metrics:       metrics,
 		dispatcher:    dispatcher,
 		resumer:       resumer,
 		permissions:   permStore,
@@ -83,6 +90,8 @@ type bridgeServer struct {
 	revocation    *RevocationStore
 	buffer        *outboundBuffer
 	gate          *flushGate
+	rateLimiter   *rateLimiter
+	metrics       *bridgeMetrics
 	dispatcher    *outboundDispatcher
 	resumer       *resumer
 	permissions   *permissionStore
@@ -150,6 +159,8 @@ func (s *bridgeServer) Start(ctx context.Context) error {
 		Revocation:    s.revocation,
 		Adapter:       s.cfg.Adapter,
 		permRequester: s.permRequester,
+		RateLimiter:   s.rateLimiter,
+		Metrics:       s.metrics,
 	})
 	srv := &http.Server{
 		Handler:           handler,
@@ -221,11 +232,14 @@ func (s *bridgeServer) Sessions() []WebUISession {
 	return s.registry.Snapshot()
 }
 
-// Metrics returns a zero-valued Metrics for M0; populated in M5.
+// Metrics returns a snapshot of the bridge's OTel counter state. The
+// snapshot mirrors the registered instruments without requiring an OTel
+// reader (M5-T2).
 func (s *bridgeServer) Metrics() Metrics {
-	return Metrics{
-		ActiveSessions: int64(s.registry.Len()),
+	if s.metrics == nil {
+		return Metrics{ActiveSessions: int64(s.registry.Len())}
 	}
+	return s.metrics.Snapshot()
 }
 
 // Addr returns the listener address (only valid while running).

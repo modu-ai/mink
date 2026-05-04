@@ -23,6 +23,15 @@ type MuxConfig struct {
 	// other type.
 	permRequester *permissionRequester
 
+	// RateLimiter throttles per-cookie reconnect attempts (M5, REQ-BR-018).
+	// Optional: nil disables rate-limit enforcement.
+	RateLimiter *rateLimiter
+
+	// Metrics records inbound/outbound/reconnect counters and exposes the
+	// observable session/stall gauges (M5, REQ-BR-004). Optional: nil
+	// skips metric emission.
+	Metrics *bridgeMetrics
+
 	// WSAcceptOrigins controls coder/websocket's Origin header check.
 	// Empty defaults to {"127.0.0.1:*", "localhost:*", "[::1]:*"}.
 	WSAcceptOrigins []string

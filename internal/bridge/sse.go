@@ -40,6 +40,10 @@ func NewSSEHandler(cfg MuxConfig) *SSEHandler {
 }
 
 func (h *SSEHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if h.cfg.Metrics != nil {
+		h.cfg.Metrics.RecordReconnect(r.Context(), 1)
+	}
+
 	sid, cookieHash, authErr := AuthRequest(r, h.cfg.Auth, h.cfg.Revocation, false)
 	if authErr != nil {
 		switch authErr.Reason {
@@ -49,6 +53,18 @@ func (h *SSEHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, http.StatusUnauthorized, "unauthenticated")
 		}
 		return
+	}
+
+	if h.cfg.RateLimiter != nil && len(cookieHash) > 0 {
+		h.cfg.RateLimiter.RecordAttempt(cookieHash)
+		switch h.cfg.RateLimiter.Check(cookieHash) {
+		case RateRequireFreshCookie:
+			writeJSONError(w, http.StatusUnauthorized, "unauthenticated")
+			return
+		case RateLimited:
+			writeJSONError(w, http.StatusTooManyRequests, "rate_limited")
+			return
+		}
 	}
 
 	flusher, ok := w.(http.Flusher)
@@ -80,6 +96,10 @@ func (h *SSEHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	h.cfg.Registry.RegisterCloser(connID, closer)
 	h.cfg.Registry.RegisterSender(connID, sender)
+
+	if h.cfg.RateLimiter != nil && len(cookieHash) > 0 {
+		h.cfg.RateLimiter.RecordSuccess(cookieHash)
+	}
 
 	defer func() {
 		h.cfg.Registry.UnregisterCloser(connID)
