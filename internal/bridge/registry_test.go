@@ -118,6 +118,57 @@ func TestRegistry_SnapshotIsCopy(t *testing.T) {
 	}
 }
 
+func TestRegistry_ByteSlicesAreDeepCopied(t *testing.T) {
+	t.Parallel()
+
+	r := NewRegistry()
+	original := WebUISession{
+		ID:           "deep-copy",
+		CookieHash:   []byte{0xaa, 0xbb, 0xcc},
+		CSRFHash:     []byte{0x11, 0x22, 0x33},
+		Transport:    TransportWebSocket,
+		OpenedAt:     time.Now(),
+		LastActivity: time.Now(),
+		State:        SessionStateOpen,
+	}
+	if err := r.Add(original); err != nil {
+		t.Fatalf("Add err = %v", err)
+	}
+
+	// Mutating the input AFTER Add must not affect registry storage.
+	original.CookieHash[0] = 0xff
+	original.CSRFHash[0] = 0xff
+
+	got, ok := r.Get("deep-copy")
+	if !ok {
+		t.Fatalf("Get returned ok=false")
+	}
+	if got.CookieHash[0] != 0xaa {
+		t.Errorf("CookieHash[0] = %#x, want 0xaa (input mutation leaked into Add)", got.CookieHash[0])
+	}
+	if got.CSRFHash[0] != 0x11 {
+		t.Errorf("CSRFHash[0] = %#x, want 0x11 (input mutation leaked into Add)", got.CSRFHash[0])
+	}
+
+	// Mutating Get's return must not affect future reads.
+	got.CookieHash[0] = 0xee
+	got.CSRFHash[0] = 0xee
+
+	again, _ := r.Get("deep-copy")
+	if again.CookieHash[0] != 0xaa || again.CSRFHash[0] != 0x11 {
+		t.Errorf("Get-mutate-Get: CookieHash[0]=%#x CSRFHash[0]=%#x, want 0xaa/0x11",
+			again.CookieHash[0], again.CSRFHash[0])
+	}
+
+	// Mutating Snapshot's return must not affect the registry either.
+	snap := r.Snapshot()
+	snap[0].CookieHash[0] = 0xdd
+	final, _ := r.Get("deep-copy")
+	if final.CookieHash[0] != 0xaa {
+		t.Errorf("Snapshot mutation leaked: CookieHash[0]=%#x, want 0xaa", final.CookieHash[0])
+	}
+}
+
 func TestRegistry_ConcurrentAddRemove(t *testing.T) {
 	t.Parallel()
 
