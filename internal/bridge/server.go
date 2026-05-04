@@ -42,7 +42,7 @@ type Config struct {
 // construction time. They live for the bridgeServer's lifetime.
 func New(cfg Config) (Bridge, error) {
 	if err := verifyLoopbackBind(cfg.BindAddr); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("bridge: invalid bind address: %w", err)
 	}
 	if cfg.ShutdownTimeout <= 0 {
 		cfg.ShutdownTimeout = 5 * time.Second
@@ -110,6 +110,12 @@ type serverState int
 const (
 	stateStopped serverState = iota
 	stateStarted
+	// stateShuttingDown indicates that one goroutine has already started a
+	// graceful Stop. Subsequent concurrent Stop calls return nil instead of
+	// re-running srv.Shutdown and double-draining serveErr (which would
+	// panic on a closed channel). SPEC-GOOSE-BRIDGE-001 PR #82 follow-up
+	// (CodeRabbit finding #3 — race condition).
+	stateShuttingDown
 )
 
 // ErrAlreadyStarted is returned when Start is invoked on a running server.
@@ -128,7 +134,7 @@ func (s *bridgeServer) Start(ctx context.Context) error {
 	// Re-verify in case Config.BindAddr was mutated post-construction.
 	if err := verifyLoopbackBind(s.cfg.BindAddr); err != nil {
 		s.mu.Unlock()
-		return err
+		return fmt.Errorf("bridge: invalid bind address: %w", err)
 	}
 
 	lc := &net.ListenConfig{}
@@ -174,13 +180,16 @@ func (s *bridgeServer) Start(ctx context.Context) error {
 // stopped (returns nil).
 func (s *bridgeServer) Stop(ctx context.Context) error {
 	s.mu.Lock()
-	if s.state == stateStopped {
+	if s.state == stateStopped || s.state == stateShuttingDown {
 		s.mu.Unlock()
 		return nil
 	}
 	srv := s.httpSrv
 	serveErr := s.serveErr
 	timeout := s.cfg.ShutdownTimeout
+	// Mark mid-shutdown so a concurrent Stop short-circuits at the guard
+	// above (prevents double srv.Shutdown + double serveErr drain).
+	s.state = stateShuttingDown
 	s.mu.Unlock()
 
 	shutdownCtx, cancel := context.WithTimeout(ctx, timeout)
