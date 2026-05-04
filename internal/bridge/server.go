@@ -61,6 +61,11 @@ func New(cfg Config) (Bridge, error) {
 		return nil, fmt.Errorf("bridge: metrics init: %w", err)
 	}
 	dispatcher := newOutboundDispatcher(registry, buffer, gate, metrics)
+	// Wire the logout hook so CloseSessionsByCookieHash eagerly drops the
+	// dispatcher's LogicalID buffer + sequence BEFORE transport closers run
+	// (REQ-BR-AMEND-007, AC-BR-AMEND-008). This is a package-internal wiring
+	// step; the hook is a closure over the dispatcher pointer.
+	registry.SetLogoutHook(dispatcher.dropLogicalBuffer)
 	resumer := newResumer(buffer)
 	permStore := newPermissionStore(nil)
 	permReq := newPermissionRequester(permStore, dispatcher, PermissionTimeout)

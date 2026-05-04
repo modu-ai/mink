@@ -1,10 +1,17 @@
 // SPEC: SPEC-GOOSE-BRIDGE-001
 // REQ: REQ-BR-009, REQ-BR-017
 // AC: AC-BR-009, AC-BR-015
+// SPEC: SPEC-GOOSE-BRIDGE-001-AMEND-001
+// REQ: REQ-BR-AMEND-003, REQ-BR-AMEND-006
+// AC: AC-BR-AMEND-003, AC-BR-AMEND-007
 // M4-T1, M4-T2, M4-T3 — per-session outbound ring buffer with 24h TTL.
+// M3-T1 (AMEND-001) — buffer key semantics changed from connID to LogicalID.
 //
 // Design:
-//   - One queue per sessionID, FIFO ordering matches OutboundMessage.Sequence.
+//   - One queue per key (LogicalID since AMEND-001 M3), FIFO ordering
+//     matches OutboundMessage.Sequence. Before AMEND-001, the key was the
+//     connID (sessionID); it is now the HMAC-derived LogicalID shared by all
+//     connIDs with the same (CookieHash, Transport).
 //   - Eviction triggers when EITHER total bytes >= MaxBufferBytes (4 MiB)
 //     OR queued count >= MaxBufferMessages (500). Oldest entry is dropped
 //     until both constraints hold (REQ-BR-009).
@@ -14,9 +21,10 @@
 //     never observes a gap caused by TTL expiry.
 //   - Replay returns every entry whose Sequence > lastSeq, in original
 //     order. Sequence gaps within the buffer are impossible: sequences are
-//     allocated by outboundDispatcher.nextSequence which is monotonic.
+//     allocated by outboundDispatcher.nextSequence which is monotonic and
+//     keyed by LogicalID (REQ-BR-AMEND-006).
 //
-// Concurrency: a single sync.Mutex guards the per-session map and each
+// Concurrency: a single sync.Mutex guards the per-key map and each
 // queue. Operations are O(1) amortised for Append (slice copy on eviction
 // is bounded by MaxBufferMessages) and O(n) for Replay where n is the
 // number of replayed entries.
@@ -45,13 +53,21 @@ type bufferEntry struct {
 	bytes   int
 }
 
-// outboundBuffer is a per-session FIFO of outbound messages used for
-// reconnect replay (M4-T2) and offline buffering (M4-T1).
+// outboundBuffer is a per-LogicalID FIFO of outbound messages used for
+// reconnect replay (M4-T2) and offline buffering (M4-T1). Keys are
+// LogicalID strings (AMEND-001 M3; previously connIDs). Multiple connIDs
+// that share the same (CookieHash, Transport) will share a single
+// LogicalID-keyed queue, enabling cross-connection replay.
 //
 // @MX:ANCHOR
 // @MX:REASON Replay correctness invariant: any outbound message handed to
 // the buffer must be visible to a subsequent Replay(lastSeq) until either
 // the buffer is full and evicts oldest, or 24h pass.
+// @MX:NOTE: [AUTO] Buffer key changed from connID to LogicalID in
+// SPEC-GOOSE-BRIDGE-001-AMEND-001 v0.1.1 (REQ-BR-AMEND-003). The string
+// key type is unchanged; only the semantics of what the key represents
+// has shifted. Registry-less callers and fallback paths continue to use
+// connID directly.
 type outboundBuffer struct {
 	clock clockwork.Clock
 
@@ -71,11 +87,16 @@ func newOutboundBuffer(clock clockwork.Clock) *outboundBuffer {
 	}
 }
 
-// Append records msg for sessionID. The message is appended to the tail of
-// the per-session queue and contributes len(msg.Payload) bytes to the
-// session's running byte total. On entry, expired entries are evicted; on
-// exit, oldest-drop eviction is applied until both byte and count limits
-// hold.
+// Append records msg using msg.SessionID as the buffer key. Since
+// AMEND-001 M3, the outbound dispatcher sets msg.SessionID to the
+// LogicalID (not the connID) before calling Append, so the buffer queue
+// is keyed by LogicalID. Registry-less callers that skip the LogicalID
+// lookup use the connID directly as the key (fallback path).
+//
+// The message is appended to the tail of the per-key queue and contributes
+// len(msg.Payload) bytes to the key's running byte total. On entry,
+// expired entries are evicted; on exit, oldest-drop eviction is applied
+// until both byte and count limits hold.
 func (b *outboundBuffer) Append(msg OutboundMessage) {
 	now := b.clock.Now()
 	b.mu.Lock()
@@ -102,10 +123,10 @@ func (b *outboundBuffer) Append(msg OutboundMessage) {
 	b.queues[msg.SessionID] = q
 }
 
-// Replay returns the messages for sessionID with Sequence strictly greater
-// than lastSeq, in enqueue order. Entries past the 24h TTL are evicted as
-// a side effect. The returned slice is a copy; callers may mutate it
-// freely.
+// Replay returns the messages for the given key (LogicalID since
+// AMEND-001 M3) with Sequence strictly greater than lastSeq, in enqueue
+// order. Entries past the 24h TTL are evicted as a side effect. The
+// returned slice is a copy; callers may mutate it freely.
 func (b *outboundBuffer) Replay(sessionID string, lastSeq uint64) []OutboundMessage {
 	now := b.clock.Now()
 	b.mu.Lock()
@@ -125,8 +146,9 @@ func (b *outboundBuffer) Replay(sessionID string, lastSeq uint64) []OutboundMess
 	return out
 }
 
-// Drop removes all buffered state for sessionID. Called on session close
-// to release memory (mirrors outboundDispatcher.dropSequence).
+// Drop removes all buffered state for the given key (LogicalID since
+// AMEND-001 M3). Called on logout eager-drop (REQ-BR-AMEND-007) or on
+// session close to release memory.
 func (b *outboundBuffer) Drop(sessionID string) {
 	b.mu.Lock()
 	delete(b.queues, sessionID)
@@ -134,15 +156,16 @@ func (b *outboundBuffer) Drop(sessionID string) {
 	b.mu.Unlock()
 }
 
-// Len returns the queued message count for sessionID. Test-only helper;
-// not part of the production wire path.
+// Len returns the queued message count for the given key (LogicalID since
+// AMEND-001 M3). Test-only helper; not part of the production wire path.
 func (b *outboundBuffer) Len(sessionID string) int {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return len(b.queues[sessionID])
 }
 
-// Bytes returns the queued byte total for sessionID. Test-only helper.
+// Bytes returns the queued byte total for the given key (LogicalID since
+// AMEND-001 M3). Test-only helper.
 func (b *outboundBuffer) Bytes(sessionID string) int {
 	b.mu.Lock()
 	defer b.mu.Unlock()
