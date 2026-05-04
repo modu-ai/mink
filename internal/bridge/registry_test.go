@@ -102,7 +102,7 @@ func TestRegistry_RegisterUnregisterCloser(t *testing.T) {
 
 	cc := &counterCloser{}
 	r.RegisterCloser("sx", cc)
-	r.RegisterCloser("", cc)  // no-op (empty id)
+	r.RegisterCloser("", cc)    // no-op (empty id)
 	r.RegisterCloser("sx", nil) // no-op (nil closer)
 
 	n := r.CloseSessionsByCookieHash(cookieHash, CloseSessionRevoked)

@@ -426,8 +426,8 @@ func TestRevocationStore_RejectsEmptyHash(t *testing.T) {
 	t.Parallel()
 	clk := clockwork.NewFakeClockAt(time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC))
 	store := NewRevocationStore(clk)
-	store.Revoke(nil)              // no-op
-	store.Revoke([]byte{})         // no-op
+	store.Revoke(nil)      // no-op
+	store.Revoke([]byte{}) // no-op
 	if store.IsRevoked(nil) {
 		t.Errorf("IsRevoked(nil) = true, want false")
 	}
