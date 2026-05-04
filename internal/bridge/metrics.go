@@ -23,6 +23,7 @@ package bridge
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 
 	"go.opentelemetry.io/otel"
@@ -84,27 +85,30 @@ func newBridgeMetrics(registry *Registry, gate *flushGate, meter metric.Meter) (
 		meter:    meter,
 	}
 
+	// Each instrument creation is wrapped with a context-rich error so
+	// startup diagnostics show which instrument failed (CodeRabbit
+	// Finding #1).
 	var err error
 	m.inboundCounter, err = meter.Int64Counter(MetricInboundTotal,
 		metric.WithDescription("Total inbound messages accepted by the bridge"),
 		metric.WithUnit("{message}"),
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("bridge: create inbound counter (%s): %w", MetricInboundTotal, err)
 	}
 	m.outboundCounter, err = meter.Int64Counter(MetricOutboundTotal,
 		metric.WithDescription("Total outbound messages emitted by the bridge"),
 		metric.WithUnit("{message}"),
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("bridge: create outbound counter (%s): %w", MetricOutboundTotal, err)
 	}
 	m.reconnectCounter, err = meter.Int64Counter(MetricReconnectTotal,
 		metric.WithDescription("Total reconnect attempts observed at the bridge auth path"),
 		metric.WithUnit("{attempt}"),
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("bridge: create reconnect counter (%s): %w", MetricReconnectTotal, err)
 	}
 
 	active, err := meter.Int64ObservableGauge(MetricSessionsActive,
@@ -112,14 +116,14 @@ func newBridgeMetrics(registry *Registry, gate *flushGate, meter metric.Meter) (
 		metric.WithUnit("{session}"),
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("bridge: create observable gauge (%s): %w", MetricSessionsActive, err)
 	}
 	stalls, err := meter.Int64ObservableCounter(MetricFlushGateStalls,
 		metric.WithDescription("Cumulative flush-gate high-watermark transitions since process start"),
 		metric.WithUnit("{stall}"),
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("bridge: create observable counter (%s): %w", MetricFlushGateStalls, err)
 	}
 
 	reg, err := meter.RegisterCallback(
@@ -141,7 +145,7 @@ func newBridgeMetrics(registry *Registry, gate *flushGate, meter metric.Meter) (
 		active, stalls,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("bridge: register observable callback: %w", err)
 	}
 	m.registered = reg
 	return m, nil

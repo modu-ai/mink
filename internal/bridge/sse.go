@@ -46,6 +46,11 @@ func (h *SSEHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	sid, cookieHash, authErr := AuthRequest(r, h.cfg.Auth, h.cfg.Revocation, false)
 	if authErr != nil {
+		// Same RecordFailure semantics as ws.go (CodeRabbit Finding #4).
+		if h.cfg.RateLimiter != nil && len(authErr.CookieHash) > 0 {
+			h.cfg.RateLimiter.RecordAttempt(authErr.CookieHash)
+			h.cfg.RateLimiter.RecordFailure(authErr.CookieHash)
+		}
 		switch authErr.Reason {
 		case "bad_origin":
 			writeJSONError(w, http.StatusForbidden, "bad_origin")
@@ -82,7 +87,7 @@ func (h *SSEHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	connID := sid + "-" + randSuffix()
 	closer := newSSECloser(w, flusher)
-	sender := newSSESender(w, flusher)
+	sender := newSSESender(w, flusher, h.cfg.gate, connID)
 
 	if err := h.cfg.Registry.Add(WebUISession{
 		ID:           connID,
@@ -106,6 +111,16 @@ func (h *SSEHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.cfg.Registry.UnregisterSender(connID)
 		h.cfg.Registry.Remove(connID)
 	}()
+
+	// Replay buffered outbound messages whose sequence is greater than
+	// Last-Event-ID. Same caveat as ws.go: connID-keyed buffer means
+	// this only fires when the same connID re-stream-opens; cookie-hash
+	// logical mapping is a separate amendment.
+	if h.cfg.resumer != nil {
+		for _, msg := range h.cfg.resumer.Resume(connID, r.Header) {
+			_ = sender.SendOutbound(msg)
+		}
+	}
 
 	// Hold the connection open until the client disconnects or closer fires.
 	select {
@@ -132,14 +147,20 @@ func newSSECloser(w http.ResponseWriter, f http.Flusher) *sseCloser {
 // SSE event. The "id:" line carries the sequence so the browser's
 // EventSource exposes it to the next reconnect via Last-Event-ID
 // (M4 resume scaffold).
+//
+// SendOutbound brackets the multi-line write with gate.ObserveWrite +
+// defer ObserveDrain so backpressure measures actual transport pressure
+// (M5 follow-up — symmetric with wsSender).
 type sseSender struct {
-	w       http.ResponseWriter
-	flusher http.Flusher
-	mu      sync.Mutex
+	w         http.ResponseWriter
+	flusher   http.Flusher
+	mu        sync.Mutex
+	gate      *flushGate
+	sessionID string
 }
 
-func newSSESender(w http.ResponseWriter, f http.Flusher) *sseSender {
-	return &sseSender{w: w, flusher: f}
+func newSSESender(w http.ResponseWriter, f http.Flusher, gate *flushGate, sessionID string) *sseSender {
+	return &sseSender{w: w, flusher: f, gate: gate, sessionID: sessionID}
 }
 
 func (s *sseSender) SendOutbound(msg OutboundMessage) error {
@@ -149,6 +170,10 @@ func (s *sseSender) SendOutbound(msg OutboundMessage) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.gate != nil {
+		s.gate.ObserveWrite(s.sessionID, len(msg.Payload))
+		defer s.gate.ObserveDrain(s.sessionID, len(msg.Payload))
+	}
 	if _, err := fmt.Fprintf(s.w, "id: %d\nevent: %s\ndata: %s\n\n",
 		msg.Sequence, msg.Type, body); err != nil {
 		return err
@@ -223,7 +248,7 @@ func (h *InboundPostHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, "malformed")
 		return
 	}
-	if err := dispatchInbound(h.cfg, msg); err != nil {
+	if err := dispatchInbound(r.Context(), h.cfg, msg); err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "adapter_failure")
 		return
 	}

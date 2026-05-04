@@ -33,6 +33,18 @@ const (
 	MaxConsecutiveFailures = 10
 	RateLimitWindow        = time.Minute
 	MaxAttemptsPerWindow   = 60
+
+	// rateStateTTL bounds how long an idle bucket survives in r.state.
+	// Buckets with no live streak (consecutiveFailures==0) and no live
+	// timestamps (window already pruned) are eligible for opportunistic
+	// eviction once their lastSeen ages past this TTL. The value is
+	// intentionally generous: cookieLifetime is 24h (auth.go) so a
+	// per-cookie bucket shorter than that would risk losing the failure
+	// streak across the cookie's natural backoff schedule.
+	//
+	// SPEC: SPEC-GOOSE-BRIDGE-001 M5 follow-up — CodeRabbit Finding #2
+	// (rate-limit map unbounded growth across long-lived processes).
+	rateStateTTL = 30 * time.Minute
 )
 
 // RateDecision is the outcome of a Check call.
@@ -50,10 +62,13 @@ const (
 	RateLimited
 )
 
-// rateState tracks one cookie-hash bucket.
+// rateState tracks one cookie-hash bucket. lastSeen is refreshed on every
+// access (Check / RecordAttempt / RecordFailure / RecordSuccess) and is
+// consulted by pruneStaleLocked to evict idle buckets.
 type rateState struct {
 	consecutiveFailures int
 	timestamps          []time.Time // sliding window of recent attempts
+	lastSeen            time.Time
 }
 
 // rateLimiter enforces per-cookie reconnect throttling.
@@ -81,6 +96,15 @@ func newRateLimiter(clock clockwork.Clock) *rateLimiter {
 // caller MUST honour. Check itself does not modify counters; it merely
 // inspects state. Callers update counters via RecordAttempt / RecordSuccess
 // after the inspection.
+//
+// Threshold semantics (spec.md §6.1, REQ-BR-018):
+//   - consecutiveFailures >= 10 ⇒ RateRequireFreshCookie. Spec wording
+//     "accept up to 10 consecutive failed reconnection attempts before
+//     invalidating the cookie" — counters are bumped after each attempt
+//     fails, so the 11th attempt observes streak == 10 and is blocked.
+//   - len(timestamps) > 60 ⇒ RateLimited. Per spec.md §6.1, the
+//     per-minute quota of 60 means up to and including 60 attempts pass
+//     per window; only the 61st is rejected. (CodeRabbit Finding #3.)
 func (r *rateLimiter) Check(cookieHash []byte) RateDecision {
 	if len(cookieHash) == 0 {
 		return RateAllow
@@ -94,7 +118,7 @@ func (r *rateLimiter) Check(cookieHash []byte) RateDecision {
 		return RateRequireFreshCookie
 	}
 	st.timestamps = pruneWindow(st.timestamps, now)
-	if len(st.timestamps) >= MaxAttemptsPerWindow {
+	if len(st.timestamps) > MaxAttemptsPerWindow {
 		return RateLimited
 	}
 	return RateAllow
@@ -151,16 +175,55 @@ func (r *rateLimiter) Drop(cookieHash []byte) {
 	r.mu.Unlock()
 }
 
-// stateLocked returns or lazily allocates the bucket for cookieHash.
+// stateLocked returns or lazily allocates the bucket for cookieHash and
+// refreshes its lastSeen timestamp. On allocation, performs an
+// opportunistic prune of stale neighbours so r.state cannot grow
+// unboundedly across long-lived processes (CodeRabbit Finding #2).
 // Caller must hold r.mu.
 func (r *rateLimiter) stateLocked(cookieHash []byte) *rateState {
 	key := string(cookieHash)
+	now := r.clock.Now()
 	st, ok := r.state[key]
 	if !ok {
-		st = &rateState{}
+		// New-bucket allocation is rare under steady-state traffic, so
+		// piggyback the prune sweep here. Cost: O(N) per allocation.
+		r.pruneStaleLocked(now)
+		st = &rateState{lastSeen: now}
 		r.state[key] = st
+		return st
 	}
+	st.lastSeen = now
 	return st
+}
+
+// pruneStaleLocked drops buckets whose lastSeen is older than rateStateTTL
+// AND have no live state (no failure streak, no attempts within the
+// sliding window after pruneWindow). Caller must hold r.mu.
+func (r *rateLimiter) pruneStaleLocked(now time.Time) {
+	cutoff := now.Add(-rateStateTTL)
+	for k, st := range r.state {
+		if st.lastSeen.After(cutoff) {
+			continue
+		}
+		if st.consecutiveFailures != 0 {
+			continue
+		}
+		// Pruning the window here avoids a stale read keeping the bucket
+		// alive past TTL when every timestamp has already aged out.
+		st.timestamps = pruneWindow(st.timestamps, now)
+		if len(st.timestamps) != 0 {
+			continue
+		}
+		delete(r.state, k)
+	}
+}
+
+// bucketCount returns the number of live cookie buckets. Test-only
+// helper consulted by the eviction test.
+func (r *rateLimiter) bucketCount() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return len(r.state)
 }
 
 // pruneWindow returns a new slice containing only the entries within the

@@ -70,7 +70,11 @@ func TestRateLimit_SuccessResetsStreak(t *testing.T) {
 	}
 }
 
-func TestRateLimit_SixtyAttemptsInWindowTrips4429(t *testing.T) {
+// Per spec.md §6.1, the per-minute quota of 60 means up to and including
+// 60 attempts pass per window; only the 61st is rejected. CodeRabbit
+// Finding #3 flipped the implementation from `>= 60` to `> 60`; these
+// tests pin the new boundary so a future refactor cannot silently regress.
+func TestRateLimit_SixtyAttemptsInWindowStillAllow(t *testing.T) {
 	t.Parallel()
 	clock := clockwork.NewFakeClock()
 	r := newRateLimiter(clock)
@@ -78,9 +82,23 @@ func TestRateLimit_SixtyAttemptsInWindowTrips4429(t *testing.T) {
 	for range MaxAttemptsPerWindow {
 		r.RecordAttempt(ck)
 	}
+	if got := r.Check(ck); got != RateAllow {
+		t.Fatalf("expected allow after exactly %d attempts (spec.md §6.1 'up to'), got %v",
+			MaxAttemptsPerWindow, got)
+	}
+}
+
+func TestRateLimit_SixtyOneAttemptsInWindowTrips4429(t *testing.T) {
+	t.Parallel()
+	clock := clockwork.NewFakeClock()
+	r := newRateLimiter(clock)
+	ck := []byte("ck")
+	for range MaxAttemptsPerWindow + 1 {
+		r.RecordAttempt(ck)
+	}
 	if got := r.Check(ck); got != RateLimited {
 		t.Fatalf("expected RateLimited after %d attempts, got %v",
-			MaxAttemptsPerWindow, got)
+			MaxAttemptsPerWindow+1, got)
 	}
 }
 
@@ -102,7 +120,7 @@ func TestRateLimit_WindowSlidesAfterMinute(t *testing.T) {
 	r := newRateLimiter(clock)
 	ck := []byte("ck")
 
-	for range MaxAttemptsPerWindow {
+	for range MaxAttemptsPerWindow + 1 {
 		r.RecordAttempt(ck)
 	}
 	if r.Check(ck) != RateLimited {
@@ -164,11 +182,21 @@ func TestRateLimit_ConcurrentRecordRaceFree(t *testing.T) {
 	r := newRateLimiter(clockwork.NewFakeClock())
 	ck := []byte("ck")
 	var wg sync.WaitGroup
-	wg.Add(2)
+	// Four parallel goroutines exercise every mutex-acquiring path so
+	// the race detector can prove RecordFailure / RecordSuccess / Drop
+	// are also race-clean (CodeRabbit Nitpick #2).
+	wg.Add(4)
 	go func() {
 		defer wg.Done()
 		for range 200 {
 			r.RecordAttempt(ck)
+			r.RecordSuccess(ck)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for range 200 {
+			r.RecordFailure(ck)
 		}
 	}()
 	go func() {
@@ -177,5 +205,40 @@ func TestRateLimit_ConcurrentRecordRaceFree(t *testing.T) {
 			_ = r.Check(ck)
 		}
 	}()
+	go func() {
+		defer wg.Done()
+		for range 200 {
+			r.Drop(ck)
+		}
+	}()
 	wg.Wait()
+}
+
+// TestRateLimit_StaleBucketEvicted verifies that a bucket with no live
+// state (zero failures, no recent attempts) is removed once its lastSeen
+// ages past rateStateTTL and another stateLocked allocation triggers the
+// opportunistic prune. CodeRabbit Finding #2.
+func TestRateLimit_StaleBucketEvicted(t *testing.T) {
+	t.Parallel()
+	clock := clockwork.NewFakeClock()
+	r := newRateLimiter(clock)
+
+	ck := []byte("idle-cookie")
+	r.RecordAttempt(ck)
+	if got := r.bucketCount(); got != 1 {
+		t.Fatalf("setup expected 1 bucket, got %d", got)
+	}
+
+	// Age past both the sliding window and the bucket TTL so prune
+	// finds zero timestamps + zero streak + lastSeen older than TTL.
+	clock.Advance(rateStateTTL + RateLimitWindow + time.Second)
+
+	// Touch a fresh cookie so stateLocked allocates a new bucket and
+	// runs pruneStaleLocked over the surviving entries.
+	r.RecordAttempt([]byte("fresh-cookie"))
+
+	// The idle bucket should be gone, leaving only the fresh cookie.
+	if got := r.bucketCount(); got != 1 {
+		t.Fatalf("after prune expected 1 bucket (fresh only), got %d", got)
+	}
 }

@@ -87,14 +87,16 @@ func (d *outboundDispatcher) dropSequence(sessionID string) {
 // SendOutbound assigns the next sequence number and dispatches the message
 // through the session's registered SessionSender.
 //
-// Behavior matrix (M4):
+// Behavior matrix (M4 + M5 follow-up):
 //   - No session AND no sender → ErrSessionUnknown (M3 contract).
 //   - Session present, sender absent (reconnecting tab) → buffer for
 //     replay, return seq, no error.
 //   - Sender present, gate stalled → buffer for replay, skip emit
 //     (backpressure per REQ-BR-010), return seq, no error.
-//   - Sender present, gate idle → buffer for replay, observe write,
-//     emit through sender, return seq.
+//   - Sender present, gate idle → buffer for replay, emit through
+//     sender (transport owns ObserveWrite/ObserveDrain bracket so the
+//     gate measures actual wire-write boundaries, not dispatch-call
+//     boundaries — M5 follow-up transport wire-in).
 func (d *outboundDispatcher) SendOutbound(sessionID string, t OutboundType, payload []byte) (uint64, error) {
 	sender := d.registry.Sender(sessionID)
 	_, sessionExists := d.registry.Get(sessionID)
@@ -122,20 +124,15 @@ func (d *outboundDispatcher) SendOutbound(sessionID string, t OutboundType, payl
 	}
 
 	// Backpressure: while stalled, buffer-only path; producer keeps
-	// generating sequences but the wire is paused (REQ-BR-010).
+	// generating sequences but the wire is paused (REQ-BR-010). The
+	// stall is detected here at the dispatcher level so the producer
+	// path short-circuits before paying the sender call cost; the
+	// gate's *transitions* (ObserveWrite/ObserveDrain) live inside
+	// the transport sender now (M5 follow-up).
 	if d.gate != nil && d.gate.Stalled(sessionID) {
 		return seq, nil
 	}
 
-	// Bracket the sender call with ObserveWrite/ObserveDrain so the
-	// gate models in-flight bytes correctly. Under sequential producers
-	// the brackets cancel out (no stall); concurrent producers cause
-	// inflight bytes to accumulate and the gate stalls on subsequent
-	// callers via the Stalled() check above.
-	if d.gate != nil {
-		d.gate.ObserveWrite(sessionID, len(payload))
-		defer d.gate.ObserveDrain(sessionID, len(payload))
-	}
 	if err := sender.SendOutbound(msg); err != nil {
 		return seq, fmt.Errorf("bridge: outbound emit failed (seq=%d): %w", seq, err)
 	}

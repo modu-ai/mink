@@ -184,6 +184,64 @@ func TestOutboundDispatcher_DropSequenceFreesCounter(t *testing.T) {
 	}
 }
 
+// gateBracketSender is a captureSender that exposes the same
+// ObserveWrite/ObserveDrain bracket that production transports
+// (wsSender, sseSender) implement. Used to verify that a sender-side
+// error still releases in-flight bytes via the deferred drain — the
+// regression CodeRabbit Nitpick #1 asked for.
+type gateBracketSender struct {
+	captureSender
+	gate      *flushGate
+	sessionID string
+}
+
+func (s *gateBracketSender) SendOutbound(msg OutboundMessage) error {
+	if s.gate != nil {
+		s.gate.ObserveWrite(s.sessionID, len(msg.Payload))
+		defer s.gate.ObserveDrain(s.sessionID, len(msg.Payload))
+	}
+	return s.captureSender.SendOutbound(msg)
+}
+
+// TestOutboundDispatcher_SenderErrorDoesNotStallSession verifies that a
+// failed sender call does not leave the flush-gate counted as in-flight,
+// which would deadlock subsequent emit attempts. The deferred drain
+// inside gateBracketSender mirrors wsSender/sseSender semantics
+// (M5 follow-up — bracket moved from dispatcher to transport).
+func TestOutboundDispatcher_SenderErrorDoesNotStallSession(t *testing.T) {
+	t.Parallel()
+
+	reg := NewRegistry()
+	gate := newFlushGate()
+	disp := newOutboundDispatcher(reg, nil, gate, nil)
+
+	cs := &gateBracketSender{gate: gate, sessionID: "sx"}
+	if err := reg.Add(WebUISession{ID: "sx", Transport: TransportWebSocket, State: SessionStateActive}); err != nil {
+		t.Fatalf("registry add: %v", err)
+	}
+	reg.RegisterSender("sx", cs)
+
+	// Force the first send to fail. The sender bracket must still drain
+	// in-flight bytes on the way out so subsequent sends are not stalled.
+	cs.failNext.Store(true)
+	if _, err := disp.SendOutbound("sx", OutboundChunk, []byte(`{"a":1}`)); err == nil {
+		t.Fatalf("expected forced sender error on first send")
+	}
+
+	if gate.Stalled("sx") {
+		t.Fatalf("gate left stalled after sender error — defer ObserveDrain regressed")
+	}
+
+	// A subsequent successful emit must reach the wire.
+	if _, err := disp.SendOutbound("sx", OutboundChunk, []byte(`{"b":2}`)); err != nil {
+		t.Fatalf("post-error send err = %v, want nil", err)
+	}
+	got := cs.snapshot()
+	if len(got) != 1 || got[0].Sequence != 2 {
+		t.Fatalf("post-error capture = %+v, want single seq=2", got)
+	}
+}
+
 func TestEncodeOutboundJSON_EnvelopeShape(t *testing.T) {
 	t.Parallel()
 	msg := OutboundMessage{

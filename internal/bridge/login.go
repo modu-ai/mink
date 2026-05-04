@@ -153,8 +153,20 @@ func (h *LogoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // AuthError classifies the reason a request was rejected.
+//
+// CookieHash is populated on every rejection path where the cookie value
+// was at least syntactically present, so callers (rate-limiter,
+// audit log) can attribute the failure to a stable cookie identity even
+// when verification failed. CookieHash is nil only when the cookie itself
+// was absent or empty — there is no usable identity to record in that case.
+//
+// SPEC: SPEC-GOOSE-BRIDGE-001 M5 follow-up (transport wire-in)
+// Reason: pre-auth RecordFailure must be reachable from every failed
+// reconnect attempt; without CookieHash on the AuthError, ws/sse handlers
+// cannot increment the per-cookie consecutive-failure streak.
 type AuthError struct {
-	Reason string // unauthenticated | csrf_mismatch | revoked | bad_origin
+	Reason     string // unauthenticated | csrf_mismatch | revoked | bad_origin
+	CookieHash []byte
 }
 
 func (e *AuthError) Error() string { return "bridge: auth rejected: " + e.Reason }
@@ -164,6 +176,12 @@ func (e *AuthError) Error() string { return "bridge: auth rejected: " + e.Reason
 // cookie hash on success. The returned AuthError signals which dimension
 // failed; transport-specific rejection (close 4401 vs HTTP 401) is the
 // caller's responsibility.
+//
+// Failure-path CookieHash population:
+//   - cookie absent/empty:             nil  (no stable identity)
+//   - cookie present but verify fails: SHA-256(cookie value)
+//   - revoked:                         hash already computed
+//   - csrf_mismatch / bad_origin:      hash already computed
 func AuthRequest(r *http.Request, auth *Authenticator, revocation *RevocationStore, requireCSRF bool) (sessionID string, cookieHash []byte, err *AuthError) {
 	c, cerr := r.Cookie(SessionCookieName)
 	if cerr != nil || c == nil || c.Value == "" {
@@ -171,24 +189,30 @@ func AuthRequest(r *http.Request, auth *Authenticator, revocation *RevocationSto
 	}
 	sid, _, verr := auth.VerifySessionCookie(c.Value)
 	if verr != nil {
-		return "", nil, &AuthError{Reason: "unauthenticated"}
+		// Cookie is syntactically present but failed HMAC/expiry; expose
+		// the hash so the rate-limiter can tally tampered-cookie attempts
+		// against a stable identity (CodeRabbit Finding #4).
+		return "", nil, &AuthError{
+			Reason:     "unauthenticated",
+			CookieHash: auth.CookieHash(c.Value),
+		}
 	}
 	hash := auth.CookieHash(c.Value)
 	if revocation != nil && revocation.IsRevoked(hash) {
-		return "", nil, &AuthError{Reason: "revoked"}
+		return "", nil, &AuthError{Reason: "revoked", CookieHash: hash}
 	}
 	if requireCSRF {
 		csrfCookie, err := r.Cookie(CSRFCookieName)
 		if err != nil || csrfCookie == nil {
-			return "", nil, &AuthError{Reason: "csrf_mismatch"}
+			return "", nil, &AuthError{Reason: "csrf_mismatch", CookieHash: hash}
 		}
 		header := r.Header.Get(CSRFHeaderName)
 		if !auth.VerifyCSRFToken(csrfCookie.Value, header) {
-			return "", nil, &AuthError{Reason: "csrf_mismatch"}
+			return "", nil, &AuthError{Reason: "csrf_mismatch", CookieHash: hash}
 		}
 	}
 	if !isLoopbackOrigin(r) {
-		return "", nil, &AuthError{Reason: "bad_origin"}
+		return "", nil, &AuthError{Reason: "bad_origin", CookieHash: hash}
 	}
 	return sid, hash, nil
 }
