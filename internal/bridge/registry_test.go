@@ -86,6 +86,42 @@ func TestRegistry_RemoveMissingNoop(t *testing.T) {
 	r.Remove("does-not-exist") // must not panic
 }
 
+type counterCloser struct{ count int }
+
+func (c *counterCloser) Close(_ CloseCode) error { c.count++; return nil }
+
+func TestRegistry_RegisterUnregisterCloser(t *testing.T) {
+	t.Parallel()
+
+	r := NewRegistry()
+	cookieHash := []byte("hash-x")
+	_ = r.Add(WebUISession{
+		ID: "sx", CookieHash: cookieHash, Transport: TransportWebSocket,
+		OpenedAt: time.Now(), LastActivity: time.Now(), State: SessionStateOpen,
+	})
+
+	cc := &counterCloser{}
+	r.RegisterCloser("sx", cc)
+	r.RegisterCloser("", cc)    // no-op (empty id)
+	r.RegisterCloser("sx", nil) // no-op (nil closer)
+
+	n := r.CloseSessionsByCookieHash(cookieHash, CloseSessionRevoked)
+	if n != 1 || cc.count != 1 {
+		t.Errorf("after first close: n=%d count=%d, want 1/1", n, cc.count)
+	}
+
+	r.UnregisterCloser("sx")
+	n = r.CloseSessionsByCookieHash(cookieHash, CloseSessionRevoked)
+	if n != 0 || cc.count != 1 {
+		t.Errorf("after unregister: n=%d count=%d, want 0/1", n, cc.count)
+	}
+
+	// Empty hash and missing-id paths are no-ops.
+	if got := r.CloseSessionsByCookieHash(nil, CloseNormal); got != 0 {
+		t.Errorf("CloseSessionsByCookieHash(nil) = %d, want 0", got)
+	}
+}
+
 func TestRegistry_SnapshotIsCopy(t *testing.T) {
 	t.Parallel()
 
