@@ -50,7 +50,7 @@ func TestOutboundDispatcher_AssignsSequenceMonotonic(t *testing.T) {
 	t.Parallel()
 
 	reg := NewRegistry()
-	disp := newOutboundDispatcher(reg)
+	disp := newOutboundDispatcher(reg, nil, nil)
 
 	cs := &captureSender{}
 	reg.RegisterSender("sx", cs)
@@ -80,7 +80,7 @@ func TestOutboundDispatcher_PerSessionSequencesIndependent(t *testing.T) {
 	t.Parallel()
 
 	reg := NewRegistry()
-	disp := newOutboundDispatcher(reg)
+	disp := newOutboundDispatcher(reg, nil, nil)
 
 	a := &captureSender{}
 	b := &captureSender{}
@@ -107,7 +107,7 @@ func TestOutboundDispatcher_PerSessionSequencesIndependent(t *testing.T) {
 func TestOutboundDispatcher_UnknownSessionReturnsErr(t *testing.T) {
 	t.Parallel()
 	reg := NewRegistry()
-	disp := newOutboundDispatcher(reg)
+	disp := newOutboundDispatcher(reg, nil, nil)
 	_, err := disp.SendOutbound("ghost", OutboundChunk, nil)
 	if !errors.Is(err, ErrSessionUnknown) {
 		t.Errorf("err = %v, want ErrSessionUnknown", err)
@@ -118,7 +118,7 @@ func TestOutboundDispatcher_PreservesOrderUnderRandomDelay(t *testing.T) {
 	t.Parallel()
 
 	reg := NewRegistry()
-	disp := newOutboundDispatcher(reg)
+	disp := newOutboundDispatcher(reg, nil, nil)
 	cs := &captureSender{} // no per-call delay; concurrency stress instead
 	reg.RegisterSender("sx", cs)
 
@@ -155,7 +155,7 @@ func TestOutboundDispatcher_PropagatesSenderError(t *testing.T) {
 	t.Parallel()
 
 	reg := NewRegistry()
-	disp := newOutboundDispatcher(reg)
+	disp := newOutboundDispatcher(reg, nil, nil)
 	cs := &captureSender{}
 	reg.RegisterSender("sx", cs)
 	cs.failNext.Store(true)
@@ -169,7 +169,7 @@ func TestOutboundDispatcher_PropagatesSenderError(t *testing.T) {
 func TestOutboundDispatcher_DropSequenceFreesCounter(t *testing.T) {
 	t.Parallel()
 	reg := NewRegistry()
-	disp := newOutboundDispatcher(reg)
+	disp := newOutboundDispatcher(reg, nil, nil)
 	cs := &captureSender{}
 	reg.RegisterSender("sx", cs)
 

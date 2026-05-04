@@ -29,16 +29,23 @@ type SessionSender interface {
 }
 
 // outboundDispatcher assigns monotonic per-session sequences and delegates
-// to the registered SessionSender for actual wire emission.
+// to the registered SessionSender for actual wire emission. M4 attached
+// the per-session ring buffer (replay safety) and the flush-gate
+// (backpressure) — both nil-safe so M3 tests that construct the
+// dispatcher without buffering still pass.
 type outboundDispatcher struct {
 	registry  *Registry
+	buffer    *outboundBuffer // M4-T1: replay buffer; nil disables buffering
+	gate      *flushGate      // M4-T4: backpressure gate; nil disables
 	mu        sync.Mutex
 	sequences map[string]*atomic.Uint64
 }
 
-func newOutboundDispatcher(reg *Registry) *outboundDispatcher {
+func newOutboundDispatcher(reg *Registry, buf *outboundBuffer, gate *flushGate) *outboundDispatcher {
 	return &outboundDispatcher{
 		registry:  reg,
+		buffer:    buf,
+		gate:      gate,
 		sequences: make(map[string]*atomic.Uint64),
 	}
 }
@@ -59,27 +66,65 @@ func (d *outboundDispatcher) nextSequence(sessionID string) uint64 {
 
 // dropSequence releases the sequence counter for a session that has been
 // removed from the registry. Failing to call this on session shutdown leaks
-// counter memory across many connection cycles.
+// counter memory across many connection cycles. Also clears any per-session
+// buffer + flush-gate state so memory does not accumulate.
 func (d *outboundDispatcher) dropSequence(sessionID string) {
 	d.mu.Lock()
 	delete(d.sequences, sessionID)
 	d.mu.Unlock()
+	if d.buffer != nil {
+		d.buffer.Drop(sessionID)
+	}
+	if d.gate != nil {
+		d.gate.Drop(sessionID)
+	}
 }
 
 // SendOutbound assigns the next sequence number and dispatches the message
-// through the session's registered SessionSender. Returns ErrSessionUnknown
-// when no sender is registered for sessionID.
+// through the session's registered SessionSender.
+//
+// Behavior matrix (M4):
+//   - No session AND no sender → ErrSessionUnknown (M3 contract).
+//   - Session present, sender absent (reconnecting tab) → buffer for
+//     replay, return seq, no error.
+//   - Sender present, gate stalled → buffer for replay, skip emit
+//     (backpressure per REQ-BR-010), return seq, no error.
+//   - Sender present, gate idle → buffer for replay, observe write,
+//     emit through sender, return seq.
 func (d *outboundDispatcher) SendOutbound(sessionID string, t OutboundType, payload []byte) (uint64, error) {
 	sender := d.registry.Sender(sessionID)
-	if sender == nil {
+	_, sessionExists := d.registry.Get(sessionID)
+	if sender == nil && !sessionExists {
 		return 0, fmt.Errorf("%w: id=%s", ErrSessionUnknown, sessionID)
 	}
+
 	seq := d.nextSequence(sessionID)
 	msg := OutboundMessage{
 		SessionID: sessionID,
 		Type:      t,
 		Payload:   payload,
 		Sequence:  seq,
+	}
+
+	// Always buffer when buffering is enabled; resume correctness depends
+	// on every sequenced message being recoverable until TTL or eviction.
+	if d.buffer != nil {
+		d.buffer.Append(msg)
+	}
+
+	// No live transport → message is buffered for resume; not an error.
+	if sender == nil {
+		return seq, nil
+	}
+
+	// Backpressure: while stalled, buffer-only path; producer keeps
+	// generating sequences but the wire is paused (REQ-BR-010).
+	if d.gate != nil && d.gate.Stalled(sessionID) {
+		return seq, nil
+	}
+
+	if d.gate != nil {
+		d.gate.ObserveWrite(sessionID, len(payload))
 	}
 	if err := sender.SendOutbound(msg); err != nil {
 		return seq, fmt.Errorf("bridge: outbound emit failed (seq=%d): %w", seq, err)
