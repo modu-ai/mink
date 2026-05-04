@@ -1,9 +1,9 @@
 ---
 id: SPEC-GOOSE-BRIDGE-001
-version: 0.2.0
-status: planned
+version: 0.2.1
+status: completed
 created_at: 2026-04-21
-updated_at: 2026-04-25
+updated_at: 2026-05-04
 author: manager-spec
 priority: P0
 issue_number: null
@@ -21,6 +21,7 @@ labels: [bridge, transport, web-ui, localhost, websocket, sse, phase-6]
 | ----- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
 | 0.1.0 | 2026-04-21 | ROADMAP v4.0 Phase 6 "Cross-Platform Clients" 신규 SPEC. PC↔Mobile 원격 세션 Bridge로 착수.                                                                                                                                                                                                                                                                                              | manager-spec  |
 | 0.2.0 | 2026-04-25 | **Major scope 재편**. SPEC-GOOSE-ARCH-REDESIGN-v0.2 및 mass-20260425 감사 결과(Score 0.28, D1 catastrophic scope/body inconsistency) 반영. 본문 전면 개정: PC↔Mobile 원격 세션·APNs/FCM·Trusted Device·ed25519 pairing 제거. **goosed daemon ↔ localhost Web UI bridge** (WebSocket/SSE over HTTP, loopback-only 바인딩)로 scope 축소. Mobile-only REQ는 `[DEPRECATED v0.2]` 주석으로 표시하고 동일 번호는 재사용하지 않음. 원격 Mobile bridge는 향후 BRIDGE-002 별도 SPEC. 감사 결함 D1~D16 대응. | manager-spec  |
+| 0.2.1 | 2026-05-04 | **종결 메타 갱신**. M0~M5 + follow-up 6 milestone 모두 main 머지 완료 (#82 #84 #85 #87 #88 #89 #90 #91). 16 AC 전부 implemented + race-clean + `internal/bridge` coverage ≥ 80% (M5 follow-up 84.2%). `status: planned → completed`, `updated_at` 갱신. Out-of-scope 로 분리된 cookie-hash 기반 logical session 매핑은 향후 amendment v0.3 또는 신규 SPEC 후보 (handoff prompt §"WebSocket connID = sid + randSuffix" 함정).                                                                                                                                                                  | manager-docs  |
 
 ---
 
