@@ -1,6 +1,6 @@
 ---
 id: SPEC-GOOSE-WEBUI-001
-version: 0.2.0
+version: 0.2.1
 status: planned
 created_at: 2026-04-24
 updated_at: 2026-05-04
@@ -26,6 +26,7 @@ labels: [phase-6, milestone-m6, area/webui, area/frontend, type/feature, priorit
 | 0.1.0 | 2026-04-24 | SPEC 초안 작성 (5 REQ + 5 AC 스켈레톤). | architecture-redesign-v0.2 |
 | 0.1.0 | 2026-04-27 | HISTORY 섹션 추가 (감사). | GOOS행님 |
 | 0.2.0 | 2026-05-04 | 본격 plan 보강 — 18+ REQ + 12+ AC + Tech Approach + Dependencies + Risks. v0.1.0 5 REQ는 의미 보존하며 새 분류 체계로 재흡수: REQ-WEBUI-001(launch)→REQ-WEBUI-104+REQ-WEBUI-201, REQ-WEBUI-002(loopback)→REQ-WEBUI-005, REQ-WEBUI-003(SSE)→REQ-WEBUI-007+REQ-WEBUI-203, REQ-WEBUI-004(install wizard)→REQ-WEBUI-101+REQ-WEBUI-202, REQ-WEBUI-005(approval flow)→REQ-WEBUI-208. v0.1.0 AC-WEBUI-01..05도 동일 의미로 새 식별자에 재배치. labels 채움, lifecycle을 spec-first→spec-anchored로 격상. | manager-spec |
+| 0.2.1 | 2026-05-04 | research.md §9 의 3개 Open Question 결정 amendment + §1 의 "별도 포트" 가정 정정. (1) `/bridge/login` schema = 명시 POST 채택 (RESTful, testable). (2) WEBUI listener port = BRIDGE-001 listener 와 **shared port + path 분리** 채택 (`/webui/*` 정적/관리 API + `/bridge/*` wire). 단일 origin 으로 CORS 회피. §1 의 "별도 포트" 표현 정정. (3) channel-aware Confirmer routing = HOOK-001 amendment 의 책임 (별도 SPEC). 본 SPEC 은 hook event 수신 + modal 표시만 담당. REQ/AC 본문 변경 없음 — Tech Approach §6 와 §11 Open Questions Resolution 신규 추가만. | manager-spec |
 
 ---
 
@@ -41,7 +42,7 @@ AI.GOOSE의 v0.1 Alpha 채널 3종(`goose CLI/TUI` + Telegram + 본 Web UI) 중 
 
 본 SPEC이 통과한 시점에서 `goosed` 데몬은:
 
-- `internal/webui/` 패키지를 통해 동일 데몬 프로세스 안에서 추가 HTTP listener를 노출하고 (BRIDGE-001의 `/bridge/*` 엔드포인트와 별도 포트, 같은 정책 가족),
+- `internal/webui/` 패키지를 통해 BRIDGE-001 의 동일 HTTP listener 위에 `/webui/*` 경로(정적 번들 + 설치 wizard / settings / audit 관리 API)를 mount 한다. wire protocol(WebSocket/SSE/POST)은 같은 listener 의 `/bridge/*` 경로(BRIDGE-001 소관). **단일 loopback origin** 으로 CORS 를 회피한다 (v0.2.1 결정, §11 참조),
 - `cmd/goose/web.go` 서브커맨드가 `goosed`에 wake 신호를 보내고 OS 기본 브라우저를 연다.
 - Frontend 정적 번들(Vite + React + Tailwind v4 + shadcn/ui)이 `internal/webui/static/dist/`에 embed되고 `goosed`가 `embed.FS`로 서빙한다.
 - BRIDGE-001 (WebSocket/SSE wire) + PERMISSION-001 (token auth) + AUDIT-001 (audit.log) + HOOK-001 (AskUserQuestion 발화)의 컨트랙트만 소비한다 — 본 SPEC은 wire protocol을 새로 정의하지 않는다.
@@ -608,6 +609,72 @@ REQ-WEBUI-402 / REQ-WEBUI-403 는 v0.2.0에서 "Optional" 카테고리로 명시
 
 - `research.md` — 코드베이스 분석, frontend tech 평가, BRIDGE-001 contract gap 분석.
 - `tasks.md` — TDD-mode task decomposition, M0..M5 milestone, AC → task 매핑.
+
+---
+
+## 11. Open Questions Resolution (v0.2.1)
+
+본 절은 `research.md §9` 에 기록된 3 개 Open Question 의 최종 결정을 명문화한다. v0.2.1 amendment 에서 추가됨. REQ/AC 본문은 v0.2.0 그대로 유지되며, 본 결정은 run phase 진입 시 manager-tdd 의 implementation 가이드로 사용된다.
+
+### 11.1 OI-A — `/bridge/login` schema
+
+**결정**: **명시 POST 채택**.
+
+| 항목 | 내용 |
+|------|------|
+| Endpoint | `POST /bridge/login` |
+| Request body | `{"intent": "first_install" \| "resume"}` (install wizard 마지막 스텝 또는 chat 페이지 진입 직전) |
+| Response | `200 OK` + `Set-Cookie: goose_session=...; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400` + body `{"csrf_token": "..."}` |
+| 트리거 | install wizard 의 "save key" 스텝 완료 후 자동 호출 / chat 페이지 진입 시 쿠키 부재 감지 시 자동 redirect |
+
+**거절된 대안**: 자동 cookie set (install wizard 완료 시 daemon 이 비대칭으로 cookie 발급).
+**근거**: REST 컨벤션 + 명시적 인증 트랜지션 + 통합 테스트 작성 용이 + 브라우저 보안 모델(POST 만 cookie set 허용 일반 패턴) 정렬.
+**관련**: BRIDGE-001 REQ-BR-002 (cookie lifecycle) + REQ-BR-006 (CSRF 검증) + WEBUI REQ-WEBUI-202 (install wizard redirect) + REQ-WEBUI-204 (provider key entry) + REQ-WEBUI-301 (auth guard).
+
+### 11.2 OI-B — WEBUI listener 포트 정책
+
+**결정**: **shared port + path 분리 채택** (BRIDGE-001 의 단일 listener 위에 `/webui/*` mount).
+
+| 항목 | 내용 |
+|------|------|
+| BRIDGE-001 listener | `127.0.0.1:8091` (또는 사용자 설정) |
+| WEBUI 정적 번들 | `GET /webui/*` (embed.FS 서빙) |
+| WEBUI 관리 API | `POST /webui/install/*`, `POST /webui/settings/*`, `GET /webui/audit/*` |
+| BRIDGE wire | `/bridge/ws`, `/bridge/stream`, `/bridge/inbound`, `/bridge/login`, `/bridge/logout` |
+| Origin | 단일 loopback origin (`http://127.0.0.1:8091`) — CORS 불필요 |
+
+**거절된 대안**: 별도 포트(예: `8787` for WebUI) — CORS preflight 와 cookie domain 분리 비용 큼.
+**근거**: 단일 origin = browser security model 단순화, CORS 불필요, 사용자 친화 (포트 1 개만 기억). BRIDGE-001 §3.1 item 5 ("두 path 는 같은 listener 에서 제공") 와 정합. §1 의 v0.2.0 초안의 "별도 포트" 표현은 본 amendment 에서 정정됨.
+**관련**: WEBUI REQ-WEBUI-005 (loopback bind) + REQ-WEBUI-104 (embed) + BRIDGE-001 REQ-BR-003 (동일 listener 의 WS+SSE). REQ-WEBUI-501/502 의 외부 bind reject 정책은 BRIDGE-001 REQ-BR-005 와 공유.
+
+### 11.3 OI-C — channel-aware Confirmer routing
+
+**결정**: **HOOK-001 의 책임으로 분리**. 본 SPEC 범위 외.
+
+| 항목 | 내용 |
+|------|------|
+| 책임 위치 | HOOK-001 (별도 amendment 후속 작업) |
+| WEBUI 책임 | hook event 수신 + permission_request modal 표시 + 사용자 선택 응답 |
+| 결정 알고리즘 | "active session 우선 채널 선택" — HOOK-001 amendment 가 정의 (예: 마지막 inbound 가 webui 면 webui Confirmer 사용, 그렇지 않으면 CLI/Telegram 우선순위 표 적용) |
+| 멀티 채널 동시 활성 | HOOK-001 가 channel registry + activity timestamp 기반 선택 |
+
+**거절된 대안**:
+- WEBUI-001 가 직접 라우팅: 채널 별 책임 분산 → orchestration 복잡도 증가, single-source-of-truth 위배.
+- PERMISSION-001 에 routing 추가: PERMISSION-001 은 grant/revoke decision 만 담당, routing 은 별도 관심사.
+
+**근거**: HOOK-001 의 사용자 prompt event 가 발화 위치에 가장 가깝고, channel registry 도 HOOK-001 가 보유하기에 자연스러운 책임. WEBUI 는 receiving end 만 담당.
+**관련**: WEBUI REQ-WEBUI-208 (modal) + REQ-WEBUI-303 (input disable during pending response) + HOOK-001 (별도 amendment 후속).
+**Follow-up**: HOOK-001 amendment SPEC 작성 시 본 결정을 reference. amendment ID 미정 — `/moai plan` 트리거로 별도 작성.
+
+### 11.4 결정 영향 요약
+
+| Open Question | 결정 | 영향 받는 REQ | run phase 영향 |
+|---------------|------|---------------|----------------|
+| OI-A | 명시 POST `/bridge/login` | REQ-WEBUI-202, 204, 301 + BRIDGE-001 REQ-BR-002, 006 | install wizard 마지막 스텝의 fetch 호출 + cookie/CSRF 응답 처리 |
+| OI-B | shared port + path 분리 | REQ-WEBUI-005, 104, 501, 502 + BRIDGE-001 REQ-BR-003, 005 | `cmd/goose/web.go` 가 BRIDGE listener URL 만 사용. WEBUI mount 가 `internal/bridge/` 의 mux 에 add |
+| OI-C | HOOK-001 amendment 책임 | REQ-WEBUI-208, 303 | WEBUI 는 hook event subscriber 로 단순화. HOOK-001 amendment 별도 진행 |
+
+3 결정 모두 v0.2.0 의 REQ/AC 본문을 변경하지 않는다. Implementation 단계 manager-tdd 가 위 결정을 그대로 따른다.
 
 ---
 
