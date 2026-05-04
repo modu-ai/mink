@@ -19,6 +19,16 @@ var ErrSessionExists = errors.New("bridge: session already registered")
 // the empty string.
 var ErrSessionIDEmpty = errors.New("bridge: session ID is empty")
 
+// SessionCloser is the connection-side hook the registry can invoke to
+// terminate an active transport (WebSocket frame loop or SSE response).
+// M1 defines the contract; M2 wires real WebSocket / SSE implementations.
+type SessionCloser interface {
+	// Close terminates the transport with the given close code. Returning
+	// an error is informational; callers MUST NOT depend on synchronous
+	// cleanup — actual frame transmission is asynchronous.
+	Close(code CloseCode) error
+}
+
 // Registry holds the active WebUISession set keyed by ID. All methods are
 // safe for concurrent use.
 //
@@ -28,12 +38,14 @@ var ErrSessionIDEmpty = errors.New("bridge: session ID is empty")
 type Registry struct {
 	mu       sync.RWMutex
 	sessions map[string]WebUISession
+	closers  map[string]SessionCloser
 }
 
 // NewRegistry returns an empty Registry ready for use.
 func NewRegistry() *Registry {
 	return &Registry{
 		sessions: make(map[string]WebUISession),
+		closers:  make(map[string]SessionCloser),
 	}
 }
 
@@ -82,12 +94,72 @@ func (r *Registry) Get(id string) (WebUISession, bool) {
 	return cloneSession(s), true
 }
 
-// Remove deletes the session with the given ID. Removing a missing ID is a
-// no-op (idempotent).
+// Remove deletes the session with the given ID and any registered closer.
+// Removing a missing ID is a no-op (idempotent).
 func (r *Registry) Remove(id string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	delete(r.sessions, id)
+	delete(r.closers, id)
+}
+
+// RegisterCloser associates a transport-level closer with the session ID.
+// The transport (WebSocket / SSE) calls this on connect; logoutHandler and
+// graceful shutdown invoke the closer to terminate the transport.
+// Replacing an existing closer for the same ID is allowed (silent overwrite).
+func (r *Registry) RegisterCloser(id string, c SessionCloser) {
+	if id == "" || c == nil {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.closers[id] = c
+}
+
+// UnregisterCloser drops the closer associated with the session ID.
+// Used when the transport disconnects gracefully without invoking close.
+func (r *Registry) UnregisterCloser(id string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.closers, id)
+}
+
+// CloseSessionsByCookieHash invokes the registered closer for every session
+// whose CookieHash equals the given hash, sending the supplied close code.
+// Returns the number of closers invoked. Sessions without a registered
+// closer are skipped (logout completes when transports register on next
+// connect attempt and observe the revocation).
+func (r *Registry) CloseSessionsByCookieHash(cookieHash []byte, code CloseCode) int {
+	if len(cookieHash) == 0 {
+		return 0
+	}
+	r.mu.RLock()
+	matches := make([]SessionCloser, 0)
+	for id, s := range r.sessions {
+		if hashesEqual(s.CookieHash, cookieHash) {
+			if c, ok := r.closers[id]; ok {
+				matches = append(matches, c)
+			}
+		}
+	}
+	r.mu.RUnlock()
+
+	for _, c := range matches {
+		_ = c.Close(code)
+	}
+	return len(matches)
+}
+
+func hashesEqual(a, b []byte) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // Snapshot returns a copy of all currently registered sessions. Callers are
