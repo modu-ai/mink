@@ -1,9 +1,11 @@
 ---
 spec: SPEC-GOOSE-BRIDGE-001
-version: 0.2.0
+version: 0.2.1
 methodology: TDD (RED-GREEN-REFACTOR)
 harness: standard
 created_at: 2026-05-04
+updated_at: 2026-05-04
+status: completed
 ---
 
 # Task Decomposition — SPEC-GOOSE-BRIDGE-001
@@ -14,22 +16,22 @@ created_at: 2026-05-04
 
 | AC | REQ | Milestone-Task | 상태 |
 |----|-----|----------------|------|
-| AC-BR-001 | REQ-BR-001 | M0-T1 ~ M0-T4 (types + registry) | TODO |
-| AC-BR-002 | REQ-BR-002 | M1-T1 ~ M1-T3 (cookie lifecycle) | TODO |
-| AC-BR-003 | REQ-BR-003 | M2-T1 (single listener mux) | TODO |
-| AC-BR-004 | REQ-BR-004 | M5-T2 (OTel metrics) | TODO |
-| AC-BR-005 | REQ-BR-005 | M0-T5 (loopback bind verify) | TODO |
-| AC-BR-006 | REQ-BR-006 | M2-T3 ~ M2-T5 (inbound validation) | TODO |
-| AC-BR-007 | REQ-BR-007 | M3-T1 ~ M3-T3 (outbound streaming) | TODO |
-| AC-BR-008 | REQ-BR-008 | M3-T4 (permission roundtrip) | TODO |
-| AC-BR-009 | REQ-BR-009 | M4-T1 ~ M4-T3 (offline buffer + replay) | TODO |
-| AC-BR-010 | REQ-BR-010 | M4-T4 ~ M4-T5 (flush-gate watermark) | TODO |
-| AC-BR-011 | REQ-BR-011 | M2-T6 (SSE fallback) | TODO |
-| AC-BR-012 | REQ-BR-014 | M1-T4 (auth failure paths) | TODO |
-| AC-BR-013 | REQ-BR-015 | M2-T7 (10MB inbound limit) | TODO |
-| AC-BR-014 | REQ-BR-016 (v0.2.0) | M1-T5 (logout + revocation) | TODO |
-| AC-BR-015 | REQ-BR-017 | M4-T6 (session resume) | TODO |
-| AC-BR-016 | REQ-BR-018 (v0.2.0) | M5-T1 (reconnect rate-limit) | TODO |
+| AC-BR-001 | REQ-BR-001 | M0-T1 ~ M0-T4 (types + registry) | DONE (#82) |
+| AC-BR-002 | REQ-BR-002 | M1-T1 ~ M1-T3 (cookie lifecycle) | DONE (#84) |
+| AC-BR-003 | REQ-BR-003 | M2-T1 (single listener mux) | DONE (#85) |
+| AC-BR-004 | REQ-BR-004 | M5-T2 (OTel metrics) | DONE (#89) |
+| AC-BR-005 | REQ-BR-005 | M0-T5 (loopback bind verify) | DONE (#82) |
+| AC-BR-006 | REQ-BR-006 | M2-T3 ~ M2-T5 (inbound validation) | DONE (#85, #91 dispatchInbound ctx) |
+| AC-BR-007 | REQ-BR-007 | M3-T1 ~ M3-T3 (outbound streaming) | DONE (#87) |
+| AC-BR-008 | REQ-BR-008 | M3-T4 (permission roundtrip) | DONE (#87) |
+| AC-BR-009 | REQ-BR-009 | M4-T1 ~ M4-T3 (offline buffer + replay) | DONE (#88) |
+| AC-BR-010 | REQ-BR-010 | M4-T4 ~ M4-T5 (flush-gate watermark) | DONE (#88, #91 sender bracket) |
+| AC-BR-011 | REQ-BR-011 | M2-T6 (SSE fallback) | DONE (#85, #91 SSE Resume wire-in) |
+| AC-BR-012 | REQ-BR-014 | M1-T4 (auth failure paths) | DONE (#84, #91 AuthError.CookieHash) |
+| AC-BR-013 | REQ-BR-015 | M2-T7 (10MB inbound limit) | DONE (#85) |
+| AC-BR-014 | REQ-BR-016 (v0.2.0) | M1-T5 (logout + revocation) | DONE (#84) |
+| AC-BR-015 | REQ-BR-017 | M4-T6 (session resume) | DONE (#88, #91 WS Resume wire-in) |
+| AC-BR-016 | REQ-BR-018 (v0.2.0) | M5-T1 (reconnect rate-limit) | DONE (#89, #91 RecordFailure wire-in) |
 
 총 16 AC × 5 Milestone × 23+ atomic task.
 
@@ -258,3 +260,32 @@ created_at: 2026-05-04
 - **LoC 예상**: production ~1500 / test ~2000
 - **PR 예상**: 6~7
 - **Milestone 수**: 5 (M0~M5)
+
+---
+
+## Completion Summary (2026-05-04)
+
+본 SPEC 은 6 milestone + 2 follow-up = **8 PRs** 로 main 머지 완료.
+
+| 단계 | PR | merge commit | 비고 |
+|------|----|----|------|
+| M0 | [#82](https://github.com/modu-ai/goose/pull/82) | `110059e` | types + bind + registry + server skeleton |
+| M0 follow-up | [#90](https://github.com/modu-ai/goose/pull/90) | `815ac57` | error wraps + Stop race + Sessions contract (4 CodeRabbit findings) |
+| M1 | [#84](https://github.com/modu-ai/goose/pull/84) | `c8590a5` | cookie + CSRF + login/logout + revocation |
+| M2 | [#85](https://github.com/modu-ai/goose/pull/85) | `e65132d` | single listener mux (WebSocket + SSE + POST inbound) |
+| M3 | [#87](https://github.com/modu-ai/goose/pull/87) | `eadb9a4` | outbound dispatcher + permission roundtrip |
+| M4 | [#88](https://github.com/modu-ai/goose/pull/88) | `8c7f673` | offline buffer + flush-gate + reconnect/replay |
+| M5 | [#89](https://github.com/modu-ai/goose/pull/89) | `ffa6315` | reconnect rate-limit + OTel metrics |
+| M5 follow-up | [#91](https://github.com/modu-ai/goose/pull/91) | `dff9648` | transport wire-in (resumer.Resume + sender bracket + login helper) + 5 CodeRabbit findings |
+
+### 품질 지표 (final)
+
+- `go test -race -count=1 ./internal/bridge/...`: pass
+- `internal/bridge` coverage: **84.2 %** (M5 follow-up 측정), 모든 milestone ≥ 80 %
+- `gofmt -l internal/bridge/`: clean
+- `go vet ./internal/bridge/...`: clean
+- TRUST 5 충족 (Tested / Readable / Unified / Secured / Trackable)
+
+### Out-of-scope (다음 amendment 후보)
+
+`WebSocket connID = sid + "-" + randSuffix()` 가 매 upgrade 마다 새 connID 발급되어, `resumer.Resume(connID, headers)` 가 같은 connID 의 buffer 만 검색. 진짜 cross-connection replay 는 cookie hash 기반 logical session 매핑 amendment (BRIDGE-001 v0.3 또는 신규 SPEC) 가 필요. 본 SPEC 의 통합 테스트는 "같은 sessionID 가 buffer 와 일치하는 단순 시나리오" 까지만 검증.
