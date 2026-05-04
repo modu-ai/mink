@@ -28,7 +28,11 @@ type Bridge interface {
 	// Sessions are notified via CloseGoingAway (1001).
 	Stop(ctx context.Context) error
 
-	// Sessions returns a snapshot of active Web UI sessions.
+	// Sessions returns a snapshot of active Web UI sessions. The returned
+	// slice and its session structs are read-only snapshots — callers MUST
+	// NOT mutate the CookieHash or CSRFHash byte slices, otherwise internal
+	// authenticator state will silently corrupt. SPEC-GOOSE-BRIDGE-001
+	// PR #82 follow-up (CodeRabbit finding #4 — mutation contract).
 	Sessions() []WebUISession
 
 	// Metrics returns the current OTel metrics snapshot.
