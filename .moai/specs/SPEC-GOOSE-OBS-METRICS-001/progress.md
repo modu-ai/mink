@@ -247,3 +247,35 @@
 - 9 task 순차 실행 (T-001 → T-009).
 - 각 task 끝에 quality gate (go vet, go test, -race, lint).
 - HARD: 영어 주석, zap logger, MX 4종, go.mod 변동 0.
+
+### 2026-05-04 plan-audit gate (iteration 2)
+
+- audit_verdict: FAIL
+- audit_report: .moai/reports/plan-audit/SPEC-GOOSE-OBS-METRICS-001-review-2.md
+- audit_at: 2026-05-04T13:30:00Z
+- auditor_version: plan-auditor (re-audit, prior 2026-04-30 cache expired)
+- run_trigger: automatic (re-entry to /moai run)
+- key_findings:
+    - D2 REQ↔AC mapping FAIL — §5.7 매트릭스 15/20 행 REQ topic/EARS 분류 오류 (sibling/stale REQ 번호 기반 작성 의심)
+    - REQ-004/005/016 직접 AC 부재 (AC-006 over-mapping false claim)
+    - D3 (AC-018 contract test 필수 격상) RESOLVED
+- grace_window_file: .moai/state/audit-gate-merge-at.txt 부재 — grace window 상태 indeterminate
+- next_action: 사용자 결정 — Revise SPEC (권장) / Override / Abort
+
+### 2026-05-04 plan-audit gate (iteration 3, post-revision)
+
+- audit_verdict: PASS (Score 0.92)
+- audit_report: .moai/reports/plan-audit/SPEC-GOOSE-OBS-METRICS-001-review-3.md
+- audit_at: 2026-05-04T13:50:00Z
+- auditor_version: plan-auditor (iteration 3, post-spec-revision)
+- run_trigger: automatic (re-audit after manager-spec revision)
+- key_findings:
+    - D2 매트릭스 정확성: 20/20 행 §4 정의 일치 (sibling/stale REQ drift 완전 해소)
+    - REQ-004 → AC-019 직접 매핑 검증 통과
+    - REQ-005 → AC-020 직접 매핑 검증 통과
+    - REQ-016 → §6.1 signature 부재 + godoc 으로 검증
+    - §5.8 self-claim block 정직성 검증 통과 (AC-006 over-mapping 철회됨)
+- minor_residual (non-blocking):
+    - M1: REQ-014 (no normalization) indirect 검증 narrowness — run phase test 추가 권장
+    - M2: REQ-016 godoc 인용 line number 미상세 — future revision 권장
+- next_action: PR 생성 → main 머지 → /moai run SPEC-GOOSE-OBS-METRICS-001 진입 가능
