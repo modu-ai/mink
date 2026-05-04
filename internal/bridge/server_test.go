@@ -65,15 +65,17 @@ func TestServer_StartStopLifecycle(t *testing.T) {
 		t.Fatalf("Start err = %v", err)
 	}
 
-	// Reach the listener: an empty mux returns 404 for any path; that
-	// proves the listener is bound and serving.
-	resp, err := http.Get("http://" + addr + "/")
+	// Probe a path the bridge mux does not register. BuildMux uses
+	// http.ServeMux pattern matching; an unknown path returns 404 / 405.
+	// We only need proof the listener is bound and serving — not which
+	// specific status fires.
+	resp, err := http.Get("http://" + addr + "/__unmounted__/probe")
 	if err != nil {
 		t.Fatalf("HTTP probe failed: %v", err)
 	}
 	_ = resp.Body.Close()
-	if resp.StatusCode != http.StatusNotFound {
-		t.Errorf("probe status = %d, want 404 (empty mux placeholder)", resp.StatusCode)
+	if resp.StatusCode < 400 || resp.StatusCode >= 500 {
+		t.Errorf("probe status = %d, want 4xx (listener bound + mux active)", resp.StatusCode)
 	}
 
 	if err := b.Stop(ctx); err != nil {
