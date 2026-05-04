@@ -33,6 +33,19 @@ type Bridge interface {
 
 	// Metrics returns the current OTel metrics snapshot.
 	Metrics() Metrics
+
+	// SendOutbound emits an outbound chunk to the named session, returning
+	// the assigned monotonic sequence number on success. Returns
+	// ErrSessionUnknown when no transport is registered for sessionID.
+	// Added in M3 (REQ-BR-007).
+	SendOutbound(sessionID string, t OutboundType, payload []byte) (sequence uint64, err error)
+
+	// RequestPermission emits an OutboundPermissionRequest and blocks until
+	// the browser returns InboundPermissionResponse, the supplied ctx is
+	// cancelled, or the configured timeout elapses (60s default-deny per
+	// REQ-BR-008). Returns granted=false on timeout, with an
+	// OutboundStatus{permission_timeout} sent first.
+	RequestPermission(ctx context.Context, sessionID string, payload []byte) (granted bool, err error)
 }
 
 // WebUISession represents a single browser tab's connection to the bridge.

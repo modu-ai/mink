@@ -53,11 +53,17 @@ func New(cfg Config) (Bridge, error) {
 	}
 	registry := NewRegistry()
 	revocation := NewRevocationStore(nil)
+	dispatcher := newOutboundDispatcher(registry)
+	permStore := newPermissionStore(nil)
+	permReq := newPermissionRequester(permStore, dispatcher, PermissionTimeout)
 	return &bridgeServer{
-		cfg:        cfg,
-		registry:   registry,
-		auth:       auth,
-		revocation: revocation,
+		cfg:           cfg,
+		registry:      registry,
+		auth:          auth,
+		revocation:    revocation,
+		dispatcher:    dispatcher,
+		permissions:   permStore,
+		permRequester: permReq,
 	}, nil
 }
 
@@ -65,16 +71,29 @@ func New(cfg Config) (Bridge, error) {
 // onto the listener so the WebSocket / SSE / inbound endpoints become
 // reachable.
 type bridgeServer struct {
-	cfg        Config
-	registry   *Registry
-	auth       *Authenticator
-	revocation *RevocationStore
+	cfg           Config
+	registry      *Registry
+	auth          *Authenticator
+	revocation    *RevocationStore
+	dispatcher    *outboundDispatcher
+	permissions   *permissionStore
+	permRequester *permissionRequester
 
 	mu       sync.Mutex
 	state    serverState
 	listener net.Listener
 	httpSrv  *http.Server
 	serveErr chan error
+}
+
+// SendOutbound implements Bridge.SendOutbound (M3, REQ-BR-007).
+func (s *bridgeServer) SendOutbound(sessionID string, t OutboundType, payload []byte) (uint64, error) {
+	return s.dispatcher.SendOutbound(sessionID, t, payload)
+}
+
+// RequestPermission implements Bridge.RequestPermission (M3, REQ-BR-008).
+func (s *bridgeServer) RequestPermission(ctx context.Context, sessionID string, payload []byte) (bool, error) {
+	return s.permRequester.Request(ctx, sessionID, payload)
 }
 
 type serverState int
@@ -111,10 +130,11 @@ func (s *bridgeServer) Start(ctx context.Context) error {
 	}
 
 	handler := BuildMux(MuxConfig{
-		Auth:       s.auth,
-		Registry:   s.registry,
-		Revocation: s.revocation,
-		Adapter:    s.cfg.Adapter,
+		Auth:          s.auth,
+		Registry:      s.registry,
+		Revocation:    s.revocation,
+		Adapter:       s.cfg.Adapter,
+		permRequester: s.permRequester,
 	})
 	srv := &http.Server{
 		Handler:           handler,
