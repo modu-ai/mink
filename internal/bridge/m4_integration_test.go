@@ -136,7 +136,7 @@ func TestM4_TabBackgroundReconnectReplays(t *testing.T) {
 	// browser's last-known sequence (=2).
 	cs2 := &captureSender{}
 	reg.RegisterSender("s", cs2)
-	r := newResumer(buf)
+	r := newResumer(buf, nil)
 	h := http.Header{}
 	h.Set(HeaderLastSequence, "2")
 	replay := r.Resume("s", h)
