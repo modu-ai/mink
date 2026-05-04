@@ -2,12 +2,12 @@
 spec: SPEC-GOOSE-BRIDGE-001-AMEND-001
 parent_spec: SPEC-GOOSE-BRIDGE-001
 parent_version: 0.2.1
-version: 0.1.1
+version: 0.1.2
 methodology: TDD (RED-GREEN-REFACTOR)
 harness: standard
 created_at: 2026-05-04
 updated_at: 2026-05-04
-status: planned
+status: completed
 ---
 
 # Task Decomposition — SPEC-GOOSE-BRIDGE-001-AMEND-001
@@ -16,16 +16,16 @@ status: planned
 
 ## Acceptance Criteria → Task Mapping (1:1 bijective)
 
-| AC                  | REQ                  | Milestone-Task                                          | 상태   |
-| ------------------- | -------------------- | ------------------------------------------------------- | ------ |
-| AC-BR-AMEND-001     | REQ-BR-AMEND-001     | M1-T1 (LogicalID derivation + 도메인 분리 prefix)        | planned |
-| AC-BR-AMEND-002     | REQ-BR-AMEND-002     | M2-T1 (Registry.LogicalID)                              | planned |
-| AC-BR-AMEND-003     | REQ-BR-AMEND-003     | M3-T2 (dispatcher SendOutbound buffer keying)           | planned |
-| AC-BR-AMEND-004     | REQ-BR-AMEND-004     | M4-T1 (cross-conn replay full)                          | planned |
-| AC-BR-AMEND-005     | REQ-BR-AMEND-004     | M4-T1 partial 변형 (X-Last-Sequence > 0)                | planned |
-| AC-BR-AMEND-006     | REQ-BR-AMEND-005     | M4-T2 (multi-tab buffer share + emit single)            | planned |
-| AC-BR-AMEND-007     | REQ-BR-AMEND-006     | M3-T4 (sequence monotonic per LogicalID, race test)     | planned |
-| AC-BR-AMEND-008     | REQ-BR-AMEND-007     | M3-T5 (logout eager drop hook + integration test)       | planned |
+| AC                  | REQ                  | Milestone-Task                                          | 상태   | PR    |
+| ------------------- | -------------------- | ------------------------------------------------------- | ------ | ----- |
+| AC-BR-AMEND-001     | REQ-BR-AMEND-001     | M1-T1 (LogicalID derivation + 도메인 분리 prefix)        | DONE   | #94   |
+| AC-BR-AMEND-002     | REQ-BR-AMEND-002     | M2-T1 (Registry.LogicalID)                              | DONE   | #95   |
+| AC-BR-AMEND-003     | REQ-BR-AMEND-003     | M3-T2 (dispatcher SendOutbound buffer keying)           | DONE   | #96   |
+| AC-BR-AMEND-004     | REQ-BR-AMEND-004     | M4-T1 (cross-conn replay full)                          | DONE   | #97   |
+| AC-BR-AMEND-005     | REQ-BR-AMEND-004     | M4-T1 partial 변형 (X-Last-Sequence > 0)                | DONE   | #97   |
+| AC-BR-AMEND-006     | REQ-BR-AMEND-005     | M4-T2 (multi-tab buffer share + emit single)            | DONE   | #97   |
+| AC-BR-AMEND-007     | REQ-BR-AMEND-006     | M3-T4 (sequence monotonic per LogicalID, race test)     | DONE   | #96   |
+| AC-BR-AMEND-008     | REQ-BR-AMEND-007     | M3-T5 (logout eager drop hook + integration test)       | DONE   | #96   |
 
 총 8 AC × 4 Milestone × 13 atomic task. **Bijection**: 각 REQ ↔ 정확히 하나의 dedicated AC (REQ-004 의 두 변형 AC-004 + AC-005 는 동일 REQ 의 full/partial 행동을 분담).
 

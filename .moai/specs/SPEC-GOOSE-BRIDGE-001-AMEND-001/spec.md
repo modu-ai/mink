@@ -1,7 +1,7 @@
 ---
 id: SPEC-GOOSE-BRIDGE-001-AMEND-001
-version: 0.1.1
-status: planned
+version: 0.1.2
+status: completed
 created_at: 2026-05-04
 updated_at: 2026-05-04
 author: manager-spec
@@ -23,6 +23,7 @@ parent_version: 0.2.1
 | ----- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
 | 0.1.0 | 2026-05-04 | 초안 작성. 부모 SPEC-GOOSE-BRIDGE-001 v0.2.1 (status=completed, 8 PR 머지 #82~#92) 의 `progress.md` Out-of-scope 항목 — `connID = sid + randSuffix()` 함정 — 을 amendment 로 분리해 해소. WS upgrade / SSE reconnect 마다 새 connID 가 발급되므로 `outboundBuffer` / `resumer` 가 같은 connID 의 buffer 만 검색 → cross-connection replay 동작 불가. 본 amendment 는 `WebUISession` 에 `LogicalID = HMAC(cookieHash + transport)` 필드 추가, `outboundBuffer` 의 키를 LogicalID 로 전환, `resumer.Resume(connID, ...)` 가 registry 를 통해 connID → LogicalID 매핑 후 LogicalID 로 buffer 조회. 부모 v0.2.1 의 export 시그니처 (`Bridge`, `dispatcher.SendOutbound(sessionID, ...)`) 변경 0건 — `outboundBuffer` 는 internal 이라 키 의미 변경 자유. | manager-spec  |
 | 0.1.1 | 2026-05-04 | plan-auditor Iteration 1 결함 D1~D10 반영. **REQ-BR-AMEND-007** + **AC-BR-AMEND-008** 신설 (logout 시 LogicalID buffer eager drop, REQ↔AC 1:1 bijection 복원). HMAC LogicalID 산출에 NIST SP 800-108 도메인 분리 도입 (`"bridge-logical-id-v1\x00"` prefix). `newResumer` 생성자 시그니처 변경을 §7 표에 명시 (package-private additive only). `outboundEnvelope` wire 직렬화가 `OutboundMessage.SessionID` 를 포함하지 않음을 §7 invariant 로 명시 — dispatcher 의 in-memory connID↔LogicalID swap 안전성 근거. OQ2 (length-prefix concat) 를 research §3.2 design note 로 강등 (이미 결정된 사항). §10 에 cutover/migration risk 명시. AC 6→8, REQ 6→7. | manager-spec  |
+| 0.1.2 | 2026-05-04 | **Amendment 종결**. 4 milestone × 5 PR 머지 완료 (#93 spec, #94 M1, #95 M2, #96 M3, #97 M4). 7 REQ × 8 AC 모두 cover. Parent v0.2.1 의 cross-connection replay 결손 — `connID = sid + randSuffix()` 함정 — 완전 해소. `Authenticator.DeriveLogicalID` (NIST SP 800-108 도메인 분리), `Registry.LogicalID(connID)` lookup, dispatcher 의 LogicalID 단위 buffer + sequence rekey, logout eager-drop hook (Registry.SetLogoutHook ordering: hook BEFORE closers), resumer 의 LogicalID lookup with fallback, multi-tab buffer share + emit single 의미론 — 모두 main 에 landed. `internal/bridge` coverage 85.1% 유지 (parent baseline 84.2% 초과), `go test -race -count=10` clean, public 시그니처 변경 0건. status: planned → completed. | manager-spec  |
 
 ---
 
