@@ -2,6 +2,7 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -168,26 +169,32 @@ func TestHandleSlashCmd(t *testing.T) {
 // TestHandleSlashCmdSaveLoad verifies save/load slash commands.
 func TestHandleSlashCmdSaveLoad(t *testing.T) {
 	t.Run("/save command", func(t *testing.T) {
+		// Isolate session directory to avoid polluting ~/.goose/sessions/.
+		_, cleanup := setupSessionTestHome(t)
+		defer cleanup()
+
 		model := NewModel(nil, "", false)
 		cmd := SlashCmd{Name: "save", Args: []string{"test-session"}}
 
 		response, _ := HandleSlashCmd(cmd, model)
 
-		// Save is not yet implemented
-		if response == "" {
-			t.Error("expected response for /save command")
+		if !strings.Contains(response, "[saved: test-session]") {
+			t.Errorf("expected '[saved: test-session]' in response, got: %q", response)
 		}
 	})
 
 	t.Run("/load command", func(t *testing.T) {
+		// Fresh tmpdir: session does not exist, so load returns an error response.
+		_, cleanup := setupSessionTestHome(t)
+		defer cleanup()
+
 		model := NewModel(nil, "", false)
 		cmd := SlashCmd{Name: "load", Args: []string{"test-session"}}
 
 		response, _ := HandleSlashCmd(cmd, model)
 
-		// Load is not yet implemented
 		if response == "" {
-			t.Error("expected response for /load command")
+			t.Error("expected non-empty response for /load command")
 		}
 	})
 }
