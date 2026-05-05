@@ -1,9 +1,9 @@
 ---
 id: SPEC-GOOSE-OBS-METRICS-001
-version: 0.1.1
-status: planned
+version: 0.1.2
+status: implemented
 created_at: 2026-04-30
-updated_at: 2026-05-04
+updated_at: 2026-05-05
 author: manager-spec
 priority: P2
 issue_number: null
@@ -23,6 +23,7 @@ informed_by: ["SPEC-GOOSE-CMDCTX-TELEMETRY-001"]
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-30 | 초안 작성. consumer SPEC `SPEC-GOOSE-CMDCTX-TELEMETRY-001` (planned, P3) 의 BLOCKER 해소를 위한 metrics sink interface 와 Phase 1 backend (stdlib `expvar`) 정의. backend 비교 결과 `research.md` 참고. Phase 2 (OTel adapter) / Phase 3 (Prometheus adapter) 는 별도 SPEC. | manager-spec |
 | 0.1.1 | 2026-05-04 | plan-audit iteration 2 FAIL fix: §5.7 REQ↔AC 매트릭스 전면 재작성 (15/20 행 분류 오류 정정 — 매트릭스가 sibling/stale REQ 번호와 어긋났음). REQ-004/005 직접 검증 AC-019/AC-020 신규 추가, REQ-016 은 §6.1 godoc + NFR 검증으로 명시. §5 자기주장 블록 정직 재작성. | manager-spec |
+| 0.1.2 | 2026-05-05 | **sync phase — status drift 정정 + implementation commit 매핑.** 본 SPEC 의 implementation 본체는 PR #60 (commit `43c46bf`, 2026-05-01 머지) 으로 도달했으나, sync 단계가 누락되어 frontmatter `status: planned` 가 long-standing drift 로 잔존. AC-019/AC-020 augmentation 도 PR #102 (commit `5c4e0a8`, 2026-05-05 머지) 로 main 에 반영 완료. 본 entry 는 (a) status `planned` → `implemented` 전환, (b) implementation commit `43c46bf` (#60) + augmentation commit `5c4e0a8` (#102) 매핑, (c) consumer SPEC `SPEC-GOOSE-CMDCTX-TELEMETRY-001` R1 BLOCKER 가 v0.1.1 amendment 로 이미 해소되었음을 확정 기록. spec 본문/요구사항/AC 변경 없음 — 메타 갱신 only. | manager-docs |
 
 ---
 
