@@ -1,7 +1,10 @@
 // Package permission provides the permission modal sub-model.
 package permission
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // View renders the permission modal as a string.
 // Returns empty string when not Active.
@@ -30,9 +33,9 @@ func (m PermissionModel) View() string {
 	lines = append(lines, "| [Esc] deny once                  |")
 	lines = append(lines, "+----------------------------------+")
 
-	result := ""
+	var sb strings.Builder
 	for _, l := range lines {
-		result += l + "\n"
+		sb.WriteString(l + "\n")
 	}
-	return result
+	return sb.String()
 }

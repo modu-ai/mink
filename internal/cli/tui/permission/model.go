@@ -5,8 +5,6 @@ package permission
 const (
 	optAllowOnce   = 0
 	optAllowAlways = 1
-	optDenyOnce    = 2
-	optDenyAlways  = 3
 	optCount       = 4
 )
 
