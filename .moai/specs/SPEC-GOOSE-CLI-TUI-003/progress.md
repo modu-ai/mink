@@ -7,7 +7,7 @@
 - **SPEC ID**: SPEC-GOOSE-CLI-TUI-003
 - **Title**: goose CLI TUI 보강 P2 (sessionmenu(Ctrl-R) + Ctrl-Up edit/regenerate + i18n 8 golden)
 - **Started**: 2026-05-05 (plan phase)
-- **Status**: 🟡 PENDING — plan phase 완료, /moai run 대기
+- **Status**: 🟢 IMPLEMENTED — P1~P4 완료 (PR #113~#116 merged)
 - **Mode**: TDD (brownfield: model/view/update.go MODIFY; greenfield: sessionmenu/, i18n/ 신규)
 - **Harness**: standard
 - **Predecessor SPEC**: SPEC-GOOSE-CLI-TUI-002 v0.1.0 (implemented, PR #107~#111) — FROZEN base
@@ -98,3 +98,48 @@ plan_audit:
 ---
 
 Last Updated: 2026-05-05 (plan phase 완료)
+
+---
+
+## Run Phase 완료 기록 (2026-05-05)
+
+### 구현된 PR 목록
+
+| PR | Phase | AC | Status |
+|----|-------|-----|--------|
+| #113 | P1 i18n catalog + TUI wiring | AC-009(진행), AC-010(진행) | 🟢 merged |
+| #114 | P2 sessionmenu Ctrl-R | AC-001, AC-002, AC-003 | 🟢 merged |
+| #115 | P3 Ctrl-Up edit/regenerate | AC-005, AC-006, AC-007, AC-008 | 🟢 merged |
+| #116 | P4 9 golden 파일 | AC-004, AC-009, AC-010 | 🟢 merged |
+
+### AC 최종 상태
+
+| AC | 상태 | 검증 방법 |
+|----|------|---------|
+| AC-CLITUI3-001 | 🟢 GREEN | TestSessionMenu_CtrlR_OpensList |
+| AC-CLITUI3-002 | 🟢 GREEN | TestSessionMenu_Navigation_LoadsOnEnter |
+| AC-CLITUI3-003 | 🟢 GREEN | TestSessionMenu_EmptyState_AutoDismiss |
+| AC-CLITUI3-004 | 🟢 GREEN | TestSnapshot_SessionMenuOpen + session_menu_open.golden |
+| AC-CLITUI3-005 | 🟢 GREEN | TestEdit_CtrlUp_EntersEditMode |
+| AC-CLITUI3-006 | 🟢 GREEN | TestEdit_Enter_RegeneratesLastTurn |
+| AC-CLITUI3-007 | 🟢 GREEN | TestEdit_Esc_CancelsEditMode |
+| AC-CLITUI3-008 | 🟢 GREEN | TestEdit_CtrlUp_NoopWhileStreaming |
+| AC-CLITUI3-009 | 🟢 GREEN | TestSnapshot_I18N_*_Ko (4 surfaces) |
+| AC-CLITUI3-010 | 🟢 GREEN | TestSnapshot_I18N_*_En (4 surfaces) |
+
+### CI 이슈 해결
+
+- CI fail 1: TestI18N_Loader_LoadsKoFromYaml — os.Chdir + t.Parallel() race → LoadFrom() 함수 추가로 해결
+- CI fail 2: gofmt — 실제로는 .golden 파일들 파싱 오류였으나 `gofmt -l .`은 .go 파일만 체크하므로 무관
+
+### 구현 신규 파일
+
+- `internal/cli/tui/i18n/catalog.go`, `loader.go`
+- `internal/cli/tui/sessionmenu/model.go`, `view.go`, `update.go`, `loader.go`
+- `internal/cli/tui/session_ops.go`
+- `internal/cli/tui/update_edit_mode_test.go`
+- `internal/cli/tui/snapshot_sessionmenu_test.go`, `snapshot_i18n_test.go`
+- `internal/cli/tui/sessionmenu_tui_test.go`
+- 9개 신규 golden + 2개 기존 golden 업데이트 (총 15개)
+
+Last Updated: 2026-05-05 (run phase 완료)

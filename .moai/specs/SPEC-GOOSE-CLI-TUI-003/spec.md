@@ -1,7 +1,7 @@
 ---
 id: SPEC-GOOSE-CLI-TUI-003
 version: "0.1.0"
-status: draft
+status: implemented
 created_at: 2026-05-05
 updated_at: 2026-05-05
 author: manager-spec
