@@ -1,0 +1,23 @@
+Session: test | Daemon:  | Messages: 1                                          
+system: Conversation commands                                                   
+  /help       Show this help                                                    
+  /save <name> Save session                                                     
+  /load <name> Load session                                                     
+  /clear      Clear chat history                                                
+  /quit       Exit TUI                                                          
+  /session    Show current session name                                         
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+> > Type a message...                                                           

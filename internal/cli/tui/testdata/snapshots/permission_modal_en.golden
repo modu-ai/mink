@@ -1,0 +1,36 @@
+Session: test | Daemon:  | Messages: 0                                          
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+> > Type a message...                                                           
++----------------------------------+
+| Permission Request: Bash        |
++----------------------------------+
+|                                  |
+| Allow this tool call?            |
+| > Allow once                     |
+|   Allow always (this tool)       |
+|   Deny once                      |
+|   Deny always (this tool)        |
+|                                  |
+| [Up/Down] navigate [Enter] select|
+| [Esc] deny once                  |
++----------------------------------+
