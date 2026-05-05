@@ -11,9 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// fixedNow is a fixed time used in snapshot tests for deterministic elapsed display.
-var fixedNow = time.Date(2024, 1, 1, 12, 0, 1, 0, time.UTC) // T+1s from streamStartTime
-
 // TestStatusbar_Streaming_Throughput verifies the streaming statusbar shows
 // spinner, token count, throughput, elapsed, and abort hint. AC-CLITUI-007
 func TestStatusbar_Streaming_Throughput(t *testing.T) {

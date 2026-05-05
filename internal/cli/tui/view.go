@@ -107,9 +107,7 @@ func (m *Model) renderStreamingStatusBar(applyStyle func(lipgloss.Style) lipglos
 			now = m.clock()
 		}
 		elapsed = now.Sub(m.streamStartTime)
-		if elapsed < 0 {
-			elapsed = 0
-		}
+		elapsed = max(elapsed, 0)
 	}
 	elapsedStr := fmt.Sprintf("%.1fs elapsed", elapsed.Seconds())
 
