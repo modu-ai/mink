@@ -14,6 +14,10 @@ service AgentService {
 
   // ChatStream sends a message and receives a stream of events.
   rpc ChatStream(AgentChatStreamRequest) returns (stream AgentChatStreamEvent);
+
+  // ResolvePermission records the user's decision for a tool permission request.
+  // SPEC-GOOSE-CLI-TUI-002 P3 AC-CLITUI-004, AC-CLITUI-005
+  rpc ResolvePermission(ResolvePermissionRequest) returns (ResolvePermissionResponse);
 }
 
 // AgentChatRequest is the unary chat request message.
@@ -74,4 +78,21 @@ message AgentContentBlock {
   string kind = 1;
   // data_json is the JSON-encoded block-specific payload.
   bytes data_json = 2;
+}
+
+// ResolvePermissionRequest records the user's permission decision for a tool.
+// SPEC-GOOSE-CLI-TUI-002 P3
+message ResolvePermissionRequest {
+  // tool_use_id correlates this decision with the originating tool_use event.
+  string tool_use_id = 1;
+  // tool_name is the name of the tool (e.g., "Bash", "FileWrite").
+  string tool_name = 2;
+  // decision is the user's choice: "allow_once", "allow_always", "deny_once", "deny_always".
+  string decision = 3;
+}
+
+// ResolvePermissionResponse is the daemon's acknowledgement.
+message ResolvePermissionResponse {
+  // accepted indicates the daemon acknowledged the decision.
+  bool accepted = 1;
 }

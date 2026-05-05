@@ -160,6 +160,13 @@ func (c *DaemonClient) ChatStream(ctx context.Context, messages []Message) (<-ch
 	return eventCh, nil
 }
 
+// ResolvePermission records the user's decision for a tool permission request.
+// SPEC-GOOSE-CLI-TUI-002 P3 — stub returns accepted=true always.
+// TODO(QUERY-001): wire to engine.ResolvePermission when available.
+func (c *DaemonClient) ResolvePermission(_ context.Context, _, _, _ string) (bool, error) {
+	return true, nil
+}
+
 // Close closes the gRPC connection to the daemon.
 // Safe to call multiple times.
 func (c *DaemonClient) Close() error {

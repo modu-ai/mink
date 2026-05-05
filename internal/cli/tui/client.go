@@ -78,6 +78,13 @@ func (f *clientFactory) Close() error {
 	return nil
 }
 
+// ResolvePermission implements tui.DaemonClient interface for legacy factory.
+// Stub returns accepted=true.
+// TODO(QUERY-001): wire to engine.ResolvePermission when available.
+func (f *clientFactory) ResolvePermission(_ context.Context, _, _, _ string) (bool, error) {
+	return true, nil
+}
+
 // NewDaemonClientAdapter creates a TUI client adapter from an existing transport client.
 // @MX:NOTE Use this when you already have a connected transport client.
 func NewDaemonClientAdapter(transportClient *transport.DaemonClient) DaemonClient {
@@ -121,6 +128,12 @@ func (a *daemonClientAdapter) ChatStream(ctx context.Context, messages []ChatMes
 // Close implements tui.DaemonClient interface for adapter.
 func (a *daemonClientAdapter) Close() error {
 	return a.transport.Close()
+}
+
+// ResolvePermission implements tui.DaemonClient interface for adapter.
+// Delegates to the transport client's ResolvePermission stub.
+func (a *daemonClientAdapter) ResolvePermission(ctx context.Context, toolUseID, toolName, decision string) (bool, error) {
+	return a.transport.ResolvePermission(ctx, toolUseID, toolName, decision)
 }
 
 // connectClientFactory implements DaemonClient by issuing Connect-protocol
@@ -191,6 +204,17 @@ func (f *connectClientFactory) ChatStream(ctx context.Context, messages []ChatMe
 // connection so there is nothing to release.
 func (f *connectClientFactory) Close() error {
 	return nil
+}
+
+// ResolvePermission satisfies DaemonClient. Dials the daemon and calls the
+// ResolvePermission Connect RPC stub.
+// TODO(QUERY-001): wire to engine.ResolvePermission when available.
+func (f *connectClientFactory) ResolvePermission(ctx context.Context, toolUseID, toolName, decision string) (bool, error) {
+	client, err := f.newClient(transport.NormalizeDaemonURL(f.daemonAddr))
+	if err != nil {
+		return false, fmt.Errorf("failed to connect to daemon: %w", err)
+	}
+	return client.ResolvePermission(ctx, toolUseID, toolName, decision)
 }
 
 // Run is the main entry point for the TUI.

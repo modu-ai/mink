@@ -34,6 +34,11 @@ func (m *mockDaemonClient) Close() error {
 	return nil
 }
 
+// ResolvePermission is a no-op stub for tests that don't need permission tracking.
+func (m *mockDaemonClient) ResolvePermission(_ context.Context, _, _, _ string) (bool, error) {
+	return true, nil
+}
+
 // TestModelInit tests that the model initializes properly.
 func TestModelInit(t *testing.T) {
 	model := NewModel(nil, "test-session", false)

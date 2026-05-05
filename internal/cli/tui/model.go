@@ -3,12 +3,15 @@ package tui
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/modu-ai/goose/internal/cli/tui/editor"
+	"github.com/modu-ai/goose/internal/cli/tui/permission"
 )
 
 // ChatMessage represents a chat message with role and content.
@@ -46,9 +49,14 @@ type PricingConfig struct {
 
 // DaemonClient defines the interface the TUI needs from the transport layer.
 // @MX:ANCHOR This abstraction allows mocking and testing without real gRPC connections.
+// @MX:REASON fan_in >= 3: client.go (adapter), tui_test.go (mock), permission_test.go (mockPermClient)
 type DaemonClient interface {
 	ChatStream(ctx context.Context, messages []ChatMessage) (<-chan StreamEvent, error)
 	Close() error
+	// ResolvePermission records the user's decision for a tool permission request.
+	// Returns true when the daemon acknowledged the decision.
+	// SPEC-GOOSE-CLI-TUI-002 P3 AC-CLITUI-004, AC-CLITUI-005
+	ResolvePermission(ctx context.Context, toolUseID, toolName, decision string) (bool, error)
 }
 
 // clockFn is the time source used for elapsed calculation.
@@ -96,6 +104,12 @@ type Model struct {
 
 	// clock is used for elapsed time; defaults to time.Now, overridable in tests.
 	clock clockFn
+
+	// permission state — modal and persistent store for tool permission decisions.
+	// SPEC-GOOSE-CLI-TUI-002 P3 AC-CLITUI-003/004/005/006
+	permissionState permission.PermissionModel
+	permStore       *permission.Store
+	pendingChunks   []StreamEvent // buffered while modal is active
 }
 
 // NewModel creates a new TUI model with default state.
@@ -124,10 +138,23 @@ func NewModel(client DaemonClient, sessionName string, noColor bool) *Model {
 	}
 }
 
+// defaultPermStorePath returns the default permissions.json path (~/.goose/permissions.json).
+func defaultPermStorePath() string {
+	home := os.Getenv("HOME")
+	if home == "" {
+		home, _ = os.UserHomeDir()
+	}
+	return filepath.Join(home, ".goose", "permissions.json")
+}
+
 // Init returns the initial command.
 // Implements tea.Model interface.
 // @MX:ANCHOR This is called by bubbletea when the program starts.
 func (m *Model) Init() tea.Cmd {
+	// Initialise persistent permission store if not already set (e.g., by tests).
+	if m.permStore == nil {
+		m.permStore = permission.NewStore(defaultPermStorePath())
+	}
 	return textinput.Blink
 }
 
@@ -147,6 +174,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case StreamEventMsg:
 		return m.handleStreamEvent(msg)
+
+	case permission.ResolveMsg:
+		return m.handleResolveMsg(msg)
 
 	default:
 		// Pass through to input and viewport
