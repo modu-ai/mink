@@ -1,5 +1,5 @@
 Session: test-session | Daemon:  | Messages: 1                                  
-system: Available slash commands:                                               
+system: Conversation commands                                                   
   /help       Show this help                                                    
   /save <name> Save session                                                     
   /load <name> Load session                                                     

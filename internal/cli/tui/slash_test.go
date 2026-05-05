@@ -102,9 +102,10 @@ func TestHandleSlashCmd(t *testing.T) {
 		expectQuit     bool
 	}{
 		{
-			name:           "/help command",
-			cmd:            SlashCmd{Name: "help", Args: []string{}},
-			expectResponse: "Available slash commands:\n  /help       Show this help\n  /save <name> Save session\n  /load <name> Load session\n  /clear      Clear chat history\n  /quit       Exit TUI\n  /session    Show current session name",
+			name: "/help command",
+			cmd:  SlashCmd{Name: "help", Args: []string{}},
+			// Header comes from catalog.SlashHelpHeader (en: "Conversation commands").
+			expectResponse: "Conversation commands\n  /help       Show this help\n  /save <name> Save session\n  /load <name> Load session\n  /clear      Clear chat history\n  /quit       Exit TUI\n  /session    Show current session name",
 		},
 		{
 			name:           "/clear command",

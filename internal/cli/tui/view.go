@@ -20,9 +20,16 @@ func (m *Model) View() string {
 
 	// Permission modal overlay: when active, render modal over base view.
 	// SPEC-GOOSE-CLI-TUI-002 P3 AC-CLITUI-003
+	// Labels come from the locale catalog (SPEC-GOOSE-CLI-TUI-003 P1).
 	if m.permissionState.Active {
 		baseView := m.renderBaseView()
-		modalView := m.permissionState.View()
+		labels := [4]string{
+			m.catalog.PermissionAllowOnce,
+			m.catalog.PermissionAllowAlways,
+			m.catalog.PermissionDenyOnce,
+			m.catalog.PermissionDenyAlways,
+		}
+		modalView := m.permissionState.ViewWithLabels(labels, m.catalog.PermissionPrompt)
 		return baseView + "\n" + modalView
 	}
 
@@ -68,26 +75,21 @@ func (m *Model) renderStatusBar(applyStyle func(lipgloss.Style) lipgloss.Style) 
 		return m.renderStreamingStatusBar(applyStyle)
 	}
 
-	statusText := ""
-	if m.sessionName != "" {
-		statusText = "Session: " + m.sessionName
-	} else {
-		statusText = "Session: (unnamed)"
+	// Build session name, falling back to "(unnamed)" when empty.
+	name := m.sessionName
+	if name == "" {
+		name = "(unnamed)"
 	}
 
-	daemonStatus := " | Daemon: " + m.daemonAddr
-
-	// Phase C4: surface chat history depth so users can see at a glance how
-	// long the current session has grown.
-	msgCount := fmt.Sprintf(" | Messages: %d", len(m.messages))
+	// Apply locale format string from catalog. StatusbarIdle format:
+	// "Session: %s | Daemon: %s | Messages: %d" (en) or equivalent locale.
+	// m.catalog is guaranteed non-zero after Init() (lazy-loaded in Init).
+	rendered := fmt.Sprintf(m.catalog.StatusbarIdle, name, m.daemonAddr, len(m.messages))
 
 	// Cost estimate (optional, shown after streaming completes).
-	costStr := ""
 	if m.cumulativeCost > 0 && m.pricing != nil {
-		costStr = fmt.Sprintf(" | ~$%.4f", m.cumulativeCost)
+		rendered += fmt.Sprintf(" | ~$%.4f", m.cumulativeCost)
 	}
-
-	rendered := statusText + daemonStatus + msgCount + costStr
 
 	// Apply faint style if color is enabled.
 	if !m.noColor {

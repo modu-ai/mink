@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/modu-ai/goose/internal/cli/tui/editor"
+	"github.com/modu-ai/goose/internal/cli/tui/i18n"
 	"github.com/modu-ai/goose/internal/cli/tui/permission"
 )
 
@@ -111,6 +112,10 @@ type Model struct {
 	permissionState permission.PermissionModel
 	permStore       *permission.Store
 	pendingChunks   []StreamEvent // buffered while modal is active
+
+	// catalog holds locale-specific display strings. Loaded lazily in Init().
+	// SPEC-GOOSE-CLI-TUI-003 P1 REQ-CLITUI3-001
+	catalog i18n.Catalog
 }
 
 // NewModel creates a new TUI model with default state.
@@ -136,6 +141,10 @@ func NewModel(client DaemonClient, sessionName string, noColor bool) *Model {
 		confirmQuit: false,
 		noColor:     noColor,
 		clock:       time.Now,
+		// Pre-populate with the default (en) catalog so the model is usable
+		// before Init() is called (e.g., in unit tests that call View() directly).
+		// Init() will overwrite with the locale-appropriate catalog.
+		catalog: i18n.Default(),
 	}
 }
 
@@ -155,6 +164,10 @@ func (m *Model) Init() tea.Cmd {
 	// Initialise persistent permission store if not already set (e.g., by tests).
 	if m.permStore == nil {
 		m.permStore = permission.NewStore(defaultPermStorePath())
+	}
+	// Lazy-load locale catalog. Tests may pre-populate m.catalog to avoid FS access.
+	if m.catalog.Lang == "" {
+		m.catalog = i18n.Load()
 	}
 	return textinput.Blink
 }
