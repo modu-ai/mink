@@ -1,6 +1,6 @@
 # SPEC-GOOSE-CLI-TUI-002 — Compact (auto-derived)
 
-> Auto-derived 압축본. spec.md §4 (REQ) + §5 (AC) + plan.md §1 (Files) + spec.md Exclusions 만 verbatim 포함. Overview/Background/Refs/History 제외.
+> Auto-derived 압축본 — P1~P4-T1 구현 완료 (2026-05-05). P4-T2/T3 → CLI-TUI-003. spec.md §4 (REQ) + §5 (AC) + plan.md §1 (Files) + spec.md Exclusions 만 verbatim 포함. Overview/Background/Refs/History 제외.
 
 ---
 
