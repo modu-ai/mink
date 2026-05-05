@@ -45,6 +45,20 @@ func Load() Catalog {
 	return Default()
 }
 
+// LoadFrom reads the Catalog from a specific YAML file path.
+// Avoids CWD manipulation in tests — pass the YAML file path directly.
+// Returns Default() (en) when the file is absent, unreadable, or specifies an unknown language.
+func LoadFrom(yamlPath string) Catalog {
+	lang := readLangFromFile(yamlPath)
+	if lang == "" {
+		return Default()
+	}
+	if cat, ok := Catalogs[lang]; ok {
+		return cat
+	}
+	return Default()
+}
+
 // loadLang resolves the conversation_language string from the YAML config.
 // Returns empty string on any error or missing key.
 func loadLang() string {
