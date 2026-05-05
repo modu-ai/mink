@@ -665,5 +665,9 @@ Phase B/C는 단일 user message만 daemon에 전달 (기존 PickLastUserMessage
 
 ---
 
-Last Updated: 2026-05-04 (Phase D 완료, multi-turn 후속 추가)
-Status: Phase A DONE (#67) — Phase B DONE (#69) — Phase C DONE (#70 + #71) — Phase D DONE (#72) — Multi-turn 후속 (이번 PR)
+Last Updated: 2026-05-05 (status sync drift 정리, 후속 TUI 보강은 SPEC-GOOSE-CLI-TUI-002 로 분리)
+Status: Phase A DONE (#67) — Phase B DONE (#69) — Phase C DONE (#70 + #71) — Phase D DONE (#72) — Multi-turn 후속 머지 — **v0.2.1 status: completed (frontmatter sync, drift PR)**
+
+## 후속 SPEC
+
+- **SPEC-GOOSE-CLI-TUI-002** (P1, draft, PR #104): TUI 보강 4 영역 — teatest harness + Tool permission UI + Streaming UX/statusbar + Multi-turn polish/session UX. 본 SPEC 을 FROZEN base 로 활용.

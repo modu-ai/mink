@@ -1,9 +1,9 @@
 ---
 id: SPEC-GOOSE-CLI-001
-version: 0.2.0
-status: planned
+version: "0.2.1"
+status: completed
 created_at: 2026-04-21
-updated_at: 2026-04-21
+updated_at: 2026-05-05
 author: manager-spec
 priority: P0
 issue_number: null
@@ -21,6 +21,7 @@ labels: []
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-21 | v1.0 초안 (Phase 0, cobra 단일 구조, Ink v6 연기). **DEPRECATED** — DEPRECATED.md 참조 | manager-spec |
 | 0.2.0 | 2026-04-21 | v2.0 재작성. Phase 0 → Phase 3. Connect-gRPC + bubbletea TUI + Slash command 통합. ROADMAP v2.0 §4 Phase 3 row 18, DEPRECATED.md 재작성 지시 반영 | manager-spec |
+| 0.2.1 | 2026-05-05 | **Status sync (drift 정리)**. Phase A~D + multi-turn replay 후속 모두 머지(PR #67/#69/#70/#71/#72) 완료를 반영하여 frontmatter `status: planned → completed`, `updated_at` 갱신, `version` quoted 형식 통일. progress.md 와 status.txt(=completed) 와 동기화. 후속 TUI 보강 작업은 신규 SPEC-GOOSE-CLI-TUI-002 (P1, draft, PR #104) 로 분리. 본 SPEC 의 IN/OUT scope, EARS, 수용 기준은 변경 없음 (메타데이터 only). | manager-spec |
 
 ---
 
