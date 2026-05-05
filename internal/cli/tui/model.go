@@ -76,6 +76,7 @@ type Model struct {
 	// Session state
 	sessionName string        // Current session name
 	messages    []ChatMessage // Chat history
+	initialMsgs []ChatMessage // Messages loaded from /load, prepended on next ChatStream call
 
 	// UI components
 	input    textinput.Model    // Text input field (legacy single-line)

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/modu-ai/goose/internal/cli/session"
 )
 
 // SlashCmd represents a parsed slash command.
@@ -85,28 +86,66 @@ func handleHelp() string {
   /session    Show current session name`
 }
 
-// handleSave saves the current session.
-// @MX:TODO Implement actual session save in Phase D.
-func handleSave(cmd SlashCmd, _ *Model) (string, tea.Cmd) {
+// handleSave saves the current session to ~/.goose/sessions/<name>.jsonl.
+// Uses atomic write (temp file + rename) via session.Save. AC-CLITUI-012.
+func handleSave(cmd SlashCmd, m *Model) (string, tea.Cmd) {
 	if len(cmd.Args) == 0 {
 		return "Usage: /save <name>", nil
 	}
 
-	sessionName := cmd.Args[0]
-	// Placeholder: In Phase D, this will save to session file
-	return fmt.Sprintf("Session save not yet implemented (would save to '%s')", sessionName), nil
+	name := cmd.Args[0]
+
+	// Convert model messages to session messages (skip system messages).
+	var msgs []session.Message
+	for _, cm := range m.messages {
+		if cm.Role == "system" {
+			continue
+		}
+		msgs = append(msgs, session.Message{
+			Role:    cm.Role,
+			Content: cm.Content,
+		})
+	}
+
+	if err := session.Save(name, msgs); err != nil {
+		return fmt.Sprintf("[Error saving session: %v]", err), nil
+	}
+
+	return fmt.Sprintf("[saved: %s]", name), nil
 }
 
-// handleLoad loads a session.
-// @MX:TODO Implement actual session load in Phase D.
-func handleLoad(cmd SlashCmd, _ *Model) (string, tea.Cmd) {
+// handleLoad loads a session from ~/.goose/sessions/<name>.jsonl into the model.
+// Restores messages and sets initialMsgs for the next ChatStream call. AC-CLITUI-013.
+func handleLoad(cmd SlashCmd, m *Model) (string, tea.Cmd) {
 	if len(cmd.Args) == 0 {
 		return "Usage: /load <name>", nil
 	}
 
-	sessionName := cmd.Args[0]
-	// Placeholder: In Phase D, this will load from session file
-	return fmt.Sprintf("Session load not yet implemented (would load from '%s')", sessionName), nil
+	name := cmd.Args[0]
+
+	msgs, err := session.Load(name)
+	if err != nil {
+		return fmt.Sprintf("[Error loading session: %v]", err), nil
+	}
+
+	// Convert session messages to chat messages.
+	chatMsgs := make([]ChatMessage, 0, len(msgs))
+	for _, sm := range msgs {
+		chatMsgs = append(chatMsgs, ChatMessage{
+			Role:    sm.Role,
+			Content: sm.Content,
+		})
+	}
+
+	// Restore messages into model.
+	m.messages = chatMsgs
+	// Store as initialMsgs for next ChatStream call.
+	m.initialMsgs = make([]ChatMessage, len(chatMsgs))
+	copy(m.initialMsgs, chatMsgs)
+
+	m.updateViewport()
+
+	return fmt.Sprintf("[loaded: %s, %d messages]", name, len(chatMsgs)), nil
 }
 
 // handleClear clears the chat history.
