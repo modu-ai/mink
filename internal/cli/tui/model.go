@@ -13,6 +13,7 @@ import (
 	"github.com/modu-ai/goose/internal/cli/tui/editor"
 	"github.com/modu-ai/goose/internal/cli/tui/i18n"
 	"github.com/modu-ai/goose/internal/cli/tui/permission"
+	"github.com/modu-ai/goose/internal/cli/tui/sessionmenu"
 )
 
 // ChatMessage represents a chat message with role and content.
@@ -116,6 +117,10 @@ type Model struct {
 	// catalog holds locale-specific display strings. Loaded lazily in Init().
 	// SPEC-GOOSE-CLI-TUI-003 P1 REQ-CLITUI3-001
 	catalog i18n.Catalog
+
+	// sessionMenuState is the Ctrl-R session picker overlay.
+	// SPEC-GOOSE-CLI-TUI-003 P2 REQ-CLITUI3-003
+	sessionMenuState sessionmenu.Model
 }
 
 // NewModel creates a new TUI model with default state.
@@ -191,6 +196,17 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case permission.ResolveMsg:
 		return m.handleResolveMsg(msg)
+
+	case sessionmenu.LoadMsg:
+		// Session selected from Ctrl-R overlay.
+		// SPEC-GOOSE-CLI-TUI-003 P2 REQ-CLITUI3-003, -008
+		return m.handleSessionMenuLoad(msg)
+
+	case sessionmenu.CloseMsg:
+		// Overlay dismissed without selection.
+		// SPEC-GOOSE-CLI-TUI-003 P2 REQ-CLITUI3-003, -008
+		m.sessionMenuState = sessionmenu.New()
+		return m, nil
 
 	default:
 		// Pass through to input and viewport

@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/modu-ai/goose/internal/cli/tui/permission"
+	"github.com/modu-ai/goose/internal/cli/tui/sessionmenu"
 )
 
 // handleKeyMsg processes keyboard input.
@@ -21,6 +22,14 @@ func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.permissionState.Active {
 		var cmd tea.Cmd
 		m.permissionState, cmd = m.permissionState.Update(msg)
+		return m, cmd
+	}
+
+	// Sessionmenu overlay captures all input when open (2nd priority, after permission modal).
+	// SPEC-GOOSE-CLI-TUI-003 P2 REQ-CLITUI3-008, -009
+	if m.sessionMenuState.IsOpen() {
+		var cmd tea.Cmd
+		m.sessionMenuState, cmd = m.sessionMenuState.Update(msg)
 		return m, cmd
 	}
 
@@ -143,6 +152,17 @@ func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case tea.KeyCtrlL:
 		// Ctrl+L clears screen
 		m.viewport.GotoTop()
+		return m, nil
+
+	case tea.KeyCtrlR:
+		// Ctrl+R opens the session picker overlay (permission modal takes priority above).
+		// SPEC-GOOSE-CLI-TUI-003 P2 REQ-CLITUI3-003, -004
+		entries := sessionmenu.Load()
+		m.sessionMenuState = sessionmenu.Open(entries)
+		if len(entries) == 0 {
+			// Auto-dismiss: queue a CloseMsg so the overlay is closed in the next Update cycle.
+			return m, func() tea.Msg { return sessionmenu.CloseMsg{} }
+		}
 		return m, nil
 	}
 
@@ -357,6 +377,27 @@ func (m *Model) handleResolveMsg(msg permission.ResolveMsg) (tea.Model, tea.Cmd)
 	}
 
 	return m, resolveCmd
+}
+
+// handleSessionMenuLoad processes a sessionmenu.LoadMsg emitted when the user
+// presses Enter in the Ctrl-R overlay. Closes the overlay, loads the selected
+// session, and appends a status message.
+// SPEC-GOOSE-CLI-TUI-003 P2 REQ-CLITUI3-003, -008
+func (m *Model) handleSessionMenuLoad(msg sessionmenu.LoadMsg) (tea.Model, tea.Cmd) {
+	m.sessionMenuState = sessionmenu.New() // close overlay
+	if m.streaming {
+		// Cannot load a session while streaming; show error hint.
+		m.messages = append(m.messages, ChatMessage{
+			Role:    "system",
+			Content: "[Cannot load session while streaming]",
+		})
+		m.updateViewport()
+		return m, nil
+	}
+	status := m.loadSessionByName(msg.Name)
+	m.messages = append(m.messages, ChatMessage{Role: "system", Content: status})
+	m.updateViewport()
+	return m, nil
 }
 
 // saveSession saves the current chat history to a session file.

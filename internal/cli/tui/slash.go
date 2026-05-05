@@ -115,36 +115,12 @@ func handleSave(cmd SlashCmd, m *Model) (string, tea.Cmd) {
 
 // handleLoad loads a session from ~/.goose/sessions/<name>.jsonl into the model.
 // Restores messages and sets initialMsgs for the next ChatStream call. AC-CLITUI-013.
+// Delegates to loadSessionByName (session_ops.go) to share logic with sessionmenu handler.
 func handleLoad(cmd SlashCmd, m *Model) (string, tea.Cmd) {
 	if len(cmd.Args) == 0 {
 		return "Usage: /load <name>", nil
 	}
-
-	name := cmd.Args[0]
-
-	msgs, err := session.Load(name)
-	if err != nil {
-		return fmt.Sprintf("[Error loading session: %v]", err), nil
-	}
-
-	// Convert session messages to chat messages.
-	chatMsgs := make([]ChatMessage, 0, len(msgs))
-	for _, sm := range msgs {
-		chatMsgs = append(chatMsgs, ChatMessage{
-			Role:    sm.Role,
-			Content: sm.Content,
-		})
-	}
-
-	// Restore messages into model.
-	m.messages = chatMsgs
-	// Store as initialMsgs for next ChatStream call.
-	m.initialMsgs = make([]ChatMessage, len(chatMsgs))
-	copy(m.initialMsgs, chatMsgs)
-
-	m.updateViewport()
-
-	return fmt.Sprintf(m.catalog.Loaded, name, len(chatMsgs)), nil
+	return m.loadSessionByName(cmd.Args[0]), nil
 }
 
 // handleClear clears the chat history.
