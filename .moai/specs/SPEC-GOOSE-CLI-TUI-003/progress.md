@@ -48,10 +48,10 @@ plan_audit:
 
 | Phase | Area | RED tests | Files | Status |
 |-------|------|----------|-------|--------|
-| **P1** | i18n catalog + loader + wire into model/view/permission/slash | 2 (TestI18N_Loads, TestI18N_Defaults) | i18n/ NEW + model/view/permission/view.go/slash.go MODIFY | 🟡 PENDING |
-| **P2** | sessionmenu/ + Ctrl-R handler | 3 (TestSessionMenu_Opens, TestSessionMenu_Nav, TestSessionMenu_Empty) | sessionmenu/ NEW + model/update.go MODIFY | 🟡 PENDING |
-| **P3** | Ctrl-Up edit/regenerate | 4 (TestEdit_EntersMode, TestEdit_Regenerates, TestEdit_EscCancels, TestEdit_NoopStreaming) | update.go MODIFY + model.go MODIFY | 🟡 PENDING |
-| **P4** | 9 golden files (1 base + 8 i18n) | 3 (TestSessionMenu_Golden, TestI18N_Ko_Golden, TestI18N_En_Golden) | testdata/snapshots/ NEW | 🟡 PENDING |
+| **P1** | i18n catalog + loader + wire into model/view/permission/slash | 2 (TestI18N_Loads, TestI18N_Defaults) | i18n/ NEW + model/view/permission/view.go/slash.go MODIFY | 🟢 DONE (PR #113) |
+| **P2** | sessionmenu/ + Ctrl-R handler | 3 (TestSessionMenu_Opens, TestSessionMenu_Nav, TestSessionMenu_Empty) | sessionmenu/ NEW + model/update.go MODIFY | 🟢 DONE (PR #114) |
+| **P3** | Ctrl-Up edit/regenerate | 4 (TestEdit_EntersMode, TestEdit_Regenerates, TestEdit_EscCancels, TestEdit_NoopStreaming) | update.go MODIFY + model.go MODIFY | 🟢 DONE (PR #115) |
+| **P4** | 9 golden files (1 base + 8 i18n) | 3 (TestSessionMenu_Golden, TestI18N_Ko_Golden, TestI18N_En_Golden) | testdata/snapshots/ NEW | 🟢 DONE (PR #116) |
 
 **Phase 진행 순서**: P1 → P2 → P3 → P4
 
@@ -78,8 +78,10 @@ plan_audit:
 
 | Iteration | Phase/Task | AC 충족 | error delta | 비고 |
 |-----------|-----------|---------|-------------|------|
-
-(empty — /moai run 진입 후 매 iteration 마다 row 추가)
+| 1 | P1: i18n catalog + loader + TUI wiring | AC-009(진행), AC-010(진행) | 0 | loader race 이슈 → LoadFrom() 추가로 해소; PR #113 |
+| 2 | P2: sessionmenu Ctrl-R overlay | AC-001, AC-002, AC-003 | 0 | Ctrl-R → overlay → Enter/Esc 완성; PR #114 |
+| 3 | P3: Ctrl-Up edit/regenerate | AC-005, AC-006, AC-007, AC-008 | 0 | editingMessageIndex -1 guard + regenerate path; PR #115 |
+| 4 | P4: 9 golden files (1 base + 8 i18n) | AC-004, AC-009, AC-010 | 0 | gofmt CI false alarm 해결; 총 10 AC GREEN; PR #116 |
 
 ---
 
@@ -87,13 +89,19 @@ plan_audit:
 
 ### 머지 PR 목록
 
-(empty — phase 별 PR 머지 후 추가)
+| PR | 제목 | merged |
+|----|------|--------|
+| #113 | feat(cli/tui): P1 i18n catalog + loader + TUI wiring | 2026-05-05 |
+| #114 | feat(cli/tui): P2 sessionmenu Ctrl-R overlay | 2026-05-05 |
+| #115 | feat(cli/tui): P3 Ctrl-Up edit/regenerate | 2026-05-05 |
+| #116 | feat(cli/tui): P4 9 golden 파일 | 2026-05-05 |
 
-### CHANGELOG 예고 (sync phase 자동)
+### CHANGELOG 추가됨 (sync phase)
 
-- TUI: Ctrl-R recent sessions overlay (sessionmenu/ 패키지)
-- TUI: Ctrl-Up edit + regenerate (직전 user/assistant 쌍 교체)
+- TUI: Ctrl-R recent sessions overlay (sessionmenu/ 패키지, 최대 10개 mtime 역순)
+- TUI: Ctrl-Up edit + regenerate (직전 user/assistant 쌍 교체, EditPrompt 모드)
 - TUI: i18n catalog (ko/en) + 9 golden files (4 surfaces × 2 locales + 1 base)
+- TUI: KeyEscape priority chain 5-tier → 6-tier 확장 (sessionmenu + edit 단계 삽입)
 
 ---
 

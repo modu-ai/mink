@@ -5,6 +5,16 @@
 
 ## [Unreleased]
 
+### Added — SPEC-GOOSE-CLI-TUI-003 v0.1.0 (TUI 보강 P2: sessionmenu + Ctrl-Up edit/regenerate + i18n)
+
+P1~P4 구현 완료 (4 PR merged, 10 AC GREEN):
+
+- TUI: `Ctrl-R` recent sessions overlay — `~/.goose/sessions/*.jsonl` 최대 10개를 mtime 역순으로 overlay 표시, ↑/↓ clamp 이동, Enter로 세션 로드, Esc로 닫기 (PR #114)
+- TUI: `Ctrl-Up` edit + regenerate — 마지막 user message를 editor로 불러와 수정 후 Enter 시 직전 user/assistant 쌍 제거 후 ChatStream 재전송; Esc로 비파괴 취소 (PR #115)
+- TUI: i18n catalog (ko/en) — `conversation_language` 키 기반 locale-aware 문자열 로딩; 설정 부재/미인식 언어 시 English 기본 (PR #113)
+- TUI: KeyEscape priority chain 6-tier 확장 — `modal > sessionmenu > edit > stream cancel > idle no-op` (PR #114, #115)
+- TUI: 9개 신규 golden files — `session_menu_open.golden` (base) + `{statusbar_idle,slash_help,permission_modal,session_menu_open}_{ko,en}.golden` 회귀 보호 (PR #116)
+
 ### Added — SPEC-GOOSE-CLI-TUI-002 v0.1.0 (TUI 보강: teatest harness + permission UI + streaming UX + session UX)
 
 P1~P4-T1 구현 완료 (4 PR merged, 13 AC GREEN):
