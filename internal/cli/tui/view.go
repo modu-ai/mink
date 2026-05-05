@@ -12,11 +12,25 @@ import (
 // View renders the TUI.
 // Implements tea.Model interface.
 // @MX:ANCHOR This generates the entire UI display string.
+// @MX:REASON fan_in >= 3: bubbletea runtime, snapshot tests, modal overlay branch added (P3).
 func (m *Model) View() string {
 	if m.quitting {
 		return "Goodbye!\n"
 	}
 
+	// Permission modal overlay: when active, render modal over base view.
+	// SPEC-GOOSE-CLI-TUI-002 P3 AC-CLITUI-003
+	if m.permissionState.Active {
+		baseView := m.renderBaseView()
+		modalView := m.permissionState.View()
+		return baseView + "\n" + modalView
+	}
+
+	return m.renderBaseView()
+}
+
+// renderBaseView renders the standard TUI without modal overlay.
+func (m *Model) renderBaseView() string {
 	// Style helpers
 	var applyStyle func(lipgloss.Style) lipgloss.Style
 	if m.noColor {

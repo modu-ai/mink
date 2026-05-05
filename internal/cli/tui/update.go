@@ -3,17 +3,27 @@ package tui
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/modu-ai/goose/internal/cli/tui/permission"
 )
 
 // handleKeyMsg processes keyboard input.
 // @MX:ANCHOR This function routes all key presses to appropriate handlers.
 func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Permission modal has input priority over all other handlers.
+	// SPEC-GOOSE-CLI-TUI-002 P3 AC-CLITUI-003
+	if m.permissionState.Active {
+		var cmd tea.Cmd
+		m.permissionState, cmd = m.permissionState.Update(msg)
+		return m, cmd
+	}
+
 	// Handle quit confirmation during streaming
 	if m.confirmQuit {
 		if msg.Type == tea.KeyCtrlC {
@@ -155,11 +165,26 @@ func (m *Model) handleWindowSize(msg tea.WindowSizeMsg) {
 	m.updateViewport()
 }
 
+// permissionRequestPayload is the JSON payload from a permission_request stream event.
+type permissionRequestPayload struct {
+	ToolName  string `json:"tool_name"`
+	ToolUseID string `json:"tool_use_id"`
+}
+
 // handleStreamEvent processes events from the daemon stream.
 // @MX:ANCHOR This function handles all streaming response events.
+// @MX:REASON fan_in >= 3: text/error/done/permission_request all route here; pause/resume branch added.
 func (m *Model) handleStreamEvent(msg StreamEventMsg) (tea.Model, tea.Cmd) {
 	switch msg.Event.Type {
+	case "permission_request":
+		return m.handlePermissionRequest(msg.Event)
+
 	case "text":
+		// If modal is active, buffer the chunk instead of rendering it.
+		if m.permissionState.Active {
+			m.pendingChunks = append(m.pendingChunks, msg.Event)
+			return m, nil
+		}
 		// Append text to current assistant message
 		m.streaming = true
 		m.confirmQuit = false
@@ -256,6 +281,82 @@ func (m *Model) startStreaming(messages []ChatMessage) tea.Msg {
 	return StreamEventMsg{
 		Event: StreamEvent{Type: "done", Content: ""},
 	}
+}
+
+// handlePermissionRequest processes a permission_request stream event.
+// If the tool has a persisted allow decision, the request is resolved automatically
+// without showing the modal (fast-path).
+// SPEC-GOOSE-CLI-TUI-002 P3 AC-CLITUI-004
+func (m *Model) handlePermissionRequest(event StreamEvent) (tea.Model, tea.Cmd) {
+	var payload permissionRequestPayload
+	if err := json.Unmarshal([]byte(event.Content), &payload); err != nil {
+		// Malformed payload: ignore and continue streaming.
+		return m, nil
+	}
+
+	// Fast-path: tool has a persisted allow decision.
+	if m.permStore != nil {
+		if decision, ok := m.permStore.Has(payload.ToolName); ok && decision == permission.DecisionAllowAlways {
+			// Auto-resolve without showing modal via tea.Cmd (no goroutine leak).
+			client := m.client
+			toolUseID := payload.ToolUseID
+			toolName := payload.ToolName
+			return m, func() tea.Msg {
+				if client != nil {
+					_, _ = client.ResolvePermission(context.Background(), toolUseID, toolName, "allow_always")
+				}
+				return nil
+			}
+		}
+	}
+
+	// Show modal for user decision.
+	m.permissionState = permission.PermissionModel{
+		Active:    true,
+		ToolName:  payload.ToolName,
+		ToolUseID: payload.ToolUseID,
+	}
+	return m, nil
+}
+
+// handleResolveMsg processes the ResolveMsg produced by the permission modal.
+// It calls the ResolvePermission RPC, persists allow_always decisions, and
+// flushes any buffered stream chunks.
+// SPEC-GOOSE-CLI-TUI-002 P3 AC-CLITUI-004, AC-CLITUI-005, AC-CLITUI-006
+func (m *Model) handleResolveMsg(msg permission.ResolveMsg) (tea.Model, tea.Cmd) {
+	m.permissionState.Active = false
+
+	// Call ResolvePermission RPC via tea.Cmd to stay on the bubbletea
+	// message loop — avoids goroutine-vs-test race conditions.
+	resolveCmd := func() tea.Msg {
+		if m.client != nil {
+			_, _ = m.client.ResolvePermission(context.Background(), msg.ToolUseID, msg.ToolName, msg.ModalDecision)
+		}
+		return nil
+	}
+
+	// Persist allow_always decisions to disk.
+	if msg.ModalDecision == "allow_always" && m.permStore != nil {
+		_ = m.permStore.Save(msg.ToolName, permission.DecisionAllowAlways)
+	}
+
+	// Flush buffered chunks in arrival order.
+	if len(m.pendingChunks) > 0 {
+		for _, chunk := range m.pendingChunks {
+			if len(m.messages) == 0 || m.messages[len(m.messages)-1].Role != "assistant" {
+				m.messages = append(m.messages, ChatMessage{
+					Role:    "assistant",
+					Content: chunk.Content,
+				})
+			} else {
+				m.messages[len(m.messages)-1].Content += chunk.Content
+			}
+		}
+		m.pendingChunks = nil
+		m.updateViewport()
+	}
+
+	return m, resolveCmd
 }
 
 // saveSession saves the current chat history to a session file.

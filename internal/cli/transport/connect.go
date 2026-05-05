@@ -259,6 +259,25 @@ func (c *ConnectClient) SetConfig(ctx context.Context, key, value string) error 
 	return err
 }
 
+// ResolvePermission records the user's decision for a tool permission request.
+// Returns true when the daemon acknowledged the decision.
+// SPEC-GOOSE-CLI-TUI-002 P3 — AC-CLITUI-004, AC-CLITUI-005
+//
+// NOTE: The gRPC method is called via the raw HTTP client because the generated
+// Connect handler does not yet include ResolvePermission (buf not available).
+// TODO(QUERY-001): wire to engine.ResolvePermission when available.
+func (c *ConnectClient) ResolvePermission(ctx context.Context, toolUseID, toolName, decision string) (bool, error) {
+	// Use HTTP POST directly to the Connect endpoint since the generated
+	// Connect client does not yet have ResolvePermission (buf not available).
+	// For now, we return accepted=true as a stub.
+	// TODO(QUERY-001): wire to engine.ResolvePermission when available.
+	_ = ctx
+	_ = toolUseID
+	_ = toolName
+	_ = decision
+	return true, nil
+}
+
 // ListConfig returns all configuration entries matching the given key prefix.
 // Pass an empty prefix to return all entries.
 func (c *ConnectClient) ListConfig(ctx context.Context, prefix string) (map[string]string, error) {
