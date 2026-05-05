@@ -5,6 +5,21 @@
 
 ## [Unreleased]
 
+### Added — SPEC-GOOSE-CLI-TUI-002 v0.1.0 (TUI 보강: teatest harness + permission UI + streaming UX + session UX)
+
+P1~P4-T1 구현 완료 (4 PR merged, 13 AC GREEN):
+
+- TUI: bubbletea teatest harness with 8 visual snapshot golden files for regression protection (PR #107)
+- TUI: permission modal UI for tool call authorization with atomic `~/.goose/permissions.json` persistence (PR #109)
+- TUI: streaming UX — token throughput display, spinner, elapsed time, abort hint in statusbar (PR #108)
+- TUI: multi-line editor with Ctrl-N toggle and buffer preservation across mode switches (PR #108)
+- TUI: glamour markdown rendering for assistant messages in ASCII mode (PR #108)
+- TUI: cost estimate display `~$X.XXXX` in statusbar when pricing config is present (PR #108)
+- TUI: `/save <name>` and `/load <name>` slash commands with atomic jsonl session persistence (PR #110)
+- proto: `ResolvePermission` RPC for tool call permission resolution (PR #109)
+
+**Deferred to CLI-TUI-003**: Ctrl-R recent session menu (AC-014), Ctrl-Up edit/regenerate (AC-015), in-TUI text i18n (AC-018).
+
 ### Documentation — 전체 26개 implemented SPEC completed 승격
 
 P0 6개 + 나머지 15개 implemented SPEC에 대한 패키지 README.md 작성, 문서화 완료, completed 승격.

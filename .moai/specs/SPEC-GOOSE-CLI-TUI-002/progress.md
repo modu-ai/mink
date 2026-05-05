@@ -7,7 +7,7 @@
 - **SPEC ID**: SPEC-GOOSE-CLI-TUI-002
 - **Title**: goose CLI TUI 보강 (teatest harness + permission UI + streaming UX + session UX)
 - **Started**: 2026-05-05 (plan phase)
-- **Status**: 🟢 PLANNED — awaiting `/moai run`
+- **Status**: 🟡 PARTIALLY IMPLEMENTED — P1~P4-T1 완료, P4-T2/T3 → CLI-TUI-003
 - **Mode**: TDD (brownfield: tui/{model,view,update,client}.go 는 기존 characterization tests 위 += new RED tests; greenfield: permission/, snapshots/, sessionmenu/, editor/ 는 신규 RED 우선)
 - **Harness**: standard (4 area, 17 task, 17 RED test, 8 snapshot — 복잡하지만 thorough 까지 가지 않음. plan-auditor 결정에 따라 재조정 가능)
 - **Predecessor SPEC**: SPEC-GOOSE-CLI-001 v0.2.0 (completed) — FROZEN base
@@ -107,4 +107,35 @@ plan_audit:
 
 ---
 
-Last Updated: 2026-05-05 (initial plan scaffolding)
+---
+
+## Run Phase 완료 기록 (2026-05-05)
+
+### 구현된 PR 목록
+
+| PR | Phase | AC | Status |
+|----|-------|-----|--------|
+| #107 | P1 teatest harness | AC-001/002/017 | 🟢 merged |
+| #108 | P2 streaming UX + editor/ | AC-007/008/009/010/011/016 | 🟢 merged |
+| #109 | P3 permission modal UI | AC-003/004/005/006 | 🟢 merged |
+| #110 | P4-T1 /save + /load | AC-012/013 | 🟢 merged |
+
+### Scope Creep Guard 결과
+
+P4-T2 (sessionmenu/ Ctrl-R) + P4-T3 (Ctrl-Up edit) LoC 추정 ~360 > 250 → SPEC-GOOSE-CLI-TUI-003 이월.
+
+### 학습 (Lessons Captured)
+
+- `slash_test.go` stub 가정 → 실 구현 시 세션 디렉토리 격리 필수 (setupSessionTestHome 패턴)
+- LSP stale 진단 반복 (P1/P2/P3/P4 모두): `go test ./...`가 authoritative
+- scope_creep_guard LoC 250 가드 실제 작동 — P4-T2/T3 분리 결정 명확
+
+### 이월 항목 (CLI-TUI-003)
+
+- AC-CLITUI-014: Ctrl-R recent session menu (sessionmenu/ 패키지)
+- AC-CLITUI-015: Ctrl-Up edit/regenerate (editingMsgIdx 필드)
+- AC-CLITUI-018: in-TUI text language conformance (8 golden: ko + en)
+
+---
+
+Last Updated: 2026-05-05 (run phase completed, P1~P4-T1 merged)

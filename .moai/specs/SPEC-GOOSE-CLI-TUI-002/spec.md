@@ -1,7 +1,7 @@
 ---
 id: SPEC-GOOSE-CLI-TUI-002
 version: "0.1.0"
-status: draft
+status: implemented
 created_at: 2026-05-05
 updated_at: 2026-05-05
 author: manager-spec
@@ -226,92 +226,92 @@ CLI-001 progress.md (lines 600-669) 기준:
 
 각 REQ 마다 최소 1개 이상의 Given/When/Then. 총 18 시나리오. teatest snapshot은 4가지 시각 상태 이상을 cover.
 
-**AC-CLITUI-001 — Snapshot harness 결정성 (REQ-CLITUI-001)**
+**AC-CLITUI-001 — Snapshot harness 결정성 (REQ-CLITUI-001)** — ✅ [IMPLEMENTED: PR #107]
 - **Given** `tui/snapshots/helper.go` 의 `SetupAsciiTermenv(t)` + `FixedClock(2026-05-05T12:00:00Z)` 적용된 테스트
 - **When** 동일 테스트를 macOS 와 linux CI 양쪽에서 실행
 - **Then** `chat_repl_initial_render.golden` 바이트가 100% 일치 (no ANSI escape, no terminfo-dependent bytes)
 
-**AC-CLITUI-002 — `chat_repl_initial_render.golden` 회귀 보호 (REQ-CLITUI-001)**
+**AC-CLITUI-002 — `chat_repl_initial_render.golden` 회귀 보호 (REQ-CLITUI-001)** — ✅ [IMPLEMENTED: PR #107]
 - **Given** 초기 `Model` (no messages, sessionName="(unnamed)", daemonAddr="127.0.0.1:17891"), WindowSize 80x24, ascii termenv
 - **When** `tm := teatest.NewTestModel(t, model); tm.Quit(); out := tm.FinalOutput(t)`
 - **Then** out 이 `testdata/snapshots/chat_repl_initial_render.golden` 와 byte-equal. 표시 내용 검증: statusbar 1 line + viewport (empty) + input prompt `> `
 
-**AC-CLITUI-003 — Permission modal opens on permission_request (REQ-CLITUI-006)**
+**AC-CLITUI-003 — Permission modal opens on permission_request (REQ-CLITUI-006)** — ✅ [IMPLEMENTED: PR #109]
 - **Given** TUI 활성, mock client 가 `ChatStream` 응답 stream 에 `permission_request{tool_use_id:"t1", tool_name:"Bash", input:{"command":"rm -rf /tmp/x"}}` 페이로드 주입
 - **When** stream 이 도착하여 model 이 메시지 처리
 - **Then** `permissionState.active==true`, `PermissionModel.Request.ToolName=="Bash"`, snapshot `permission_modal_open.golden` 일치 (modal box 렌더 검증)
 
-**AC-CLITUI-004 — Allow always persists to disk (REQ-CLITUI-002, REQ-CLITUI-013)**
+**AC-CLITUI-004 — Allow always persists to disk (REQ-CLITUI-002, REQ-CLITUI-013)** — ✅ [IMPLEMENTED: PR #109]
 - **Given** permission modal open for tool_name="Bash", `~/.goose/permissions.json` 미존재 (tmpdir HOME)
 - **When** 사용자가 Tab 으로 "Allow always (this tool)" 선택 → Enter
 - **Then** `~/.goose/permissions.json` 파일 생성, 내용 = `{"version":1,"tools":{"Bash":"allow"}}`, modal 닫힘, `client.ResolvePermission("t1", Allow)` RPC 호출됨, snapshot `permission_modal_persisted.golden` 일치 (다음 Bash 호출에서 modal 미표시)
 
-**AC-CLITUI-005 — Allow once does NOT persist (REQ-CLITUI-013)**
+**AC-CLITUI-005 — Allow once does NOT persist (REQ-CLITUI-013)** — ✅ [IMPLEMENTED: PR #109]
 - **Given** permission modal open for tool_name="FileWrite", `~/.goose/permissions.json` 미존재
 - **When** 사용자가 Enter (기본 "Allow once" 선택)
 - **Then** `~/.goose/permissions.json` 파일이 여전히 미존재, modal 닫힘, `client.ResolvePermission("t1", Allow)` 호출됨, in-memory `permissionState.activeTools` 에 "FileWrite" 미기록 (다음 호출에서 modal 다시 표시)
 
-**AC-CLITUI-006 — Streaming pauses while modal open (REQ-CLITUI-004, REQ-CLITUI-012)**
+**AC-CLITUI-006 — Streaming pauses while modal open (REQ-CLITUI-004, REQ-CLITUI-012)** — ✅ [IMPLEMENTED: PR #109]
 - **Given** TUI streaming 활성, mock client 가 5개 chunk 를 250ms 간격으로 yield, 3번째 chunk 직전에 `permission_request` 주입
 - **When** modal 이 열린 후 1초 대기, 사용자가 Enter (Allow once)
 - **Then** modal open 동안 viewport 메시지 길이 변화 없음, modal close 후 4번째/5번째 chunk 가 viewport 에 순서대로 추가됨, 누락 없음
 
-**AC-CLITUI-007 — Statusbar token throughput 표시 (REQ-CLITUI-011)**
+**AC-CLITUI-007 — Statusbar token throughput 표시 (REQ-CLITUI-011)** — ✅ [IMPLEMENTED: PR #108]
 - **Given** TUI streaming 활성, mock 이 매 100ms 마다 10 token chunk yield (총 5 chunk = 500ms = 50 tokens)
 - **When** 1 second 대기 후 statusbar 캡처
 - **Then** statusbar 에 `streaming` spinner frame, `↑ 50 tok`, `100 t/s` 근사값 (±10%), `~1.0s` elapsed, `Ctrl-C: abort` hint 모두 포함. snapshot `streaming_in_progress.golden` 일치 (elapsed 와 throughput 은 fixed clock + deterministic mock 으로 결정성)
 
-**AC-CLITUI-008 — Streaming aborted snapshot (REQ-CLITUI-011, CLI-001 REQ-CLI-009 회귀)**
+**AC-CLITUI-008 — Streaming aborted snapshot (REQ-CLITUI-011, CLI-001 REQ-CLI-009 회귀)** — ✅ [IMPLEMENTED: PR #108]
 - **Given** TUI streaming 활성
 - **When** 사용자가 Ctrl-C (1회, confirmQuit 모드 진입)
 - **Then** snapshot `streaming_aborted.golden` 일치. 후속 Ctrl-C 는 quit, 후속 다른 키는 cancel-confirm — 본 SPEC 은 CLI-001 동작 보존만 검증
 
-**AC-CLITUI-009 — Multi-line editor toggle (REQ-CLITUI-008)**
+**AC-CLITUI-009 — Multi-line editor toggle (REQ-CLITUI-008)** — ✅ [IMPLEMENTED: PR #108]
 - **Given** TUI 활성, single-line mode (textinput), 입력 내용 = "hello\n"
 - **When** 사용자가 Ctrl-N
 - **Then** mode=multi (textarea), 기존 "hello\n" 버퍼 보존, focus 가 textarea 로 이동, snapshot `editor_multiline.golden` 일치
 
-**AC-CLITUI-010 — Multi-line Ctrl-J inserts newline, Enter sends (REQ-CLITUI-008)**
+**AC-CLITUI-010 — Multi-line Ctrl-J inserts newline, Enter sends (REQ-CLITUI-008)** — ✅ [IMPLEMENTED: PR #108]
 - **Given** TUI multi-line mode, 입력 = "line1"
 - **When** 사용자가 Ctrl-J → "line2" 타이핑 → Enter
 - **Then** ChatStream 에 송신된 user message content = "line1\nline2", input cleared, mode 는 multi 유지
 
-**AC-CLITUI-011 — Markdown code rendering (REQ-CLITUI-013)**
+**AC-CLITUI-011 — Markdown code rendering (REQ-CLITUI-013)** — ✅ [IMPLEMENTED: PR #108]
 - **Given** assistant message content = `"Here is code:\n\n` + ` ``` `+`go\nfunc main() {}\n`+` ``` `+`\n"`
 - **When** message 가 viewport 에 추가됨
 - **Then** glamour 가 `func main() {}` 를 chroma 로 색상 강조 (테스트는 ascii termenv 이므로 색상 대신 box border 또는 indent 검증), raw markdown ` ``` ` 마커는 viewport 출력에 없음 (glamour 가 제거)
 
-**AC-CLITUI-012 — `/save <name>` writes jsonl (REQ-CLITUI-010)**
+**AC-CLITUI-012 — `/save <name>` writes jsonl (REQ-CLITUI-010)** — ✅ [IMPLEMENTED: PR #110]
 - **Given** TUI 활성, 1 user + 1 assistant 메시지, tmpdir HOME
 - **When** 사용자가 `/save test01` 입력 후 Enter
 - **Then** `~/.goose/sessions/test01.jsonl` 파일 생성 (atomic), 2 줄 (user/assistant), system message `[saved: test01]` viewport 표시
 
-**AC-CLITUI-013 — `/load <name>` restores session (REQ-CLITUI-010)**
+**AC-CLITUI-013 — `/load <name>` restores session (REQ-CLITUI-010)** — ✅ [IMPLEMENTED: PR #110]
 - **Given** `~/.goose/sessions/test01.jsonl` 에 2 메시지 존재, TUI 활성 (현재 0 메시지)
 - **When** 사용자가 `/load test01` 입력 후 Enter
 - **Then** viewport 에 2 메시지 복원, system message `[loaded: test01, 2 messages]` 표시, 다음 ChatStream 호출이 `WithInitialMessages` 로 2 메시지 포함
 
-**AC-CLITUI-014 — Ctrl-R recent menu (REQ-CLITUI-007)**
+**AC-CLITUI-014 — Ctrl-R recent menu (REQ-CLITUI-007)** — ⏸️ [DEFERRED: CLI-TUI-003]
 - **Given** `~/.goose/sessions/` 에 3 개 jsonl (mtime 다름), TUI 활성
 - **When** 사용자가 Ctrl-R
 - **Then** sessionmenu overlay 열림, 3 entry mtime desc 정렬, 첫 번째 cursor 강조, snapshot `session_menu_open.golden` 일치. Esc → overlay 닫힘 (no side effect)
 
-**AC-CLITUI-015 — Ctrl-Up edit last user message (REQ-CLITUI-009)**
+**AC-CLITUI-015 — Ctrl-Up edit last user message (REQ-CLITUI-009)** — ⏸️ [DEFERRED: CLI-TUI-003]
 - **Given** TUI 활성, messages = `[user:"hello", assistant:"hi"]`, input 비어있음
 - **When** 사용자가 Ctrl-Up → input 에 "hello world" 로 변경 → Enter
 - **Then** messages 슬라이스에서 기존 `user:"hello"` + `assistant:"hi"` 제거, `user:"hello world"` 추가, ChatStream 호출 (재전송), 새 assistant 응답 도착 시 append. `editingMessageIndex` 는 -1 로 reset
 
-**AC-CLITUI-016 — Cost estimate (REQ-CLITUI-014)**
+**AC-CLITUI-016 — Cost estimate (REQ-CLITUI-014)** — ✅ [IMPLEMENTED: PR #108]
 - **Given** TUI streaming 활성, config `cli.pricing.claude-3-5-sonnet.input_per_million=3.0`, `output_per_million=15.0`, mock provider 가 stream 종료 시 `usage{input_tokens:1000, output_tokens:500}` 포함
 - **When** stream 종료 후 statusbar 캡처
 - **Then** statusbar 우측에 `~$0.0105` 표시 (1000 × 3.0/1e6 + 500 × 15.0/1e6 = 0.003 + 0.0075 = 0.0105), graceful no-op 검증: pricing 키 부재 시 cost 부분 미표시 (no error)
 
-**AC-CLITUI-017 — Slash help local snapshot 회귀 (CLI-001 AC-CLI-008 보강)**
+**AC-CLITUI-017 — Slash help local snapshot 회귀 (CLI-001 AC-CLI-008 보강)** — ✅ [IMPLEMENTED: PR #107]
 - **Given** TUI 활성
 - **When** 사용자가 `/help` 입력 후 Enter
 - **Then** snapshot `slash_help_local.golden` 일치, 네트워크 호출 0회 (mock client.ChatStream invocation count == 0 — CLI-001 REQ-CLI-021 회귀 보호)
 
-**AC-CLITUI-018 — In-TUI text language conformance (REQ-CLITUI-005)**
+**AC-CLITUI-018 — In-TUI text language conformance (REQ-CLITUI-005)** — ⏸️ [DEFERRED: CLI-TUI-003]
 - **Given** `.moai/config/sections/language.yaml` 의 `language.conversation_language=ko`, TUI 시작 직후
 - **When** 다음 4개 표면을 캡처: (a) statusbar idle 상태 prompt, (b) `/help` 응답 system message, (c) permission modal label/button 텍스트, (d) `Ctrl-R` session menu 헤더
 - **Then** 각 표면의 자연어 부분(키 라벨 `Ctrl-R`/`Tab`/`Enter`, 도구명 `Bash`/`FileWrite`, 파일 경로는 제외)에 ko 로컬라이즈된 사전 정의 substring 1개 이상 포함 (예: `세션:`, `대화 명령어`, `이 도구 호출을 허용하시겠습니까?`, `최근 세션`)
