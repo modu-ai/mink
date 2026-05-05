@@ -1,9 +1,9 @@
 ---
 id: SPEC-GOOSE-SCHEDULER-001
 version: 0.2.0
-status: draft
+status: audit-ready
 created_at: 2026-04-22
-updated_at: 2026-04-25
+updated_at: 2026-05-05
 author: manager-spec
 priority: critical
 issue_number: null
