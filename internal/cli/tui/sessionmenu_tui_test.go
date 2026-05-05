@@ -4,7 +4,6 @@ package tui
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -46,7 +45,7 @@ func writeSession(t *testing.T, dir, name string, mtime time.Time, msgs ...strin
 		if i%2 == 1 {
 			role = "assistant"
 		}
-		_ = enc.Encode(map[string]interface{}{"role": role, "content": content, "ts": 0})
+		_ = enc.Encode(map[string]any{"role": role, "content": content, "ts": 0})
 	}
 	f.Close()
 	if err := os.Chtimes(path, mtime, mtime); err != nil {
@@ -286,10 +285,4 @@ func TestSessionMenu_CtrlR_IgnoredWhenPermModalActive(t *testing.T) {
 	if m.sessionMenuState.IsOpen() {
 		t.Error("Ctrl-R should be ignored when permission modal is active")
 	}
-}
-
-// fmtLoaded is shared by TestSessionMenu_Navigation_LoadsOnEnter and related tests.
-// Matches the format string from i18n catalog.
-func fmtLoaded(name string, n int) string {
-	return fmt.Sprintf("[loaded: %s, %d messages]", name, n)
 }

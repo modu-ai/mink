@@ -69,9 +69,7 @@ func TestSessionMenu_Loader_CapsTen(t *testing.T) {
 	defer cleanup()
 
 	base := time.Now()
-	for i := 0; i < 15; i++ {
-		name := filepath.Join("session", string(rune('a'+i)))
-		_ = name
+	for i := range 15 {
 		createDummySession(t, sessDir, string(rune('a'+i)), base.Add(time.Duration(-i)*time.Minute))
 	}
 
