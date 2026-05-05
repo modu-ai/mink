@@ -87,7 +87,7 @@ func handleHelp() string {
 
 // handleSave saves the current session.
 // @MX:TODO Implement actual session save in Phase D.
-func handleSave(cmd SlashCmd, m *Model) (string, tea.Cmd) {
+func handleSave(cmd SlashCmd, _ *Model) (string, tea.Cmd) {
 	if len(cmd.Args) == 0 {
 		return "Usage: /save <name>", nil
 	}
@@ -99,7 +99,7 @@ func handleSave(cmd SlashCmd, m *Model) (string, tea.Cmd) {
 
 // handleLoad loads a session.
 // @MX:TODO Implement actual session load in Phase D.
-func handleLoad(cmd SlashCmd, m *Model) (string, tea.Cmd) {
+func handleLoad(cmd SlashCmd, _ *Model) (string, tea.Cmd) {
 	if len(cmd.Args) == 0 {
 		return "Usage: /load <name>", nil
 	}

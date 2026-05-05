@@ -58,7 +58,7 @@ func TestSnapshot_Helper_FixedClock(t *testing.T) {
 	fixed := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
 	clock := snapshots.FixedClock(fixed)
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		got := clock()
 		if !got.Equal(fixed) {
 			t.Fatalf("call %d: expected %v, got %v", i, fixed, got)
