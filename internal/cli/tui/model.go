@@ -121,6 +121,11 @@ type Model struct {
 	// sessionMenuState is the Ctrl-R session picker overlay.
 	// SPEC-GOOSE-CLI-TUI-003 P2 REQ-CLITUI3-003
 	sessionMenuState sessionmenu.Model
+
+	// editingMessageIndex is -1 when not in edit mode.
+	// Set to the slice index of the user message being edited (REQ-CLITUI3-005).
+	// SPEC-GOOSE-CLI-TUI-003 P3
+	editingMessageIndex int
 }
 
 // NewModel creates a new TUI model with default state.
@@ -135,17 +140,18 @@ func NewModel(client DaemonClient, sessionName string, noColor bool) *Model {
 	vp := viewport.New(0, 0)
 
 	return &Model{
-		client:      client,
-		sessionName: sessionName,
-		messages:    make([]ChatMessage, 0),
-		input:       ti,
-		editor:      editor.New(),
-		viewport:    vp,
-		streaming:   false,
-		quitting:    false,
-		confirmQuit: false,
-		noColor:     noColor,
-		clock:       time.Now,
+		client:              client,
+		sessionName:         sessionName,
+		messages:            make([]ChatMessage, 0),
+		input:               ti,
+		editor:              editor.New(),
+		viewport:            vp,
+		streaming:           false,
+		quitting:            false,
+		confirmQuit:         false,
+		noColor:             noColor,
+		clock:               time.Now,
+		editingMessageIndex: -1,
 		// Pre-populate with the default (en) catalog so the model is usable
 		// before Init() is called (e.g., in unit tests that call View() directly).
 		// Init() will overwrite with the locale-appropriate catalog.

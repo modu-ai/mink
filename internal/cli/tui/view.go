@@ -155,14 +155,18 @@ func (m *Model) renderStreamingStatusBar(applyStyle func(lipgloss.Style) lipglos
 }
 
 // renderInputArea generates the input field with prompt.
-// @MX:NOTE This renders the text input field with the ">" prompt.
+// Shows catalog.EditPrompt when in edit mode (SPEC-GOOSE-CLI-TUI-003 P3 REQ-CLITUI3-005).
+// @MX:NOTE This renders the text input field with the ">" prompt or edit prompt.
 func (m *Model) renderInputArea(applyStyle func(lipgloss.Style) lipgloss.Style) string {
 	prompt := "> "
+	if m.editingMessageIndex >= 0 {
+		prompt = m.catalog.EditPrompt // "(edit)> " in en, "(편집)> " in ko
+	}
 	if m.noColor {
 		return prompt + m.input.View()
 	}
 
-	// Apply green color to prompt if enabled
+	// Apply green color to prompt if enabled.
 	promptStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("86")) // Green
 	return applyStyle(promptStyle).Render(prompt) + m.input.View()
 }
