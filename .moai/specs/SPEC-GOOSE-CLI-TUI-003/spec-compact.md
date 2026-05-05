@@ -2,7 +2,7 @@
 
 > CLI-TUI-002 이월 항목 3 개를 정식 SPEC 으로 분리. ~30% token saving 의 implementation reference snapshot.
 
-**Meta**: id=SPEC-GOOSE-CLI-TUI-003 | version=0.1.0 | status=draft | priority=P1 | depends=SPEC-GOOSE-CLI-TUI-002, SPEC-GOOSE-CLI-001, SPEC-GOOSE-CONFIG-001
+**Meta**: id=SPEC-GOOSE-CLI-TUI-003 | version=0.1.0 | status=implemented | priority=P1 | depends=SPEC-GOOSE-CLI-TUI-002, SPEC-GOOSE-CLI-001, SPEC-GOOSE-CONFIG-001
 
 ---
 
