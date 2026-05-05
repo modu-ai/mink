@@ -4,6 +4,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -257,42 +258,32 @@ func (m *Model) saveSession() tea.Cmd {
 // updateViewport refreshes the viewport content with current messages.
 // @MX:NOTE This regenerates the viewport content from the messages slice.
 func (m *Model) updateViewport() {
-	// Build viewport content from messages
-	content := ""
+	var sb strings.Builder
 	for _, msg := range m.messages {
 		role := msg.Role
-		if role == "user" {
+		switch role {
+		case "user":
 			role = "You"
-		} else if role == "assistant" {
+		case "assistant":
 			role = "AI"
 		}
 
-		// Add role prefix with color if enabled
 		if !m.noColor {
 			var style lipgloss.Style
-			if msg.Role == "user" {
+			switch msg.Role {
+			case "user":
 				style = lipgloss.NewStyle().Foreground(lipgloss.Color("86")) // Green
-			} else if msg.Role == "assistant" {
+			case "assistant":
 				style = lipgloss.NewStyle().Foreground(lipgloss.Color("228")) // Yellow
-			} else {
+			default:
 				style = lipgloss.NewStyle().Foreground(lipgloss.Color("241")) // Gray
 			}
-			content += style.Render(role+": ") + msg.Content + "\n\n"
+			sb.WriteString(style.Render(role+": ") + msg.Content + "\n\n")
 		} else {
-			content += role + ": " + msg.Content + "\n\n"
+			sb.WriteString(role + ": " + msg.Content + "\n\n")
 		}
 	}
 
-	m.viewport.SetContent(content)
-	// Auto-scroll to bottom
+	m.viewport.SetContent(sb.String())
 	m.viewport.GotoBottom()
-}
-
-// max returns the maximum of two integers.
-// @MX:NOTE Go 1.21 has min/max built-in, but we support 1.26.
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }
