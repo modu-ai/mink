@@ -25,10 +25,11 @@ Session: test-session | Daemon:  | Messages: 0
 | Permission Request: Bash        |
 +----------------------------------+
 |                                  |
+| Allow this tool call?            |
 | > Allow once                     |
-|   Allow always                   |
+|   Allow always (this tool)       |
 |   Deny once                      |
-|   Deny always                    |
+|   Deny always (this tool)        |
 |                                  |
 | [Up/Down] navigate [Enter] select|
 | [Esc] deny once                  |

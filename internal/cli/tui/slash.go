@@ -52,7 +52,7 @@ func ParseSlashCmd(input string) (SlashCmd, bool) {
 func HandleSlashCmd(cmd SlashCmd, m *Model) (string, tea.Cmd) {
 	switch cmd.Name {
 	case "help":
-		return handleHelp(), nil
+		return handleHelp(m), nil
 
 	case "save":
 		return handleSave(cmd, m)
@@ -74,11 +74,10 @@ func HandleSlashCmd(cmd SlashCmd, m *Model) (string, tea.Cmd) {
 	}
 }
 
-// handleHelp displays available slash commands.
+// handleHelp displays available slash commands using the locale catalog header.
 // @MX:NOTE This provides in-TUI help without external documentation.
-func handleHelp() string {
-	return `Available slash commands:
-  /help       Show this help
+func handleHelp(m *Model) string {
+	return m.catalog.SlashHelpHeader + "\n" + `  /help       Show this help
   /save <name> Save session
   /load <name> Load session
   /clear      Clear chat history
@@ -111,7 +110,7 @@ func handleSave(cmd SlashCmd, m *Model) (string, tea.Cmd) {
 		return fmt.Sprintf("[Error saving session: %v]", err), nil
 	}
 
-	return fmt.Sprintf("[saved: %s]", name), nil
+	return fmt.Sprintf(m.catalog.Saved, name), nil
 }
 
 // handleLoad loads a session from ~/.goose/sessions/<name>.jsonl into the model.
@@ -145,7 +144,7 @@ func handleLoad(cmd SlashCmd, m *Model) (string, tea.Cmd) {
 
 	m.updateViewport()
 
-	return fmt.Sprintf("[loaded: %s, %d messages]", name, len(chatMsgs)), nil
+	return fmt.Sprintf(m.catalog.Loaded, name, len(chatMsgs)), nil
 }
 
 // handleClear clears the chat history.
