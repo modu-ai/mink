@@ -11,7 +11,7 @@ created_at: 2026-05-05
 
 ## 목적
 
-GOOSE-AGENT 의 8개 web 정보 접근 도구 (`web_search`, `web_browse`, `web_rss`, `web_wikipedia`, `web_arxiv`, `web_maps`, `web_wayback`, `http_fetch`) 를 정의. TOOLS-001 Tool Registry 에 등록되며 PERMISSION-001 / FS-ACCESS-001 / SECURITY-SANDBOX-001 / RATELIMIT-001 / AUDIT-001 과 통합.
+AI.GOOSE 의 8개 web 정보 접근 도구 (`web_search`, `web_browse`, `web_rss`, `web_wikipedia`, `web_arxiv`, `web_maps`, `web_wayback`, `http_fetch`) 를 정의. TOOLS-001 Tool Registry 에 등록되며 PERMISSION-001 / FS-ACCESS-001 / SECURITY-SANDBOX-001 / RATELIMIT-001 / AUDIT-001 과 통합.
 
 ## 핵심 계약
 
