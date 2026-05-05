@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -111,6 +112,18 @@ func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// Normal message send
 			return m.sendMessage()
 		}
+		return m, nil
+
+	case tea.KeyCtrlN:
+		// Ctrl+N toggles editor mode (single ↔ multi-line), syncing buffer from legacy input.
+		// Sync current legacy input value to editor before toggle.
+		currentVal := m.input.Value()
+		if currentVal != "" {
+			m.editor = m.editor.SetValue(currentVal)
+		}
+		m.editor, _ = m.editor.Update(msg)
+		// Keep legacy input in sync.
+		m.input.SetValue(m.editor.Value())
 		return m, nil
 
 	case tea.KeyCtrlS:
@@ -257,6 +270,7 @@ func (m *Model) saveSession() tea.Cmd {
 
 // updateViewport refreshes the viewport content with current messages.
 // @MX:NOTE This regenerates the viewport content from the messages slice.
+// Assistant messages are rendered through glamour for markdown formatting.
 func (m *Model) updateViewport() {
 	var sb strings.Builder
 	for _, msg := range m.messages {
@@ -266,6 +280,13 @@ func (m *Model) updateViewport() {
 			role = "You"
 		case "assistant":
 			role = "AI"
+		}
+
+		content := msg.Content
+
+		// Render assistant messages through glamour for markdown support.
+		if msg.Role == "assistant" {
+			content = renderMarkdown(content)
 		}
 
 		if !m.noColor {
@@ -278,12 +299,22 @@ func (m *Model) updateViewport() {
 			default:
 				style = lipgloss.NewStyle().Foreground(lipgloss.Color("241")) // Gray
 			}
-			sb.WriteString(style.Render(role+": ") + msg.Content + "\n\n")
+			sb.WriteString(style.Render(role+": ") + content + "\n\n")
 		} else {
-			sb.WriteString(role + ": " + msg.Content + "\n\n")
+			sb.WriteString(role + ": " + content + "\n\n")
 		}
 	}
 
 	m.viewport.SetContent(sb.String())
 	m.viewport.GotoBottom()
+}
+
+// renderMarkdown renders markdown content using glamour with ascii style.
+// Returns the original content on error to avoid losing information.
+func renderMarkdown(content string) string {
+	rendered, err := glamour.Render(content, "ascii")
+	if err != nil {
+		return content
+	}
+	return rendered
 }

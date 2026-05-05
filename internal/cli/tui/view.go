@@ -3,6 +3,8 @@ package tui
 
 import (
 	"fmt"
+	"math"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
 )
@@ -41,9 +43,17 @@ func (m *Model) View() string {
 	)
 }
 
+// spinnerFrames is a simple spinner character cycle used during streaming.
+var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+
 // renderStatusBar generates the status bar showing session and daemon info.
-// @MX:NOTE This displays session name, daemon address, and streaming state.
+// @MX:WARN: [AUTO] Complexity ≥15 — streaming + permission + cost branches.
+// @MX:REASON: fan_in >= 3 and ≥15 if-branches: streaming, cost, color, confirmQuit, session all branch here.
 func (m *Model) renderStatusBar(applyStyle func(lipgloss.Style) lipgloss.Style) string {
+	if m.streaming {
+		return m.renderStreamingStatusBar(applyStyle)
+	}
+
 	statusText := ""
 	if m.sessionName != "" {
 		statusText = "Session: " + m.sessionName
@@ -52,17 +62,69 @@ func (m *Model) renderStatusBar(applyStyle func(lipgloss.Style) lipgloss.Style) 
 	}
 
 	daemonStatus := " | Daemon: " + m.daemonAddr
-	if m.streaming {
-		daemonStatus += " [Streaming...]"
-	}
 
 	// Phase C4: surface chat history depth so users can see at a glance how
 	// long the current session has grown.
 	msgCount := fmt.Sprintf(" | Messages: %d", len(m.messages))
 
-	rendered := statusText + daemonStatus + msgCount
+	// Cost estimate (optional, shown after streaming completes).
+	costStr := ""
+	if m.cumulativeCost > 0 && m.pricing != nil {
+		costStr = fmt.Sprintf(" | ~$%.4f", m.cumulativeCost)
+	}
 
-	// Apply faint style if color is enabled
+	rendered := statusText + daemonStatus + msgCount + costStr
+
+	// Apply faint style if color is enabled.
+	if !m.noColor {
+		baseStyle := lipgloss.NewStyle().Faint(true)
+		return applyStyle(baseStyle).Render(rendered)
+	}
+	return rendered
+}
+
+// renderStreamingStatusBar renders the statusbar during active streaming.
+// Shows spinner, token count, throughput, elapsed time, abort hint, and cost.
+func (m *Model) renderStreamingStatusBar(applyStyle func(lipgloss.Style) lipgloss.Style) string {
+	// Spinner frame based on token count (changes with each update).
+	frame := spinnerFrames[m.tokenCount%len(spinnerFrames)]
+
+	// Token count.
+	tokStr := fmt.Sprintf("↑ %d tok", m.tokenCount)
+
+	// Throughput (t/s).
+	throughput := m.currentThroughput
+	if throughput < 0 || math.IsNaN(throughput) {
+		throughput = 0
+	}
+	rateStr := fmt.Sprintf("~%.0f t/s", throughput)
+
+	// Elapsed time (use injectable clock for deterministic tests).
+	elapsed := time.Duration(0)
+	if !m.streamStartTime.IsZero() {
+		now := time.Now()
+		if m.clock != nil {
+			now = m.clock()
+		}
+		elapsed = now.Sub(m.streamStartTime)
+		if elapsed < 0 {
+			elapsed = 0
+		}
+	}
+	elapsedStr := fmt.Sprintf("%.1fs elapsed", elapsed.Seconds())
+
+	// Cost estimate (optional).
+	costStr := ""
+	if m.cumulativeCost > 0 && m.pricing != nil {
+		costStr = fmt.Sprintf(" | ~$%.4f", m.cumulativeCost)
+	}
+
+	// Abort hint.
+	abortHint := "Ctrl-C: abort"
+
+	// "Streaming" label preserved for backward compat with existing tests.
+	rendered := fmt.Sprintf("%s Streaming | %s | %s | %s%s | %s", frame, tokStr, rateStr, elapsedStr, costStr, abortHint)
+
 	if !m.noColor {
 		baseStyle := lipgloss.NewStyle().Faint(true)
 		return applyStyle(baseStyle).Render(rendered)
