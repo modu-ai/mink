@@ -11,7 +11,7 @@ MoAI's three-phase development workflow with token budget management.
 | Phase | Command | Agent | Token Budget | Purpose |
 |-------|---------|-------|--------------|---------|
 | Plan | /moai plan | manager-spec | 30K | Create SPEC document |
-| Run | /moai run | manager-ddd/tdd (per quality.yaml) | 180K | DDD/TDD implementation |
+| Run | /moai run | manager-cycle (per quality.yaml development_mode) | 180K | DDD/TDD implementation |
 | Sync | /moai sync | manager-docs | 40K | Documentation sync |
 
 ## Plan Phase
@@ -45,9 +45,55 @@ Token Strategy:
 - Selective file loading
 - Enables 70% larger implementations
 
-Development Methodology:
-- Configured in quality.yaml (development_mode: ddd or tdd)
-- See @workflow-modes.md for detailed methodology cycles
+Development Methodology (configured in quality.yaml development_mode):
+
+### DDD Mode — ANALYZE-PRESERVE-IMPROVE
+
+Best for existing projects with < 10% test coverage. Uses manager-cycle agent with cycle_type=ddd.
+
+**ANALYZE**: Read existing code, map domain boundaries, identify side effects and implicit contracts.
+**PRESERVE**: Write characterization tests capturing current behavior. Create behavior snapshots for regression detection.
+**IMPROVE**: Make small incremental changes. Run characterization tests after each change. Refactor with test validation.
+
+### TDD Mode — RED-GREEN-REFACTOR (default)
+
+Best for all development work, new projects, and brownfield with 10%+ coverage. Uses manager-cycle agent with cycle_type=tdd.
+
+**RED**: Write a failing test describing desired behavior. Verify it fails. One test at a time.
+**GREEN**: Write simplest implementation that passes. No premature optimization.
+**REFACTOR**: Clean up while keeping tests green. Extract patterns, remove duplication.
+
+Brownfield enhancement: Pre-RED step reads existing code to understand current behavior before writing the failing test.
+
+### Methodology Auto-Detection
+
+| Project State | Test Coverage | Recommendation |
+|--------------|---------------|----------------|
+| Greenfield (new) | N/A | TDD |
+| Brownfield | >= 10% | TDD |
+| Brownfield | < 10% | DDD |
+
+Manual override: `quality.development_mode` in quality.yaml, `MOAI_DEVELOPMENT_MODE` env var, or `moai init --mode <ddd|tdd>`.
+
+### Pre-submission Self-Review
+
+Before marking implementation complete: review full diff against SPEC acceptance criteria. Ask "Is there a simpler approach?" and "Would removing any changes still satisfy the SPEC?" Skip for single-file changes under 50 lines, bug fixes with reproduction test, or user-approved annotation cycle changes.
+
+### Drift Guard
+
+After each methodology cycle, compare planned files against actual modifications. Warns at <= 30% drift. Triggers re-planning (Phase 2.7) above 30%.
+
+### Team Mode Methodology
+
+Each teammate applies the methodology within their file ownership scope. team-validator validates compliance. team-tester exclusively owns test files.
+
+### MX Tag Integration
+
+| Phase | TDD Action | DDD Action |
+|-------|-----------|-----------|
+| Test/Analyze | RED: add `@MX:TODO` | ANALYZE: 3-Pass scan, identify targets |
+| Implement/Preserve | GREEN: remove `@MX:TODO` | PRESERVE: validate tags, add `@MX:LEGACY` |
+| Refactor/Improve | REFACTOR: add `@MX:NOTE` | IMPROVE: update tags, add `@MX:NOTE` |
 
 Success Criteria:
 - All SPEC requirements implemented
@@ -67,7 +113,7 @@ Triggers:
 - Agent explicitly reports inability to meet a SPEC requirement
 
 Communication path:
-- Implementation agent (manager-ddd/tdd) detects trigger condition
+- Implementation agent (manager-cycle) detects trigger condition
 - Agent returns structured stagnation report to MoAI (agents cannot call AskUserQuestion)
 - MoAI presents gap analysis to user via AskUserQuestion with options:
   - Continue with current approach (minor adjustments needed)
@@ -119,7 +165,43 @@ Progressive Disclosure:
 
 Plan to Run:
 - Trigger: SPEC document approved (annotation cycle completed, user confirmed "Proceed")
+- Pre-condition: plan.md records `plan_complete_at` + `plan_status: audit-ready` in progress.md
 - Action: Execute /clear, then /moai run SPEC-XXX
+- Gate: `/moai run` Phase 0.5 (Plan Audit Gate) executes automatically before any implementation.
+  See "Phase 0.5: Plan Audit Gate" section below for details.
+
+## Phase 0.5: Plan Audit Gate
+
+The Plan Audit Gate is a mandatory protocol executed at the start of every `/moai run` invocation,
+before any implementation phase begins. The gate invokes the plan-auditor subagent to independently
+review all SPEC plan artifacts. It prevents unreviewed or incomplete SPEC artifacts from entering
+the implementation phase. Source: SPEC-WF-AUDIT-GATE-001.
+
+### Gate Entry Condition
+
+- Triggered on every `/moai run <SPEC-ID>` invocation (REQ-WAG-001)
+- Applies in both solo mode (workflows/run.md) and team mode (team/run.md)
+- Cannot be skipped by harness level — gate is never disabled, not even on `minimal`
+
+### Verdicts
+
+| Verdict | Meaning | Action |
+|---------|---------|--------|
+| `PASS` | All must-pass criteria met | Persist to progress.md, proceed to Phase 1 |
+| `FAIL` | One or more must-pass criteria failed | Block Phase 1, surface report, AskUserQuestion |
+| `BYPASSED` | User passed `--skip-audit` or set `MOAI_SKIP_PLAN_AUDIT=1` | Record bypass in report, proceed |
+| `INCONCLUSIVE` | Auditor timed out, errored, or returned malformed output | Block, AskUserQuestion (retry/proceed/abort) |
+
+### Report Persistence
+
+Every gate call persists a record at `.moai/reports/plan-audit/<SPEC-ID>-<YYYY-MM-DD>.md`.
+Multiple calls on the same day append to the same file. Reports are local artifacts (gitignored).
+
+### Grace Window
+
+7-day grace window after SPEC-WF-AUDIT-GATE-001 merge: FAIL verdicts emit warnings only (FAIL_WARNED),
+not blocking. After grace window expires, FAIL verdicts block Phase 1 unconditionally.
+Grace window start: `.moai/state/audit-gate-merge-at.txt` (ISO-8601 timestamp).
 
 Run to Sync:
 - Trigger: Implementation complete, tests passing
