@@ -146,13 +146,6 @@ func (m *Model) renderStreamingStatusBar(applyStyle func(lipgloss.Style) lipglos
 	return rendered
 }
 
-// renderSessionMenuOverlay returns the sessionmenu overlay when open.
-// Returns empty string — to be implemented in P2.
-// SPEC-GOOSE-CLI-TUI-003 P2 REQ-CLITUI3-003
-func (m *Model) renderSessionMenuOverlay() string {
-	return ""
-}
-
 // renderInputArea generates the input field with prompt.
 // @MX:NOTE This renders the text input field with the ">" prompt.
 func (m *Model) renderInputArea(applyStyle func(lipgloss.Style) lipgloss.Style) string {
