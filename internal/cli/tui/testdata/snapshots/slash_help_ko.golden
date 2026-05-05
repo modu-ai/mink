@@ -1,0 +1,23 @@
+세션: test | 데몬:  | 메시지: 1                                                 
+system: 대화 명령어                                                             
+  /help       Show this help                                                    
+  /save <name> Save session                                                     
+  /load <name> Load session                                                     
+  /clear      Clear chat history                                                
+  /quit       Exit TUI                                                          
+  /session    Show current session name                                         
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+> > Type a message...                                                           

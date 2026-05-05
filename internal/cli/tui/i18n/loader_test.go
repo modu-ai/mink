@@ -7,99 +7,61 @@ import (
 	"testing"
 )
 
-// TestI18N_Loader_LoadsKoFromYaml verifies that Load() reads ko catalog when
+// writeYAML writes a minimal language.yaml to dir/.moai/config/sections/ and returns the path.
+func writeYAML(t *testing.T, dir, lang string) string {
+	t.Helper()
+	configDir := filepath.Join(dir, ".moai", "config", "sections")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	yamlPath := filepath.Join(configDir, "language.yaml")
+	content := "language:\n  conversation_language: " + lang + "\n"
+	if err := os.WriteFile(yamlPath, []byte(content), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	return yamlPath
+}
+
+// TestI18N_Loader_LoadsKoFromYaml verifies that LoadFrom() reads ko catalog when
 // language.yaml specifies conversation_language: ko. REQ-CLITUI3-001
 func TestI18N_Loader_LoadsKoFromYaml(t *testing.T) {
 	t.Parallel()
 
-	// Create a temp dir with a language.yaml file.
 	dir := t.TempDir()
-	configDir := filepath.Join(dir, ".moai", "config", "sections")
-	if err := os.MkdirAll(configDir, 0o755); err != nil {
-		t.Fatalf("failed to create config dir: %v", err)
-	}
-	yamlContent := "language:\n  conversation_language: ko\n"
-	yamlPath := filepath.Join(configDir, "language.yaml")
-	if err := os.WriteFile(yamlPath, []byte(yamlContent), 0o644); err != nil {
-		t.Fatalf("failed to write language.yaml: %v", err)
-	}
+	yamlPath := writeYAML(t, dir, "ko")
 
-	// Set CWD to the temp dir so Load() finds the yaml.
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("failed to get cwd: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = os.Chdir(origDir)
-	})
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("failed to chdir: %v", err)
-	}
-
-	cat := Load()
+	cat := LoadFrom(yamlPath)
 	if cat.Lang != "ko" {
-		t.Errorf("Load().Lang = %q, want %q", cat.Lang, "ko")
+		t.Errorf("LoadFrom().Lang = %q, want %q", cat.Lang, "ko")
 	}
 }
 
-// TestI18N_Loader_DefaultsToEnglish verifies that Load() returns en catalog
-// when no language.yaml is found. REQ-CLITUI3-001
+// TestI18N_Loader_DefaultsToEnglish verifies that LoadFrom() returns en catalog
+// when the YAML file does not exist. REQ-CLITUI3-001
 func TestI18N_Loader_DefaultsToEnglish(t *testing.T) {
 	t.Parallel()
 
-	// Use a temp dir with no yaml file.
-	dir := t.TempDir()
+	absent := filepath.Join(t.TempDir(), "nonexistent.yaml")
 
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("failed to get cwd: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = os.Chdir(origDir)
-	})
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("failed to chdir: %v", err)
-	}
-
-	cat := Load()
+	cat := LoadFrom(absent)
 	if cat.Lang != "en" {
-		t.Errorf("Load().Lang = %q, want %q (default fallback)", cat.Lang, "en")
+		t.Errorf("LoadFrom(absent).Lang = %q, want %q (default)", cat.Lang, "en")
 	}
 	if cat != Catalogs["en"] {
-		t.Error("Load() must return en catalog when yaml is absent")
+		t.Error("LoadFrom(absent) must return en catalog")
 	}
 }
 
-// TestI18N_Loader_UnknownLangFallback verifies that Load() returns en catalog
+// TestI18N_Loader_UnknownLangFallback verifies that LoadFrom() returns en catalog
 // when the yaml specifies an unknown language code. REQ-CLITUI3-001
 func TestI18N_Loader_UnknownLangFallback(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	configDir := filepath.Join(dir, ".moai", "config", "sections")
-	if err := os.MkdirAll(configDir, 0o755); err != nil {
-		t.Fatalf("failed to create config dir: %v", err)
-	}
-	// "fr" is not in Catalogs.
-	yamlContent := "language:\n  conversation_language: fr\n"
-	yamlPath := filepath.Join(configDir, "language.yaml")
-	if err := os.WriteFile(yamlPath, []byte(yamlContent), 0o644); err != nil {
-		t.Fatalf("failed to write language.yaml: %v", err)
-	}
+	yamlPath := writeYAML(t, dir, "fr") // "fr" is not in Catalogs
 
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("failed to get cwd: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = os.Chdir(origDir)
-	})
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("failed to chdir: %v", err)
-	}
-
-	cat := Load()
+	cat := LoadFrom(yamlPath)
 	if cat.Lang != "en" {
-		t.Errorf("Load().Lang = %q, want %q (fallback for unknown lang)", cat.Lang, "en")
+		t.Errorf("LoadFrom(fr).Lang = %q, want %q (fallback)", cat.Lang, "en")
 	}
 }
