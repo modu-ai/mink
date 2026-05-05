@@ -143,6 +143,6 @@ All four must-pass criteria PASS or N/A. All four category scores fall within th
 
 ---
 
-Report written: 2026-05-06
+Report written: 2026-05-05
 Auditor: plan-auditor (independent, M1–M6 bias prevention active)
 Iteration history: review-1 (CONDITIONAL_GO, 0.83, 5 defects) → review-2 (PASS, 0.91, 0 defects, 5/5 regressions resolved)

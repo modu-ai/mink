@@ -22,7 +22,7 @@ Overall Score: 0.92
 - **[PASS] MP-3 YAML frontmatter validity** — `spec.md:L1-L14`.
   - `id: SPEC-GOOSE-SCHEDULER-001` (string ✓ matches SPEC-{DOMAIN}-{NUM} pattern)
   - `version: 0.2.0` (string ✓)
-  - `status: draft` (string ✓)
+  - `status: audit-ready` (string ✓)
   - `created_at: 2026-04-22` (ISO date ✓)
   - `priority: critical` (string ✓)
   - `labels: [scheduler, ritual, hook, phase-7, daily-companion]` (array ✓ — 5 entries)

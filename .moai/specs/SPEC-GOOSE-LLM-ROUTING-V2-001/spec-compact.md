@@ -2,7 +2,7 @@
 
 > ROUTER-001 v1 위에 정책·capability·ratelimit·fallback chain decorator 를 얹는 v2 라우팅 레이어. 15 direct adapter cost/latency/capability-aware routing + manual fallback chain. **OpenRouter 의도적 제외** (Sprint 1, 6 개월 후 재평가). ~30% token saving 의 implementation reference snapshot.
 
-**Meta**: id=SPEC-GOOSE-LLM-ROUTING-V2-001 | version=0.1.0 | status=draft | priority=P1 | phase=4 | size=중(M) | lifecycle=spec-anchored
+**Meta**: id=SPEC-GOOSE-LLM-ROUTING-V2-001 | version=0.1.0 | status=audit-ready | priority=P1 | phase=4 | size=중(M) | lifecycle=spec-anchored
 **Depends**: SPEC-GOOSE-ROUTER-001 (completed), SPEC-GOOSE-RATELIMIT-001, SPEC-GOOSE-ERROR-CLASS-001, SPEC-GOOSE-LLM-001, SPEC-GOOSE-ADAPTER-001, SPEC-GOOSE-ADAPTER-002
 
 ---
