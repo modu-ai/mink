@@ -1,7 +1,7 @@
 # SPEC-GOOSE-OBS-METRICS-001 Progress
 
 - Started: 2026-04-30 (plan phase)
-- Status: planned
+- Status: implemented (2026-05-05 sync phase 에서 long-standing drift 정정 — implementation 본체 PR #60 / `43c46bf` 2026-05-01 머지, augmentation PR #102 / `5c4e0a8` 2026-05-05 머지)
 - Mode: TBD (run phase 시점에 quality.yaml development_mode 확인 — 현재 default tdd)
 - Harness: standard (file_count<10 예상, 단일 Go domain — `internal/observability/metrics/`, security/payment 아님, observability 1차 도입)
 - Scale-Based Mode: Standard
@@ -279,3 +279,20 @@
     - M1: REQ-014 (no normalization) indirect 검증 narrowness — run phase test 추가 권장
     - M2: REQ-016 godoc 인용 line number 미상세 — future revision 권장
 - next_action: PR 생성 → main 머지 → /moai run SPEC-GOOSE-OBS-METRICS-001 진입 가능
+
+### 2026-05-05 sync phase — status drift 정정 + commit 매핑
+
+- 사유: implementation 본체는 PR #60 (`43c46bf`, 2026-05-01 머지) 으로 main 에 도달했으나, 당시 sync 단계가 누락되어 spec.md frontmatter `status: planned` long-standing drift 잔존. AC-019/AC-020 augmentation (REQ-004/005 직접 검증 테스트) 도 PR #102 (`5c4e0a8`, 2026-05-05 머지) 로 main 반영 완료. 누적된 drift 를 단일 sync 로 정정.
+- run phase 매핑 (cache hit — implementation 은 이전 세션에서 완료, 본 sync 는 메타 정정만 수행):
+    - implementation_commit: `43c46bf` (PR #60 — feat(observability): SPEC-GOOSE-OBS-METRICS-001 — Metrics Sink + expvar backend, 머지 2026-05-01T11:01:08Z)
+    - augmentation_commit: `5c4e0a8` (PR #102 — test(observability/metrics): AC-019/AC-020 신규 테스트 + tasks.md v1.1.0 보강, 머지 2026-05-05T00:45:59Z)
+    - tasks.md baseline: PR #60 시점 (T-001~T-009 9 task 완료) + PR #102 의 v1.1.0 보강 (AC-019/020 행 추가)
+- spec.md 변경 (sync only — 본문 변경 없음):
+    - frontmatter `version: 0.1.1` → `0.1.2`, `status: planned` → `implemented`, `updated_at: 2026-05-04` → `2026-05-05`
+    - HISTORY 표에 0.1.2 entry 추가 (sync 사유 + commit 매핑 명시)
+- consumer cross-reference (재확인 — 추가 amendment 불필요):
+    - SPEC-GOOSE-CMDCTX-TELEMETRY-001 v0.1.1 (2026-05-01 amendment) 가 본 SPEC implemented 사실 (PR #60) 을 이미 §HISTORY + §3.1 + §9 R1 으로 cite. R1 (🔴 1급 BLOCKER) 은 그 amendment 로 🟡 중 (해소) 전이 완료. 본 sync 시점에 별도 추가 amendment 작성 없이 status 정정만으로 충분.
+    - 단 v0.1.2 augmentation (AC-019/020) 정보는 TELEMETRY-001 implementation 시 본 SPEC 의 v0.1.2 contract 를 참조하면 됨 — 별도 cross-ref 불필요.
+- codemaps gap (sync 비포함 — follow-up 권장):
+    - `.moai/project/codemaps/` (PR #100 생성, 2026-05-04) 에 `internal/observability/metrics/` 디렉토리 미등재. PR #60 시점에 신규 도입된 area 임에도 codemaps 시점 (#100) 에 누락. 후속 PR 로 architecture.md / dependency-graph.md / entry-points.md 갱신 권장 (`/moai codemaps --area observability`).
+- next_action: 본 SPEC 종결 — consumer SPEC-GOOSE-CMDCTX-TELEMETRY-001 의 run phase 진입 가능 (R1 해소 + sink alias 패턴 v0.1.1 + augmented contract v0.1.2 사용 가능).
