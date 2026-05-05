@@ -18,6 +18,14 @@ func (m *Model) View() string {
 		return "Goodbye!\n"
 	}
 
+	// Sessionmenu overlay: when open, render over base view.
+	// SPEC-GOOSE-CLI-TUI-003 P2 REQ-CLITUI3-003
+	if m.sessionMenuState.IsOpen() {
+		baseView := m.renderBaseView()
+		overlayView := m.sessionMenuState.View(m.catalog.SessionMenuHeader, m.catalog.SessionMenuEmpty)
+		return baseView + "\n" + overlayView
+	}
+
 	// Permission modal overlay: when active, render modal over base view.
 	// SPEC-GOOSE-CLI-TUI-002 P3 AC-CLITUI-003
 	// Labels come from the locale catalog (SPEC-GOOSE-CLI-TUI-003 P1).
