@@ -56,7 +56,11 @@ func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 
 	case tea.KeyEscape:
-		// Escape cancels streaming
+		// Priority tier 3: edit mode cancel (REQ-CLITUI3-007).
+		if m.editingMessageIndex >= 0 {
+			return m.cancelEditMode()
+		}
+		// Priority tier 4: streaming cancel.
 		if m.streaming {
 			m.streaming = false
 			// Add a cancellation message
@@ -69,7 +73,11 @@ func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyEnter:
-		// Enter sends message (if not streaming)
+		// Edit mode: regenerate from edited content (REQ-CLITUI3-006).
+		if m.editingMessageIndex >= 0 {
+			return m.submitEditMode()
+		}
+		// Normal: send message (if not streaming).
 		if !m.streaming && m.input.Value() != "" {
 			input := m.input.Value()
 
@@ -164,6 +172,11 @@ func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, func() tea.Msg { return sessionmenu.CloseMsg{} }
 		}
 		return m, nil
+
+	case tea.KeyCtrlUp:
+		// Ctrl+Up activates edit mode for the most recent user message.
+		// SPEC-GOOSE-CLI-TUI-003 P3 REQ-CLITUI3-005, -009
+		return m.handleCtrlUp()
 	}
 
 	// Update input field
@@ -459,4 +472,74 @@ func renderMarkdown(content string) string {
 		return content
 	}
 	return rendered
+}
+
+// handleCtrlUp activates edit mode for the most recent user message.
+// No-op if streaming is active, editor is non-empty, editor is multi-line, or no user message exists.
+// SPEC-GOOSE-CLI-TUI-003 P3 REQ-CLITUI3-005, REQ-CLITUI3-009
+func (m *Model) handleCtrlUp() (tea.Model, tea.Cmd) {
+	// Guard: no-op while streaming (REQ-CLITUI3-009).
+	if m.streaming {
+		return m, nil
+	}
+	// Guard: no-op if editor is non-empty.
+	if m.editor.Value() != "" {
+		return m, nil
+	}
+	// Guard: no-op if editor is multi-line.
+	if m.editor.IsMulti() {
+		return m, nil
+	}
+	// Find the most recent user message.
+	lastUserIdx := -1
+	for i := len(m.messages) - 1; i >= 0; i-- {
+		if m.messages[i].Role == "user" {
+			lastUserIdx = i
+			break
+		}
+	}
+	if lastUserIdx < 0 {
+		return m, nil
+	}
+	// Enter edit mode.
+	m.editor = m.editor.SetValue(m.messages[lastUserIdx].Content)
+	m.editingMessageIndex = lastUserIdx
+	return m, nil
+}
+
+// cancelEditMode exits edit mode without modifying the messages slice.
+// REQ-CLITUI3-007
+func (m *Model) cancelEditMode() (tea.Model, tea.Cmd) {
+	m.editingMessageIndex = -1
+	m.editor = m.editor.SetValue("")
+	m.input.Reset()
+	return m, nil
+}
+
+// submitEditMode removes the edited user message and its paired assistant reply,
+// then submits the edited text as a new ChatStream request.
+// REQ-CLITUI3-006
+func (m *Model) submitEditMode() (tea.Model, tea.Cmd) {
+	idx := m.editingMessageIndex
+	editedContent := m.editor.Value()
+
+	// Reset edit mode first.
+	m.editingMessageIndex = -1
+	m.editor = m.editor.SetValue("")
+	m.input.Reset()
+
+	if editedContent == "" {
+		return m, nil
+	}
+
+	// Remove [idx] (user) and [idx+1] (assistant, if present).
+	if idx+1 < len(m.messages) {
+		m.messages = append(m.messages[:idx], m.messages[idx+2:]...)
+	} else {
+		m.messages = append(m.messages[:idx], m.messages[idx+1:]...)
+	}
+
+	// Submit as new message (same path as normal sendMessage).
+	m.input.SetValue(editedContent)
+	return m.sendMessage()
 }
