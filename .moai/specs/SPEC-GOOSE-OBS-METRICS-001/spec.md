@@ -626,7 +626,7 @@ run phase 시점의 implementation 산출물 (예상):
 
 ---
 
-Version: 0.1.1 (planned, P2, phase 3, size 중(M))
-Last Updated: 2026-05-04
-Status: planned — implementation 은 별도 run phase 진입.
-BLOCKER 해소 대상: `SPEC-GOOSE-CMDCTX-TELEMETRY-001` (planned, P3, 본 SPEC implemented 시 BLOCKER 해소).
+Version: 0.1.2 (implemented, P2, phase 3, size 중(M))
+Last Updated: 2026-05-05
+Status: implemented — 구현 본체 PR #60 (commit `43c46bf`, 2026-05-01 머지) + AC-019/020 augmentation PR #102 (commit `5c4e0a8`, 2026-05-05 머지) 로 main 도달. v0.1.2 sync 로 frontmatter status drift 정정 완료.
+BLOCKER 해소 대상: `SPEC-GOOSE-CMDCTX-TELEMETRY-001` (planned, P3) — 본 SPEC implemented 도달로 R1 BLOCKER 는 v0.1.1 amendment (2026-05-01) 로 해소 완료 (🔴 → 🟡).
