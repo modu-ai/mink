@@ -294,3 +294,74 @@ func TestExpvarSink_GetOrCreateFloat_ReuseExisting(t *testing.T) {
 	val := metricsexpvar.CounterValue(c2)
 	assert.InDelta(t, 1.0, val, 0.001, "second sink should see the same expvar float")
 }
+
+// ─── AC-019: Handle reuse (REQ-OBS-METRICS-004) ──────────────────────────────
+
+// TestExpvarSink_HandleReuse_SameKey verifies that calling Counter with the
+// same (name, labels) twice accumulates into the same underlying series
+// (AC-019, REQ-OBS-METRICS-004). The caller's handle-caching pattern is NOT
+// enforced — the sink ensures the mapping.
+func TestExpvarSink_HandleReuse_SameKey(t *testing.T) {
+	t.Parallel()
+	s := newTestSink()
+
+	labels := metrics.Labels{"method": "OnClear"}
+	h1 := s.Counter("reuse.counter", labels)
+	h2 := s.Counter("reuse.counter", labels)
+
+	h1.Inc()
+	h2.Inc()
+
+	// Both handles must accumulate into the same underlying series.
+	// Reading via either handle must show the combined count.
+	val1 := metricsexpvar.CounterValue(h1)
+	val2 := metricsexpvar.CounterValue(h2)
+	assert.InDelta(t, 2.0, val1, 0.001,
+		"h1 should see accumulated total of 2 (h1.Inc() + h2.Inc())")
+	assert.InDelta(t, 2.0, val2, 0.001,
+		"h2 should see accumulated total of 2 (same underlying counter)")
+}
+
+// ─── AC-020: Labels post-call mutation invariance (REQ-OBS-METRICS-005) ─────
+
+// TestExpvarSink_Labels_PostCallMutationInvariance verifies that the sink does
+// NOT alias the caller-provided Labels map. After Counter(name, labels) is
+// registered, mutating the caller's map must not change the series key used by
+// the sink (AC-020, REQ-OBS-METRICS-005).
+func TestExpvarSink_Labels_PostCallMutationInvariance(t *testing.T) {
+	t.Parallel()
+	s := newTestSink()
+
+	// Register a counter with a specific label value.
+	labels := metrics.Labels{"method": "OnClear"}
+	c := s.Counter("mutation.test", labels)
+	c.Inc()
+
+	// Verify the original series registered correctly.
+	val := metricsexpvar.CounterValue(c)
+	assert.InDelta(t, 1.0, val, 0.001, "initial Inc() should record 1")
+
+	// Mutate the caller's map after registration.
+	labels["method"] = "Mutated"
+
+	// Requesting the ORIGINAL key again (before mutation) should still
+	// resolve to the same counter — the sink must have snapshotted the labels
+	// at registration time so the series key is immutable.
+	original := metrics.Labels{"method": "OnClear"}
+	c2 := s.Counter("mutation.test", original)
+	val2 := metricsexpvar.CounterValue(c2)
+	assert.InDelta(t, 1.0, val2, 0.001,
+		"original series must still exist and hold the pre-mutation value")
+
+	// The mutated label combination should be a different series.
+	c3 := s.Counter("mutation.test", labels) // labels now has "method"="Mutated"
+	c3.Inc()
+	val3 := metricsexpvar.CounterValue(c3)
+	assert.InDelta(t, 1.0, val3, 0.001,
+		"mutated label combination is a separate series starting at 0, now 1")
+
+	// Confirm the original series was NOT corrupted by the mutation.
+	val2After := metricsexpvar.CounterValue(c2)
+	assert.InDelta(t, 1.0, val2After, 0.001,
+		"original series must remain unaffected by caller-side label map mutation")
+}

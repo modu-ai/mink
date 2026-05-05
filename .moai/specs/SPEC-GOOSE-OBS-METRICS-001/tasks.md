@@ -90,3 +90,6 @@ MODIFIED: **none**
 
 Version: 1.0.0
 Created: 2026-04-30 (Phase 1.5)
+
+## HISTORY
+- v1.1.0 (2026-05-04): T-004 extended to cover AC-019 (HandleReuse_SameKey) and AC-020 (Labels_PostCallMutationInvariance) added in spec.md v0.1.1. Both tests added to expvar_test.go. Implementation verified: seriesKey() computes key at call time (string snapshot), preventing mutation aliasing. Handle reuse verified via same *expvarCounter returned for identical (name, labels).
