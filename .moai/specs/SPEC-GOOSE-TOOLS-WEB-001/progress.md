@@ -1,0 +1,56 @@
+# SPEC-GOOSE-TOOLS-WEB-001 Progress
+
+- Started: 2026-05-06
+- Resume marker: fresh run (no prior session)
+- Development mode: TDD (RED-GREEN-REFACTOR)
+- Coverage target: 85% (per quality.yaml)
+- LSP gates: 0 errors / 0 type / 0 lint, no regression
+
+## 2026-05-06 Session
+
+- Scope decision: M1 only (Search + HTTP + common infra)
+- Worktree decision: branch only (feature/SPEC-GOOSE-TOOLS-WEB-001-m1, no separate worktree)
+- Harness level: thorough (sprint contract + per-sprint evaluator-active strict profile)
+- Phase 0.9 language detection: Go (go.mod present, module github.com/modu-ai/goose, go 1.26)
+- Phase 0.95 mode: Standard Mode (M1 scope ≈ 17 files, multi-domain: tools+security+audit+ratelimit+permission)
+- Phase 1 in_progress: manager-strategy delegation (ultrathink) launched
+- Phase 1 completed: strategy.md ~520 lines (23 tasks, 13 done criteria, 6 critical findings)
+- Decision Point 1 PASS: plan + 5 defaults approved by user
+- T-022/T-023 decision: M1 PR 에 함께 포함
+- plan.md typo (jsonschema v5→v6) decision: M1 chain 에서 docs(spec) commit 으로 정정
+- Phase 1.5 completed: tasks.md created (23 atomic tasks, planned_files for Drift Guard)
+- Phase 1.6 completed: 13 M1 AC registered as TaskList pending items
+- Phase 1.7 completed: 11 stub files created, go.mod added bbolt v1.4.3 + temoto/robotstxt v1.1.2, LSP baseline = 0 errors / 0 vet issues
+- Phase 1.8 completed: 57 @MX tags scanned in integration target packages
+  - INVARIANTS (DO NOT BREAK): tools.Tool interface (fan_in>=5), tools.Registry/Executor (REQ-TOOLS-001/006), permission.Manager.Check/Register (fan_in>=4, REQ-PE-006), permission.Manager.regMu/inflightMu goroutine sync, audit.NewAuditEvent/sanitizeMessage (fan_in>=5)
+- Phase 2.0 completed: contract.md = 16 DC + 8 must-pass + 8 anti-patterns + 4 issues
+  - Coverage strict: 90% on internal/tools/web/... and common/...
+  - AC-WEB-010 must use Executor.Run() path
+  - web.yaml loader M1 required
+  - TestAuditLog M1 = 2 calls (not 4)
+  - ISSUE-01: Permission Manager bootstrap (manager-tdd resolves via cmd/ grep)
+  - ISSUE-04: retry_after_seconds float64→int conversion required
+- Phase 2B in_progress: manager-tdd Round A (T-001~T-012, common/* + register)
+- T-001/T-002 GREEN: response.go — Response/ErrPayload/Metadata types + OKResponse/ErrResponse helpers; 6 test cases
+- T-003 GREEN: useragent.go — UserAgent() builder "goose-agent/{version}"
+- T-004/T-005 GREEN: safety.go — Blocklist/NewRedirectGuard/LimitedRead + ErrResponseTooLarge/ErrTooManyRedirects; 13 test cases
+- T-006/T-007 GREEN: robots.go — RobotsChecker with 24h LRU + self-fetch guard + search-provider exemption; 9 test cases
+- T-008/T-009 GREEN: cache.go — bbolt TTL cache with injected clock; boundary-exact hit confirmed; 5 test cases
+- T-010 GREEN: deps.go — Deps DI struct with SubjectID/Now helpers; 4 test cases
+- T-011/T-012 GREEN: register.go — WithWeb()/RegisterWebTool/ClearWebToolsForTest/RestoreWebToolsForTest; 4 test cases
+- Round A coverage: common/... 92.4%, web/... 92.7% (both > 90% target)
+- Round A vet: PASS (0 issues), race: PASS
+- Round A LSP diagnostic stale (gopls cache miss) — go build/vet/test main session verify: GREEN
+- Phase 2B Round B in_progress: T-013/014/021 http_fetch + schema_test
+- Round B GREEN: http.go (11-step Call sequence, ratelimit/cache skip for generic), http_test.go (17 web tests), schema_test.go meta-validator
+- Round B coverage: web/... 90.8%, common/... 92.4%, aggregate 91.6%
+- Round B side: T-023 audit EventTypeToolWebInvoke + EventTypeToolWebSandboxWarning added (originally Round D, brought in for production wiring)
+- Round B side: Deps extended with Blocklist + RobotsChecker fields (DI consolidation)
+- ISSUE-01 resolution: external bootstrap (Manager.Register before any Tool.Call); ErrSubjectNotReady → permission_denied
+- Phase 2B Round C in_progress: T-015 brave parser + T-016 search.go + T-017 search_test + T-018/019/020 integration tests
+- Round C GREEN: ratelimit_brave_parser.go (X-RateLimit-Limit/Remaining/Reset 파싱), search.go (11-step Call sequence + LoadWebConfig minimal yaml + RegisterBraveParser bootstrap helper), search_test.go (16 tests), permission_integration_test.go (TestFirstCallConfirm allow + deny), audit_integration_test.go (TestAuditLog_M1Calls + TestAuditTimestampMonotonic), ratelimit_integration_test.go (TestRateLimitExhausted + TestRateLimit429WithHeader)
+- Round C coverage: web/... 90.5%, common/... 92.4%, total 91.1%
+- Round C ISSUE-04 confirmed: retry_after_seconds = int(math.Ceil(state.RequestsMin.RemainingSecondsNow(now)))
+- Round D in_progress: plan.md typo 정정 + T-022 defer 결정
+- T-022 defer to FS-ACCESS-001 후속 SPEC: 현재 fsaccess/policy.go 에 default seed 메커니즘 부재 (코드 hardcoded 없음, security.yaml schema 가 extra_*_patterns 형식), 첫 write 시 사용자 grant 흐름이 안전한 default — M1 PR 에서 제외, 후속 SPEC 으로 이관
+- plan.md §7 typo 정정 완료: jsonschema/v5 → v6 (실측 v6.0.2 + bbolt/temoto-robotstxt/golang-lru 정확한 버전 추가)
