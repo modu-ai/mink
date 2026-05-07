@@ -54,3 +54,14 @@
 - Round D in_progress: plan.md typo 정정 + T-022 defer 결정
 - T-022 defer to FS-ACCESS-001 후속 SPEC: 현재 fsaccess/policy.go 에 default seed 메커니즘 부재 (코드 hardcoded 없음, security.yaml schema 가 extra_*_patterns 형식), 첫 write 시 사용자 grant 흐름이 안전한 default — M1 PR 에서 제외, 후속 SPEC 으로 이관
 - plan.md §7 typo 정정 완료: jsonschema/v5 → v6 (실측 v6.0.2 + bbolt/temoto-robotstxt/golang-lru 정확한 버전 추가)
+- Phase 2.8a evaluator-active per-sprint (1차): FAIL — Functionality 0.73 (DC-01/11/12/14 명칭 불일치) + Security 0.60 (robots.go User-Agent 누락) + Consistency 0.72
+- Phase 2.8b manager-quality TRUST 5: WARNING (동일 이슈 + http.go init() 누락 + robots context-less http.Get)
+- Fix 적용: (1) http.go init() 추가 → 8 tools verified, (2) robots.go User-Agent + 5s timeout context → REQ-WEB-003 충족, (3) TestRegistry_WithWeb_ListNames 추가 (builtin/file + builtin/terminal underscore import), (4) TestPermission_RegisterBeforeCheck alias, (5) TestStandardResponseShape_AllTools alias
+- Fix 후 verify: golangci-lint 0, vet 0, race GREEN, coverage 91.2% (web 90.5% + common 92.8%)
+- DC-12 Tavily via web.yaml subtest: GREEN (search_test.go `TestSearch_ProviderSelection/tavily_via_yaml`). web.yaml `default_search_provider: tavily` + permission allowlist=`api.tavily.com` 단독 → resolveProvider 가 "tavily" 로 결정되어 호출 성공 (brave fallback 시 permission_denied 발생). 3 subtests 전체 GREEN.
+- Phase 3 git: 3 commits on feature/SPEC-GOOSE-TOOLS-WEB-001-m1
+  - d6df1a5 feat(audit): web 도구 이벤트 타입 추가 (T-023)
+  - 1b56f62 feat(tools/web): web 8 도구 M1 (Search + HTTP + 공통 인프라)
+  - 3a58d80 docs(spec): SPEC-GOOSE-TOOLS-WEB-001 strategy/contract/tasks/progress + plan typo
+- Phase 4 push + PR: PR #119 draft (https://github.com/modu-ai/goose/pull/119), labels type/feature + priority/p1-high
+- M1 SPEC status: implemented (Sprint 1 첫 SPEC 완료)

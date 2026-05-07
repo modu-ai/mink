@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -144,6 +146,46 @@ func TestSearch_ProviderSelection(t *testing.T) {
 		resp := unmarshalResponse(t, result)
 		assert.True(t, resp.OK, "no provider specified must default to brave; error=%v", resp.Error)
 		assert.Equal(t, int64(1), callCount.Load())
+	})
+
+	// tavily_via_yaml — DC-12 follow-up.
+	// When web.yaml sets default_search_provider="tavily" and no provider is
+	// passed in the input, resolveProvider must return "tavily" so the
+	// permission check is scoped to api.tavily.com (not api.search.brave.com).
+	// We register only api.tavily.com in the allowlist; if resolution falls
+	// back to brave, the permission check would deny the call. The mock
+	// server stays the same (M1 routes all providers through doBraveSearch
+	// per search.go doSearch fallback comment); provider-specific endpoints
+	// arrive in M2.
+	t.Run("tavily_via_yaml", func(t *testing.T) {
+		var callCount atomic.Int64
+		srv := newMockBraveServer(t, &callCount)
+
+		// Allowlist only api.tavily.com — brave host is intentionally excluded.
+		deps, _, _ := newTestDeps(t, []string{"api.tavily.com"})
+		cwd := t.TempDir()
+		deps.Cwd = cwd
+
+		// Write web.yaml with default_search_provider: tavily.
+		yamlPath := filepath.Join(cwd, "web.yaml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte("default_search_provider: tavily\n"), 0o644))
+
+		tracker, err := ratelimit.New(ratelimit.TrackerOptions{ThresholdPct: 80})
+		require.NoError(t, err)
+		deps.RateTracker = tracker
+		web.RegisterBraveParser(tracker)
+
+		tool := web.NewWebSearch(deps, srv.URL)
+		result, err := tool.Call(context.Background(), buildSearchInput(t, map[string]any{
+			"query": "x",
+			// provider intentionally omitted — must resolve via web.yaml.
+		}))
+		require.NoError(t, err)
+		resp := unmarshalResponse(t, result)
+		assert.True(t, resp.OK,
+			"tavily resolution via web.yaml must succeed; error=%v", resp.Error)
+		assert.Equal(t, int64(1), callCount.Load(),
+			"mock provider must be called once (tavily routes through brave path in M1)")
 	})
 }
 
