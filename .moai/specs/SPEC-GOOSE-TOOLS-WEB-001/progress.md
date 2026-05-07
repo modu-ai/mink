@@ -58,7 +58,18 @@
 - Phase 2.8b manager-quality TRUST 5: WARNING (동일 이슈 + http.go init() 누락 + robots context-less http.Get)
 - Fix 적용: (1) http.go init() 추가 → 8 tools verified, (2) robots.go User-Agent + 5s timeout context → REQ-WEB-003 충족, (3) TestRegistry_WithWeb_ListNames 추가 (builtin/file + builtin/terminal underscore import), (4) TestPermission_RegisterBeforeCheck alias, (5) TestStandardResponseShape_AllTools alias
 - Fix 후 verify: golangci-lint 0, vet 0, race GREEN, coverage 91.2% (web 90.5% + common 92.8%)
-- DC-12 Tavily via web.yaml subtest: GREEN (search_test.go `TestSearch_ProviderSelection/tavily_via_yaml`). web.yaml `default_search_provider: tavily` + permission allowlist=`api.tavily.com` 단독 → resolveProvider 가 "tavily" 로 결정되어 호출 성공 (brave fallback 시 permission_denied 발생). 3 subtests 전체 GREEN.
+- DC-12 Tavily via web.yaml subtest: GREEN (search_test.go `TestSearch_ProviderSelection/tavily_via_yaml_unsupported`). web.yaml `default_search_provider: "tavily"` (quoted form, yaml.v3 파서 검증 포함) → resolveProvider "tavily" → webSearch.Call Step 0 에서 `unsupported_provider` 로 명시 거절 + audit reason="unsupported_provider" 기록 + outbound 호출 0회.
+- CodeRabbit review 9 comments 전체 수용 (PR #119):
+  - #1 response.go OKResponse marshal err wrap (`fmt.Errorf("marshal ok response data: %w", err)`)
+  - #2 robots.go isExemptSearchProvider host 정확 일치 비교 (url.Parse + Hostname() + scheme=https + 화이트리스트), subdomain bypass 차단
+  - #3 safety.go LimitedRead io.ReadAll err wrap
+  - #4 http.go extractURLHost 는 host:port 보존 (permission/audit scope 일관성), Blocklist.IsBlocked 호출 직전 새 helper `stripPort()` 로 port 제거 → "evil.com:8080" port-suffixed bypass 차단
+  - #5 http.go doFetch 헤더 적용 순서 변경 + User-Agent/Host 사용자 헤더 필터링 → REQ-WEB-003 anonymity guarantee 강화
+  - #6 RegisterBraveParser nil tracker defensive guard
+  - #7 register.go ClearWebToolsForTest/RestoreWebToolsForTest godoc "test-only" 명시
+  - #8 LoadWebConfig yaml.v3 (`gopkg.in/yaml.v3`) 채택, hand-rolled line parser 제거 → 따옴표/주석/들여쓰기 케이스 모두 정상 처리
+  - #9 webSearch.Call Step 0 추가: `provider != "brave"` 시 `unsupported_provider` 거절 + audit reason 기록 (silent brave fallback 제거 → permission scope/audit host/실 outbound 일치)
+- Fix 후 verify: golangci-lint 0, vet 0, gofmt 0, race GREEN. web suite 전체 PASS (DC-12 3 subtests 포함).
 - Phase 3 git: 3 commits on feature/SPEC-GOOSE-TOOLS-WEB-001-m1
   - d6df1a5 feat(audit): web 도구 이벤트 타입 추가 (T-023)
   - 1b56f62 feat(tools/web): web 8 도구 M1 (Search + HTTP + 공통 인프라)

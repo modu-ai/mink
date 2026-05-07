@@ -2,6 +2,7 @@ package common
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -87,7 +88,7 @@ func LimitedRead(r io.Reader) ([]byte, error) {
 	limited := io.LimitReader(r, int64(MaxResponseBytes)+1)
 	data, err := io.ReadAll(limited)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read limited response body: %w", err)
 	}
 	if len(data) > MaxResponseBytes {
 		return nil, ErrResponseTooLarge

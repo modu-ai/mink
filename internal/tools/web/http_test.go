@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -268,9 +269,14 @@ func TestHTTPFetch_BlocklistPriority(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	host := srv.Listener.Addr().String()
+	// Blocklist compares plain hostnames (port stripped before lookup), so
+	// register the hostname only — registering "host:port" would silently
+	// fail to match after the bypass-fix in extractURLHost call sites.
+	hostname, _, splitErr := net.SplitHostPort(host)
+	require.NoError(t, splitErr)
 	deps, _, confirmer := newTestDeps(t, []string{host})
 	deps.Cwd = t.TempDir()
-	deps.Blocklist = common.NewBlocklist([]string{host})
+	deps.Blocklist = common.NewBlocklist([]string{hostname})
 
 	tool := web.NewHTTPFetch(deps)
 	result, err := tool.Call(context.Background(), buildInput(t, map[string]any{

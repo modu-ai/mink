@@ -95,5 +95,8 @@ func parseHeaderInt(s string) (int, string) {
 // @MX:ANCHOR: [AUTO] Registration entry point for BraveParser on Tracker
 // @MX:REASON: SPEC-GOOSE-TOOLS-WEB-001 DC-16; called at bootstrap; fan_in >= 3
 func RegisterBraveParser(t *ratelimit.Tracker) {
+	if t == nil {
+		return
+	}
 	t.RegisterParser(NewBraveParser())
 }

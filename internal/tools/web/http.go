@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -119,7 +120,9 @@ func (h *httpFetch) Call(ctx context.Context, input json.RawMessage) (tools.Tool
 
 	// Step 1: Blocklist check — must happen before any permission gate.
 	// AC-WEB-009: blocklist pre-permission.
-	if h.deps.Blocklist != nil && h.deps.Blocklist.IsBlocked(host) {
+	// IsBlocked compares plain hostnames; strip the port so a port-suffixed
+	// host (e.g. "evil.com:8080") cannot bypass glob suffix patterns.
+	if h.deps.Blocklist != nil && h.deps.Blocklist.IsBlocked(stripPort(host)) {
 		h.writeAudit(ctx, "http_fetch", host, parsed.Method, 0, false, "denied", "host_blocked", start)
 		return toToolResult(common.ErrResponse("host_blocked",
 			fmt.Sprintf("host %q is blocked by security policy", host),
@@ -226,10 +229,17 @@ func (h *httpFetch) doFetch(ctx context.Context, in httpFetchInput) (*http.Respo
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", common.UserAgent())
+	// Apply caller-supplied headers first, but skip reserved headers managed
+	// by the tool itself. User-Agent is enforced last to guarantee
+	// REQ-WEB-003 ("no anonymous outbound requests"); Host is dropped to
+	// prevent host-header spoofing.
 	for k, v := range in.Headers {
+		if strings.EqualFold(k, "User-Agent") || strings.EqualFold(k, "Host") {
+			continue
+		}
 		req.Header.Set(k, v)
 	}
+	req.Header.Set("User-Agent", common.UserAgent())
 
 	return client.Do(req)
 }
@@ -280,7 +290,13 @@ func parseHTTPFetchInput(raw json.RawMessage) (httpFetchInput, error) {
 	return in, nil
 }
 
-// extractURLHost returns the host (host:port) from rawURL.
+// extractURLHost returns the host (host:port form) from rawURL.
+//
+// The host preserves the port because permission scope and audit logs are
+// keyed off this exact value. Use stripPort before passing the host to
+// Blocklist.IsBlocked — that lookup compares plain hostnames, and a port
+// would silently bypass glob suffix patterns ("*.evil.com" stored as
+// ".evil.com") and exact matches alike.
 func extractURLHost(rawURL string) (string, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
@@ -290,6 +306,16 @@ func extractURLHost(rawURL string) (string, error) {
 		return "", fmt.Errorf("URL %q has no host", rawURL)
 	}
 	return u.Host, nil
+}
+
+// stripPort returns hostPort with any ":port" suffix removed. Used to feed
+// Blocklist.IsBlocked a plain hostname so port-suffixed hosts cannot bypass
+// glob/exact matches (e.g. "evil.com:8080" must still match "*.evil.com").
+func stripPort(hostPort string) string {
+	if h, _, err := net.SplitHostPort(hostPort); err == nil {
+		return h
+	}
+	return hostPort
 }
 
 // extractBaseURL returns scheme + host of rawURL (no path/query/fragment).

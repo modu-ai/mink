@@ -103,7 +103,8 @@ func TestWebSearch_BasicCall(t *testing.T) {
 
 // TestSearch_ProviderSelection exercises the provider selection logic:
 // explicit "brave" → brave endpoint; no provider + no config → brave default;
-// web.yaml default_search_provider="tavily" → tavily endpoint;
+// web.yaml default_search_provider="tavily" → resolved to "tavily" then
+// rejected at Step 0 with unsupported_provider (M1 only ships brave);
 // bad enum → schema_validation_failed via Executor.
 func TestSearch_ProviderSelection(t *testing.T) {
 	t.Run("explicit_brave", func(t *testing.T) {
@@ -148,27 +149,27 @@ func TestSearch_ProviderSelection(t *testing.T) {
 		assert.Equal(t, int64(1), callCount.Load())
 	})
 
-	// tavily_via_yaml — DC-12 follow-up.
-	// When web.yaml sets default_search_provider="tavily" and no provider is
-	// passed in the input, resolveProvider must return "tavily" so the
-	// permission check is scoped to api.tavily.com (not api.search.brave.com).
-	// We register only api.tavily.com in the allowlist; if resolution falls
-	// back to brave, the permission check would deny the call. The mock
-	// server stays the same (M1 routes all providers through doBraveSearch
-	// per search.go doSearch fallback comment); provider-specific endpoints
-	// arrive in M2.
-	t.Run("tavily_via_yaml", func(t *testing.T) {
+	// tavily_via_yaml_unsupported — DC-12.
+	// When web.yaml sets default_search_provider="tavily" and no provider
+	// is supplied in the input, resolveProvider must return "tavily" so
+	// webSearch.Call rejects the call at Step 0 with unsupported_provider
+	// (M1 only ships brave). The mock server must NOT be hit — silent
+	// brave fallback would mismatch the audit-logged host with the actual
+	// outbound destination. Quoted YAML form is exercised here to also
+	// cover the yaml.v3 parser swap (previously the hand-rolled parser
+	// stored `"tavily"` literally and silently fell back to brave).
+	t.Run("tavily_via_yaml_unsupported", func(t *testing.T) {
 		var callCount atomic.Int64
 		srv := newMockBraveServer(t, &callCount)
 
-		// Allowlist only api.tavily.com — brave host is intentionally excluded.
 		deps, _, _ := newTestDeps(t, []string{"api.tavily.com"})
 		cwd := t.TempDir()
 		deps.Cwd = cwd
 
-		// Write web.yaml with default_search_provider: tavily.
 		yamlPath := filepath.Join(cwd, "web.yaml")
-		require.NoError(t, os.WriteFile(yamlPath, []byte("default_search_provider: tavily\n"), 0o644))
+		// Quoted value — exercises yaml.v3 parser correctness.
+		require.NoError(t, os.WriteFile(yamlPath,
+			[]byte(`default_search_provider: "tavily"`+"\n"), 0o644))
 
 		tracker, err := ratelimit.New(ratelimit.TrackerOptions{ThresholdPct: 80})
 		require.NoError(t, err)
@@ -178,14 +179,19 @@ func TestSearch_ProviderSelection(t *testing.T) {
 		tool := web.NewWebSearch(deps, srv.URL)
 		result, err := tool.Call(context.Background(), buildSearchInput(t, map[string]any{
 			"query": "x",
-			// provider intentionally omitted — must resolve via web.yaml.
+			// provider omitted — resolved via web.yaml to "tavily".
 		}))
 		require.NoError(t, err)
+
 		resp := unmarshalResponse(t, result)
-		assert.True(t, resp.OK,
-			"tavily resolution via web.yaml must succeed; error=%v", resp.Error)
-		assert.Equal(t, int64(1), callCount.Load(),
-			"mock provider must be called once (tavily routes through brave path in M1)")
+		assert.False(t, resp.OK,
+			"tavily must be rejected as unsupported_provider in M1")
+		require.NotNil(t, resp.Error, "error payload required on unsupported_provider")
+		assert.Equal(t, "unsupported_provider", resp.Error.Code)
+		assert.Contains(t, resp.Error.Message, "tavily",
+			"error message must name the rejected provider")
+		assert.Equal(t, int64(0), callCount.Load(),
+			"no outbound HTTP call must be made for unsupported provider")
 	})
 }
 

@@ -6,7 +6,10 @@
 // SPEC: SPEC-GOOSE-TOOLS-WEB-001
 package common
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 // Response is the standard wrapper for all web tool responses.
 // AC-WEB-012: all web tools must return this exact shape.
@@ -49,7 +52,7 @@ type Metadata struct {
 func OKResponse(v any, meta Metadata) (Response, error) {
 	b, err := json.Marshal(v)
 	if err != nil {
-		return Response{}, err
+		return Response{}, fmt.Errorf("marshal ok response data: %w", err)
 	}
 	return Response{
 		OK:       true,

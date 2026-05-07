@@ -134,16 +134,18 @@ func extractHost(rawURL string) string {
 
 // isExemptSearchProvider returns true for known search-provider API base URLs
 // that should be exempt from robots.txt enforcement (REQ-WEB-005).
+//
+// Hosts are matched by exact equality on the parsed URL host (case-insensitive)
+// to prevent subdomain bypass attacks such as
+// "https://api.search.brave.com.evil.com/...".
 func isExemptSearchProvider(baseURL string) bool {
-	exemptPrefixes := []string{
-		"https://api.search.brave.com",
-		"https://api.tavily.com",
-		"https://api.exa.ai",
+	u, err := url.Parse(baseURL)
+	if err != nil || u.Scheme != "https" {
+		return false
 	}
-	for _, prefix := range exemptPrefixes {
-		if strings.HasPrefix(baseURL, prefix) {
-			return true
-		}
+	switch strings.ToLower(u.Hostname()) {
+	case "api.search.brave.com", "api.tavily.com", "api.exa.ai":
+		return true
 	}
 	return false
 }

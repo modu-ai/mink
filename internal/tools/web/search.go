@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/modu-ai/goose/internal/audit"
 	"github.com/modu-ai/goose/internal/llm/ratelimit"
 	"github.com/modu-ai/goose/internal/permission"
@@ -69,11 +71,16 @@ type webSearchData struct {
 type WebConfig struct {
 	// DefaultSearchProvider is the fallback provider when none is specified.
 	// Defaults to "brave" when absent.
-	DefaultSearchProvider string `json:"default_search_provider,omitempty"`
+	DefaultSearchProvider string `json:"default_search_provider,omitempty" yaml:"default_search_provider"`
 }
 
 // LoadWebConfig loads the web config from path.
 // Returns a zero WebConfig (brave default) when the file is missing or empty.
+//
+// The YAML body is parsed with gopkg.in/yaml.v3 so quoted strings, inline
+// comments, and "key:value" (no space) are handled correctly. The minimal
+// hand-rolled parser previously here accepted only a narrow line shape and
+// silently returned the literal `"tavily"` for the quoted form.
 func LoadWebConfig(path string) (*WebConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -82,15 +89,14 @@ func LoadWebConfig(path string) (*WebConfig, error) {
 		}
 		return nil, fmt.Errorf("web config: read %s: %w", path, err)
 	}
-	// Minimal YAML: parse lines of the form "key: value".
 	cfg := &WebConfig{}
-	for _, line := range strings.Split(string(data), "\n") {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "default_search_provider:") {
-			val := strings.TrimSpace(strings.TrimPrefix(line, "default_search_provider:"))
-			cfg.DefaultSearchProvider = val
-		}
+	if len(data) == 0 {
+		return cfg, nil
 	}
+	if err := yaml.Unmarshal(data, cfg); err != nil {
+		return nil, fmt.Errorf("web config: parse %s: %w", path, err)
+	}
+	cfg.DefaultSearchProvider = strings.TrimSpace(cfg.DefaultSearchProvider)
 	return cfg, nil
 }
 
@@ -138,6 +144,20 @@ func (s *webSearch) Call(ctx context.Context, input json.RawMessage) (tools.Tool
 
 	// Determine the provider API host for permission + robots checks.
 	apiHost := providerAPIHost(provider)
+
+	// Step 0: Reject providers not implemented in M1.
+	// Schema accepts brave/tavily/exa for forward compatibility, but only
+	// brave ships in M1. Falling through to a brave fallback would scope
+	// the permission check + audit log to api.tavily.com / api.exa.ai while
+	// the actual outbound call hits api.search.brave.com — this leaks the
+	// real traffic destination from forensic logs and bypasses the user's
+	// per-host net allowlist (DC-09 / AC-WEB-009 spirit). Reject early.
+	if provider != "brave" {
+		s.writeAudit(ctx, apiHost, "GET", 0, false, "denied", "unsupported_provider", start)
+		return toToolResult(common.ErrResponse("unsupported_provider",
+			fmt.Sprintf("provider %q is not implemented in M1; only \"brave\" is available", provider),
+			false, 0, elapsed(start))), nil
+	}
 
 	// Step 1: Blocklist check — must happen before any permission gate.
 	if s.deps.Blocklist != nil && s.deps.Blocklist.IsBlocked(apiHost) {
@@ -269,14 +289,17 @@ func (s *webSearch) openCache() *common.Cache {
 
 // doSearch performs the outbound HTTP search request and returns parsed results
 // along with the response headers (for ratelimit tracking).
+//
+// In M1 only "brave" reaches this function — webSearch.Call rejects every
+// other provider at Step 0 with unsupported_provider. The default branch
+// remains as defensive depth: if a future caller bypasses Call, it returns
+// an explicit error instead of silently falling back to the brave path.
 func (s *webSearch) doSearch(ctx context.Context, provider string, in webSearchInput) ([]searchResult, http.Header, error) {
 	switch provider {
 	case "brave":
 		return s.doBraveSearch(ctx, in)
 	default:
-		// For providers not yet implemented (tavily, exa), delegate to brave
-		// as a fallback in M1. Future milestones add provider-specific paths.
-		return s.doBraveSearch(ctx, in)
+		return nil, nil, fmt.Errorf("web_search: provider %q is not implemented", provider)
 	}
 }
 

@@ -44,8 +44,10 @@ func WithWeb() tools.Option {
 	}
 }
 
-// ClearWebToolsForTest resets globalWebTools to empty, saving the current
-// state for later restore. Must only be called in tests.
+// ClearWebToolsForTest is test-only: it resets globalWebTools to empty and
+// saves the current state so RestoreWebToolsForTest can roll back. The
+// production code path must never call this — it would silently drop every
+// registered web tool.
 func ClearWebToolsForTest() {
 	globalWebToolsMu.Lock()
 	defer globalWebToolsMu.Unlock()
@@ -54,8 +56,10 @@ func ClearWebToolsForTest() {
 	globalWebTools = nil
 }
 
-// RestoreWebToolsForTest restores globalWebTools to the state saved by
-// ClearWebToolsForTest. Must only be called in tests after ClearWebToolsForTest.
+// RestoreWebToolsForTest is test-only: it restores globalWebTools to the
+// state saved by ClearWebToolsForTest. Must only be called in tests after
+// a paired ClearWebToolsForTest invocation; calling out of order leaks
+// state across tests.
 func RestoreWebToolsForTest() {
 	globalWebToolsMu.Lock()
 	defer globalWebToolsMu.Unlock()
