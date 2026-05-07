@@ -37,6 +37,11 @@ const (
 	EventTypeGoosedStart EventType = "goosed.start"
 	// EventTypeGoosedStop is emitted when the goosed daemon stops
 	EventTypeGoosedStop EventType = "goosed.stop"
+	// EventTypeToolWebInvoke is emitted on each web tool invocation (web_search, http_fetch, etc.)
+	// SPEC-GOOSE-TOOLS-WEB-001 AC-WEB-018
+	EventTypeToolWebInvoke EventType = "tool.web.invoke"
+	// EventTypeToolWebSandboxWarning is emitted when a web tool triggers a sandbox policy warning
+	EventTypeToolWebSandboxWarning EventType = "tool.web.sandbox_warning"
 )
 
 // String returns the string representation of the event type

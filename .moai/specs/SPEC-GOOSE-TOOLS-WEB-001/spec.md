@@ -1,9 +1,9 @@
 ---
 id: SPEC-GOOSE-TOOLS-WEB-001
 version: 0.1.0
-status: audit-ready
+status: implemented
 created_at: 2026-05-05
-updated_at: 2026-05-05
+updated_at: 2026-05-07
 author: manager-spec
 priority: P0
 issue_number: null
@@ -21,6 +21,7 @@ labels: [phase-4, tools, web, search, browse, rss, wikipedia, arxiv, maps, wayba
 |-----|------|---------|------|
 | 0.1.0 | 2026-05-05 | 초안 작성. Phase 4 도구 카탈로그 첫 batch — web 정보 접근 8개 도구. TOOLS-001 Tool Registry에 등록되며, 각 도구는 PERMISSION-001 (first-call confirm) + FS-ACCESS-001 (cache 격리) + SECURITY-SANDBOX-001 (Linux Landlock; Playwright 격리) + RATELIMIT-001 (provider 한도 추적) + AUDIT-001 (외부 호출 기록)과 통합. Hermes의 web 도구를 능가하는 quality + security 우선 설계. | manager-spec |
 | 0.1.0 | 2026-05-05 | 자가 plan-audit 1라운드 PASS — EARS 18 REQ + 18 AC + 5 파일(spec/plan/acceptance/spec-compact/research) 완비, 의존 6 SPEC(TOOLS-001/PERMISSION-001/FS-ACCESS-001/SECURITY-SANDBOX-001/RATELIMIT-001/AUDIT-001) 모두 reference-only(수정 없음), labels 채워짐, negative-path AC 7개 포함, behavioral 표현 일관, OUT 11개 명시, Risks 8개. status: draft → audit-ready 자동 전환. | manager-spec |
+| 0.1.0 | 2026-05-07 | M1 implemented — 8 도구 Registry 등록 (Name/Schema/Scope/Call) + `web_search` (brave provider) + `http_fetch` (GET/HEAD) + 공통 인프라 (Blocklist/RobotsChecker/Cache(bbolt)/UserAgent/Permission/Audit/RateLimit Brave parser). DC-12 Tavily via web.yaml subtest GREEN (`unsupported_provider` 명시 거절). PR #119 (3 commits + CodeRabbit 9 findings 일괄 수용 fix) merged. tavily/exa 실제 provider 구현 + browse/rss/wikipedia/arxiv/maps/wayback 6 도구는 후속 milestone. status: audit-ready → implemented. | manager-tdd |
 
 ---
 

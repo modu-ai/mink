@@ -376,11 +376,14 @@ type Metadata struct {
 | `github.com/playwright-community/playwright-go` | v0.4501.0+ | headless 브라우저 (web_browse) |
 | `github.com/go-shiori/go-readability` | v0.x latest | article body 추출 (web_browse) |
 | `github.com/temoto/robotstxt` | v1.x latest | robots.txt 해석 |
-| `github.com/santhosh-tekuri/jsonschema/v5` | v5.x | input schema validation (TOOLS-001 과 공유) |
-| `go.etcd.io/bbolt` | v1.3.x | 캐시 backend |
-| `github.com/hashicorp/golang-lru/v2` | v2.x | robots.txt 메모리 캐시 |
+| `github.com/santhosh-tekuri/jsonschema/v6` | v6.0.2 | input schema validation (TOOLS-001 과 공유, 기존 의존성) |
+| `go.etcd.io/bbolt` | v1.4.3 | 캐시 backend (M1 신규) |
+| `github.com/hashicorp/golang-lru/v2` | v2.0.7 | robots.txt 메모리 캐시 (기존 의존성) |
+| `github.com/temoto/robotstxt` | v1.1.2 | robots.txt 파싱 (M1 신규) |
 
 각 라이브러리의 정확한 version pin 은 M1 시점에 `go get` + integration test 로 확정.
+
+**M1 실측 (2026-05-06)**: jsonschema/v6 v6.0.2 (기존), bbolt v1.4.3 (신규), temoto/robotstxt v1.1.2 (신규), golang-lru/v2 v2.0.7 (기존). 본 plan.md §7 의 v5 표기는 typo 였으며 실 코드는 v6 사용 (strategy.md §1 Assumption #1 참조).
 
 ---
 

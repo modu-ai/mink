@@ -5,6 +5,20 @@
 
 ## [Unreleased]
 
+### Added — SPEC-GOOSE-TOOLS-WEB-001 v0.1.0 M1 (web 8 도구 Registry + web_search + http_fetch + 공통 인프라)
+
+Sprint 1 첫 SPEC. M1 범위 — 8 도구 Registry 등록 + 2 도구 (web_search, http_fetch) 실제 구현 + 공통 인프라 8종 (PR #119, 4 commits, 16 DC GREEN, coverage 91.2%):
+
+- **tools/web Registry**: `WithWeb()` Option + `RegisterWebTool()` package-level list + 8 도구 init() 등록 (search / browse / rss / wikipedia / arxiv / maps / wayback / http_fetch). 각 도구는 `tools.Tool` 인터페이스 (Name/Schema/Scope/Call) 구현.
+- **`web_search`**: brave provider (Brave Search API), 11-step Call sequence (blocklist → robots-exempt → permission → ratelimit → cache lookup → fetch → cache write → ratelimit parse → audit). 표준 응답 shape `{title, url, snippet, score}` 배열. `web.yaml` `default_search_provider` 로 provider 결정 (M1: brave 만 활성, tavily/exa 는 schema 예약 + Step 0 `unsupported_provider` 명시 거절).
+- **`http_fetch`**: GET/HEAD only, 11-step sequence (blocklist → robots → permission → fetch → size cap → audit). 10MB body 한도, redirect cap [0, 10] (default 5), User-Agent 강제 override (사용자 헤더의 UA/Host 필터링) — REQ-WEB-003 anonymity guarantee.
+- **공통 인프라 (`internal/tools/web/common/`)**: `Blocklist` (exact + glob `*.suffix` + port-suffixed bypass 차단), `RobotsChecker` (LRU 256/24h, 자기 fetch 재귀 가드), `Cache` (bbolt TTL 24h), `UserAgent()` (`goose-agent/{version}`), `LimitedRead` (10MB), `NewRedirectGuard`, `isExemptSearchProvider` (host 정확 일치, subdomain prefix bypass 차단), `Deps` 의존 주입 컨테이너.
+- **Audit 통합**: `audit.EventTypeToolWebInvoke` 이벤트 타입 추가. 모든 web 도구가 outcome=ok|denied|error + reason (host_blocked / robots_disallow / permission_denied / ratelimit_exhausted / response_too_large / unsupported_provider / fetch_failed) 기록.
+- **RateLimit 통합**: `RegisterBraveParser` — Brave `X-RateLimit-Limit/Remaining/Reset` 헤더를 `RateLimitState` 로 파싱. 80% threshold + 100% exhausted retry-after 계산.
+- **보안 강화 (CodeRabbit 9 findings 수용)**: subdomain prefix bypass 차단, port-suffixed glob bypass 차단, User-Agent override 강제, yaml.v3 채택으로 따옴표/주석 케이스 정상 처리, error wrap 일관성.
+
+**Deferred to M2 (이번 milestone 미포함)**: tavily/exa provider 실제 구현, 6 도구(browse/rss/wikipedia/arxiv/maps/wayback) 본문 구현, fsaccess default seed 메커니즘 (T-022 → SPEC-GOOSE-FS-ACCESS-001 후속).
+
 ### Added — SPEC-GOOSE-CLI-TUI-003 v0.1.0 (TUI 보강 P2: sessionmenu + Ctrl-Up edit/regenerate + i18n)
 
 P1~P4 구현 완료 (4 PR merged, 10 AC GREEN):
