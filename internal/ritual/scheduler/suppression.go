@@ -13,6 +13,7 @@ import (
 // FiredKeyStore tracks the (event, userLocalDate, TZ) 3-tuples that have
 // already been dispatched. Implementations must be safe for concurrent use.
 //
+// @MX:TODO: MEMORY-001 round-trip integration pending (AC-SCHED-007 PARTIAL).
 // @MX:NOTE: [AUTO] Suppression seam — JSON impl ships with the package; future
 //
 //	implementations may persist via MEMORY-001 dispatcher.
