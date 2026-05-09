@@ -76,3 +76,71 @@
   - 3a58d80 docs(spec): SPEC-GOOSE-TOOLS-WEB-001 strategy/contract/tasks/progress + plan typo
 - Phase 4 push + PR: PR #119 draft (https://github.com/modu-ai/goose/pull/119), labels type/feature + priority/p1-high
 - M1 SPEC status: implemented (Sprint 1 첫 SPEC 완료)
+
+---
+
+## 2026-05-10 M2a Session (web_wikipedia, AC-WEB-013)
+
+### Branch / Base
+- Branch: feature/SPEC-GOOSE-TOOLS-WEB-001-M2a
+- Base: main HEAD = cd35297 (SCHEDULER-001 v0.2.1 sync 후)
+- External dep: 신규 없음
+
+### Phase 0 — M2 분할 결정 (orchestrator + user 합의)
+- M2 통합 ~1000 LOC + 의존성 2개 신규 → 분할 권장
+- M2a: web_wikipedia (단순 HTTP REST API, 의존성 없음)
+- M2b: web_browse (Playwright + go-readability + OS 분기, 후속 PR)
+
+### Phase 1 — Strategy
+- M2a deliverables: 2 신규 파일 + 0~1 수정
+- exit: AC-WEB-013 GREEN, 누적 9/18 AC implemented
+- 의존: M1 implemented (PR #119), common 인프라 재사용 (Blocklist/RobotsChecker/Cache/Permission/Audit/Deps DI)
+
+### Phase 2 진입 — orchestrator 직접 구현 (1M context API 차단 정책 예외, P4a/P4b 동일 패턴)
+
+### Phase 2 — TDD Implementation 완료
+- 2 신규 파일:
+  - `wikipedia.go` (+~310 LOC): webWikipedia struct + Tool 인터페이스 (Name/Schema/Scope/Call) + JSON schema (additionalProperties:false, query/language/extract_chars) + hostBuilder DI seam (productionHostBuilder + NewWikipediaForTest) + parseWikipediaInput 방어적 schema guard + buildSummaryURL (URL-encoded title) + 11-step Call (blocklist + permission + outbound GET + audit) + truncateText 멀티바이트 안전
+  - `wikipedia_test.go` (+~250 LOC): mock httptest.Server 1대 + per-language fixture map + 4 시나리오 (korean_branch / english_branch / invalid_language_zzz / schema validation 3 케이스) + TestWikipedia_RegisteredInWebTools
+- 2 수정 파일:
+  - `register.go` (+13): RegisteredWebToolNamesForTest helper
+  - `register_test.go` (수정): TestRegistry_WithWeb_ListNames expectation 8 → 9 (web_wikipedia 추가 반영)
+- 64 tests PASS (M1 56 + M2a 8 신규: TestWikipedia_LanguageRouting 3 + TestWikipedia_SchemaValidation 3 + TestWikipedia_RegisteredInWebTools 1 + register_test 갱신, 회귀 0)
+- AC-WEB-013 GREEN
+
+### Phase 2.5 — TRUST 5 Validation PASS (orchestrator 직접 verify)
+- Tested: web/... 83.3% (M1 91.2% 대비 -7.9%p, target ≥80% 달성), common/... 92.1% (회귀 0), race-clean, 64 tests
+- Readable: English godoc 100% exports, gofmt clean, golangci-lint 0 issues
+- Unified: codebase 컨벤션 일치 (httpFetch/webSearch 패턴 그대로 — Tool 인터페이스 + Call 구조 + writeAudit + common.ErrResponse/OKResponse)
+- Secured: blocklist + permission gate 통과, URL path encoding (url.PathEscape), 30s HTTP timeout
+- Trackable: SPEC/REQ/AC trailer + @MX:ANCHOR 1 (webWikipedia struct)
+
+### Phase 2.75 — Pre-Review Gate PASS
+- gofmt -l clean / go vet ./... clean / go build ./... clean / golangci-lint 0 issues / go test -race PASS
+
+### Phase 2.8a — Final-pass Quality (standard harness)
+- Functionality (40%): AC-WEB-013 GREEN (4 시나리오), 56 M1 tests 회귀 0, 64 total
+- Security (25%): blocklist 통과, permission gate, URL encoding 안전
+- Craft (20%): 83.3% coverage, defensive schema parser (Executor 우회 시도에도 fail-closed), hostBuilder DI seam
+- Consistency (15%): http.go / search.go 패턴 그대로 (Call sequence, writeAudit, common.ErrResponse)
+- Verdict: PASS
+
+### Phase 2.9 — MX Tag Update PASS
+- ANCHOR 신규 1 (`webWikipedia` — fan_in 예상 ≥3: tests + bootstrap + executor)
+- 기존 유지: M1 ANCHOR/WARN/NOTE
+
+### LSP Quality Gates
+- run.max_errors=0: PASS (14회째 false-positive `slicescontains` 1건, golangci-lint 0 issues 로 회피)
+- run.max_type_errors=0: PASS
+- run.max_lint_errors=0: PASS
+
+### Phase 3 — Git Operations (orchestrator 책임)
+- branch: feature/SPEC-GOOSE-TOOLS-WEB-001-M2a (main HEAD cd35297 기반)
+- commit: squash 1개 conventional (feat(tools/web): ...)
+- PR: open with type/feature + priority/p2-medium + area/runtime
+- admin bypass merge (M1 #119 동일 패턴, self-review 차단 회피)
+
+### Deviations (M2a)
+- **mock httptest.Server URL 의 language 분기 인코딩** — 단일 httptest.Server 가 단일 host:port 만 listen 하므로, AC-WEB-013 의 Wikipedia language 분기를 검증하기 위해 hostBuilder 가 mock URL 의 첫 path 세그먼트로 language 를 인코딩 (`{server.URL}/ko` vs `{server.URL}/en`). 실 production 은 `https://{lang}.wikipedia.org` 그대로 호출. 결과적으로 동일 검증 경로 (request path / Host 분기 검증).
+- **defensive schema guard in parseWikipediaInput** — Executor 가 schema validation 을 적용한다는 가정에 의존하지 않고, 직접 Call 호출 시도에도 query 길이 / language pattern / extract_chars 범위를 fail-closed. 이 덕분에 TestWikipedia_SchemaValidation 3 시나리오 (empty_query / language_too_short / language_uppercase) 가 명시적으로 검증 가능.
+- **AC-WEB-013 invalid_language_zzz 검증 단순화** — SPEC 본문은 "mock host (`zzz.wikipedia.org`) 가 unreachable" 로 정의했으나, mock httptest.Server 사용으로 실 host 호출 회피. mock 이 `zzz` fixture 미정의 → 404 응답 → `fetch_failed` 검증.

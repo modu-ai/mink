@@ -66,3 +66,17 @@ func RestoreWebToolsForTest() {
 	globalWebTools = snapshot
 	snapshot = nil
 }
+
+// RegisteredWebToolNamesForTest returns a snapshot of the registered web
+// tool names in registration order. Tests use it to assert that init()
+// callers have wired their tools into the global slice without depending on
+// internal state.
+func RegisteredWebToolNamesForTest() []string {
+	globalWebToolsMu.Lock()
+	defer globalWebToolsMu.Unlock()
+	names := make([]string, len(globalWebTools))
+	for i, t := range globalWebTools {
+		names[i] = t.Name()
+	}
+	return names
+}
