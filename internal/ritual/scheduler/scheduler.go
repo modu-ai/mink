@@ -250,7 +250,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 		}
 		// Capture loop variables for the closure.
 		ritualCopy := rt
-		if _, err := engine.AddFunc(spec, s.makeCallback(ctx, ritualCopy)); err != nil {
+		if _, err := engine.AddFunc(spec, s.makeCallback(ritualCopy)); err != nil {
 			errs = append(errs, fmt.Errorf("ritual %s: cron.AddFunc: %w", rt.Event, err))
 		}
 	}
@@ -280,7 +280,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 	// P4b: replay missed events whose scheduled time falls within
 	// MissedEventReplayMaxDelay of now. Runs synchronously on the caller's
 	// goroutine; events are pushed onto workerCh just like normal cron fires.
-	s.replayMissedEvents(ctx, rituals)
+	s.replayMissedEvents(rituals)
 
 	// Best-effort persist: log on error but do not fail Start.
 	if err := s.persister.Save(ctx, s.cfg); err != nil {
@@ -387,50 +387,137 @@ func (s *Scheduler) Stop(_ context.Context) error {
 	return nil
 }
 
+// evaluateSkipConditions performs the read-only skip checks for a single
+// cron tick: timezone pause window, weekend skip, and holiday skip.
+// Returns skip=true when the tick should be discarded silently (with the
+// appropriate Info log already emitted), and the holiday info for downstream
+// event construction otherwise.
+//
+// Stages 1-3 of makeCallback per REVIEW-SCHEDULER-001-2026-05-10 W3.
+func (s *Scheduler) evaluateSkipConditions(rt RitualTime, now, localTime time.Time) (skip bool, isHoliday bool, holidayName string) {
+	// P2: TZ pause window.
+	if pauseVal := s.tzPauseUntil.Load(); pauseVal != nil {
+		if until, ok := pauseVal.(time.Time); ok && now.Before(until) {
+			s.logger.Info("ritual_paused_tz_shift",
+				zap.String("event", string(rt.Event)),
+				zap.Time("pause_until", until),
+			)
+			return true, false, ""
+		}
+	}
+
+	// P2: Weekend skip.
+	if rt.SkipWeekends {
+		wd := localTime.Weekday()
+		if wd == time.Saturday || wd == time.Sunday {
+			s.logger.Info("ritual_skipped_weekend",
+				zap.String("event", string(rt.Event)),
+				zap.String("weekday", wd.String()),
+			)
+			return true, false, ""
+		}
+	}
+
+	// P2: Holiday skip + info passthrough.
+	if s.holidays != nil {
+		info := s.holidays.Lookup(localTime)
+		isHoliday = info.IsHoliday
+		holidayName = info.Name
+		if rt.SkipHolidays && isHoliday {
+			s.logger.Info("ritual_skipped_holiday",
+				zap.String("event", string(rt.Event)),
+				zap.String("holiday", holidayName),
+			)
+			return true, isHoliday, holidayName
+		}
+	}
+	return false, isHoliday, holidayName
+}
+
+// dispatchScheduledEvent constructs the ScheduledEvent, performs duplicate
+// suppression check (3-tuple, TZ-aware), records the fired key, and enqueues
+// onto the worker channel. When the firedKey is already present, emits a
+// suppressed fire-log entry and returns without enqueueing.
+//
+// Stages 6-8 of makeCallback per REVIEW-SCHEDULER-001-2026-05-10 W3.
+func (s *Scheduler) dispatchScheduledEvent(
+	rt RitualTime,
+	now time.Time,
+	localDate, tz string,
+	isHoliday bool,
+	holidayName string,
+	backoffApplied bool,
+	delayHint time.Duration,
+) {
+	firedKey := BuildFiredKey(string(rt.Event), localDate, tz)
+	if s.firedKeys != nil && s.firedKeys.Has(firedKey) {
+		ev := ScheduledEvent{
+			Event:         rt.Event,
+			FiredAt:       now,
+			ScheduledAt:   now,
+			Timezone:      tz,
+			UserLocalDate: localDate,
+			IsHoliday:     isHoliday,
+			HolidayName:   holidayName,
+		}
+		EmitFireLog(s.logger, ev, true, "duplicate_suppressed")
+		return
+	}
+
+	ev := ScheduledEvent{
+		Event:          rt.Event,
+		FiredAt:        now,
+		ScheduledAt:    now,
+		Timezone:       tz,
+		UserLocalDate:  localDate,
+		IsHoliday:      isHoliday,
+		HolidayName:    holidayName,
+		BackoffApplied: backoffApplied,
+		DelayHint:      delayHint,
+	}
+
+	// P4b: emit canonical fire-log entry (REQ-SCHED-004 schema).
+	EmitFireLog(s.logger, ev, false, "")
+
+	// P4b: record the fired key before enqueueing so a duplicate cron tick
+	// during the same minute is suppressed.
+	if s.firedKeys != nil {
+		if err := s.firedKeys.Mark(firedKey, now); err != nil {
+			s.logger.Warn("firedkeys_mark_error", zap.Error(err))
+		}
+	}
+
+	// P3: enqueue onto workerCh (non-blocking). Worker dispatches asynchronously.
+	select {
+	case s.workerCh <- ev:
+	default:
+		s.logger.Warn("ritual_workerch_full", zap.String("event", string(ev.Event)))
+	}
+}
+
 // makeCallback builds the cron callback closure for a given RitualTime.
 // P3: cron callbacks only enqueue events onto workerCh; dispatch runs in the worker.
-func (s *Scheduler) makeCallback(ctx context.Context, rt RitualTime) func() {
+//
+// @MX:WARN: [AUTO] Cron callback closure orchestrates 8 lifecycle stages
+//
+//	(TZ pause / weekend / holiday / nighttime warn / backoff / suppression /
+//	event build / mark+enqueue). Skip checks (1-3) and dispatch (6-8) are
+//	extracted to helpers; nighttime warn (4) and backoff (5) remain inline.
+//
+// @MX:REASON: Centralized lifecycle preserves atomic per-tick semantics —
+//
+//	further extraction would scatter early-return guards and break the
+//	single-shot defer/force-emit invariant.
+//
+// @MX:SPEC: SPEC-GOOSE-SCHEDULER-001 REQ-SCHED-013, REQ-SCHED-021
+func (s *Scheduler) makeCallback(rt RitualTime) func() {
 	return func() {
 		now := s.clock.Now()
 		localTime := now.In(s.location)
 
-		// P2: check timezone shift pause window.
-		if pauseVal := s.tzPauseUntil.Load(); pauseVal != nil {
-			if until, ok := pauseVal.(time.Time); ok && now.Before(until) {
-				s.logger.Info("ritual_paused_tz_shift",
-					zap.String("event", string(rt.Event)),
-					zap.Time("pause_until", until),
-				)
-				return
-			}
-		}
-
-		// P2: check weekend skip.
-		if rt.SkipWeekends {
-			wd := localTime.Weekday()
-			if wd == time.Saturday || wd == time.Sunday {
-				s.logger.Info("ritual_skipped_weekend",
-					zap.String("event", string(rt.Event)),
-					zap.String("weekday", wd.String()),
-				)
-				return
-			}
-		}
-
-		// P2: check holiday skip.
-		var isHoliday bool
-		var holidayName string
-		if s.holidays != nil {
-			info := s.holidays.Lookup(localTime)
-			isHoliday = info.IsHoliday
-			holidayName = info.Name
-			if rt.SkipHolidays && isHoliday {
-				s.logger.Info("ritual_skipped_holiday",
-					zap.String("event", string(rt.Event)),
-					zap.String("holiday", holidayName),
-				)
-				return
-			}
+		skip, isHoliday, holidayName := s.evaluateSkipConditions(rt, now, localTime)
+		if skip {
+			return
 		}
 
 		// P3: nighttime override WARN log (fires at most once per Scheduler instance).
@@ -476,52 +563,8 @@ func (s *Scheduler) makeCallback(ctx context.Context, rt RitualTime) func() {
 			}
 		}
 
-		// P4b: 3-tuple suppression key (TZ-aware).
 		tz := s.cfg.effectiveTimezone()
-		firedKey := BuildFiredKey(string(rt.Event), localDate, tz)
-		if s.firedKeys != nil && s.firedKeys.Has(firedKey) {
-			ev := ScheduledEvent{
-				Event:         rt.Event,
-				FiredAt:       now,
-				ScheduledAt:   now,
-				Timezone:      tz,
-				UserLocalDate: localDate,
-				IsHoliday:     isHoliday,
-				HolidayName:   holidayName,
-			}
-			EmitFireLog(s.logger, ev, true, "duplicate_suppressed")
-			return
-		}
-
-		ev := ScheduledEvent{
-			Event:          rt.Event,
-			FiredAt:        now,
-			ScheduledAt:    now,
-			Timezone:       tz,
-			UserLocalDate:  localDate,
-			IsHoliday:      isHoliday,
-			HolidayName:    holidayName,
-			BackoffApplied: backoffApplied,
-			DelayHint:      delayHint,
-		}
-
-		// P4b: emit canonical fire-log entry (REQ-SCHED-004 schema).
-		EmitFireLog(s.logger, ev, false, "")
-
-		// P4b: record the fired key before enqueueing so a duplicate cron tick
-		// during the same minute is suppressed.
-		if s.firedKeys != nil {
-			if err := s.firedKeys.Mark(firedKey, now); err != nil {
-				s.logger.Warn("firedkeys_mark_error", zap.Error(err))
-			}
-		}
-
-		// P3: enqueue onto workerCh (non-blocking). Worker dispatches asynchronously.
-		select {
-		case s.workerCh <- ev:
-		default:
-			s.logger.Warn("ritual_workerch_full", zap.String("event", string(ev.Event)))
-		}
+		s.dispatchScheduledEvent(rt, now, localDate, tz, isHoliday, holidayName, backoffApplied, delayHint)
 	}
 }
 
@@ -571,7 +614,7 @@ func (s *Scheduler) NotifyTimezoneChange(ctx context.Context, newLoc *time.Locat
 // Replays carry IsReplay=true and DelayMinutes=<actual>, so downstream
 // consumers can adapt tone (e.g. BRIEFING-001 may say "you missed your
 // morning briefing 30 minutes ago" instead of "good morning").
-func (s *Scheduler) replayMissedEvents(ctx context.Context, rituals []RitualTime) {
+func (s *Scheduler) replayMissedEvents(rituals []RitualTime) {
 	if s.firedKeys == nil {
 		return
 	}
