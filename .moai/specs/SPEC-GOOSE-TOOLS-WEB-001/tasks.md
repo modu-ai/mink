@@ -119,5 +119,51 @@ External dep: 신규 없음 (net/http stdlib + 기존 common 인프라 재사용
 
 ---
 
+## M2b Task Decomposition (web_browse + Playwright launcher 추상화)
+SPEC: SPEC-GOOSE-TOOLS-WEB-001 M2b
+Branch: feature/SPEC-GOOSE-TOOLS-WEB-001-M2b (main HEAD = b908de2)
+External dep: 신규 1개 (`github.com/playwright-community/playwright-go` v0.5700.1)
+
+### 범위 최소화 (orchestrator 결정 2026-05-10)
+- AC-WEB-011 만 명시 GREEN — Playwright 부재 처리.
+- go-readability 도입 미루어 후속 milestone (M2c 또는 M3 흡수). M2b 에서는 extract enum 은 schema 만, 실 readability 추출은 placeholder.
+- production Playwright wiring (실제 chromium 호출 + DOM 추출) 은 별도 작업. M2b 는 launcher 추상화 + 부재 처리 분류 로직 만.
+
+### Tasks
+
+| Task ID | Description | Requirement | Dependencies | Planned Files | Status |
+|---------|-------------|-------------|--------------|---------------|--------|
+| T-029 | go.mod 신규 의존성 — github.com/playwright-community/playwright-go v0.5700.1 | enabling | none | go.mod, go.sum (modify) | pending |
+| T-030 | browse_playwright.go: PlaywrightLauncher interface + ErrBinaryNotFound sentinel + classifyLaunchError(err) → ("playwright_not_installed", message) 분류 함수 + production playwrightRunLauncher (playwright.Run wrapping + driver missing 패턴 매칭) | REQ-WEB-013 (audit warning), AC-WEB-011 분류 | T-029 | internal/tools/web/browse_playwright.go (신규) | pending |
+| T-031 | browse.go: webBrowse 도구 (Tool interface + JSON schema additionalProperties:false url/extract enum text|article|html/timeout_ms 1000..60000) + Call (blocklist + permission gate + launcher 호출 + ErrBinaryNotFound 분류 → playwright_not_installed error response) | REQ-WEB-001/002, AC-WEB-011 | T-030 | internal/tools/web/browse.go (신규) | pending |
+| T-032 | browse_test.go: AC-WEB-011 검증 (mock launcher 가 ErrBinaryNotFound 강제) + schema validation (잘못된 extract enum / 범위 외 timeout_ms) + TestWebBrowse_RegisteredInWebTools | AC-WEB-011 | T-030, T-031 | internal/tools/web/browse_test.go (신규) | pending |
+| T-033 | register_test.go expectation 갱신: 9 → 10 (web_browse 추가) | wiring | T-031 | internal/tools/web/register_test.go (modify) | pending |
+
+### M2b RED → GREEN → REFACTOR sequence
+1. RED: T-032 의 시나리오 작성
+2. GREEN: T-029 → T-030 → T-031 → T-033 순서 최소 구현
+3. REFACTOR: 중복 제거, English godoc, @MX 태그 갱신
+4. coverage 측정 → ≥80% (M2a 83.3% 회귀 0)
+5. golangci-lint + go vet + gofmt clean
+6. commit (squash 1개 PR)
+
+### M2b Exit Criteria
+- AC-WEB-011 GREEN (Playwright 부재 → `playwright_not_installed` + panic 없음)
+- 누적 implemented AC: 9 (M1+M2a) + 1 (M2b) = 10 / 18
+- M2 milestone 완결, M3 (RSS+ArXiv) / M4 (Maps+Wayback) 잔여
+
+### Drift Guard baseline (M2b)
+- Planned new files: 3 (browse.go, browse_playwright.go, browse_test.go)
+- Planned modifications: 1 (register_test.go) + go.mod
+- Total planned: 4 files
+- 외부 의존 신규: playwright-go v0.5700.1 (driver install 은 사용자 책임, REQ-WEB-013 audit warning 으로 안내)
+- 누적 lesson:
+  - isolation 미사용 17회 무사고
+  - LSP stale 14회 reproduction
+  - 1M context 정책 예외 4회 재현
+  - defensive schema guard 패턴 (M2a 사례)
+
+---
+
 Version: 0.1.0
 Last Updated: 2026-05-06
