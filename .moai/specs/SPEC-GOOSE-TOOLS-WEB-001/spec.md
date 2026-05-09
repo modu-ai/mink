@@ -1,7 +1,7 @@
 ---
 id: SPEC-GOOSE-TOOLS-WEB-001
-version: 0.1.1
-status: implemented
+version: 0.2.0
+status: completed
 created_at: 2026-05-05
 updated_at: 2026-05-10
 author: manager-spec
@@ -23,6 +23,7 @@ labels: [phase-4, tools, web, search, browse, rss, wikipedia, arxiv, maps, wayba
 | 0.1.0 | 2026-05-05 | 자가 plan-audit 1라운드 PASS — EARS 18 REQ + 18 AC + 5 파일(spec/plan/acceptance/spec-compact/research) 완비, 의존 6 SPEC(TOOLS-001/PERMISSION-001/FS-ACCESS-001/SECURITY-SANDBOX-001/RATELIMIT-001/AUDIT-001) 모두 reference-only(수정 없음), labels 채워짐, negative-path AC 7개 포함, behavioral 표현 일관, OUT 11개 명시, Risks 8개. status: draft → audit-ready 자동 전환. | manager-spec |
 | 0.1.0 | 2026-05-07 | M1 implemented — 8 도구 Registry 등록 (Name/Schema/Scope/Call) + `web_search` (brave provider) + `http_fetch` (GET/HEAD) + 공통 인프라 (Blocklist/RobotsChecker/Cache(bbolt)/UserAgent/Permission/Audit/RateLimit Brave parser). DC-12 Tavily via web.yaml subtest GREEN (`unsupported_provider` 명시 거절). PR #119 (3 commits + CodeRabbit 9 findings 일괄 수용 fix) merged. tavily/exa 실제 provider 구현 + browse/rss/wikipedia/arxiv/maps/wayback 6 도구는 후속 milestone. status: audit-ready → implemented. | manager-tdd |
 | 0.1.1 | 2026-05-10 | M2 milestone partial sync — M2a (web_wikipedia, AC-WEB-013) PR #140 + M2b (web_browse + Playwright launcher 추상화, AC-WEB-011) PR #141 머지. 누적 implemented AC: 8 (M1) + 1 (M2a) + 1 (M2b) = **10/18**. PlaywrightLauncher DI seam (P3 ActivityClock / P4a PatternReader / M2a hostBuilder 동일 패턴 4번째 재사용) 으로 driver missing 분류 (`playwright_not_installed`) panic-free 검증. M2b 의 success path 는 stub `browse_not_implemented` 응답 — M2c (production page navigation + go-readability 통합) 후속 milestone. M3 (RSS+ArXiv, AC-WEB-014) / M4 (Maps+Wayback, AC-WEB-015/016) 잔여. status: implemented 유지 (전체 SPEC 완수 시 completed 전환). | manager-docs |
+| 0.2.0 | 2026-05-10 | **Sprint 1 web 도구 카탈로그 완수** — M2c (PR #149, web_browse production wiring + extract enum text/article/html 실 구현 + go-readability 통합) + M3 (PR #150, web_rss + web_arxiv, AC-WEB-014 GREEN, gofeed v1.3.0 의존성) + M4 (PR #151, web_maps + web_wayback, AC-WEB-015 + AC-WEB-016 GREEN, stdlib only) + sync (PR #152, schema_test 8 도구 cover + AC-WEB-018 4-line audit 검증 추가). 8 도구 모두 Registry 등록 (http_fetch + web_search + web_wikipedia + web_browse + web_rss + web_arxiv + web_maps + web_wayback), registry = builtin 6 + web 8 = 14. 누적 implemented AC: **18/18 GREEN**. status: implemented → **completed**. | manager-docs |
 
 ---
 
@@ -446,5 +447,5 @@ type SearchProvider interface {
 REQ coverage: REQ-WEB-001 ~ REQ-WEB-018 (18개)
 AC coverage: AC-WEB-001 ~ AC-WEB-018 (18개)
 
-Version: 0.1.0
-Last Updated: 2026-05-05
+Version: 0.2.0
+Last Updated: 2026-05-10

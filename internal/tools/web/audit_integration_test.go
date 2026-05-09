@@ -185,7 +185,7 @@ func TestAuditTimestampMonotonic(t *testing.T) {
 	}))
 
 	httpTool := web.NewHTTPFetch(deps)
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		res, err := httpTool.Call(context.Background(), buildInput(t, map[string]any{
 			"url": "http://" + fetchSrv.Listener.Addr().String() + "/",
 		}))
@@ -208,6 +208,173 @@ type captureAuditWriter struct {
 func (c *captureAuditWriter) Write(e audit.AuditEvent) error {
 	*c.events = append(*c.events, e)
 	return nil
+}
+
+// --------------------------------------------------------------------------
+// TestAuditLog_FourCallsAllTools — AC-WEB-018 (sync scope: 4 tools)
+// --------------------------------------------------------------------------
+
+// auditFourTooStubSession implements web.PlaywrightSession with a noop success
+// path, used so the AC-WEB-018 four-call test can exercise web_browse's
+// success branch (writeAudit outcome=ok) without a real Playwright driver.
+type auditFourToolStubSession struct{}
+
+func (s *auditFourToolStubSession) Goto(_ context.Context, _ string, _ int) error {
+	return nil
+}
+func (s *auditFourToolStubSession) Title() (string, error) { return "Mock Page", nil }
+func (s *auditFourToolStubSession) Content() (string, error) {
+	return "<html><body>mock</body></html>", nil
+}
+func (s *auditFourToolStubSession) InnerText(_ string) (string, error) {
+	return "mock body text", nil
+}
+func (s *auditFourToolStubSession) Close() error { return nil }
+
+// auditFourToolStubLauncher returns auditFourToolStubSession on every call.
+type auditFourToolStubLauncher struct{}
+
+func (a *auditFourToolStubLauncher) Launch(_ context.Context) (web.PlaywrightSession, error) {
+	return &auditFourToolStubSession{}, nil
+}
+
+// TestAuditLog_FourCallsAllTools verifies AC-WEB-018: four web tool calls
+// (web_search + http_fetch + web_wikipedia + web_browse), each producing one
+// audit log line with outcome=ok and the full required metadata key set.
+func TestAuditLog_FourCallsAllTools(t *testing.T) {
+	var clockTick atomic.Int64
+	baseTime := time.Now().UTC().Truncate(time.Microsecond)
+	testClock := func() time.Time {
+		tick := clockTick.Add(1)
+		return baseTime.Add(time.Duration(tick) * time.Microsecond)
+	}
+
+	searchSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"web":{"results":[{"title":"T","url":"https://ex.com","description":"D"}]}}`))
+	}))
+	defer searchSrv.Close()
+
+	fetchSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = w.Write([]byte("hello world"))
+	}))
+	defer fetchSrv.Close()
+
+	wikiSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+            "type": "standard",
+            "title": "Seoul",
+            "extract": "Seoul is the capital of South Korea.",
+            "content_urls": {"desktop": {"page": "https://en.wikipedia.org/wiki/Seoul"}}
+        }`))
+	}))
+	defer wikiSrv.Close()
+
+	logDir := t.TempDir()
+	logPath := filepath.Join(logDir, "audit.log")
+	auditWriter, err := audit.NewFileWriter(logPath)
+	require.NoError(t, err)
+	defer func() { _ = auditWriter.Close() }()
+
+	wikiHost := wikiSrv.Listener.Addr().String()
+	allHosts := []string{
+		"api.search.brave.com",
+		fetchSrv.Listener.Addr().String(),
+		wikiHost,
+		"example.com",
+	}
+	store := permstore.NewMemoryStore()
+	require.NoError(t, store.Open())
+	mgr, err := permission.New(store, permission.AlwaysAllowConfirmer{}, nil, nil, nil)
+	require.NoError(t, err)
+	require.NoError(t, mgr.Register("agent:goose", permission.Manifest{NetHosts: allHosts}))
+
+	deps := &common.Deps{
+		PermMgr:     mgr,
+		AuditWriter: auditWriter,
+		Clock:       testClock,
+		Cwd:         t.TempDir(),
+	}
+	tracker, err := ratelimit.New(ratelimit.TrackerOptions{ThresholdPct: 80})
+	require.NoError(t, err)
+	deps.RateTracker = tracker
+	web.RegisterBraveParser(tracker)
+
+	ctx := context.Background()
+
+	// Call 1: web_search.
+	searchTool := web.NewWebSearch(deps, searchSrv.URL)
+	r1, err := searchTool.Call(ctx, buildSearchInput(t, map[string]any{
+		"query": "audit-four", "provider": "brave",
+	}))
+	require.NoError(t, err)
+	require.False(t, r1.IsError, "web_search must succeed")
+
+	// Call 2: http_fetch.
+	httpTool := web.NewHTTPFetch(deps)
+	_, err = httpTool.Call(ctx, buildInput(t, map[string]any{
+		"url": "http://" + fetchSrv.Listener.Addr().String() + "/",
+	}))
+	require.NoError(t, err)
+
+	// Call 3: web_wikipedia (hostBuilder routes to mock server).
+	wikiTool := web.NewWikipediaForTest(deps, func(_ string) string {
+		return wikiSrv.URL
+	})
+	_, err = wikiTool.Call(ctx, json.RawMessage(`{"query":"Seoul","language":"en"}`))
+	require.NoError(t, err)
+
+	// Call 4: web_browse with stub launcher (success path → outcome=ok).
+	browseTool := web.NewBrowseForTest(deps, &auditFourToolStubLauncher{})
+	_, err = browseTool.Call(ctx, json.RawMessage(`{"url":"https://example.com","extract":"text"}`))
+	require.NoError(t, err)
+
+	require.NoError(t, auditWriter.Close())
+
+	f, err := os.Open(logPath)
+	require.NoError(t, err)
+	defer func() { _ = f.Close() }()
+
+	var lines []map[string]any
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			continue
+		}
+		var entry map[string]any
+		require.NoError(t, json.Unmarshal([]byte(line), &entry), "line must be valid JSON: %q", line)
+		lines = append(lines, entry)
+	}
+	require.NoError(t, scanner.Err())
+
+	require.Len(t, lines, 4, "exactly 4 audit lines expected (web_search + http_fetch + web_wikipedia + web_browse)")
+
+	requiredKeys := []string{"type", "timestamp", "severity", "message", "metadata"}
+	metaRequiredKeys := []string{"tool", "host", "method", "status_code", "cache_hit", "duration_ms", "outcome"}
+	gotTools := make(map[string]bool, 4)
+	for i, entry := range lines {
+		for _, k := range requiredKeys {
+			assert.Contains(t, entry, k, "line %d must have %q", i+1, k)
+		}
+		assert.Equal(t, "tool.web.invoke", entry["type"], "line %d type must be tool.web.invoke", i+1)
+
+		meta, ok := entry["metadata"].(map[string]any)
+		require.True(t, ok, "line %d metadata must be JSON object", i+1)
+		for _, mk := range metaRequiredKeys {
+			assert.Contains(t, meta, mk, "line %d metadata must have %q", i+1, mk)
+		}
+		assert.Equal(t, "ok", meta["outcome"], "line %d outcome must be ok", i+1)
+		if toolName, ok := meta["tool"].(string); ok {
+			gotTools[toolName] = true
+		}
+	}
+	assert.True(t, gotTools["web_search"], "web_search audit line missing")
+	assert.True(t, gotTools["http_fetch"], "http_fetch audit line missing")
+	assert.True(t, gotTools["web_wikipedia"], "web_wikipedia audit line missing")
+	assert.True(t, gotTools["web_browse"], "web_browse audit line missing")
 }
 
 // unmarshalToolResponse decodes ToolResult into common.Response.
