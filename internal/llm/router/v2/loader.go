@@ -5,6 +5,7 @@
 package v2
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -33,7 +34,13 @@ type rawPolicy struct {
 
 // LoadPolicy 는 path 의 routing-policy.yaml 을 RoutingPolicy 로 로드한다.
 //
+// ctx 는 caller 의 cancellation propagation 용이다. os.ReadFile 자체는
+// context 를 직접 지원하지 않지만, 진입 시점에 ctx.Err() 를 한 번 검사해
+// 이미 취소된 컨텍스트로 호출되는 경우를 즉시 거절한다. 신규 public API
+// 이므로 시그니처를 지금 잡아두는 것이 후속 호환성 비용을 절감한다.
+//
 // 동작 규칙:
+//   - ctx 가 이미 취소됨 → ctx.Err() 를 wrap 해 반환.
 //   - 파일 부재 (os.IsNotExist) → RoutingPolicy{Mode: PreferQuality, RateLimitThreshold: 0.80} + nil error.
 //     이는 backward-compat fast path 의 핵심으로 v1 Router 와 byte-identical 동작을 보장한다.
 //   - 파일은 있으나 mode 미지정 → PreferQuality 기본값.
@@ -41,7 +48,10 @@ type rawPolicy struct {
 //   - rate_limit_threshold 가 [0.0, 1.0] 밖 → ErrInvalidThreshold.
 //   - rate_limit_threshold 미지정 → DefaultRateLimitThreshold (0.80).
 //   - YAML 자체가 malformed → io/parse 에러를 그대로 wrap.
-func LoadPolicy(path string) (RoutingPolicy, error) {
+func LoadPolicy(ctx context.Context, path string) (RoutingPolicy, error) {
+	if err := ctx.Err(); err != nil {
+		return RoutingPolicy{}, fmt.Errorf("v2: load policy: %w", err)
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {

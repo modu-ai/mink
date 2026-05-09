@@ -1,7 +1,7 @@
 package v2_test
 
 import (
-	"errors"
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -22,7 +22,7 @@ func TestLoadPolicy_FileNotFound_ReturnsDefault(t *testing.T) {
 	t.Parallel()
 
 	missing := filepath.Join(t.TempDir(), "does-not-exist.yaml")
-	rp, err := v2.LoadPolicy(missing)
+	rp, err := v2.LoadPolicy(context.Background(), missing)
 
 	require.NoError(t, err, "missing file MUST NOT surface as an error (backward-compat)")
 	assert.Equal(t, v2.PreferQuality, rp.Mode)
@@ -43,7 +43,7 @@ func TestLoadPolicy_EmptyFile_ReturnsDefault(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "empty.yaml")
 	require.NoError(t, os.WriteFile(path, []byte(""), 0o600))
 
-	rp, err := v2.LoadPolicy(path)
+	rp, err := v2.LoadPolicy(context.Background(), path)
 	require.NoError(t, err)
 	assert.Equal(t, v2.PreferQuality, rp.Mode)
 	assert.InDelta(t, v2.DefaultRateLimitThreshold, rp.RateLimitThreshold, 0.0001)
@@ -62,7 +62,7 @@ func TestLoadPolicy_UnknownMode_ReturnsError(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "bad-mode.yaml")
 	require.NoError(t, os.WriteFile(path, []byte("mode: prefer_unicorn\n"), 0o600))
 
-	_, err := v2.LoadPolicy(path)
+	_, err := v2.LoadPolicy(context.Background(), path)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, v2.ErrUnknownPolicyMode)
 	assert.Contains(t, err.Error(), "prefer_unicorn",
@@ -93,7 +93,7 @@ func TestLoadPolicy_ThresholdOutOfRange_ReturnsError(t *testing.T) {
 			path := filepath.Join(t.TempDir(), tc.name+".yaml")
 			require.NoError(t, os.WriteFile(path, []byte(tc.body), 0o600))
 
-			_, err := v2.LoadPolicy(path)
+			_, err := v2.LoadPolicy(context.Background(), path)
 			require.Error(t, err)
 			assert.ErrorIs(t, err, v2.ErrInvalidThreshold)
 		})
@@ -126,7 +126,7 @@ func TestLoadPolicy_ThresholdBoundaries_AreValid(t *testing.T) {
 			path := filepath.Join(t.TempDir(), tc.name+".yaml")
 			require.NoError(t, os.WriteFile(path, []byte(tc.body), 0o600))
 
-			rp, err := v2.LoadPolicy(path)
+			rp, err := v2.LoadPolicy(context.Background(), path)
 			require.NoError(t, err)
 			assert.InDelta(t, tc.value, rp.RateLimitThreshold, 0.0001)
 		})
@@ -160,7 +160,7 @@ fallback_chain:
 	path := filepath.Join(t.TempDir(), "policy.yaml")
 	require.NoError(t, os.WriteFile(path, []byte(body), 0o600))
 
-	rp, err := v2.LoadPolicy(path)
+	rp, err := v2.LoadPolicy(context.Background(), path)
 	require.NoError(t, err)
 
 	assert.Equal(t, v2.PreferCheap, rp.Mode)
@@ -204,7 +204,7 @@ func TestLoadPolicy_AllFourModes_ParseCorrectly(t *testing.T) {
 			path := filepath.Join(t.TempDir(), tc.name+".yaml")
 			require.NoError(t, os.WriteFile(path, []byte(tc.body), 0o600))
 
-			rp, err := v2.LoadPolicy(path)
+			rp, err := v2.LoadPolicy(context.Background(), path)
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, rp.Mode)
 		})
@@ -225,7 +225,7 @@ func TestLoadPolicy_MalformedYAML_WrapsError(t *testing.T) {
 	require.NoError(t, os.WriteFile(path,
 		[]byte("mode: [this is not a string\n"), 0o600))
 
-	_, err := v2.LoadPolicy(path)
+	_, err := v2.LoadPolicy(context.Background(), path)
 	require.Error(t, err)
 	assert.NotErrorIs(t, err, v2.ErrUnknownPolicyMode)
 	assert.NotErrorIs(t, err, v2.ErrInvalidThreshold)
@@ -250,9 +250,32 @@ func TestLoadPolicy_PermissionError_WrapsError(t *testing.T) {
 		t.Skip("root bypasses 0o000 — skip when running as root")
 	}
 
-	_, err := v2.LoadPolicy(path)
+	_, err := v2.LoadPolicy(context.Background(), path)
 	require.Error(t, err)
-	assert.True(t, errors.Is(err, os.ErrPermission) || err != nil,
-		"non-not-exist read error must surface as wrapped error")
+	assert.ErrorIs(t, err, os.ErrPermission,
+		"non-not-exist read error must wrap os.ErrPermission")
 	assert.Contains(t, err.Error(), "read policy")
+}
+
+// --------------------------------------------------------------------------
+// TestLoadPolicy_CanceledContext_ReturnsContextError
+// --------------------------------------------------------------------------
+
+// 이미 취소된 ctx 로 호출 시 LoadPolicy 는 파일 read 전에 ctx.Err() 를
+// wrap 해 반환해야 한다. caller 가 cancellation propagation 으로 즉시
+// 중단할 수 있도록 보장.
+func TestLoadPolicy_CanceledContext_ReturnsContextError(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // 즉시 취소
+
+	path := filepath.Join(t.TempDir(), "irrelevant.yaml")
+	require.NoError(t, os.WriteFile(path, []byte("mode: prefer_cheap\n"), 0o600))
+
+	_, err := v2.LoadPolicy(ctx, path)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, context.Canceled,
+		"canceled ctx must surface as context.Canceled wrap")
+	assert.Contains(t, err.Error(), "load policy")
 }
