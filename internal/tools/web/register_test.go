@@ -88,26 +88,31 @@ func TestRegistry_WithWeb_RegisterAndResolve(t *testing.T) {
 
 // TestRegistry_WithWeb_ListNames verifies DC-01 / AC-WEB-001:
 // production init() registrations of http_fetch + web_search + web_wikipedia +
-// web_browse + web_rss + web_arxiv produce a Registry whose ListNames returns
-// 6 built-in + 6 web tool names = 12 after M3. This test does NOT call
-// ClearWebToolsForTest — it relies on the actual init() registrations to verify
-// wiring as the milestones land.
+// web_browse + web_rss + web_arxiv + web_maps + web_wayback produce a Registry
+// whose ListNames returns 6 built-in + 8 web tool names = 14 after M4. This
+// test does NOT call ClearWebToolsForTest — it relies on the actual init()
+// registrations to verify wiring as the milestones land.
 func TestRegistry_WithWeb_ListNames(t *testing.T) {
 	reg := tools.NewRegistry(tools.WithBuiltins(), web.WithWeb())
 	names := reg.ListNames()
 
-	// M3 expectation: 6 built-in + 6 web (http_fetch, web_search, web_wikipedia,
-	// web_browse, web_rss, web_arxiv) = 12.
-	require.Equal(t, 12, len(names), "expected 6 builtins + 6 web tools, got %v", names)
+	// M4 expectation: 6 built-in + 8 web (http_fetch, web_search, web_wikipedia,
+	// web_browse, web_rss, web_arxiv, web_maps, web_wayback) = 14.
+	require.Equal(t, 14, len(names), "expected 6 builtins + 8 web tools, got %v", names)
 	assert.Contains(t, names, "http_fetch")
 	assert.Contains(t, names, "web_search")
 	assert.Contains(t, names, "web_wikipedia")
 	assert.Contains(t, names, "web_browse")
 	assert.Contains(t, names, "web_rss")
 	assert.Contains(t, names, "web_arxiv")
+	assert.Contains(t, names, "web_maps")
+	assert.Contains(t, names, "web_wayback")
 
-	// All six web tools must resolve to non-nil Tool with ScopeShared.
-	for _, n := range []string{"http_fetch", "web_search", "web_wikipedia", "web_browse", "web_rss", "web_arxiv"} {
+	// All eight web tools must resolve to non-nil Tool with ScopeShared.
+	for _, n := range []string{
+		"http_fetch", "web_search", "web_wikipedia", "web_browse",
+		"web_rss", "web_arxiv", "web_maps", "web_wayback",
+	} {
 		tool, ok := reg.Resolve(n)
 		require.True(t, ok, "tool %q must resolve", n)
 		require.NotNil(t, tool)

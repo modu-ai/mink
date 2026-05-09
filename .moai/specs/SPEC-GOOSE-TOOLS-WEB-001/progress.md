@@ -314,3 +314,49 @@
 ### M3 Exit
 - 누적 implemented AC: 11/18 (M2c 10 + AC-WEB-014)
 - M4 (Maps+Wayback, AC-WEB-015/016) 잔여
+
+---
+
+## 2026-05-10 M4 Session (web_maps + web_wayback)
+
+### Branch / Base
+- Branch: feature/tools-web-m4
+- Base: main HEAD = e52b618 (M3 머지 후)
+- External dep: 없음 (stdlib net/http + encoding/json only)
+
+### Phase 0 — 범위
+- 2 도구 신규: web_maps (Nominatim geocode/reverse, AC-WEB-015) + web_wayback (Wayback Machine, AC-WEB-016)
+- DI seam: 두 도구 모두 apiBaseBuilder (production = 고정 URL, test = httptest.Server.URL)
+- 응답 정규화: Nominatim lat/lon string → float64 변환, Wayback closest 객체 → 단순 status 변환
+- Blocklist/permission host: production host 상수 사용 (arxiv 패턴과 동일 — mock server URL 과 독립)
+
+### Phase 2 — TDD Implementation 완료
+
+#### 신규 파일
+- internal/tools/web/maps.go: webMaps + apiBaseBuilder + parseMapsInput (operation enum, geocode/reverse 분기 validation) + Call (URL build geocode/reverse + Nominatim 응답 정규화 lat/lon string→float64) + @MX:ANCHOR + NewMapsForTest
+- internal/tools/web/maps_test.go: 7 시나리오 (GeocodeAndReverse / SchemaValidation 7 subcases / BlocklistPriority / PermissionDenied / RegisteredInWebTools / AuditWriter / FetchFailure)
+- internal/tools/web/wayback.go: webWayback + apiBaseBuilder + parseWaybackInput (url scheme + timestamp pattern) + Call (Wayback Machine API + closest.available 분기 → status 변환) + @MX:ANCHOR + NewWaybackForTest
+- internal/tools/web/wayback_test.go: 7 시나리오 (LatestSnapshot / Unavailable / SchemaValidation 7 subcases / BlocklistPriority / PermissionDenied / RegisteredInWebTools / AuditWriter)
+
+#### 수정 파일
+- internal/tools/web/register_test.go: expectation 12 → 14 (web_maps + web_wayback 추가)
+
+### Key Fix — Blocklist host
+- 초기 구현에서 test server URL 로 host 추출 → blocklist miss 발생
+- arxiv 패턴 적용: production host 상수(`mapsHost`/`waybackHost`)를 항상 사용
+
+### Verification Results
+- gofmt -l: 0 lines (clean)
+- go vet: 0 issues
+- golangci-lint: 0 issues
+- race -count=10 (Maps+Wayback): PASS
+- race -count=3 (web 전체): PASS
+- coverage: web 79.7%, total (web+common) 81.2% (M3 78.7% 대비 상승)
+- 회귀: 0
+- 신규 테스트 14개 모두 GREEN
+- AC-WEB-015 + AC-WEB-016: GREEN
+
+### M4 Exit (Sprint 1 TOOLS-WEB 구현 완수)
+- 누적 implemented AC: 13/18 (M3 11 + AC-WEB-015 + AC-WEB-016)
+- TOOLS-WEB-001 8 도구 모두 등록 완료 (http_fetch + web_search + web_wikipedia + web_browse + web_rss + web_arxiv + web_maps + web_wayback)
+- 잔여 5 AC (1차/2차 평가): sync 단계에서 status=completed 전환 시 통합 검증 필요
