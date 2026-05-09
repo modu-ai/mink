@@ -8,12 +8,13 @@ import (
 	"errors"
 )
 
-// HookEvent는 24개 lifecycle hook 이벤트를 나타낸다.
+// HookEvent는 29개 HookEvent 상수 (24 base + 5 ritual SCHEDULER-001)를 나타낸다.
 // AC-HK-001 / REQ-HK-001
 type HookEvent string
 
-// 24개 HookEvent 상수 (claude-primitives §5.1 기반).
-// Elicitation, ElicitationResult, InstructionsLoaded 는 제외 (AC-HK-001).
+// 29개 HookEvent 상수 (24 base + 5 ritual SCHEDULER-001).
+// Base 24: claude-primitives §5.1 기반; Elicitation, ElicitationResult, InstructionsLoaded 제외 (AC-HK-001).
+// Ritual 5: SPEC-GOOSE-SCHEDULER-001 P1 추가.
 const (
 	EvSetup              HookEvent = "Setup"
 	EvSessionStart       HookEvent = "SessionStart"
@@ -39,9 +40,15 @@ const (
 	EvTaskCompleted      HookEvent = "TaskCompleted"
 	EvSessionEnd         HookEvent = "SessionEnd"
 	EvConfigChange       HookEvent = "ConfigChange"
+	// Ritual events added by SPEC-GOOSE-SCHEDULER-001 P1.
+	EvMorningBriefingTime HookEvent = "MorningBriefingTime"
+	EvPostBreakfastTime   HookEvent = "PostBreakfastTime"
+	EvPostLunchTime       HookEvent = "PostLunchTime"
+	EvPostDinnerTime      HookEvent = "PostDinnerTime"
+	EvEveningCheckInTime  HookEvent = "EveningCheckInTime"
 )
 
-// HookEventNames는 24개 HookEvent 상수의 문자열 집합을 반환한다.
+// HookEventNames는 29개 HookEvent 상수 (24 base + 5 ritual SCHEDULER-001)의 문자열 집합을 반환한다.
 // AC-HK-001 검증 함수.
 func HookEventNames() []string {
 	return []string{
@@ -69,6 +76,12 @@ func HookEventNames() []string {
 		string(EvTaskCompleted),
 		string(EvSessionEnd),
 		string(EvConfigChange),
+		// Ritual events added by SPEC-GOOSE-SCHEDULER-001 P1.
+		string(EvMorningBriefingTime),
+		string(EvPostBreakfastTime),
+		string(EvPostLunchTime),
+		string(EvPostDinnerTime),
+		string(EvEveningCheckInTime),
 	}
 }
 
