@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
@@ -240,14 +241,7 @@ func TestWikipedia_SchemaValidation(t *testing.T) {
 func TestWikipedia_RegisteredInWebTools(t *testing.T) {
 	t.Parallel()
 	names := web.RegisteredWebToolNamesForTest()
-	var found bool
-	for _, n := range names {
-		if n == "web_wikipedia" {
-			found = true
-			break
-		}
-	}
-	if !found {
+	if !slices.Contains(names, "web_wikipedia") {
 		t.Errorf("web_wikipedia not in RegisteredWebToolNames: %v", names)
 	}
 }

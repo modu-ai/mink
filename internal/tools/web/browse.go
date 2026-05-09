@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
+	"github.com/go-shiori/go-readability"
 	"github.com/modu-ai/goose/internal/audit"
 	"github.com/modu-ai/goose/internal/permission"
 	"github.com/modu-ai/goose/internal/tools"
@@ -151,16 +153,62 @@ func (b *webBrowse) Call(ctx context.Context, raw json.RawMessage) (tools.ToolRe
 		_ = session.Close()
 	}()
 
-	// M2b stub: production navigation / DOM extraction lands in a follow-up
-	// milestone (M2c) that introduces go-readability. For now we surface a
-	// not-yet-implemented response without panicking — the canonical M2b
-	// success path is the ErrPlaywrightNotInstalled translation above.
-	b.writeAudit(ctx, host, "error", "browse_not_implemented", start)
-	return toToolResult(common.ErrResponse(
-		"browse_not_implemented",
-		"web_browse production wiring is deferred to M2c (go-readability + page navigation)",
-		false, 0, elapsed(start),
-	)), nil
+	// Navigate to the target URL.
+	if err := session.Goto(launchCtx, in.URL, in.TimeoutMS); err != nil {
+		b.writeAudit(ctx, host, "error", "navigation_failed", start)
+		return toToolResult(common.ErrResponse(
+			"navigation_failed",
+			fmt.Sprintf("page navigation failed: %v", err),
+			true, 0, elapsed(start),
+		)), nil
+	}
+
+	title, _ := session.Title() // best-effort; ignore error
+
+	// Extract content according to the extract enum.
+	var (
+		content     string
+		contentType string
+		extractErr  error
+	)
+	switch in.Extract {
+	case "html":
+		content, extractErr = session.Content()
+		contentType = "html"
+	case "text":
+		content, extractErr = session.InnerText("body")
+		contentType = "text"
+	case "article":
+		var raw string
+		raw, extractErr = session.Content()
+		if extractErr == nil {
+			content, extractErr = extractArticle(raw, in.URL)
+		}
+		contentType = "article"
+	}
+
+	if extractErr != nil {
+		b.writeAudit(ctx, host, "error", "extract_failed", start)
+		return toToolResult(common.ErrResponse(
+			"extract_failed",
+			fmt.Sprintf("content extraction failed: %v", extractErr),
+			false, 0, elapsed(start),
+		)), nil
+	}
+
+	b.writeAudit(ctx, host, "ok", "", start)
+	data := map[string]any{
+		"title":        title,
+		"url":          in.URL,
+		"content":      content,
+		"content_type": contentType,
+		"word_count":   countWords(content),
+	}
+	okResp, marshalErr := common.OKResponse(data, elapsed(start))
+	if marshalErr != nil {
+		return toToolResult(common.ErrResponse("marshal_error", marshalErr.Error(), false, 0, elapsed(start))), nil
+	}
+	return toToolResult(okResp), nil
 }
 
 // writeAudit records a single audit event for the call.
@@ -219,6 +267,27 @@ func parseBrowseInput(raw json.RawMessage) (browseInput, error) {
 		return browseInput{}, fmt.Errorf("timeout_ms %d out of range [1000, 60000]", in.TimeoutMS)
 	}
 	return in, nil
+}
+
+// extractArticle parses raw HTML through go-readability and returns the
+// extracted article body (TextContent). The base URL is used for resolving
+// relative links inside the parser.
+func extractArticle(rawHTML, pageURL string) (string, error) {
+	parsed, err := url.Parse(pageURL)
+	if err != nil {
+		return "", fmt.Errorf("parse url: %w", err)
+	}
+	article, err := readability.FromReader(strings.NewReader(rawHTML), parsed)
+	if err != nil {
+		return "", fmt.Errorf("readability: %w", err)
+	}
+	return article.TextContent, nil
+}
+
+// countWords returns the whitespace-separated word count of s. Used for
+// the metadata field on web_browse responses.
+func countWords(s string) int {
+	return len(strings.Fields(s))
 }
 
 // init registers web_browse in the global web tools list.
