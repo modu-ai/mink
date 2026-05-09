@@ -1,9 +1,9 @@
 ---
 id: SPEC-GOOSE-CLI-TUI-003
-version: "0.1.0"
-status: implemented
+version: "0.1.1"
+status: completed
 created_at: 2026-05-05
-updated_at: 2026-05-05
+updated_at: 2026-05-10
 author: manager-spec
 priority: P1
 issue_number: 112
@@ -17,6 +17,7 @@ labels: [tui, cli, bubbletea, i18n, sessionmenu, edit-regenerate]
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-05-05 | 초안 — SPEC-GOOSE-CLI-TUI-002 v0.1.0 (implemented, PR #107~#111 머지) 의 scope creep guard 로 이월된 3개 AC (AC-CLITUI-014 sessionmenu, AC-CLITUI-015 edit/regenerate, AC-CLITUI-018 i18n golden) 를 정식 SPEC 으로 분리. 4 phase decomposition: P1 i18n catalog → P2 sessionmenu → P3 edit/regenerate → P4 golden tests. | manager-spec |
+| 0.1.1 | 2026-05-10 | sync — bulk implemented→completed 일괄 갱신 시점 기록. P1~P4 구현 PR #113~#116 머지 + sync(#117) 머지로 10 AC GREEN 완수. 본 entry 에서 frontmatter status `implemented` → `completed` 전환. spec 본문/요구사항/AC 변경 없음 — 메타 갱신 only. | manager-docs |
 
 ---
 

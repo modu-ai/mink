@@ -1,9 +1,9 @@
 ---
 id: SPEC-GOOSE-CLI-TUI-002
-version: "0.1.0"
-status: implemented
+version: "0.1.1"
+status: completed
 created_at: 2026-05-05
-updated_at: 2026-05-05
+updated_at: 2026-05-10
 author: manager-spec
 priority: P1
 labels: [tui, cli, bubbletea, permission, ux]
@@ -17,6 +17,7 @@ issue_number: null
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-05-05 | 초안 — SPEC-GOOSE-CLI-001 v0.2.0 (completed, PR #67/#69/#70/#71/#72 + multi-turn 후속) 위에 4가지 보강 영역 추가: ① bubbletea teatest 하네스 + visual snapshot, ② tool call permission modal UI (HOOK-001 미루지 않고), ③ streaming UX + statusbar 고도화 (spinner/throughput/multi-line editor/markdown), ④ in-TUI session save/load + recent-sessions menu + edit/regenerate. CLI-001 §3.2 OUT 의 "완전한 인터랙티브 permission UI" 항목 흡수. | manager-spec |
+| 0.1.1 | 2026-05-10 | sync — bulk implemented→completed 일괄 갱신 시점 기록. P1~P4-T1 구현 PR #107~#111 머지 + sync(#117) 머지로 13 AC GREEN 완수. P4-T2/T3 는 SPEC-GOOSE-CLI-TUI-003 으로 분리되어 별도 SPEC 으로 implemented (#113~#116 + sync). 본 entry 에서 frontmatter status `implemented` → `completed` 전환. spec 본문/요구사항/AC 변경 없음 — 메타 갱신 only. | manager-docs |
 
 ---
 
