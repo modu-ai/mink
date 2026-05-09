@@ -87,22 +87,22 @@ func TestRegistry_WithWeb_RegisterAndResolve(t *testing.T) {
 }
 
 // TestRegistry_WithWeb_ListNames verifies DC-01 / AC-WEB-001:
-// production init() registrations of http_fetch + web_search produce a Registry
-// whose ListNames returns exactly 6 built-in + 2 web tool names = 8.
-//
-// This test does NOT call ClearWebToolsForTest — it relies on the actual
-// init() registrations in http.go and search.go to verify M1 wiring.
+// production init() registrations of http_fetch + web_search + web_wikipedia
+// produce a Registry whose ListNames returns 6 built-in + 3 web tool names = 9
+// after M2a. This test does NOT call ClearWebToolsForTest — it relies on the
+// actual init() registrations to verify wiring as the milestones land.
 func TestRegistry_WithWeb_ListNames(t *testing.T) {
 	reg := tools.NewRegistry(tools.WithBuiltins(), web.WithWeb())
 	names := reg.ListNames()
 
-	// M1 expectation: 6 built-in + 2 web (http_fetch, web_search) = 8.
-	require.Equal(t, 8, len(names), "expected 6 builtins + 2 M1 web tools, got %v", names)
+	// M2a expectation: 6 built-in + 3 web (http_fetch, web_search, web_wikipedia) = 9.
+	require.Equal(t, 9, len(names), "expected 6 builtins + 3 web tools, got %v", names)
 	assert.Contains(t, names, "http_fetch")
 	assert.Contains(t, names, "web_search")
+	assert.Contains(t, names, "web_wikipedia")
 
-	// Both web tools must resolve to non-nil Tool with ScopeShared.
-	for _, n := range []string{"http_fetch", "web_search"} {
+	// All three web tools must resolve to non-nil Tool with ScopeShared.
+	for _, n := range []string{"http_fetch", "web_search", "web_wikipedia"} {
 		tool, ok := reg.Resolve(n)
 		require.True(t, ok, "tool %q must resolve", n)
 		require.NotNil(t, tool)

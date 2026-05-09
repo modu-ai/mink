@@ -70,5 +70,54 @@ planned_files 컬럼을 통해 Phase 2 / 2.5 의 Drift Guard 가 사용한다.
 
 ---
 
+## M2 분할 정책 (orchestrator + user 합의 2026-05-10)
+
+- **M2a**: web_wikipedia (AC-WEB-013) — HTTP REST API + language 분기, 신규 의존성 없음
+- **M2b**: web_browse (AC-WEB-011) — Playwright + go-readability + OS 분기, 신규 의존성 2개
+
+사유: ~1000 LOC 단일 PR review 부담, 의존성 도입 (Playwright Go binary install) 영향 분리, SCHEDULER P4a/P4b 패턴 재사용.
+
+---
+
+## M2a Task Decomposition (web_wikipedia)
+SPEC: SPEC-GOOSE-TOOLS-WEB-001 M2a
+Branch: feature/SPEC-GOOSE-TOOLS-WEB-001-M2a (main HEAD = cd35297)
+External dep: 신규 없음 (net/http stdlib + 기존 common 인프라 재사용)
+
+### Tasks
+
+| Task ID | Description | Requirement | Dependencies | Planned Files | Status |
+|---------|-------------|-------------|--------------|---------------|--------|
+| T-024 | wikipedia.go: webWikipedia 도구 (Tool interface + JSON schema additionalProperties:false + 11-step Call) | REQ-WEB-001/002/004/008/012, AC-WEB-013 | M1 common 인프라 | internal/tools/web/wikipedia.go (신규) | pending |
+| T-025 | wikipedia.go: language 분기 — `https://{language}.wikipedia.org/api/rest_v1/page/summary/{title}` URL builder + 응답 파싱 (`title, extract` → `data.summary, data.url, data.language, data.last_modified`) | AC-WEB-013 | T-024 | internal/tools/web/wikipedia.go (modify) | pending |
+| T-026 | wikipedia.go: hostBuilder DI seam — test 시 mock httptest.Server URL 주입 가능, production은 wikipedia.org 고정 | testability | T-024 | internal/tools/web/wikipedia.go (modify) | pending |
+| T-027 | wikipedia_test.go: AC-WEB-013 4 시나리오 (한국어 분기, 영어 분기, 잘못된 language fetch_failed, schema validation 길이 초과) | AC-WEB-013 | T-024~T-026 | internal/tools/web/wikipedia_test.go (신규) | pending |
+| T-028 | doc.go 갱신 — web_wikipedia M2a 진척 반영 (선택) | docs | T-024 | internal/tools/web/doc.go (optional) | pending |
+
+### M2a RED → GREEN → REFACTOR sequence
+1. RED: T-027 의 4 시나리오 테스트 작성 (모두 stub 실패)
+2. GREEN: T-024 → T-025 → T-026 순서 최소 구현 (각 시나리오 GREEN)
+3. REFACTOR: 중복 제거, English godoc, @MX 태그 갱신
+4. coverage 측정 → ≥80% (M1 회귀 0)
+5. golangci-lint + go vet + gofmt clean
+6. commit (squash 1개 PR)
+
+### M2a Exit Criteria
+- AC-WEB-013 GREEN (한국어/영어 분기 + 잘못된 language code → fetch_failed)
+- 누적 implemented AC: 8 (M1) + 1 (M2a) = 9 / 18
+- M2b (web_browse, AC-WEB-011) — 후속 PR
+
+### Drift Guard baseline (M2a)
+- Planned new files: 2 (wikipedia.go, wikipedia_test.go)
+- Planned modifications: 0~1 (doc.go optional)
+- Total planned: 2~3 files
+- 외부 의존 신규: 없음
+- 누적 lesson:
+  - isolation 미사용 16회 무사고
+  - LSP stale 13회 reproduction → orchestrator 직접 verify
+  - 1M context API 차단 시 orchestrator 직접 구현 정책 예외 (P4a/P4b 재현 2회) — M2a 도 default
+
+---
+
 Version: 0.1.0
 Last Updated: 2026-05-06
