@@ -56,14 +56,15 @@ func newObservedLogger() (*zap.Logger, *observer.ObservedLogs) {
 	return zap.New(core), logs
 }
 
-// ---- AC-HK-001: 24개 HookEvent enum 완전성 ----
+// ---- AC-HK-001: 29개 HookEvent enum 완전성 ----
 
 // TestHookEventNames_Exactly24 verifies AC-HK-001.
+// Updated to 29 events: 24 base + 5 ritual events added by SPEC-GOOSE-SCHEDULER-001 P1.
 func TestHookEventNames_Exactly24(t *testing.T) {
 	names := hook.HookEventNames()
 
-	// 정확히 24개
-	assert.Len(t, names, 24, "HookEventNames should return exactly 24 distinct strings")
+	// 정확히 29개 (24 base + 5 ritual SCHEDULER-001)
+	assert.Len(t, names, 29, "HookEventNames should return exactly 29 distinct strings")
 
 	// 중복 없음
 	seen := make(map[string]struct{})
