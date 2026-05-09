@@ -114,7 +114,8 @@ func WithTimezoneDetector(d *TimezoneDetector) Option {
 }
 
 // WithHolidayCalendar wires a HolidayCalendar into the Scheduler.
-// When set, the callback populates ScheduledEvent.IsHoliday/HolidayName and
+// When set, the callback populates ScheduledEvent.IsHoliday and
+// HolidayName (canonical English key, see KoreanHolidayName helper) and
 // honours RitualTime.SkipHolidays (REQ-SCHED-018).
 func WithHolidayCalendar(c HolidayCalendar) Option {
 	return func(s *Scheduler) { s.holidays = c }

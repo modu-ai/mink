@@ -901,7 +901,13 @@ func TestScheduler_WithHolidayCalendar_SkipHoliday(t *testing.T) {
 			t.Errorf("ScheduledEvent.IsHoliday should be true on 개천절, got false")
 		}
 		if ev.HolidayName == "" {
-			t.Errorf("ScheduledEvent.HolidayName should be non-empty on 개천절")
+			t.Errorf("ScheduledEvent.HolidayName should be non-empty on national_foundation_day")
+		}
+		if ev.HolidayName != scheduler.HolidayFoundationDay {
+			t.Errorf("expected HolidayName=%q, got %q", scheduler.HolidayFoundationDay, ev.HolidayName)
+		}
+		if ko := scheduler.KoreanHolidayName(ev.HolidayName); ko != "개천절" {
+			t.Errorf("expected Korean label %q, got %q", "개천절", ko)
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("timed out waiting for ScheduledEvent")
@@ -1293,6 +1299,51 @@ func TestMissedEventReplay_1hThreshold(t *testing.T) {
 				if replayCount != 0 {
 					t.Errorf("replay dispatch count = %d, want 0 (>1h delta)", replayCount)
 				}
+			}
+		})
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// KoreanHolidayName helper tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+func TestKoreanHolidayName(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		key  string
+		want string
+	}{
+		{scheduler.HolidayNewYear, "신정"},
+		{scheduler.HolidaySeollalEve, "설날 전날"},
+		{scheduler.HolidaySeollal, "설날"},
+		{scheduler.HolidaySeollalPost, "설날 다음날"},
+		{scheduler.HolidayIndependenceDay, "삼일절"},
+		{scheduler.HolidayChildrensDay, "어린이날"},
+		{scheduler.HolidayBuddhaBirthday, "부처님오신날"},
+		{scheduler.HolidayMemorialDay, "현충일"},
+		{scheduler.HolidayLiberationDay, "광복절"},
+		{scheduler.HolidayChuseokEve, "추석 전날"},
+		{scheduler.HolidayChuseok, "추석"},
+		{scheduler.HolidayChuseokPost, "추석 다음날"},
+		{scheduler.HolidayFoundationDay, "개천절"},
+		{scheduler.HolidayHangeulDay, "한글날"},
+		{scheduler.HolidayChristmasDay, "성탄절"},
+		// Substitute key fallback
+		{scheduler.HolidaySeollal + scheduler.HolidaySubstituteSuffix, "설날 대체공휴일"},
+		{scheduler.HolidayChuseok + scheduler.HolidaySubstituteSuffix, "추석 대체공휴일"},
+		{scheduler.HolidayChildrensDay + scheduler.HolidaySubstituteSuffix, "어린이날 대체공휴일"},
+		{scheduler.HolidayLiberationDay + scheduler.HolidaySubstituteSuffix, "광복절 대체공휴일"},
+		{scheduler.HolidayFoundationDay + scheduler.HolidaySubstituteSuffix, "개천절 대체공휴일"},
+		// Pass-through for unknown keys
+		{"unknown_key", "unknown_key"},
+		{"some_substitute", "some_substitute"},
+	}
+	for _, c := range cases {
+		t.Run(c.key, func(t *testing.T) {
+			t.Parallel()
+			if got := scheduler.KoreanHolidayName(c.key); got != c.want {
+				t.Errorf("KoreanHolidayName(%q) = %q, want %q", c.key, got, c.want)
 			}
 		})
 	}
