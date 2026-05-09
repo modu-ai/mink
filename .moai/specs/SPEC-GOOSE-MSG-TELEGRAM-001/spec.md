@@ -1,9 +1,9 @@
 ---
 id: SPEC-GOOSE-MSG-TELEGRAM-001
-version: "0.1.3"
-status: implemented
+version: "0.1.4"
+status: completed
 created_at: 2026-05-05
-updated_at: 2026-05-09
+updated_at: 2026-05-10
 author: manager-spec
 priority: P0
 phase: 4
@@ -24,6 +24,7 @@ issue_number: 125
 | 0.1.1 | 2026-05-09 | plan workflow Phase 2.5 — GitHub Issue #125 생성 후 frontmatter `issue_number: 125` 동기화. SPEC 본문 변경 없음, Issue ↔ SPEC 양방향 링크 확립 (영문 Issue body, run.md Phase 3 에서 `Fixes #125` 사용). | MoAI |
 | 0.1.2 | 2026-05-09 | sync phase — P1/P2/P3 구현 완료 후 SPEC divergence 12건 일괄 반영. 주요: BRIDGE-001 Query → Chat (ChatService 도메인 인터페이스), MEMORY-001 → 독립 sqlite (Option B, modernc.org/sqlite v1.50.0), CREDENTIAL-PROXY-001 → OS keyring (zalando/go-keyring v0.2.8), AC-MTGM-005 E2 (CLI-TUI-002 modal) P4 deferred, REQ-MTGM-N04 표현 보완, attachment JSON Schema strict mode oneOf 정정. status: audit-ready → implemented (P3 까지). | manager-docs |
 | 0.1.3 | 2026-05-09 | P4 (Streaming + Webhook + Polish) PR #131 머지 후 sync. AC-MTGM-009 GREEN 추가 — `/stream` 접두 + `default_streaming: true` 시 BRIDGE 측 `query.SubmitMessage` native channel 을 `agent.StreamingChatService.ChatStream` 으로 wrap, telegram 측 `runStreaming` 가 chunk-merge buffer + 1초 ticker 로 `editMessageText` rate-limit 호출. REQ-MTGM-E02 (streaming) / E07 (webhook fallback) / O01 (silent_default) / O02 (typing_indicator) / S05 (per-chat_id FIFO max 5) 모두 GREEN. AC-MTGM-005 E2 (CLI-TUI-002 modal) 만 외부 SPEC 의존으로 deferred 유지. testdata/ 12 fixture pair (markdown_v2 7 + inline_keyboard 5) 회귀 보호 추가. coverage telegram 84.6% (P3 종점 회복; ticker 5초 wait path 단위 테스트 한계로 strict 85% 미달). golangci-lint 0 issues (errcheck inbox.go fix + unused helper 제거 포함). status: implemented 유지. | manager-docs |
+| 0.1.4 | 2026-05-10 | sync — bulk implemented→completed 일괄 갱신 시점 기록. P1~P4 머지 (#127~#131) + sync(#132) 머지로 v0.1.3 implementation 종결. CLI-TUI-002 가 v0.1.1 completed 가 되어 AC-MTGM-005 E2 의 외부 SPEC 의존도 해소 (v0.1.4 시점에서 implementation 측면 wiring 가능, 별도 작업 사항). 본 entry 에서 frontmatter status `implemented` → `completed` 전환. spec 본문/요구사항/AC 변경 없음 — 메타 갱신 only. | manager-docs |
 
 ---
 
