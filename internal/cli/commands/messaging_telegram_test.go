@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/modu-ai/goose/internal/cli/commands"
 	"github.com/modu-ai/goose/internal/messaging/telegram"
@@ -126,4 +127,117 @@ func TestSetup_EmptyToken(t *testing.T) {
 	// Keyring should remain empty.
 	_, krErr := kr.Retrieve(telegram.KeyringService, telegram.KeyringKey)
 	assert.Error(t, krErr)
+}
+
+// --- P2 approve / revoke / status tests ---
+
+// runTelegramCmd runs a "messaging telegram <args>" command with a shared store path.
+func runTelegramCmd(t *testing.T, cfgDir, storePath string, args ...string) (string, error) {
+	t.Helper()
+	cmd := commands.NewMessagingCommandWithDepsFull(nil, nil, cfgDir, storePath)
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	fullArgs := append([]string{"telegram"}, args...)
+	cmd.SetArgs(fullArgs)
+	err := cmd.ExecuteContext(context.Background())
+	return buf.String(), err
+}
+
+// TestApprove_SetsAllowedTrue verifies that "approve <chat_id>" sets the user
+// to allowed=true in the store.
+func TestApprove_SetsAllowedTrue(t *testing.T) {
+	cfgDir := t.TempDir()
+	storePath := filepath.Join(t.TempDir(), "telegram.db")
+
+	// Pre-insert a blocked user.
+	s, err := telegram.NewSqliteStore(storePath)
+	require.NoError(t, err)
+	now := time.Now()
+	require.NoError(t, s.PutUserMapping(context.Background(), telegram.UserMapping{
+		ChatID: 111, UserProfileID: "tg-111", Allowed: false, FirstSeenAt: now, LastSeenAt: now,
+	}))
+	s.Close() //nolint:errcheck
+
+	out, err := runTelegramCmd(t, cfgDir, storePath, "approve", "111")
+	require.NoError(t, err)
+	assert.Contains(t, out, "approved")
+
+	// Verify store state.
+	s2, err := telegram.NewSqliteStore(storePath)
+	require.NoError(t, err)
+	defer s2.Close() //nolint:errcheck
+	m, found, _ := s2.GetUserMapping(context.Background(), 111)
+	require.True(t, found)
+	assert.True(t, m.Allowed)
+}
+
+// TestRevoke_SetsAllowedFalse verifies that "revoke <chat_id>" sets
+// the user to allowed=false in the store.
+func TestRevoke_SetsAllowedFalse(t *testing.T) {
+	cfgDir := t.TempDir()
+	storePath := filepath.Join(t.TempDir(), "telegram.db")
+
+	// Pre-insert an allowed user.
+	s, err := telegram.NewSqliteStore(storePath)
+	require.NoError(t, err)
+	now := time.Now()
+	require.NoError(t, s.PutUserMapping(context.Background(), telegram.UserMapping{
+		ChatID: 222, UserProfileID: "tg-222", Allowed: true, FirstSeenAt: now, LastSeenAt: now,
+	}))
+	s.Close() //nolint:errcheck
+
+	out, err := runTelegramCmd(t, cfgDir, storePath, "revoke", "222")
+	require.NoError(t, err)
+	assert.Contains(t, out, "revoked")
+
+	// Verify store state.
+	s2, err := telegram.NewSqliteStore(storePath)
+	require.NoError(t, err)
+	defer s2.Close() //nolint:errcheck
+	m, found, _ := s2.GetUserMapping(context.Background(), 222)
+	require.True(t, found)
+	assert.False(t, m.Allowed)
+}
+
+// TestApprove_InvalidChatID verifies that a non-numeric chat_id argument returns
+// an error and exits 1.
+func TestApprove_InvalidChatID(t *testing.T) {
+	cfgDir := t.TempDir()
+	storePath := filepath.Join(t.TempDir(), "telegram.db")
+	_, err := runTelegramCmd(t, cfgDir, storePath, "approve", "not-a-number")
+	require.Error(t, err)
+}
+
+// TestStatus_NotConfigured verifies the fast path when config yaml is absent.
+func TestStatus_NotConfigured(t *testing.T) {
+	cfgDir := t.TempDir()
+	storePath := filepath.Join(t.TempDir(), "telegram.db")
+	out, err := runTelegramCmd(t, cfgDir, storePath, "status")
+	require.NoError(t, err)
+	assert.Contains(t, out, "not configured")
+}
+
+// TestStatus_Configured verifies the configured path shows basic statistics.
+func TestStatus_Configured(t *testing.T) {
+	cfgDir := t.TempDir()
+	storePath := filepath.Join(t.TempDir(), "telegram.db")
+
+	// Write a minimal config yaml.
+	cfgContent := "bot_username: mybot\nmode: polling\naudit_enabled: true\nauto_admit_first_user: false\ndefault_streaming: false\n"
+	require.NoError(t, os.WriteFile(filepath.Join(cfgDir, "telegram.yaml"), []byte(cfgContent), 0o600))
+
+	// Insert some mappings.
+	s, err := telegram.NewSqliteStore(storePath)
+	require.NoError(t, err)
+	now := time.Now()
+	require.NoError(t, s.PutUserMapping(context.Background(), telegram.UserMapping{ChatID: 1, UserProfileID: "tg-1", Allowed: true, FirstSeenAt: now, LastSeenAt: now}))
+	require.NoError(t, s.PutUserMapping(context.Background(), telegram.UserMapping{ChatID: 2, UserProfileID: "tg-2", Allowed: false, FirstSeenAt: now, LastSeenAt: now}))
+	require.NoError(t, s.PutLastOffset(context.Background(), 42))
+	s.Close() //nolint:errcheck
+
+	out, err := runTelegramCmd(t, cfgDir, storePath, "status")
+	require.NoError(t, err)
+	assert.Contains(t, out, "mybot")
+	assert.Contains(t, out, "polling")
 }

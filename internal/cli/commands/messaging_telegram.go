@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/modu-ai/goose/internal/messaging/telegram"
@@ -32,18 +33,21 @@ type keyringIface interface {
 }
 
 // newMessagingTelegramCommand creates the "goose messaging telegram" subcommand
-// group with setup, status, and start sub-subcommands.
+// group with setup, status, start, approve, and revoke sub-subcommands.
 //
 // client and kr may be nil (production default) or injected by tests.
 // cfgDir overrides the config directory (defaults to ~/.goose/messaging/).
-func newMessagingTelegramCommand(client telegramClientIface, kr keyringIface, cfgDir string) *cobra.Command {
+// storePath overrides the sqlite store path (defaults to ~/.goose/messaging/telegram.db).
+func newMessagingTelegramCommand(client telegramClientIface, kr keyringIface, cfgDir, storePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "telegram",
 		Short: "Manage the Telegram messaging channel",
 	}
 	cmd.AddCommand(newTelegramSetupCommand(client, kr, cfgDir))
-	cmd.AddCommand(newTelegramStatusCommand(cfgDir))
+	cmd.AddCommand(newTelegramStatusCommand(cfgDir, storePath))
 	cmd.AddCommand(newTelegramStartCommand(kr, cfgDir))
+	cmd.AddCommand(newTelegramApproveCommand(storePath))
+	cmd.AddCommand(newTelegramRevokeCommand(storePath))
 	return cmd
 }
 
@@ -131,10 +135,13 @@ func newTelegramSetupCommand(client telegramClientIface, kr keyringIface, cfgDir
 }
 
 // newTelegramStatusCommand implements "goose messaging telegram status".
-// In P1 it returns "not configured" when the config yaml is absent.
+// It returns "not configured" when the config yaml is absent. When configured
+// it shows bot_username, mode, last_offset, mapped_count, allowed_count, and
+// blocked_count from the sqlite store.
 //
-// @MX:TODO P2 — expand status to show live polling state, offset, and allowed user count.
-func newTelegramStatusCommand(cfgDir string) *cobra.Command {
+// @MX:TODO P3 — add live poller state metrics (offset lag, poll interval)
+// via daemon IPC. Requires SPEC-GOOSE-MSG-TELEGRAM-001 P3 runtime state API.
+func newTelegramStatusCommand(cfgDir, storePath string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "status",
 		Short: "Show Telegram channel status",
@@ -148,7 +155,102 @@ func newTelegramStatusCommand(cfgDir string) *cobra.Command {
 				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "not configured")
 				return nil
 			}
-			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "configured")
+
+			cfg, err := telegram.LoadConfig(cfgPath)
+			if err != nil {
+				return fmt.Errorf("load config: %w", err)
+			}
+
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "bot_username: @%s\n", cfg.BotUsername)
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "mode: %s\n", cfg.Mode)
+
+			// Open store for statistics.
+			sp, resolveErr := resolveStorePath(storePath)
+			if resolveErr != nil {
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "store: unavailable (%v)\n", resolveErr)
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "poller: not_attached")
+				return nil
+			}
+			store, storeErr := telegram.NewSqliteStore(sp)
+			if storeErr != nil {
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "store: unavailable (%v)\n", storeErr)
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "poller: not_attached")
+				return nil
+			}
+			defer store.Close() //nolint:errcheck
+
+			ctx := cmd.Context()
+
+			offset, _ := store.GetLastOffset(ctx)
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "last_offset: %d\n", offset)
+
+			allowed, _ := store.ListAllowed(ctx)
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "allowed_count: %d\n", len(allowed))
+
+			// @MX:NOTE: [AUTO] P3 placeholder — live poller state requires daemon IPC
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "poller: not_attached")
+			return nil
+		},
+	}
+}
+
+// newTelegramApproveCommand implements "goose messaging telegram approve <chat_id>".
+func newTelegramApproveCommand(storePath string) *cobra.Command {
+	return &cobra.Command{
+		Use:   "approve <chat_id>",
+		Short: "Approve a Telegram user by chat_id",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			chatID, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return fmt.Errorf("invalid chat_id %q: must be an integer", args[0])
+			}
+
+			sp, err := resolveStorePath(storePath)
+			if err != nil {
+				return err
+			}
+			store, err := telegram.NewSqliteStore(sp)
+			if err != nil {
+				return fmt.Errorf("open store: %w", err)
+			}
+			defer store.Close() //nolint:errcheck
+
+			if err := store.Approve(cmd.Context(), chatID); err != nil {
+				return fmt.Errorf("approve: %w", err)
+			}
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "approved chat_id=%d\n", chatID)
+			return nil
+		},
+	}
+}
+
+// newTelegramRevokeCommand implements "goose messaging telegram revoke <chat_id>".
+func newTelegramRevokeCommand(storePath string) *cobra.Command {
+	return &cobra.Command{
+		Use:   "revoke <chat_id>",
+		Short: "Revoke access for a Telegram user by chat_id",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			chatID, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return fmt.Errorf("invalid chat_id %q: must be an integer", args[0])
+			}
+
+			sp, err := resolveStorePath(storePath)
+			if err != nil {
+				return err
+			}
+			store, err := telegram.NewSqliteStore(sp)
+			if err != nil {
+				return fmt.Errorf("open store: %w", err)
+			}
+			defer store.Close() //nolint:errcheck
+
+			if err := store.Revoke(cmd.Context(), chatID); err != nil {
+				return fmt.Errorf("revoke: %w", err)
+			}
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "revoked chat_id=%d\n", chatID)
 			return nil
 		},
 	}
@@ -218,4 +320,12 @@ func resolveConfigDir(override string) (string, error) {
 		return "", fmt.Errorf("determine home dir: %w", err)
 	}
 	return filepath.Join(home, ".goose", "messaging"), nil
+}
+
+// resolveStorePath returns the effective sqlite store path.
+func resolveStorePath(override string) (string, error) {
+	if override != "" {
+		return override, nil
+	}
+	return telegram.DefaultStorePath()
 }

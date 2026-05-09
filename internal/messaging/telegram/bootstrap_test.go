@@ -108,3 +108,62 @@ func TestStart_NilConfig(t *testing.T) {
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "nil Config")
 }
+
+// TestStart_NilStore_FallsBackToEcho verifies that Start falls back to the
+// EchoHandler when the Store dep is nil (backward compat with P1).
+func TestStart_NilStore_FallsBackToEcho(t *testing.T) {
+	client := newBootstrapClient()
+	cfg := &telegram.Config{
+		BotUsername: "testbot",
+		Mode:        "polling",
+	}
+	// Partial deps — Store is nil → EchoHandler path.
+	deps := telegram.Deps{
+		Config: cfg,
+		Client: client,
+		Logger: zap.NewNop(),
+		// Store/Audit/Agent intentionally nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var runErr error
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		runErr = telegram.Start(ctx, deps)
+	}()
+
+	select {
+	case <-client.done:
+		cancel()
+	case <-ctx.Done():
+		t.Fatal("timeout waiting for echo round-trip in partial-deps fallback")
+	}
+
+	wg.Wait()
+	assert.ErrorIs(t, runErr, context.Canceled)
+}
+
+// TestStart_GracefulShutdown verifies that Start returns context.Canceled when
+// ctx is cancelled before any updates arrive.
+func TestStart_GracefulShutdown(t *testing.T) {
+	client := newBootstrapClient()
+	cfg := &telegram.Config{
+		BotUsername: "testbot",
+		Mode:        "polling",
+	}
+	deps := telegram.Deps{
+		Config: cfg,
+		Client: client,
+		Logger: zap.NewNop(),
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel immediately
+
+	err := telegram.Start(ctx, deps)
+	assert.ErrorIs(t, err, context.Canceled)
+}
