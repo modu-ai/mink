@@ -360,3 +360,81 @@
 - 누적 implemented AC: 13/18 (M3 11 + AC-WEB-015 + AC-WEB-016)
 - TOOLS-WEB-001 8 도구 모두 등록 완료 (http_fetch + web_search + web_wikipedia + web_browse + web_rss + web_arxiv + web_maps + web_wayback)
 - 잔여 5 AC (1차/2차 평가): sync 단계에서 status=completed 전환 시 통합 검증 필요
+
+---
+
+## 2026-05-10 sync Session (Sprint 1 종결, status implemented → completed)
+
+### Branch / Base
+- Branch: feature/tools-web-sync
+- Base: main HEAD = 2d3c0ca (M4 머지 후)
+- External dep: 없음
+
+### Phase 0 — sync 범위
+1. AC-WEB-002 (8 도구 모두 schema valid + additionalProperties:false) explicit 검증 추가
+2. AC-WEB-018 (4 도구 4 audit lines) explicit 검증 추가
+3. spec.md status implemented → completed, version 0.1.1 → 0.2.0
+4. progress.md Sprint 1 종결 마무리
+
+### Phase 1 — register helper 확장
+- register.go: `RegisteredWebToolsForTest() []tools.Tool` 신규 helper — 등록된 8 도구 전체 snapshot 반환. schema_test 가 constructor 시그니처 다양성 (NewXxx / NewXxxForTest / RSSForTest / ArxivForTest) 우회하여 일률적으로 8 도구 iteration 가능.
+
+### Phase 2 — schema_test.go 확장
+- TestAllToolSchemasValid: 기존 2 도구 (http_fetch, web_search) → RegisteredWebToolsForTest() 로 8 도구 모두 cover. 각 도구 sub-test 로:
+  - schema 가 valid JSON
+  - type=object
+  - additionalProperties=false (bool)
+  - jsonschema/v6 compiler 로 draft 2020-12 valid
+- TestM1ToolSchemasConstructed (신규): 기존 2 도구 constructor-based 검증 보존 (regression 방어)
+- TestStandardResponseShape_AllTools: 기존 그대로 (per-tool BlocklistPriority/SchemaValidation 테스트가 각 도구 standard shape 검증 cover)
+
+### Phase 3 — audit_integration_test.go 확장
+- TestAuditLog_FourCallsAllTools 신규 — AC-WEB-018 4 도구 4 line 명시 검증
+  - 4 mock servers (search/fetch/wiki/browse)
+  - web_browse 는 auditFourToolStubLauncher + auditFourToolStubSession 으로 mock launcher (production wiring panic 회피)
+  - web_wikipedia 는 hostBuilder 로 mock URL 라우팅
+  - 4 도구 1회 호출 → audit.log 4 lines 검증 (각 line outcome=ok + 모든 metadata 키 + tool name 4종 모두 등장)
+- TestAuditLog_M1Calls 그대로 유지 (M1 scope 회귀 방어)
+- TestAuditTimestampMonotonic 그대로 유지
+
+### Phase 4 — LSP nitpick fix
+- audit_integration_test.go:188 `for i := 0; i < 2; i++` → `for range 2` (Go 1.22+ rangeint modernize)
+
+### Verification (sync)
+- gofmt -l: 0 lines
+- go vet: 0 issues
+- golangci-lint: 0 issues
+- race -count=10 (audit + schema): PASS
+- race -count=3 (web 전체): PASS
+- 회귀: 0, 신규 테스트 2개 (TestAllToolSchemasValid 8-subcase + TestAuditLog_FourCallsAllTools) GREEN
+
+### Final AC Coverage (18/18)
+
+| AC | Test |
+|----|------|
+| AC-WEB-001 | TestRegistry_WithWeb_ListNames (14 names + alphabet sort) |
+| AC-WEB-002 | TestAllToolSchemasValid (sync 확장, 8 도구) |
+| AC-WEB-003 | TestFirstCallConfirm_WebSearch |
+| AC-WEB-004 | TestRobotsDisallow / TestHTTPFetch_RobotsDisallow |
+| AC-WEB-005 | TestHTTPFetch_RedirectCap |
+| AC-WEB-006 | TestHTTPFetch_SizeLimit / common.safety_test |
+| AC-WEB-007 | TestCacheTTL |
+| AC-WEB-008 | TestRateLimitExhausted |
+| AC-WEB-009 | TestBlocklistPriority + 8 도구별 BlocklistPriority |
+| AC-WEB-010 | TestHTTPFetch_MethodAllowlist |
+| AC-WEB-011 | TestWebBrowse_PlaywrightNotInstalled |
+| AC-WEB-012 | TestStandardResponseShape_AllTools + 도구별 응답 shape |
+| AC-WEB-013 | TestWikipedia_LanguageRouting |
+| AC-WEB-014 | TestRSS_MultiFeedSinceFilter |
+| AC-WEB-015 | TestMaps_GeocodeAndReverse |
+| AC-WEB-016 | TestWayback_LatestSnapshot |
+| AC-WEB-017 | TestSearch_ProviderSelection |
+| AC-WEB-018 | TestAuditLog_FourCallsAllTools (sync 추가) + TestAuditLog_M1Calls (M1 scope) |
+
+### Sprint 1 TOOLS-WEB-001 종결
+- status: implemented → **completed** (v0.2.0)
+- 8 도구 (http_fetch + web_search + web_wikipedia + web_browse + web_rss + web_arxiv + web_maps + web_wayback) Registry 등록
+- 누적 implemented AC: **18/18 GREEN**
+- Total tests: 210+ (M1+M2+M3+M4+sync), all PASS
+- Coverage: web 77~80%, common 92%, total ~80%
+- 4 머지 PR sequence: #149 (M2c) → #150 (M3) → #151 (M4) → #152 (sync, this PR)

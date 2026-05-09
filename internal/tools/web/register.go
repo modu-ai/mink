@@ -80,3 +80,15 @@ func RegisteredWebToolNamesForTest() []string {
 	}
 	return names
 }
+
+// RegisteredWebToolsForTest returns a snapshot of the registered web tools
+// (full Tool interface, not just names). Sync-phase contract tests rely on it
+// to iterate every tool's Schema and Name without depending on per-tool
+// constructor signatures (some tools expose only NewXxxForTest).
+func RegisteredWebToolsForTest() []tools.Tool {
+	globalWebToolsMu.Lock()
+	defer globalWebToolsMu.Unlock()
+	out := make([]tools.Tool, len(globalWebTools))
+	copy(out, globalWebTools)
+	return out
+}
