@@ -906,3 +906,214 @@ func TestScheduler_WithHolidayCalendar_SkipHoliday(t *testing.T) {
 		t.Fatal("timed out waiting for ScheduledEvent")
 	}
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// P4a Tests — AC-006 (PatternLearner 7-day convergence + 6-day fallback),
+// AC-015 (±2h cap + 3-day commit), AC-017 (03:00 daily learner cron + Notification)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// fakePatternReader is a deterministic test double for PatternReader.
+// It returns the embedded ActivityPattern unchanged and tracks call count.
+type fakePatternReader struct {
+	pattern   scheduler.ActivityPattern
+	callCount int
+	err       error
+}
+
+func (f *fakePatternReader) ReadActivityPattern(_ context.Context) (scheduler.ActivityPattern, error) {
+	f.callCount++
+	if f.err != nil {
+		return scheduler.ActivityPattern{}, f.err
+	}
+	return f.pattern, nil
+}
+
+// makePeakPattern builds an ActivityPattern where the given hour has the
+// highest event count and surrounding hours have small noise.
+func makePeakPattern(peakHour, peakCount, daysObserved int) scheduler.ActivityPattern {
+	var p scheduler.ActivityPattern
+	p.DaysObserved = daysObserved
+	for h := range 24 {
+		switch h {
+		case peakHour:
+			p.ByHour[h] = peakCount
+		case peakHour - 1, peakHour + 1:
+			p.ByHour[h] = peakCount / 4
+		default:
+			p.ByHour[h] = 1
+		}
+	}
+	return p
+}
+
+// TestPatternLearner_7DayConvergence verifies that with 7 days of data peaking
+// at 08:00, Predict(Breakfast) returns a clock string in the [08:00, 08:30] band
+// with confidence >= 0.7. With only 6 days, the fallback default is used.
+// AC-SCHED-006, REQ-SCHED-006, REQ-SCHED-012.
+func TestPatternLearner_7DayConvergence(t *testing.T) {
+	t.Parallel()
+
+	// 7 days converged at 08:00.
+	p7 := makePeakPattern(8, 50, 7)
+	cfg := scheduler.PatternLearnerConfig{
+		Enabled:               true,
+		RollingWindowDays:     7,
+		DriftThresholdMinutes: 30,
+		DefaultBreakfast:      "09:00",
+	}
+	learner := scheduler.NewPatternLearner(cfg)
+
+	clock7, conf7, err := learner.Predict(scheduler.KindBreakfast, p7)
+	if err != nil {
+		t.Fatalf("Predict(7d): %v", err)
+	}
+	if conf7 < 0.7 {
+		t.Errorf("confidence with 7 days = %.2f, want >= 0.7", conf7)
+	}
+	// 7-day pattern peaks at hour 8 → predicted clock should be 08:00.
+	if clock7 != "08:00" {
+		t.Errorf("Predict(7d) clock = %q, want %q", clock7, "08:00")
+	}
+
+	// 6 days: fallback default.
+	p6 := makePeakPattern(8, 50, 6)
+	clock6, _, err := learner.Predict(scheduler.KindBreakfast, p6)
+	if err != nil {
+		t.Fatalf("Predict(6d): %v", err)
+	}
+	if clock6 != "09:00" {
+		t.Errorf("Predict(6d) clock = %q, want fallback %q", clock6, "09:00")
+	}
+}
+
+// TestPatternLearner_2hCap_3DayCommit verifies that:
+//
+//	(a) A single Observe call with drift > threshold produces a proposal with
+//	    SupportingDays=1 (not committable yet).
+//	(b) After 3 consecutive observations of the same peak (11:30 vs 08:00 baseline,
+//	    drift = +210 min), the proposal's NewLocalClock is capped at 08:00 + 120min = 10:00.
+//
+// AC-SCHED-015, REQ-SCHED-016.
+func TestPatternLearner_2hCap_3DayCommit(t *testing.T) {
+	t.Parallel()
+
+	cfg := scheduler.PatternLearnerConfig{
+		Enabled:               true,
+		RollingWindowDays:     7,
+		DriftThresholdMinutes: 30,
+		DefaultBreakfast:      "08:00",
+	}
+	learner := scheduler.NewPatternLearner(cfg)
+
+	// All 3 observations: peak at hour 11 (11:00, drift = +180min).
+	pat := makePeakPattern(11, 30, 7)
+
+	var lastProposal *scheduler.RitualTimeProposal
+	for i := 0; i < 3; i++ {
+		prop, err := learner.Observe(scheduler.KindBreakfast, "08:00", pat)
+		if err != nil {
+			t.Fatalf("Observe(day %d): %v", i+1, err)
+		}
+		if prop == nil {
+			t.Fatalf("Observe(day %d) returned nil proposal", i+1)
+		}
+		lastProposal = prop
+	}
+
+	if lastProposal.SupportingDays < 3 {
+		t.Errorf("SupportingDays = %d after 3 observations, want >= 3", lastProposal.SupportingDays)
+	}
+
+	// Drift was +180 min, cap at +120 → NewLocalClock = 08:00 + 120 = 10:00.
+	if lastProposal.NewLocalClock != "10:00" {
+		t.Errorf("NewLocalClock = %q after ±2h cap, want %q", lastProposal.NewLocalClock, "10:00")
+	}
+	if lastProposal.OldLocalClock != "08:00" {
+		t.Errorf("OldLocalClock = %q, want %q", lastProposal.OldLocalClock, "08:00")
+	}
+	if !lastProposal.ConfirmRequired {
+		t.Error("ConfirmRequired should always be true (REQ-SCHED-019)")
+	}
+}
+
+// TestDailyLearnerRun_0300_Confirmation verifies that calling RunDailyLearner
+// (the 03:00 cron callback) reads the activity pattern, runs the learner, and
+// dispatches EvNotification with confirm_required=true when a proposal is
+// produced. The persisted config must NOT mutate.
+// AC-SCHED-017, REQ-SCHED-006, REQ-SCHED-019.
+func TestDailyLearnerRun_0300_Confirmation(t *testing.T) {
+	t.Parallel()
+
+	// Pattern peaking at hour 11 vs configured 08:00 (drift 180 min > 30 threshold).
+	pat := makePeakPattern(11, 30, 7)
+	reader := &fakePatternReader{pattern: pat}
+
+	// Capture EvNotification dispatches.
+	var captured []hook.HookInput
+	captureDispatcher := &capturingDispatcher{
+		fn: func(_ context.Context, ev hook.HookEvent, in hook.HookInput) (hook.DispatchResult, error) {
+			if ev == hook.EvNotification {
+				captured = append(captured, in)
+			}
+			return hook.DispatchResult{}, nil
+		},
+	}
+
+	cfg := scheduler.SchedulerConfig{
+		Enabled:  true,
+		Timezone: "Asia/Seoul",
+		Rituals: scheduler.RitualsConfig{
+			Meals: scheduler.MealsConfig{
+				Breakfast: scheduler.ClockConfig{Time: "08:00"},
+			},
+		},
+		PatternLearner: scheduler.PatternLearnerConfig{
+			Enabled:               true,
+			RollingWindowDays:     7,
+			DriftThresholdMinutes: 30,
+			DefaultBreakfast:      "08:00",
+		},
+	}
+
+	persister := scheduler.NewFilePersister(t.TempDir())
+	sched, err := scheduler.NewWithDispatcher(cfg, captureDispatcher, persister,
+		scheduler.WithLogger(zap.NewNop()),
+		scheduler.WithPatternReader(reader),
+	)
+	if err != nil {
+		t.Fatalf("NewWithDispatcher: %v", err)
+	}
+
+	// Directly invoke the daily learner (avoids waiting for the 03:00 cron tick).
+	scheduler.RunDailyLearnerForTest(sched, context.Background())
+
+	if reader.callCount != 1 {
+		t.Errorf("PatternReader.ReadActivityPattern call count = %d, want 1", reader.callCount)
+	}
+	if len(captured) != 1 {
+		t.Fatalf("EvNotification dispatch count = %d, want 1", len(captured))
+	}
+
+	// Verify payload structure.
+	payload := captured[0].CustomData
+	if kind, _ := payload["kind"].(string); kind != "RitualTimeProposal" {
+		t.Errorf("payload kind = %v, want %q", payload["kind"], "RitualTimeProposal")
+	}
+	if cr, _ := payload["confirm_required"].(bool); !cr {
+		t.Errorf("payload confirm_required = %v, want true", payload["confirm_required"])
+	}
+
+	// Config must NOT mutate (proposal-only flow, not auto-commit).
+	if got := cfg.Rituals.Meals.Breakfast.Time; got != "08:00" {
+		t.Errorf("config breakfast time mutated: %q (want unchanged %q)", got, "08:00")
+	}
+}
+
+// capturingDispatcher is a dispatcherI that captures every dispatch via a callback.
+type capturingDispatcher struct {
+	fn func(context.Context, hook.HookEvent, hook.HookInput) (hook.DispatchResult, error)
+}
+
+func (c *capturingDispatcher) DispatchGeneric(ctx context.Context, ev hook.HookEvent, in hook.HookInput) (hook.DispatchResult, error) {
+	return c.fn(ctx, ev, in)
+}
