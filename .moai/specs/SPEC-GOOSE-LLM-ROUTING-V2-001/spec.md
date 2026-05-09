@@ -1,9 +1,9 @@
 ---
 id: SPEC-GOOSE-LLM-ROUTING-V2-001
-version: "0.1.0"
-status: audit-ready
+version: "0.2.0"
+status: implemented
 created_at: 2026-05-05
-updated_at: 2026-05-05
+updated_at: 2026-05-09
 author: manager-spec
 priority: P1
 issue_number: null
@@ -20,6 +20,7 @@ labels: [routing, llm, policy, fallback-chain, capability-aware, rate-limit-awar
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-05-05 | 초안 — SPEC-GOOSE-ROUTER-001 v1.0.0 (completed) 위에 v2 라우팅 레이어를 얹는다. 사용자 정책(prefer_local/cheap/quality/specific) + provider capability 매트릭스 + RATELIMIT-001 awareness + ERROR-CLASS-001 14 FailoverReason 통합 분기 + manual fallback chain. **OpenRouter 의도적 제외** (Sprint 1 정책 결정, 6개월 후 재평가). 4 phase decomposition: P1 policy schema → P2 capability matrix → P3 fallback chain → P4 integration tests. | manager-spec |
+| 0.2.0 | 2026-05-09 | status: audit-ready → implemented. P1~P4 모든 phase 머지 (PR #120/#121/#122/#123). 11/11 AC GREEN. 패키지 coverage 97.5% (gate ≥ 92% 충족). Drift 0. 보수적 결정 5건 progress.md 기록 (httptest 미사용, fallback chain ContextOverflow 매핑, 6번째 fixture, 실 v1 router, PreferQuality 결정). Next: SPEC-GOOSE-MSG-TELEGRAM 또는 SCHEDULER (Sprint 1 잔여). | manager-docs |
 
 ---
 
