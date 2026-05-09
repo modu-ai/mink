@@ -9,22 +9,113 @@ import (
 	"go.uber.org/zap"
 )
 
-// AgentQuery is the narrow interface for sending a text message to the Goose
-// agent and receiving a text response.
+// AgentQuery is the narrow interface for sending a text message (and optional
+// attachment paths) to the Goose agent and receiving a text response.
 //
-// The concrete implementation (AgentQueryAdapter) wraps the gRPC AgentServiceClient.Chat
-// method. The narrow interface keeps BridgeQueryHandler independent of the gRPC
+// The concrete implementation (AgentQueryAdapter) wraps the in-process ChatService.
+// The narrow interface keeps BridgeQueryHandler independent of the gRPC
 // package and makes it trivially mockable in tests.
+//
+// P3 extends the signature with attachments []string to support file attachment
+// forwarding (strategy-p3.md §C.5 option i).
 //
 // @MX:ANCHOR: [AUTO] AgentQuery decouples BridgeQueryHandler from the gRPC transport.
 // @MX:REASON: SPEC-GOOSE-MSG-TELEGRAM-001; fan_in via BridgeQueryHandler, bootstrap, tests (>= 3 callers).
 type AgentQuery interface {
-	Query(ctx context.Context, text string) (string, error)
+	// Query sends text (and optional attachment paths) to the agent.
+	// attachments is a list of local file paths; an empty slice means no attachments.
+	Query(ctx context.Context, text string, attachments []string) (string, error)
 }
 
 // maxMessageLength is the maximum number of UTF-8 bytes accepted per inbound
 // Telegram message (REQ-MTGM-E04).
 const maxMessageLength = 4096
+
+// handleCallback processes a callback_query update (inline keyboard button click).
+// It acknowledges the callback immediately (fire-and-log), checks the 60-second
+// timeout, audits the event, and forwards to the agent (REQ-MTGM-E05).
+//
+// @MX:NOTE: [AUTO] handleCallback is the dedicated branch for inline keyboard events.
+// Per strategy-p3.md §D.3, answerCallbackQuery is called first, then the agent query proceeds.
+func (h *BridgeQueryHandler) handleCallback(ctx context.Context, update Update) error {
+	cq := update.CallbackQuery
+	chatID := cq.ChatID
+	msgID := int64(cq.MessageID)
+	now := time.Now().UTC()
+
+	// Acknowledge the click immediately to remove the spinner from the user's device.
+	// A 400 response means the callback timed out on Telegram's side.
+	if err := h.client.AnswerCallbackQuery(ctx, cq.ID); err != nil {
+		expired := now.Sub(cq.ReceivedAt) > callbackQueryTimeout
+		auditMeta := map[string]any{
+			"source":      "callback_query",
+			"callback_id": cq.ID,
+		}
+		if expired {
+			auditMeta["callback_expired"] = true
+		}
+		_ = h.audit.RecordInbound(ctx, chatID, msgID, cq.Data, auditMeta)
+		h.logger.Warn("answerCallbackQuery failed", zap.Error(err), zap.Int64("chat_id", chatID))
+	}
+
+	// Check 60-second timeout (REQ-MTGM-N04) — expired callbacks are still processed
+	// but audited as expired (strategy-p3.md §D.7).
+	auditMeta := map[string]any{
+		"source":      "callback_query",
+		"callback_id": cq.ID,
+	}
+	if now.Sub(cq.ReceivedAt) > callbackQueryTimeout {
+		auditMeta["callback_expired"] = true
+	}
+
+	// Check access control (same as message path).
+	mapping, found, err := h.store.GetUserMapping(ctx, chatID)
+	if err != nil {
+		h.logger.Error("store lookup failed", zap.Error(err), zap.Int64("chat_id", chatID))
+		_ = h.store.PutLastOffset(ctx, int64(update.UpdateID)+1)
+		return nil
+	}
+	if found && !mapping.Allowed {
+		// Blocked user — silent drop (REQ-MTGM-N05).
+		_ = h.audit.RecordInbound(ctx, chatID, msgID, cq.Data, map[string]any{"dropped_blocked": true})
+		_ = h.store.PutLastOffset(ctx, int64(update.UpdateID)+1)
+		return nil
+	}
+	if !found {
+		// Not registered — send gate message and stop.
+		gateMsg := fmt.Sprintf("이 봇은 사전 승인된 사용자만 사용할 수 있습니다. 관리자에게 chat_id `%d` 를 전달하세요.", chatID)
+		if sent, sendErr := h.client.SendMessage(ctx, SendMessageRequest{ChatID: chatID, Text: gateMsg}); sendErr == nil {
+			_ = h.audit.RecordOutbound(ctx, chatID, int64(sent.ID), gateMsg, nil)
+		}
+		_ = h.store.PutLastOffset(ctx, int64(update.UpdateID)+1)
+		return nil
+	}
+
+	// Audit the inbound callback.
+	_ = h.audit.RecordInbound(ctx, chatID, msgID, cq.Data, auditMeta)
+
+	// Forward to agent: callback data is passed as text with prefix (strategy-p3.md §D.4).
+	queryText := fmt.Sprintf("[callback_query] data=%q message_id=%d", cq.Data, cq.MessageID)
+
+	queryCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	response, queryErr := h.agent.Query(queryCtx, queryText, nil)
+	if queryErr != nil {
+		h.logger.Error("agent query failed (callback)", zap.Error(queryErr), zap.Int64("chat_id", chatID))
+		_ = h.store.PutLastOffset(ctx, int64(update.UpdateID)+1)
+		return nil
+	}
+
+	if sent, sendErr := h.client.SendMessage(ctx, SendMessageRequest{ChatID: chatID, Text: response}); sendErr != nil {
+		h.logger.Error("send callback response failed", zap.Error(sendErr), zap.Int64("chat_id", chatID))
+	} else {
+		_ = h.audit.RecordOutbound(ctx, chatID, int64(sent.ID), response, nil)
+	}
+
+	_ = h.store.PutLastOffset(ctx, int64(update.UpdateID)+1)
+	return nil
+}
 
 // BridgeQueryHandler dispatches inbound Telegram messages to the Goose agent,
 // enforces the first-message access gate, records audit events, and persists
@@ -65,17 +156,28 @@ func NewBridgeQueryHandler(
 	}
 }
 
+// callbackQueryTimeout is the Telegram-imposed window to answer a callback.
+// Callbacks older than this are logged as expired but still processed
+// (strategy-p3.md §D.7).
+const callbackQueryTimeout = 60 * time.Second
+
 // Handle processes a single Telegram Update.
 //
 // Flow summary:
-//  1. Skip updates with no message text; advance offset.
-//  2. Reject over-length messages (> 4096 bytes).
-//  3. Enforce first-message gate or auto-admit.
-//  4. Drop silently if user is blocked.
-//  5. Query the agent with a 30-second timeout.
-//  6. Deliver response; advance offset.
+//  1. Dispatch to callback_query branch if present.
+//  2. Skip updates with no message text; advance offset.
+//  3. Reject over-length messages (> 4096 bytes).
+//  4. Enforce first-message gate or auto-admit.
+//  5. Drop silently if user is blocked.
+//  6. Query the agent with a 30-second timeout.
+//  7. Deliver response; advance offset.
 func (h *BridgeQueryHandler) Handle(ctx context.Context, update Update) error {
-	// 1. Skip empty or no-message updates.
+	// 1. Dispatch callback_query updates.
+	if update.CallbackQuery != nil {
+		return h.handleCallback(ctx, update)
+	}
+
+	// 2. Skip empty or no-message updates.
 	if update.Message == nil || update.Message.Text == "" {
 		_ = h.store.PutLastOffset(ctx, int64(update.UpdateID)+1)
 		return nil
@@ -175,7 +277,7 @@ func (h *BridgeQueryHandler) Handle(ctx context.Context, update Update) error {
 	queryCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	response, queryErr := h.agent.Query(queryCtx, text)
+	response, queryErr := h.agent.Query(queryCtx, text, nil)
 	if queryErr != nil {
 		if errors.Is(queryErr, context.DeadlineExceeded) || errors.Is(queryErr, context.Canceled) {
 			// Timeout — graceful response, no error propagation.

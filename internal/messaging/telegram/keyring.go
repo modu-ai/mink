@@ -64,8 +64,9 @@ func (m *MemoryKeyring) Retrieve(service, key string) ([]byte, error) {
 	return cp, nil
 }
 
-// @MX:TODO P3 — evaluate OS keyring integration (e.g. zalando/go-keyring or
-// charmbracelet/x/exp/once) for production bot token storage.
+// @MX:NOTE: [AUTO] OS keyring backend wired via OSKeyring (keyring_os.go,
+// build tag !nokeyring) using zalando/go-keyring v0.2.8.
+// Fallback: MemoryKeyring for tests and -tags=nokeyring CI builds.
 // credproxy (internal/credproxy) is an HTTP proxy pattern, not a KV keyring,
 // and is therefore not a fit for direct telegram token retrieval.
-// See analyze-p2.md §4 for the full rationale.
+// See analyze-p2.md §4 and strategy-p3.md §E for the full rationale.

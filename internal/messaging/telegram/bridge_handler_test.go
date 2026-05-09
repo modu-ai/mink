@@ -42,6 +42,13 @@ func (f *fakeBridgeClient) SendMessage(_ context.Context, req telegram.SendMessa
 	}
 	return msg, nil
 }
+func (f *fakeBridgeClient) AnswerCallbackQuery(_ context.Context, _ string) error { return nil }
+func (f *fakeBridgeClient) SendPhoto(_ context.Context, req telegram.SendMediaRequest) (telegram.Message, error) {
+	return telegram.Message{ID: 200, ChatID: req.ChatID}, nil
+}
+func (f *fakeBridgeClient) SendDocument(_ context.Context, req telegram.SendMediaRequest) (telegram.Message, error) {
+	return telegram.Message{ID: 201, ChatID: req.ChatID}, nil
+}
 
 // fakeAgentQuery is an AgentQuery test double.
 type fakeAgentQuery struct {
@@ -50,7 +57,7 @@ type fakeAgentQuery struct {
 	delay    time.Duration
 }
 
-func (f *fakeAgentQuery) Query(ctx context.Context, _ string) (string, error) {
+func (f *fakeAgentQuery) Query(ctx context.Context, _ string, _ []string) (string, error) {
 	if f.delay > 0 {
 		select {
 		case <-time.After(f.delay):

@@ -3,6 +3,7 @@ package telegram
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/go-telegram/bot/models"
 )
@@ -38,13 +39,45 @@ type InboundMessage struct {
 	Date       int64
 }
 
-// Update represents a Telegram update (inbound event).
-type Update struct {
-	UpdateID int
-	Message  *InboundMessage
+// CallbackQuery represents an inline keyboard button click event.
+// The ID must be acknowledged via answerCallbackQuery within 60 seconds.
+type CallbackQuery struct {
+	// ID is the callback query identifier used to acknowledge the click.
+	ID string
+	// FromUserID is the Telegram user ID of the person who clicked the button.
+	FromUserID int64
+	// ChatID is extracted from CallbackQuery.Message.Chat.ID (private chat).
+	ChatID int64
+	// MessageID is the message that contained the inline keyboard.
+	MessageID int
+	// Data is the callback_data string set when the button was created (≤ 64 bytes).
+	Data string
+	// ReceivedAt records when the update was received for timeout checking.
+	ReceivedAt time.Time
 }
 
-// Client defines the narrow interface for Telegram Bot API operations needed by P1.
+// Update represents a Telegram update (inbound event).
+type Update struct {
+	UpdateID      int
+	Message       *InboundMessage
+	CallbackQuery *CallbackQuery // non-nil when an inline keyboard button was clicked
+}
+
+// SendMediaRequest holds the parameters for sending a photo or document.
+type SendMediaRequest struct {
+	// ChatID is the target chat identifier.
+	ChatID int64
+	// Caption is the optional text caption displayed alongside the media.
+	Caption string
+	// Path is the local filesystem path to the file to upload.
+	// Mutually exclusive with URL.
+	Path string
+	// URL is the remote URL of the file to send.
+	// Mutually exclusive with Path.
+	URL string
+}
+
+// Client defines the narrow interface for Telegram Bot API operations needed by P1-P3.
 //
 // @MX:ANCHOR: [AUTO] Client is the primary abstraction for all Telegram API calls.
 // @MX:REASON: SPEC-GOOSE-MSG-TELEGRAM-001 P1; fan_in via poller, handler, bootstrap, setup command, and tests.
@@ -58,6 +91,16 @@ type Client interface {
 	// GetUpdates fetches pending updates starting from offset using long polling.
 	// timeoutSec is the Telegram API long-poll timeout in seconds.
 	GetUpdates(ctx context.Context, offset int, timeoutSec int) ([]Update, error)
+
+	// AnswerCallbackQuery sends a response to a callback query (inline keyboard click).
+	// Must be called within 60 seconds of the callback event (REQ-MTGM-N04).
+	AnswerCallbackQuery(ctx context.Context, callbackQueryID string) error
+
+	// SendPhoto uploads and sends an image to the specified chat.
+	SendPhoto(ctx context.Context, req SendMediaRequest) (Message, error)
+
+	// SendDocument uploads and sends a document to the specified chat.
+	SendDocument(ctx context.Context, req SendMediaRequest) (Message, error)
 }
 
 // Option configures a Client instance.
@@ -134,6 +177,58 @@ func (c *httpClient) GetUpdates(ctx context.Context, offset int, timeoutSec int)
 	return convertUpdates(raw), nil
 }
 
+// AnswerCallbackQuery sends an empty acknowledgement for an inline keyboard callback.
+func (c *httpClient) AnswerCallbackQuery(ctx context.Context, callbackQueryID string) error {
+	params := map[string]interface{}{
+		"callback_query_id": callbackQueryID,
+	}
+	var result bool
+	if err := httpPostJSON(ctx, c.baseURL(), c.token, "answerCallbackQuery", params, &result); err != nil {
+		return fmt.Errorf("telegram: answerCallbackQuery: %w", err)
+	}
+	return nil
+}
+
+// SendPhoto uploads an image file and sends it to the chat.
+func (c *httpClient) SendPhoto(ctx context.Context, req SendMediaRequest) (Message, error) {
+	params := map[string]interface{}{
+		"chat_id": req.ChatID,
+	}
+	if req.Caption != "" {
+		params["caption"] = req.Caption
+	}
+	if req.URL != "" {
+		params["photo"] = req.URL
+	} else {
+		params["photo"] = "attach://" + req.Path
+	}
+	var m models.Message
+	if err := httpPostJSON(ctx, c.baseURL(), c.token, "sendPhoto", params, &m); err != nil {
+		return Message{}, fmt.Errorf("telegram: sendPhoto: %w", err)
+	}
+	return modelMessage(&m), nil
+}
+
+// SendDocument uploads a file and sends it as a document to the chat.
+func (c *httpClient) SendDocument(ctx context.Context, req SendMediaRequest) (Message, error) {
+	params := map[string]interface{}{
+		"chat_id": req.ChatID,
+	}
+	if req.Caption != "" {
+		params["caption"] = req.Caption
+	}
+	if req.URL != "" {
+		params["document"] = req.URL
+	} else {
+		params["document"] = "attach://" + req.Path
+	}
+	var m models.Message
+	if err := httpPostJSON(ctx, c.baseURL(), c.token, "sendDocument", params, &m); err != nil {
+		return Message{}, fmt.Errorf("telegram: sendDocument: %w", err)
+	}
+	return modelMessage(&m), nil
+}
+
 // modelUser converts a models.User to our internal User.
 func modelUser(u *models.User) User {
 	if u == nil {
@@ -176,6 +271,25 @@ func convertUpdates(raw []*models.Update) []Update {
 				Text:       u.Message.Text,
 				FromUserID: fromID,
 				Date:       int64(u.Message.Date),
+			}
+		}
+		if u.CallbackQuery != nil {
+			cq := u.CallbackQuery
+			fromID := cq.From.ID // From is a value type (models.User), always present
+			chatID := fromID
+			msgID := 0
+			// Extract chat_id and message_id from the associated message (if accessible).
+			if cq.Message.Type == models.MaybeInaccessibleMessageTypeMessage && cq.Message.Message != nil {
+				chatID = cq.Message.Message.Chat.ID
+				msgID = cq.Message.Message.ID
+			}
+			upd.CallbackQuery = &CallbackQuery{
+				ID:         cq.ID,
+				FromUserID: fromID,
+				ChatID:     chatID,
+				MessageID:  msgID,
+				Data:       cq.Data,
+				ReceivedAt: time.Now().UTC(),
 			}
 		}
 		out = append(out, upd)

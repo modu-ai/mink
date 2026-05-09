@@ -50,6 +50,14 @@ func (b *bootstrapClient) SendMessage(_ context.Context, req telegram.SendMessag
 	return telegram.Message{ID: 1, ChatID: req.ChatID, Text: req.Text}, nil
 }
 
+func (b *bootstrapClient) AnswerCallbackQuery(_ context.Context, _ string) error { return nil }
+func (b *bootstrapClient) SendPhoto(_ context.Context, req telegram.SendMediaRequest) (telegram.Message, error) {
+	return telegram.Message{ID: 2, ChatID: req.ChatID}, nil
+}
+func (b *bootstrapClient) SendDocument(_ context.Context, req telegram.SendMediaRequest) (telegram.Message, error) {
+	return telegram.Message{ID: 3, ChatID: req.ChatID}, nil
+}
+
 // TestStart_EchoRoundTrip verifies that Start wires handler+poller and an
 // inbound update produces a SendMessage echo call before ctx is cancelled.
 func TestStart_EchoRoundTrip(t *testing.T) {
