@@ -64,3 +64,53 @@ External dep: rickar/cal/v2 v2.1.27 (P2 분기에서 go get 완료)
 - Planned modifications: 2
 - Total planned: 5 files
 - 외부 의존 신규: rickar/cal/v2 v2.1.27
+
+---
+
+## P3 Task Decomposition (BackoffManager + Dispatcher Worker + Quiet Hours)
+SPEC: SPEC-GOOSE-SCHEDULER-001 P3
+Branch: feature/SPEC-GOOSE-SCHEDULER-001-P3 (main HEAD = d4f2167)
+External dep: 신규 없음 (clockwork v0.4.0 재사용)
+
+### 의사결정 — QUERY-001 TurnCounter 추상화 (orchestrator + user 합의 2026-05-09)
+- **결정**: Option A (Interface + DI 패턴) 채택.
+- **근거**: QUERY-001 spec.md `internal/query/engine.go` 에 `LastTurnAt()` / `TurnCount()` public API 부재. SCHEDULER-001 에서 QUERY-001 spec amendment 를 강제하면 P3 범위가 두 패키지로 확장되어 SPEC trail 이 흐려짐.
+- **구현**: `internal/ritual/scheduler/activity.go` 에 `ActivityClock interface { LastActivityAt() time.Time }` 정의. BackoffManager 가 의존. 테스트는 fake `ActivityClock` 함수 mock. 실 wiring (QueryEngine → ActivityClock 어댑터) 은 P4 또는 후속 SPEC 책임.
+- **추후**: BRIEFING-001 / RITUAL-001 등이 ActivityClock 어댑터 추가 시 fan_in 증가하면 ANCHOR 부여.
+
+### Tasks
+
+| Task ID | Description | Requirement | Dependencies | Planned Files | Status |
+|---------|-------------|-------------|--------------|---------------|--------|
+| T-013 | activity.go: `ActivityClock` interface (`LastActivityAt() time.Time`) + zero-value `noActivityClock` 헬퍼 (`zero time` 반환) | REQ-SCHED-011 | - | internal/ritual/scheduler/activity.go (신규) | pending |
+| T-014 | backoff.go: `BackoffManager` struct + `ShouldDefer(now)` + `RecordDefer(key)` + `Reset(key)` + max_defer 카운터 (sync.Map keyed by `{event}:{userLocalDate}`) | REQ-SCHED-011, REQ-SCHED-021 | T-013 | internal/ritual/scheduler/backoff.go (신규) | pending |
+| T-015 | config.go 확장: `AllowNighttime bool`, `Backoff BackoffConfig{ActiveWindow time.Duration, MaxDeferCount int}` (기본 10min/3) + `Validate()` 에 quiet-hours 검사 ([23:00, 06:00] 범위 + AllowNighttime=false → `ErrQuietHoursViolation`) | REQ-SCHED-014 | - | internal/ritual/scheduler/config.go (modify) | pending |
+| T-016 | scheduler.go 확장 — eventCh worker 분리 (cron callback 은 send-only, dispatch.DispatchGeneric 직접 호출 제거) + Start 시 worker goroutine + Stop 시 graceful drain (`<-time.After(3s)` 보존) | REQ-SCHED-015 | - | internal/ritual/scheduler/scheduler.go (modify) | pending |
+| T-017 | scheduler.go 확장 — BackoffManager 결합: cron callback 에서 ShouldDefer 검사 → defer 면 `clock.AfterFunc(active_window, retry)` reschedule + zap INFO `backoff_applied:true`. max_defer 초과 시 force emit + WARN `force_emit:true, defer_count:3`. ScheduledEvent 페이로드에 `BackoffApplied bool, DelayHint time.Duration` 필드 추가. AllowNighttime=true 케이스에서 첫 dispatch 시 WARN `nighttime_override:true` 로그 1회 | REQ-SCHED-014, REQ-SCHED-021 | T-014, T-015, T-016 | internal/ritual/scheduler/scheduler.go (modify) + events.go (modify) | pending |
+| T-018 | scheduler_test.go 확장 — 5 RED tests (clockwork mock + fake ActivityClock + slow HookDispatcher mock):  TestBackoffDefers10Min(AC-003) / TestQuietHoursRejectedDeterministic(AC-005) / TestQuietHoursOverride_AllowNighttime(AC-013) / TestCronDispatcherDecoupling_BufferedChannel(AC-014) / TestMaxDeferCount_3_ForceEmit(AC-019) | AC-SCHED-003, 005, 013, 014, 019 | T-013~T-017 | internal/ritual/scheduler/scheduler_test.go (extend) | pending |
+
+### P3 RED → GREEN → REFACTOR sequence
+1. RED: T-018 의 5 테스트 작성 (모두 stub 단계 실패)
+2. GREEN: T-013 → T-014 → T-015 → T-016 → T-017 순서로 최소 구현 (각 테스트 1건씩 GREEN)
+3. REFACTOR: 중복 제거, English godoc, @MX 태그 갱신
+4. coverage 측정 → ≥80% 패키지 단위 (P2 89.9% 회귀 0)
+5. golangci-lint + go vet + gofmt clean
+6. commit (squash 1개 PR)
+
+### P3 Exit Criteria
+- AC-SCHED-003 GREEN (backoff defer 10min, fake ActivityClock 5min 전 활동 mock)
+- AC-SCHED-005 GREEN (quiet hours rejection — `Start` 가 `ErrQuietHoursViolation` 반환, state=Stopped 불변)
+- AC-SCHED-013 GREEN (quiet hours override — AllowNighttime=true 시 발화 + WARN 로그 1회)
+- AC-SCHED-014 GREEN (cron-dispatcher 디커플링 — cron goroutine 즉시 반환, eventCh 3 enqueue, worker 순차 처리)
+- AC-SCHED-019 GREEN (max_defer 3회 후 force emit, DelayHint=30m, defer_count reset)
+- 누적 13/20 AC GREEN (잔여 7건은 P4: AC-006/008/010/015/017/018/020)
+
+### Drift Guard baseline (P3)
+- Planned new files: 2 (activity.go, backoff.go)
+- Planned modifications: 3 (config.go, scheduler.go, events.go) + 1 test extend (scheduler_test.go)
+- Total planned: 6 files
+- 외부 의존 신규: 없음
+- 누적 lesson:
+  - isolation 미사용 14회 무사고 (Sprint 1 전구간) → P3 동일 적용
+  - LSP stale 10회 reproduction → P3 도 orchestrator 직접 build/vet verify
+  - agent gofmt self-report 불신 → orchestrator 직접 `gofmt -l` verify

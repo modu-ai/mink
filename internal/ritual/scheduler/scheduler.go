@@ -1,10 +1,11 @@
-// Package scheduler — Scheduler struct implementing SPEC-GOOSE-SCHEDULER-001 P1/P2.
+// Package scheduler — Scheduler struct implementing SPEC-GOOSE-SCHEDULER-001 P1/P2/P3.
 package scheduler
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -14,6 +15,14 @@ import (
 
 	"github.com/modu-ai/goose/internal/hook"
 )
+
+// dispatcherI is the minimal interface used by Scheduler to dispatch hook events.
+// Accepting an interface instead of *hook.Dispatcher allows test doubles (e.g. slowDispatcher).
+//
+// @MX:NOTE: [AUTO] Narrow interface for dispatcher — enables slow-consumer test double injection
+type dispatcherI interface {
+	DispatchGeneric(ctx context.Context, ev hook.HookEvent, input hook.HookInput) (hook.DispatchResult, error)
+}
 
 // schedulerState encodes the running/stopped state of the Scheduler.
 type schedulerState int32
@@ -33,10 +42,10 @@ const (
 type Scheduler struct {
 	cfg       SchedulerConfig
 	cron      *cron.Cron
-	dispatch  *hook.Dispatcher
+	dispatch  dispatcherI
 	persister SchedulePersister
-	// eventCh is a buffered channel for fired ScheduledEvents.
-	// P1: capacity 32. P3 will introduce a dedicated worker that drains it.
+	// eventCh is a buffered channel (cap 32) for fired ScheduledEvents.
+	// P3: a dedicated worker goroutine drains workerCh; cron callbacks only enqueue.
 	eventCh  chan ScheduledEvent
 	state    atomic.Int32
 	clock    clockwork.Clock
@@ -52,6 +61,20 @@ type Scheduler struct {
 	// tzPauseUntil is an atomic snapshot of TimezoneDetector.pauseUntil for lock-free read.
 	// Written only from NotifyTimezoneChange (serialised by caller); read from cron callbacks.
 	tzPauseUntil atomic.Value // stores time.Time
+
+	// P3 fields: backoff manager and dispatcher worker lifecycle.
+	backoff *BackoffManager
+	// workerCh carries ScheduledEvents from cron callbacks to the dispatcher worker.
+	// Cap 32 matches eventCh to ensure the cron goroutine never blocks.
+	//
+	// @MX:WARN: [AUTO] goroutine spawned in Start — lifecycle managed by workerDone/Stop
+	// @MX:REASON: SPEC-GOOSE-SCHEDULER-001 REQ-SCHED-015 — dispatcher worker decoupled from cron goroutine
+	workerCh   chan ScheduledEvent
+	workerDone chan struct{}
+	workerWG   sync.WaitGroup
+
+	// nighttimeWarnOnce ensures the nighttime_override WARN log fires at most once.
+	nighttimeWarnOnce sync.Once
 }
 
 // Option is a functional option for Scheduler construction.
@@ -86,6 +109,17 @@ func WithHolidayCalendar(c HolidayCalendar) Option {
 	return func(s *Scheduler) { s.holidays = c }
 }
 
+// WithActivityClock injects an ActivityClock into the Scheduler for backoff decisions.
+// If not provided, backoff is effectively disabled (noActivityClock returns zero time).
+// (REQ-SCHED-011, REQ-SCHED-021)
+func WithActivityClock(a ActivityClock) Option {
+	return func(s *Scheduler) {
+		if s.backoff != nil {
+			s.backoff.activity = a
+		}
+	}
+}
+
 // withCronSpecOverride replaces all ritual cron specs with the given spec.
 // This is intentionally unexported and used only in tests via the export_test.go bridge.
 //
@@ -95,26 +129,41 @@ func withCronSpecOverride(spec string) Option {
 	return func(s *Scheduler) { s.cronSpecOverride = spec }
 }
 
-// New constructs a Scheduler from cfg.
+// New constructs a Scheduler from cfg using the concrete *hook.Dispatcher.
 // Returns an error if cfg contains an invalid timezone.
 func New(cfg SchedulerConfig, dispatch *hook.Dispatcher, persister SchedulePersister, opts ...Option) (*Scheduler, error) {
+	return NewWithDispatcher(cfg, dispatch, persister, opts...)
+}
+
+// NewWithDispatcher constructs a Scheduler using the dispatcherI interface.
+// This allows test doubles (e.g. slow-consumer wrappers) to be injected.
+func NewWithDispatcher(cfg SchedulerConfig, dispatch dispatcherI, persister SchedulePersister, opts ...Option) (*Scheduler, error) {
 	loc, err := cfg.Location()
 	if err != nil {
 		return nil, err
 	}
 
+	bCfg := cfg.Backoff.effectiveBackoff()
+	realClock := clockwork.NewRealClock()
+	bm := newBackoffManager(realClock, noActivityClock{}, bCfg.ActiveWindow, bCfg.MaxDeferCount)
+
 	s := &Scheduler{
-		cfg:       cfg,
-		dispatch:  dispatch,
-		persister: persister,
-		eventCh:   make(chan ScheduledEvent, 32),
-		clock:     clockwork.NewRealClock(),
-		logger:    zap.NewNop(),
-		location:  loc,
+		cfg:        cfg,
+		dispatch:   dispatch,
+		persister:  persister,
+		eventCh:    make(chan ScheduledEvent, 32),
+		workerCh:   make(chan ScheduledEvent, 32),
+		workerDone: make(chan struct{}),
+		clock:      realClock,
+		logger:     zap.NewNop(),
+		location:   loc,
+		backoff:    bm,
 	}
 	for _, opt := range opts {
 		opt(s)
 	}
+	// Sync backoff clock to the potentially overridden s.clock.
+	s.backoff.clock = s.clock
 	return s, nil
 }
 
@@ -167,6 +216,10 @@ func (s *Scheduler) Start(ctx context.Context) error {
 		return errors.Join(errs...)
 	}
 
+	// P3: start dispatcher worker before the cron engine so it is ready to drain.
+	s.workerWG.Add(1)
+	go s.runWorker(ctx)
+
 	engine.Start()
 	s.cron = engine
 	s.state.Store(int32(stateRunning))
@@ -176,6 +229,53 @@ func (s *Scheduler) Start(ctx context.Context) error {
 		s.logger.Warn("scheduler persist.Save failed", zap.Error(err))
 	}
 	return nil
+}
+
+// runWorker is the P3 dispatcher worker goroutine.
+// It drains workerCh and calls the dispatcher, then forwards the event to
+// the consumer-facing eventCh. Runs until workerDone is closed.
+//
+// @MX:WARN: [AUTO] long-running goroutine — stopped by close(workerDone) in Stop
+// @MX:REASON: SPEC-GOOSE-SCHEDULER-001 REQ-SCHED-015 — must not block cron goroutine
+func (s *Scheduler) runWorker(ctx context.Context) {
+	defer s.workerWG.Done()
+	for {
+		select {
+		case ev, ok := <-s.workerCh:
+			if !ok {
+				return
+			}
+			s.workerDispatch(ctx, ev)
+		case <-s.workerDone:
+			// Drain remaining items before exiting (graceful 3s handled by Stop).
+			for {
+				select {
+				case ev := <-s.workerCh:
+					s.workerDispatch(ctx, ev)
+				default:
+					return
+				}
+			}
+		}
+	}
+}
+
+// workerDispatch calls the dispatcher and forwards the event to eventCh.
+func (s *Scheduler) workerDispatch(ctx context.Context, ev ScheduledEvent) {
+	if _, err := s.dispatch.DispatchGeneric(ctx, ev.Event, hook.HookInput{
+		HookEvent:  ev.Event,
+		CustomData: map[string]any{"scheduled_event": ev},
+	}); err != nil {
+		s.logger.Error("ritual_dispatch_error",
+			zap.String("event", string(ev.Event)),
+			zap.Error(err),
+		)
+	}
+	select {
+	case s.eventCh <- ev:
+	default:
+		s.logger.Warn("ritual_eventch_full", zap.String("event", string(ev.Event)))
+	}
 }
 
 // Stop gracefully halts the cron engine and transitions the Scheduler to Stopped.
@@ -190,11 +290,33 @@ func (s *Scheduler) Stop(_ context.Context) error {
 			s.logger.Warn("scheduler stop: timed out waiting for running jobs")
 		}
 	}
+
+	// Signal the worker goroutine to finish and wait up to 3s.
+	if s.workerDone != nil {
+		select {
+		case <-s.workerDone:
+			// Already closed.
+		default:
+			close(s.workerDone)
+		}
+		done := make(chan struct{})
+		go func() {
+			s.workerWG.Wait()
+			close(done)
+		}()
+		select {
+		case <-done:
+		case <-time.After(3 * time.Second):
+			s.logger.Warn("scheduler stop: timed out waiting for worker goroutine")
+		}
+	}
+
 	s.state.Store(int32(stateStopped))
 	return nil
 }
 
 // makeCallback builds the cron callback closure for a given RitualTime.
+// P3: cron callbacks only enqueue events onto workerCh; dispatch runs in the worker.
 func (s *Scheduler) makeCallback(ctx context.Context, rt RitualTime) func() {
 	return func() {
 		now := s.clock.Now()
@@ -239,31 +361,66 @@ func (s *Scheduler) makeCallback(ctx context.Context, rt RitualTime) func() {
 			}
 		}
 
+		// P3: nighttime override WARN log (fires at most once per Scheduler instance).
+		if s.cfg.AllowNighttime {
+			s.nighttimeWarnOnce.Do(func() {
+				s.logger.Warn("ritual_nighttime_override",
+					zap.String("event", string(rt.Event)),
+					zap.Bool("nighttime_override", true),
+				)
+			})
+		}
+
+		// P3: backoff check.
+		localDate := localTime.Format("2006-01-02")
+		deferKey := eventDeferKey(string(rt.Event), localDate)
+		var backoffApplied bool
+		var delayHint time.Duration
+
+		if s.backoff != nil {
+			shouldDefer, forceEmit := s.backoff.ShouldDefer(deferKey)
+
+			if shouldDefer {
+				// Defer: record and return without emitting.
+				s.backoff.RecordDefer(deferKey)
+				s.logger.Info("ritual_backoff_deferred",
+					zap.String("event", string(rt.Event)),
+					zap.Bool("backoff_applied", true),
+				)
+				return
+			}
+
+			if forceEmit {
+				// Force emit after max defers.
+				count := s.backoff.DeferCount(deferKey)
+				delayHint = time.Duration(count) * s.backoff.activeWindow
+				backoffApplied = true
+				s.logger.Warn("ritual_force_emit",
+					zap.String("event", string(rt.Event)),
+					zap.Bool("force_emit", true),
+					zap.Int("defer_count", count),
+				)
+				s.backoff.Reset(deferKey)
+			}
+		}
+
 		ev := ScheduledEvent{
-			Event:         rt.Event,
-			FiredAt:       now,
-			ScheduledAt:   now, // P1: no look-ahead scheduling yet
-			Timezone:      s.cfg.Timezone,
-			UserLocalDate: localTime.Format("2006-01-02"),
-			IsHoliday:     isHoliday,
-			HolidayName:   holidayName,
+			Event:          rt.Event,
+			FiredAt:        now,
+			ScheduledAt:    now,
+			Timezone:       s.cfg.Timezone,
+			UserLocalDate:  localDate,
+			IsHoliday:      isHoliday,
+			HolidayName:    holidayName,
+			BackoffApplied: backoffApplied,
+			DelayHint:      delayHint,
 		}
 
-		// P1: synchronous DispatchGeneric. P3 will introduce eventCh worker.
-		if _, err := s.dispatch.DispatchGeneric(ctx, ev.Event, hook.HookInput{
-			HookEvent:  ev.Event,
-			CustomData: map[string]any{"scheduled_event": ev},
-		}); err != nil {
-			s.logger.Error("ritual_dispatch_error",
-				zap.String("event", string(ev.Event)),
-				zap.Error(err),
-			)
-		}
-
+		// P3: enqueue onto workerCh (non-blocking). Worker dispatches asynchronously.
 		select {
-		case s.eventCh <- ev:
+		case s.workerCh <- ev:
 		default:
-			s.logger.Warn("ritual_eventch_full", zap.String("event", string(ev.Event)))
+			s.logger.Warn("ritual_workerch_full", zap.String("event", string(ev.Event)))
 		}
 	}
 }
