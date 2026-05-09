@@ -55,6 +55,15 @@ type Scheduler struct {
 	// Used only by tests via withCronSpecOverride option.
 	cronSpecOverride string
 
+	// mu serialises lifecycle transitions (Start and Stop).
+	// It protects the cron pointer and the workerDone channel close operation,
+	// preventing concurrent Stop() calls from double-closing workerDone and
+	// racing on the cron pointer.
+	//
+	// @MX:WARN: [AUTO] lifecycle mutex — must not be held across blocking I/O or cron.Stop() timeout
+	// @MX:REASON: W1 fix (REVIEW-SCHEDULER-001-2026-05-10): concurrent Stop() caused panic: close of closed channel at scheduler.go:349; cron pointer race between Start and Stop
+	mu sync.Mutex
+
 	// P2 fields: timezone detector and holiday calendar (both optional, nil = disabled).
 	tzDetector *TimezoneDetector
 	holidays   HolidayCalendar
@@ -329,9 +338,27 @@ func (s *Scheduler) workerDispatch(ctx context.Context, ev ScheduledEvent) {
 
 // Stop gracefully halts the cron engine and transitions the Scheduler to Stopped.
 // Idempotent: calling Stop on an already-stopped Scheduler is a no-op.
+// Concurrent calls are serialised by mu; only the first caller performs the
+// actual shutdown; subsequent callers return immediately once state is Stopped.
 func (s *Scheduler) Stop(_ context.Context) error {
-	if s.cron != nil {
-		stopCtx := s.cron.Stop()
+	s.mu.Lock()
+	// Idempotent: if already stopped, return immediately.
+	if s.state.Load() != int32(stateRunning) {
+		s.mu.Unlock()
+		return nil
+	}
+	// Transition to Stopped under the lock so concurrent callers see the new
+	// state before mu is released and short-circuit above.
+	s.state.Store(int32(stateStopped))
+	// Capture cron under the lock, then release before blocking operations.
+	cronEngine := s.cron
+	s.cron = nil
+	s.mu.Unlock()
+
+	// Stop the cron engine outside the lock — cron.Stop() may block up to 3s
+	// waiting for in-progress jobs to finish.
+	if cronEngine != nil {
+		stopCtx := cronEngine.Stop()
 		// Wait for any in-progress job to finish, with a brief real-time deadline.
 		select {
 		case <-stopCtx.Done():
@@ -341,13 +368,10 @@ func (s *Scheduler) Stop(_ context.Context) error {
 	}
 
 	// Signal the worker goroutine to finish and wait up to 3s.
+	// close(workerDone) is safe here: mu guarantees only one goroutine reaches
+	// this point (state guard above prevents re-entry).
 	if s.workerDone != nil {
-		select {
-		case <-s.workerDone:
-			// Already closed.
-		default:
-			close(s.workerDone)
-		}
+		close(s.workerDone)
 		done := make(chan struct{})
 		go func() {
 			s.workerWG.Wait()
@@ -360,7 +384,6 @@ func (s *Scheduler) Stop(_ context.Context) error {
 		}
 	}
 
-	s.state.Store(int32(stateStopped))
 	return nil
 }
 

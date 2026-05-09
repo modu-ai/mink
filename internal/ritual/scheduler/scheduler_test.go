@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -1302,6 +1303,102 @@ func TestMissedEventReplay_1hThreshold(t *testing.T) {
 			}
 		})
 	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Concurrency safety tests (W1 — REVIEW-SCHEDULER-001-2026-05-10)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// TestStop_ConcurrentCalls_Safe verifies that calling Stop() from many goroutines
+// concurrently does not panic from close-on-closed-channel and is fully idempotent.
+// Reproduction-First: without sync.Mutex protection, this test panics within ~50 iterations.
+func TestStop_ConcurrentCalls_Safe(t *testing.T) {
+	t.Parallel()
+
+	cfg := scheduler.SchedulerConfig{
+		Enabled:  true,
+		Timezone: "UTC",
+		Rituals: scheduler.RitualsConfig{
+			Morning: scheduler.ClockConfig{Time: "07:00"},
+		},
+	}
+
+	reg := hook.NewHookRegistry()
+	dispatch := hook.NewDispatcher(reg, zap.NewNop())
+	persister := scheduler.NewFilePersister(t.TempDir())
+
+	sched, err := scheduler.New(cfg, dispatch, persister,
+		scheduler.WithLogger(zap.NewNop()),
+		scheduler.WithCronSpecOverride("@every 5m"), // slow fire — test is about Stop, not dispatch
+	)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	ctx := context.Background()
+	if err := sched.Start(ctx); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	// 50 goroutines call Stop() concurrently.
+	// Without mutex protection, this reliably triggers close-on-closed-channel panic.
+	var wg sync.WaitGroup
+	for range 50 {
+		wg.Go(func() {
+			if err := sched.Stop(ctx); err != nil {
+				t.Errorf("Stop: %v", err)
+			}
+		})
+	}
+	wg.Wait()
+
+	if got := sched.State(); got != int32(0) {
+		t.Errorf("expected StateStopped (0) after concurrent Stop, got %d", got)
+	}
+}
+
+// TestStartStop_NoRace exercises the Start/Stop lifecycle from multiple goroutines
+// to expose any data race on s.cron. Run with -race.
+// Reproduction-First: without mutex protection on s.cron, the race detector
+// reports a DATA RACE between Start (write) and Stop (read) on the cron pointer.
+func TestStartStop_NoRace(t *testing.T) {
+	t.Parallel()
+
+	cfg := scheduler.SchedulerConfig{
+		Enabled:  true,
+		Timezone: "UTC",
+		Rituals: scheduler.RitualsConfig{
+			Morning: scheduler.ClockConfig{Time: "07:00"},
+		},
+	}
+
+	reg := hook.NewHookRegistry()
+	dispatch := hook.NewDispatcher(reg, zap.NewNop())
+	persister := scheduler.NewFilePersister(t.TempDir())
+
+	sched, err := scheduler.New(cfg, dispatch, persister,
+		scheduler.WithLogger(zap.NewNop()),
+		scheduler.WithCronSpecOverride("@every 5m"),
+	)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	ctx := context.Background()
+	// Start once to set up the running state before concurrent Stop calls.
+	if err := sched.Start(ctx); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	// 20 goroutines calling Stop concurrently — exposes s.cron pointer race.
+	for range 20 {
+		wg.Go(func() {
+			_ = sched.Stop(context.Background())
+		})
+	}
+	wg.Wait()
+	// No assertions beyond absence of race detector report and panic.
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
