@@ -25,6 +25,7 @@ var (
 
 // ScheduledEvent carries contextual data emitted with each ritual HookEvent.
 // IsHoliday and HolidayName are populated by P2 (HolidayCalendar); P1 leaves them zero.
+// BackoffApplied and DelayHint are populated by P3 (BackoffManager).
 type ScheduledEvent struct {
 	// Event is the hook event type emitted.
 	Event hook.HookEvent
@@ -40,6 +41,12 @@ type ScheduledEvent struct {
 	IsHoliday bool
 	// HolidayName is the name of the holiday if IsHoliday is true (populated in P2).
 	HolidayName string
+	// BackoffApplied is true when max_defer_count was reached and this is a force-emit.
+	// (REQ-SCHED-021, P3)
+	BackoffApplied bool
+	// DelayHint is the total accumulated defer time when force-emit occurs.
+	// Computed as defer_count * active_window. (REQ-SCHED-021, P3)
+	DelayHint time.Duration
 }
 
 // RitualTime associates a ritual event with a scheduling specification.

@@ -2,9 +2,37 @@
 package scheduler
 
 import (
+	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 )
+
+// ErrQuietHoursViolation is returned by Start when a ritual is configured in the
+// [23:00, 06:00) quiet-hours window and AllowNighttime is false. (REQ-SCHED-014)
+var ErrQuietHoursViolation = errors.New("scheduler: ritual time falls within quiet hours [23:00, 06:00)")
+
+// BackoffConfig holds parameters for the BackoffManager. (REQ-SCHED-011, REQ-SCHED-021)
+type BackoffConfig struct {
+	// ActiveWindow is the duration after the last user activity during which ritual
+	// triggers are deferred. Default: 10 minutes.
+	ActiveWindow time.Duration
+	// MaxDeferCount is the maximum number of consecutive defers before force-emit.
+	// Default: 3.
+	MaxDeferCount int
+}
+
+// effectiveBackoff returns a BackoffConfig with defaults applied.
+func (b BackoffConfig) effectiveBackoff() BackoffConfig {
+	if b.ActiveWindow <= 0 {
+		b.ActiveWindow = 10 * time.Minute
+	}
+	if b.MaxDeferCount <= 0 {
+		b.MaxDeferCount = 3
+	}
+	return b
+}
 
 // SchedulerConfig holds the top-level configuration for the ritual scheduler.
 // Keys map to the YAML path scheduler.* in the application config.
@@ -17,6 +45,12 @@ type SchedulerConfig struct {
 	Timezone string
 	// Rituals holds per-meal and per-context scheduling configuration.
 	Rituals RitualsConfig
+	// AllowNighttime disables the [23:00, 06:00) quiet-hours floor when true.
+	// Default: false. (REQ-SCHED-014)
+	AllowNighttime bool
+	// Backoff holds parameters for deferring ritual triggers during active sessions.
+	// (REQ-SCHED-011, REQ-SCHED-021)
+	Backoff BackoffConfig
 }
 
 // RitualsConfig groups the individual ritual schedule entries.
@@ -48,12 +82,55 @@ type ClockConfig struct {
 }
 
 // Validate checks the SchedulerConfig for correctness.
-// Returns an error if Timezone is not a valid IANA location name.
-// REQ-SCHED-001: timezone must be IANA-valid.
+//
+//   - Returns an error if Timezone is not a valid IANA location name.
+//   - Returns ErrQuietHoursViolation if any ritual clock falls in [23:00, 06:00)
+//     and AllowNighttime is false. (REQ-SCHED-014)
 func (cfg SchedulerConfig) Validate() error {
 	tz := cfg.effectiveTimezone()
 	if _, err := time.LoadLocation(tz); err != nil {
 		return fmt.Errorf("scheduler: invalid IANA timezone %q: %w", tz, err)
+	}
+
+	if !cfg.AllowNighttime {
+		clocks := cfg.allRitualClocks()
+		for _, c := range clocks {
+			if c == "" {
+				continue
+			}
+			if err := checkQuietHours(c); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// allRitualClocks returns all non-empty clock strings from the Rituals config.
+func (cfg SchedulerConfig) allRitualClocks() []string {
+	return []string{
+		cfg.Rituals.Morning.Time,
+		cfg.Rituals.Meals.Breakfast.Time,
+		cfg.Rituals.Meals.Lunch.Time,
+		cfg.Rituals.Meals.Dinner.Time,
+		cfg.Rituals.Evening.Time,
+	}
+}
+
+// checkQuietHours returns ErrQuietHoursViolation when the clock string falls
+// within [23:00, 06:00) local time. Exactly 06:00 is NOT in the quiet zone.
+func checkQuietHours(clock string) error {
+	parts := strings.SplitN(clock, ":", 2)
+	if len(parts) != 2 {
+		return nil // parsing errors are handled elsewhere
+	}
+	h, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return nil
+	}
+	// Quiet zone: hour >= 23 OR hour < 6 (i.e. [23:00, 06:00), 06:00 excluded).
+	if h >= 23 || h < 6 {
+		return fmt.Errorf("%w (configured time: %s)", ErrQuietHoursViolation, clock)
 	}
 	return nil
 }

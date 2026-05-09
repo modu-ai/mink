@@ -2,6 +2,7 @@ package scheduler_test
 
 import (
 	"context"
+	"errors"
 	"math"
 	"os"
 	"path/filepath"
@@ -576,6 +577,275 @@ func TestScheduler_WithTimezoneDetector_NoShift(t *testing.T) {
 	// NotifyTimezoneChange with same location within 24h — no shift.
 	if err := sched.NotifyTimezoneChange(context.Background(), seoul); err != nil {
 		t.Errorf("NotifyTimezoneChange no-shift should return nil, got: %v", err)
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// P3 Tests — AC-003 (backoff), AC-005 (quiet hours), AC-013 (override),
+//             AC-014 (decoupling), AC-019 (max defer / force emit)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// fakeActivityClock is a test double for ActivityClock that returns a fixed time.
+type fakeActivityClock struct {
+	lastAt time.Time
+}
+
+func (f *fakeActivityClock) LastActivityAt() time.Time { return f.lastAt }
+
+// slowDispatcher wraps a hook.Dispatcher and adds a configurable block on each
+// dispatch call. Used to simulate a slow consumer for AC-014.
+type slowDispatcher struct {
+	inner *hook.Dispatcher
+	delay time.Duration
+}
+
+func (sd *slowDispatcher) DispatchGeneric(ctx context.Context, ev hook.HookEvent, input hook.HookInput) (hook.DispatchResult, error) {
+	time.Sleep(sd.delay)
+	return sd.inner.DispatchGeneric(ctx, ev, input)
+}
+
+// TestBackoffDefers10Min verifies that when the most recent user activity was
+// within the active_window, the cron callback defers dispatch and schedules a
+// retry instead of calling DispatchGeneric immediately. AC-SCHED-003.
+func TestBackoffDefers10Min(t *testing.T) {
+	t.Parallel()
+	loc, _ := time.LoadLocation("Asia/Seoul")
+	now := time.Date(2026, 5, 10, 7, 30, 0, 0, loc)
+	fc := clockwork.NewFakeClockAt(now)
+
+	// Last activity was 5 minutes ago — within the 10-minute active window.
+	activity := &fakeActivityClock{lastAt: now.Add(-5 * time.Minute)}
+
+	cfg := scheduler.SchedulerConfig{
+		Enabled:  true,
+		Timezone: "Asia/Seoul",
+		Rituals: scheduler.RitualsConfig{
+			Morning: scheduler.ClockConfig{Time: "07:30"},
+		},
+		Backoff: scheduler.BackoffConfig{
+			ActiveWindow:  10 * time.Minute,
+			MaxDeferCount: 3,
+		},
+	}
+
+	reg := hook.NewHookRegistry()
+	dispatch := hook.NewDispatcher(reg, zap.NewNop())
+	persister := scheduler.NewFilePersister(t.TempDir())
+
+	sched, err := scheduler.New(cfg, dispatch, persister,
+		scheduler.WithClock(fc),
+		scheduler.WithLogger(zap.NewNop()),
+		scheduler.WithCronSpecOverride("@every 500ms"),
+		scheduler.WithActivityClock(activity),
+	)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	ctx := context.Background()
+	if err := sched.Start(ctx); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer func() { _ = sched.Stop(ctx) }()
+
+	// No event should arrive because backoff defers it.
+	select {
+	case ev := <-sched.Events():
+		t.Errorf("unexpected event during backoff window: %+v", ev)
+	case <-time.After(2 * time.Second):
+		// Expected: no events.
+	}
+}
+
+// TestQuietHoursRejectedDeterministic verifies that Start returns
+// ErrQuietHoursViolation when a ritual is configured in [23:00, 06:00) and
+// AllowNighttime is false. AC-SCHED-005.
+func TestQuietHoursRejectedDeterministic(t *testing.T) {
+	t.Parallel()
+	cfg := scheduler.SchedulerConfig{
+		Enabled:  true,
+		Timezone: "Asia/Seoul",
+		Rituals: scheduler.RitualsConfig{
+			Morning: scheduler.ClockConfig{Time: "02:30"},
+		},
+		AllowNighttime: false,
+	}
+
+	reg := hook.NewHookRegistry()
+	dispatch := hook.NewDispatcher(reg, zap.NewNop())
+	persister := scheduler.NewFilePersister(t.TempDir())
+
+	sched, err := scheduler.New(cfg, dispatch, persister,
+		scheduler.WithLogger(zap.NewNop()),
+	)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	startErr := sched.Start(context.Background())
+	if startErr == nil {
+		t.Fatal("Start should return ErrQuietHoursViolation for 02:30 config")
+	}
+	if !errors.Is(startErr, scheduler.ErrQuietHoursViolation) {
+		t.Errorf("Start error = %v, want ErrQuietHoursViolation", startErr)
+	}
+	if got := sched.State(); got != int32(0) {
+		t.Errorf("State() = %d after quiet hours rejection, want 0 (stateStopped)", got)
+	}
+}
+
+// TestQuietHoursOverride_AllowNighttime verifies that when AllowNighttime=true,
+// a ritual at 02:30 starts successfully and emits an event with a WARN log.
+// AC-SCHED-013.
+func TestQuietHoursOverride_AllowNighttime(t *testing.T) {
+	loc, _ := time.LoadLocation("Asia/Seoul")
+	fakeNow := time.Date(2026, 5, 10, 2, 29, 55, 0, loc)
+	fc := clockwork.NewFakeClockAt(fakeNow)
+
+	cfg := scheduler.SchedulerConfig{
+		Enabled:  true,
+		Timezone: "Asia/Seoul",
+		Rituals: scheduler.RitualsConfig{
+			Morning: scheduler.ClockConfig{Time: "02:30"},
+		},
+		AllowNighttime: true,
+	}
+
+	reg := hook.NewHookRegistry()
+	dispatch := hook.NewDispatcher(reg, zap.NewNop())
+	persister := scheduler.NewFilePersister(t.TempDir())
+
+	sched, err := scheduler.New(cfg, dispatch, persister,
+		scheduler.WithClock(fc),
+		scheduler.WithLogger(zap.NewNop()),
+		scheduler.WithCronSpecOverride("@every 500ms"),
+	)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	ctx := context.Background()
+	if err := sched.Start(ctx); err != nil {
+		t.Fatalf("Start with AllowNighttime=true should succeed: %v", err)
+	}
+	defer func() { _ = sched.Stop(ctx) }()
+
+	// Event should arrive because AllowNighttime overrides the quiet-hours floor.
+	select {
+	case ev := <-sched.Events():
+		if ev.Event != hook.EvMorningBriefingTime {
+			t.Errorf("unexpected event %v", ev.Event)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for event with AllowNighttime=true")
+	}
+}
+
+// TestCronDispatcherDecoupling_BufferedChannel verifies that the cron callback
+// enqueues events onto the buffered channel without blocking, and that the
+// dispatcher worker processes them sequentially. AC-SCHED-014.
+func TestCronDispatcherDecoupling_BufferedChannel(t *testing.T) {
+	t.Parallel()
+	cfg := scheduler.SchedulerConfig{
+		Enabled:  true,
+		Timezone: "Asia/Seoul",
+		Rituals: scheduler.RitualsConfig{
+			Morning: scheduler.ClockConfig{Time: "07:30"},
+		},
+	}
+
+	reg := hook.NewHookRegistry()
+	dispatch := hook.NewDispatcher(reg, zap.NewNop())
+	persister := scheduler.NewFilePersister(t.TempDir())
+
+	// slow consumer: 200ms per dispatch call.
+	slow := &slowDispatcher{inner: dispatch, delay: 200 * time.Millisecond}
+
+	sched, err := scheduler.NewWithDispatcher(cfg, slow, persister,
+		scheduler.WithLogger(zap.NewNop()),
+		scheduler.WithCronSpecOverride("@every 100ms"),
+	)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	ctx := context.Background()
+	if err := sched.Start(ctx); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer func() { _ = sched.Stop(ctx) }()
+
+	// Collect 3 events from the channel within a generous timeout.
+	// The key invariant: the channel (cap 32) buffers events so the cron
+	// callback never blocks even with a 200ms dispatcher.
+	received := 0
+	deadline := time.After(10 * time.Second)
+	for received < 3 {
+		select {
+		case <-sched.Events():
+			received++
+		case <-deadline:
+			t.Fatalf("timed out; only got %d/3 events", received)
+		}
+	}
+}
+
+// TestMaxDeferCount_3_ForceEmit verifies that after 3 consecutive defers the
+// scheduler force-emits the ritual on the 4th tick with DelayHint=30m.
+// AC-SCHED-019.
+func TestMaxDeferCount_3_ForceEmit(t *testing.T) {
+	t.Parallel()
+	loc, _ := time.LoadLocation("Asia/Seoul")
+	now := time.Date(2026, 5, 10, 7, 30, 0, 0, loc)
+	fc := clockwork.NewFakeClockAt(now)
+
+	// Activity is always 1 minute ago → always within 10-minute active window.
+	activity := &fakeActivityClock{lastAt: now.Add(-1 * time.Minute)}
+
+	cfg := scheduler.SchedulerConfig{
+		Enabled:  true,
+		Timezone: "Asia/Seoul",
+		Rituals: scheduler.RitualsConfig{
+			Morning: scheduler.ClockConfig{Time: "07:30"},
+		},
+		Backoff: scheduler.BackoffConfig{
+			ActiveWindow:  10 * time.Minute,
+			MaxDeferCount: 3,
+		},
+	}
+
+	reg := hook.NewHookRegistry()
+	dispatch := hook.NewDispatcher(reg, zap.NewNop())
+	persister := scheduler.NewFilePersister(t.TempDir())
+
+	sched, err := scheduler.New(cfg, dispatch, persister,
+		scheduler.WithClock(fc),
+		scheduler.WithLogger(zap.NewNop()),
+		scheduler.WithActivityClock(activity),
+		// Fire very frequently so we accumulate 4 ticks quickly.
+		scheduler.WithCronSpecOverride("@every 100ms"),
+	)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	ctx := context.Background()
+	if err := sched.Start(ctx); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer func() { _ = sched.Stop(ctx) }()
+
+	// After 4 ticks (3 defers + 1 force emit) we should receive exactly one event.
+	select {
+	case ev := <-sched.Events():
+		if !ev.BackoffApplied {
+			t.Error("force-emit event should have BackoffApplied=true")
+		}
+		if ev.DelayHint != 30*time.Minute {
+			t.Errorf("DelayHint = %v, want 30m", ev.DelayHint)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for force-emit event")
 	}
 }
 
