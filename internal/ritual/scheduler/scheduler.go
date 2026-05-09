@@ -1,4 +1,4 @@
-// Package scheduler — Scheduler struct implementing SPEC-GOOSE-SCHEDULER-001 P1.
+// Package scheduler — Scheduler struct implementing SPEC-GOOSE-SCHEDULER-001 P1/P2.
 package scheduler
 
 import (
@@ -29,7 +29,7 @@ const (
 // All exported methods are safe to call from any goroutine.
 //
 // @MX:ANCHOR: [AUTO] Central Scheduler struct — Start/Stop/State are entry points for all callers
-// @MX:REASON: SPEC-GOOSE-SCHEDULER-001 REQ-SCHED-001 — fan_in >= 3 (New, Start, Stop, State callers)
+// @MX:REASON: SPEC-GOOSE-SCHEDULER-001 REQ-SCHED-001 — fan_in >= 3 (New, Start, Stop, State, NotifyTimezoneChange callers)
 type Scheduler struct {
 	cfg       SchedulerConfig
 	cron      *cron.Cron
@@ -45,6 +45,13 @@ type Scheduler struct {
 	// cronSpecOverride replaces all ritual cron specs when non-empty.
 	// Used only by tests via withCronSpecOverride option.
 	cronSpecOverride string
+
+	// P2 fields: timezone detector and holiday calendar (both optional, nil = disabled).
+	tzDetector *TimezoneDetector
+	holidays   HolidayCalendar
+	// tzPauseUntil is an atomic snapshot of TimezoneDetector.pauseUntil for lock-free read.
+	// Written only from NotifyTimezoneChange (serialised by caller); read from cron callbacks.
+	tzPauseUntil atomic.Value // stores time.Time
 }
 
 // Option is a functional option for Scheduler construction.
@@ -63,6 +70,20 @@ func WithLogger(l *zap.Logger) Option {
 			s.logger = l
 		}
 	}
+}
+
+// WithTimezoneDetector wires a TimezoneDetector into the Scheduler.
+// When set, NotifyTimezoneChange will consult the detector and potentially
+// start a 24-hour suppression window on detected shifts (REQ-SCHED-008).
+func WithTimezoneDetector(d *TimezoneDetector) Option {
+	return func(s *Scheduler) { s.tzDetector = d }
+}
+
+// WithHolidayCalendar wires a HolidayCalendar into the Scheduler.
+// When set, the callback populates ScheduledEvent.IsHoliday/HolidayName and
+// honours RitualTime.SkipHolidays (REQ-SCHED-018).
+func WithHolidayCalendar(c HolidayCalendar) Option {
+	return func(s *Scheduler) { s.holidays = c }
 }
 
 // withCronSpecOverride replaces all ritual cron specs with the given spec.
@@ -177,12 +198,55 @@ func (s *Scheduler) Stop(_ context.Context) error {
 func (s *Scheduler) makeCallback(ctx context.Context, rt RitualTime) func() {
 	return func() {
 		now := s.clock.Now()
+		localTime := now.In(s.location)
+
+		// P2: check timezone shift pause window.
+		if pauseVal := s.tzPauseUntil.Load(); pauseVal != nil {
+			if until, ok := pauseVal.(time.Time); ok && now.Before(until) {
+				s.logger.Info("ritual_paused_tz_shift",
+					zap.String("event", string(rt.Event)),
+					zap.Time("pause_until", until),
+				)
+				return
+			}
+		}
+
+		// P2: check weekend skip.
+		if rt.SkipWeekends {
+			wd := localTime.Weekday()
+			if wd == time.Saturday || wd == time.Sunday {
+				s.logger.Info("ritual_skipped_weekend",
+					zap.String("event", string(rt.Event)),
+					zap.String("weekday", wd.String()),
+				)
+				return
+			}
+		}
+
+		// P2: check holiday skip.
+		var isHoliday bool
+		var holidayName string
+		if s.holidays != nil {
+			info := s.holidays.Lookup(localTime)
+			isHoliday = info.IsHoliday
+			holidayName = info.Name
+			if rt.SkipHolidays && isHoliday {
+				s.logger.Info("ritual_skipped_holiday",
+					zap.String("event", string(rt.Event)),
+					zap.String("holiday", holidayName),
+				)
+				return
+			}
+		}
+
 		ev := ScheduledEvent{
 			Event:         rt.Event,
 			FiredAt:       now,
 			ScheduledAt:   now, // P1: no look-ahead scheduling yet
 			Timezone:      s.cfg.Timezone,
-			UserLocalDate: now.In(s.location).Format("2006-01-02"),
+			UserLocalDate: localTime.Format("2006-01-02"),
+			IsHoliday:     isHoliday,
+			HolidayName:   holidayName,
 		}
 
 		// P1: synchronous DispatchGeneric. P3 will introduce eventCh worker.
@@ -202,6 +266,44 @@ func (s *Scheduler) makeCallback(ctx context.Context, rt RitualTime) func() {
 			s.logger.Warn("ritual_eventch_full", zap.String("event", string(ev.Event)))
 		}
 	}
+}
+
+// NotifyTimezoneChange updates the timezone detector with the new location.
+// If a significant shift (>= 2h, after 24h baseline) is detected, it:
+//   - Sets a 24-hour emit suppression window.
+//   - Dispatches hook.EvNotification with shift details (REQ-SCHED-008).
+//
+// Returns nil in all normal cases (shift detected or not).
+func (s *Scheduler) NotifyTimezoneChange(ctx context.Context, newLoc *time.Location) error {
+	if s.tzDetector == nil {
+		return nil
+	}
+
+	oldLoc := s.tzDetector.Current()
+	shifted, delta := s.tzDetector.Update(newLoc)
+	if !shifted {
+		return nil
+	}
+
+	now := s.clock.Now()
+	pauseUntil := now.Add(24 * time.Hour)
+	s.tzPauseUntil.Store(pauseUntil)
+
+	payload := map[string]any{
+		"type":        "tz_shift",
+		"from":        oldLoc.String(),
+		"to":          newLoc.String(),
+		"delta_hours": delta,
+		"pause_until": pauseUntil.Format(time.RFC3339),
+	}
+
+	if _, err := s.dispatch.DispatchGeneric(ctx, hook.EvNotification, hook.HookInput{
+		HookEvent:  hook.EvNotification,
+		CustomData: payload,
+	}); err != nil {
+		s.logger.Warn("tz_shift_notification_dispatch_error", zap.Error(err))
+	}
+	return nil
 }
 
 // State returns the current schedulerState as int32.
