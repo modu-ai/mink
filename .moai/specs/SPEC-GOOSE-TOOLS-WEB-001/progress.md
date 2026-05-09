@@ -265,3 +265,52 @@
 - production chromium 실호출은 driver install 필요한 통합 환경에서만 검증 가능
 - 누적 implemented AC 10/18 (M2c 는 success path quality 개선, AC 신규 없음)
 - M3 (RSS+ArXiv) / M4 (Maps+Wayback) 잔여
+
+---
+
+## 2026-05-10 M3 Session (web_rss + web_arxiv)
+
+### Branch / Base
+- Branch: feature/tools-web-m3
+- Base: main HEAD = 398f338 (M2c sync 머지 후)
+- External dep: github.com/mmcdole/gofeed v1.3.0 (신규 추가)
+
+### Phase 0 — Scope
+- 2 신규 도구: web_rss (다중 feed 병렬 fetch + since filter + AC-WEB-014) + web_arxiv (arXiv API + Atom XML)
+- gofeed 라이브러리로 RSS/Atom 파싱 통일
+- DI seam: web_rss = FeedFetcher (exported interface), web_arxiv = apiBaseBuilder (unexported func type)
+
+### Phase 2 — TDD Implementation 완료
+
+#### 신규 파일
+- internal/tools/web/rss.go: webRSS + FeedFetcher interface + gofeedFetcher + Call (blocklist + permission + errgroup parallel fetch + since filter + descending sort + max_items truncate) + NewRSSForTest
+- internal/tools/web/rss_test.go: 9 테스트 함수 (MultiFeedSinceFilter / MaxItemsTruncate / SchemaValidation (4 subcases) / BlocklistPriority / PermissionDenied / RegisteredInWebTools / AuditWriter / ItemWithContent / ItemWithUpdateParsed)
+- internal/tools/web/arxiv.go: webArxiv + apiBaseBuilder + Call (URL build + http.Get + gofeed.ParseString + result mapping) + NewArxivForTest
+- internal/tools/web/arxiv_test.go: 8 테스트 함수 (QuerySuccess / SortBy (relevance+submitted_date) / SchemaValidation (3 subcases) / BlocklistPriority / PermissionDenied / RegisteredInWebTools / AuditWriter / EmptyCategories)
+
+#### 수정 파일
+- internal/tools/web/register_test.go: expectation 10 → 12 (web_rss + web_arxiv 추가)
+- go.mod / go.sum: github.com/mmcdole/gofeed v1.3.0 + 의존성 (goxpp, goquery, json-iterator, modern-go)
+
+### Deviation 기록
+- RSS permission scope: 첫 feed host 기반 단순화 ("rss:" + first feed host), plan.md 에 미명시 — 다중 host 개별 permission check 대신 1회 confirm으로 단순화
+- FeedFetcher interface: feedFetcher → FeedFetcher (exported) — 테스트 패키지(web_test)에서 구현체 타입 검증을 위해 export 필요
+
+### Verification Results
+- gofmt -l: 0 lines (clean)
+- go vet: 0 issues
+- golangci-lint: 0 issues
+- race -count=10 (RSS+Arxiv): PASS
+- race -count=3 (web 전체): PASS
+- coverage: web 78.7% (>= 78% 목표 달성), total web+common 80.6%
+- 회귀: 0
+- 신규 테스트 17개 모두 GREEN
+- AC-WEB-014: GREEN (MultiFeedSinceFilter 검증)
+
+### LSP nitpick fix (post-review)
+- rss.go:165 — `i, feedURL := i, feedURL` (Go 1.22 pre-scoping idiom) 제거 — Go 1.22+ for-loop var auto-scoped, forvar 진단 처리
+- rss_test.go:233 — `joined += f` 루프 → `strings.Join(feeds, ",")` 로 단순화, stringsbuilder 진단 처리
+
+### M3 Exit
+- 누적 implemented AC: 11/18 (M2c 10 + AC-WEB-014)
+- M4 (Maps+Wayback, AC-WEB-015/016) 잔여
