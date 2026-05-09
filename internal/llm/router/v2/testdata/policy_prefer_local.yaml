@@ -1,0 +1,4 @@
+mode: prefer_local
+fallback_chain:
+  - provider: openai
+    model: gpt-4o
