@@ -75,6 +75,12 @@ type Scheduler struct {
 
 	// nighttimeWarnOnce ensures the nighttime_override WARN log fires at most once.
 	nighttimeWarnOnce sync.Once
+
+	// P4a fields: PatternLearner and the source of daily ActivityPatterns.
+	// Both are nil when PatternLearner.Enabled == false; in that case the
+	// 03:00 daily learner cron entry is not registered.
+	patternReader PatternReader
+	learner       *PatternLearner
 }
 
 // Option is a functional option for Scheduler construction.
@@ -120,6 +126,15 @@ func WithActivityClock(a ActivityClock) Option {
 	}
 }
 
+// WithPatternReader wires a PatternReader into the Scheduler. When set together
+// with cfg.PatternLearner.Enabled == true, Start registers a 03:00-local daily
+// cron entry that runs PatternLearner against the latest ActivityPattern and
+// dispatches a RitualTimeProposal Notification when drift exceeds the
+// threshold. (REQ-SCHED-006, REQ-SCHED-019)
+func WithPatternReader(p PatternReader) Option {
+	return func(s *Scheduler) { s.patternReader = p }
+}
+
 // withCronSpecOverride replaces all ritual cron specs with the given spec.
 // This is intentionally unexported and used only in tests via the export_test.go bridge.
 //
@@ -159,6 +174,10 @@ func NewWithDispatcher(cfg SchedulerConfig, dispatch dispatcherI, persister Sche
 		location:   loc,
 		backoff:    bm,
 	}
+	// Initialise the PatternLearner whenever a learner config is supplied; the
+	// 03:00 cron registration in Start gates on Enabled+PatternReader.
+	s.learner = NewPatternLearner(cfg.PatternLearner)
+
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -214,6 +233,15 @@ func (s *Scheduler) Start(ctx context.Context) error {
 	if len(errs) > 0 {
 		// Do not start the cron engine — keep state=Stopped.
 		return errors.Join(errs...)
+	}
+
+	// P4a: register the 03:00-local daily learner cron when wired and enabled.
+	if s.cfg.PatternLearner.Enabled && s.patternReader != nil {
+		if _, err := engine.AddFunc("0 3 * * *", func() {
+			s.runDailyLearner(ctx)
+		}); err != nil {
+			return fmt.Errorf("daily learner cron: %w", err)
+		}
 	}
 
 	// P3: start dispatcher worker before the cron engine so it is ready to drain.
@@ -461,6 +489,69 @@ func (s *Scheduler) NotifyTimezoneChange(ctx context.Context, newLoc *time.Locat
 		s.logger.Warn("tz_shift_notification_dispatch_error", zap.Error(err))
 	}
 	return nil
+}
+
+// runDailyLearner is the 03:00-local cron callback. It reads the current
+// ActivityPattern, runs the learner against each configured ritual clock, and
+// dispatches a RitualTimeProposal Notification for every kind whose drift
+// exceeds the threshold. The persisted config is never mutated; user
+// confirmation is required before commit (REQ-SCHED-019).
+//
+// @MX:NOTE: [AUTO] 03:00-local daily learner — runs only when PatternReader and PatternLearner.Enabled are set
+// @MX:SPEC: SPEC-GOOSE-SCHEDULER-001 REQ-SCHED-006, REQ-SCHED-019
+func (s *Scheduler) runDailyLearner(ctx context.Context) {
+	if s.patternReader == nil || s.learner == nil {
+		return
+	}
+	pat, err := s.patternReader.ReadActivityPattern(ctx)
+	if err != nil {
+		s.logger.Warn("daily_learner_read_error", zap.Error(err))
+		return
+	}
+
+	type kindClock struct {
+		kind  RitualKind
+		clock string
+	}
+	pairs := []kindClock{
+		{KindMorning, s.cfg.Rituals.Morning.Time},
+		{KindBreakfast, s.cfg.Rituals.Meals.Breakfast.Time},
+		{KindLunch, s.cfg.Rituals.Meals.Lunch.Time},
+		{KindDinner, s.cfg.Rituals.Meals.Dinner.Time},
+		{KindEvening, s.cfg.Rituals.Evening.Time},
+	}
+
+	for _, p := range pairs {
+		if p.clock == "" {
+			continue
+		}
+		proposal, err := s.learner.Observe(p.kind, p.clock, pat)
+		if err != nil {
+			s.logger.Warn("daily_learner_observe_error",
+				zap.String("kind", p.kind.String()),
+				zap.Error(err),
+			)
+			continue
+		}
+		if proposal == nil {
+			continue
+		}
+
+		payload := map[string]any{
+			"kind":             "RitualTimeProposal",
+			"confirm_required": true,
+			"proposal":         proposal,
+		}
+		if _, err := s.dispatch.DispatchGeneric(ctx, hook.EvNotification, hook.HookInput{
+			HookEvent:  hook.EvNotification,
+			CustomData: payload,
+		}); err != nil {
+			s.logger.Warn("daily_learner_dispatch_error",
+				zap.String("kind", p.kind.String()),
+				zap.Error(err),
+			)
+		}
+	}
 }
 
 // State returns the current schedulerState as int32.

@@ -51,6 +51,59 @@ type SchedulerConfig struct {
 	// Backoff holds parameters for deferring ritual triggers during active sessions.
 	// (REQ-SCHED-011, REQ-SCHED-021)
 	Backoff BackoffConfig
+	// PatternLearner holds parameters for the daily PatternLearner cron job.
+	// (REQ-SCHED-006, REQ-SCHED-019)
+	PatternLearner PatternLearnerConfig
+}
+
+// PatternLearnerConfig parameterises the daily PatternLearner that proposes
+// new ritual times based on observed activity peaks.
+type PatternLearnerConfig struct {
+	// Enabled gates the 03:00 daily learner cron entry. Default: false.
+	// When false, the learner is never invoked; ritual times come exclusively
+	// from explicit user configuration.
+	Enabled bool
+	// RollingWindowDays is the number of past days the learner aggregates over.
+	// Default: 7.
+	RollingWindowDays int
+	// DriftThresholdMinutes is the minimum |drift| required to emit a proposal.
+	// Default: 30.
+	DriftThresholdMinutes int
+	// DefaultMorning/Breakfast/Lunch/Dinner/Evening provide fallback clock
+	// strings used when DaysObserved < RollingWindowDays. Empty values inherit
+	// per-kind built-in defaults applied by effective().
+	DefaultMorning   string
+	DefaultBreakfast string
+	DefaultLunch     string
+	DefaultDinner    string
+	DefaultEvening   string
+}
+
+// effective returns a PatternLearnerConfig with built-in defaults applied to
+// any unset fields.
+func (c PatternLearnerConfig) effective() PatternLearnerConfig {
+	if c.RollingWindowDays <= 0 {
+		c.RollingWindowDays = 7
+	}
+	if c.DriftThresholdMinutes <= 0 {
+		c.DriftThresholdMinutes = 30
+	}
+	if c.DefaultMorning == "" {
+		c.DefaultMorning = "07:30"
+	}
+	if c.DefaultBreakfast == "" {
+		c.DefaultBreakfast = "08:00"
+	}
+	if c.DefaultLunch == "" {
+		c.DefaultLunch = "12:30"
+	}
+	if c.DefaultDinner == "" {
+		c.DefaultDinner = "19:00"
+	}
+	if c.DefaultEvening == "" {
+		c.DefaultEvening = "22:00"
+	}
+	return c
 }
 
 // RitualsConfig groups the individual ritual schedule entries.
