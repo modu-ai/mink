@@ -188,3 +188,20 @@ External dep: 신규 1개 (`github.com/go-shiori/go-readability`)
 
 Version: 0.1.0
 Last Updated: 2026-05-10
+
+---
+
+## M3 Task Decomposition (web_rss + web_arxiv)
+SPEC: SPEC-GOOSE-TOOLS-WEB-001 M3
+Branch: feature/tools-web-m3 (main HEAD = 398f338)
+External dep: github.com/mmcdole/gofeed v1.3.0 (신규)
+
+### Tasks
+| Task ID | Description | Requirement | Dependencies | Planned Files | Status |
+|---------|-------------|-------------|--------------|---------------|--------|
+| T-038 | go.mod gofeed 의존성 추가 | enabling | none | go.mod, go.sum | DONE |
+| T-039 | rss.go: webRSS + FeedFetcher interface + Call (parseInput + blocklist + permission + errgroup 병렬 fetch + since filter + sort + max_items truncate) | REQ-WEB-001/002, AC-WEB-014 | T-038 | internal/tools/web/rss.go | DONE |
+| T-040 | rss_test.go: 9 시나리오 (MultiFeedSinceFilter / MaxItemsTruncate / SchemaValidation / BlocklistPriority / PermissionDenied / RegisteredInWebTools / AuditWriter / ItemWithContent / ItemWithUpdateParsed) | AC-WEB-014 | T-039 | internal/tools/web/rss_test.go | DONE |
+| T-041 | arxiv.go: webArxiv + apiBaseBuilder + Call (URL build + http.Get + gofeed parse + result mapping) | REQ-WEB-001/002 | T-038 | internal/tools/web/arxiv.go | DONE |
+| T-042 | arxiv_test.go: 8 시나리오 (QuerySuccess / SortBy / SchemaValidation / BlocklistPriority / PermissionDenied / RegisteredInWebTools / AuditWriter / EmptyCategories) | REQ-WEB-001/002 | T-041 | internal/tools/web/arxiv_test.go | DONE |
+| T-043 | register_test.go: expectation 10 → 12 | wiring | T-039, T-041 | internal/tools/web/register_test.go | DONE |
