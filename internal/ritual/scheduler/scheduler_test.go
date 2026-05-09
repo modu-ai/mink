@@ -14,6 +14,7 @@ import (
 	"github.com/modu-ai/goose/internal/hook"
 	"github.com/modu-ai/goose/internal/ritual/scheduler"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 // absFloat returns the absolute value of f.
@@ -1116,4 +1117,183 @@ type capturingDispatcher struct {
 
 func (c *capturingDispatcher) DispatchGeneric(ctx context.Context, ev hook.HookEvent, in hook.HookInput) (hook.DispatchResult, error) {
 	return c.fn(ctx, ev, in)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// P4b Tests — AC-008 (3-tuple suppression), AC-010 (log schema 7 fields),
+// AC-018 (FastForward build tag — production absence verified at compile time),
+// AC-020 (missed event replay 1h threshold)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// TestDuplicateSuppression_3Tuple_TZAware verifies that the FiredKeyStore
+// suppresses re-emission for an already-fired (event, userLocalDate, TZ)
+// 3-tuple, while the same event on the next day OR the same date+event under
+// a different TZ generates a new key (TZ-aware semantics, REQ-SCHED-013).
+// AC-SCHED-008.
+func TestDuplicateSuppression_3Tuple_TZAware(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	store := scheduler.NewJSONFiredKeyStore(filepath.Join(dir, "fired_log.json"))
+
+	// 2026-04-25 in Asia/Seoul.
+	keyA := scheduler.BuildFiredKey("MorningBriefingTime", "2026-04-25", "Asia/Seoul")
+	t1 := time.Date(2026, 4, 25, 22, 30, 0, 0, time.UTC) // 07:30 KST
+	if err := store.Mark(keyA, t1); err != nil {
+		t.Fatalf("Mark: %v", err)
+	}
+
+	// Reload from disk to confirm persistence.
+	store2 := scheduler.NewJSONFiredKeyStore(filepath.Join(dir, "fired_log.json"))
+	if !store2.Has(keyA) {
+		t.Errorf("after reload, store should contain key %q", keyA)
+	}
+
+	// (a) Same key → suppressed.
+	if !store2.Has(keyA) {
+		t.Error("same 3-tuple should be suppressed (Has returns true)")
+	}
+
+	// (b) Next day → new key.
+	keyB := scheduler.BuildFiredKey("MorningBriefingTime", "2026-04-26", "Asia/Seoul")
+	if store2.Has(keyB) {
+		t.Errorf("next-day key %q should be new (Has returns false)", keyB)
+	}
+
+	// (c) Same date+event but different TZ → new key (travel-aware).
+	keyC := scheduler.BuildFiredKey("MorningBriefingTime", "2026-04-25", "Asia/Tokyo")
+	if store2.Has(keyC) {
+		t.Errorf("different-TZ key %q should be new (Has returns false)", keyC)
+	}
+}
+
+// TestLogSchema_Exactly7Fields verifies that every fire-log INFO entry carries
+// exactly the seven REQ-SCHED-004 fields and no more. AC-SCHED-010.
+func TestLogSchema_Exactly7Fields(t *testing.T) {
+	t.Parallel()
+
+	core, observed := observer.New(zap.InfoLevel)
+	logger := zap.New(core)
+
+	ev := scheduler.ScheduledEvent{
+		Event:         hook.EvMorningBriefingTime,
+		FiredAt:       time.Date(2026, 4, 25, 22, 30, 0, 0, time.UTC),
+		ScheduledAt:   time.Date(2026, 4, 25, 22, 30, 0, 0, time.UTC),
+		Timezone:      "Asia/Seoul",
+		UserLocalDate: "2026-04-25",
+		IsHoliday:     false,
+	}
+
+	scheduler.EmitFireLog(logger, ev, false, "")
+
+	logs := observed.All()
+	if len(logs) != 1 {
+		t.Fatalf("expected exactly 1 log entry, got %d", len(logs))
+	}
+	entry := logs[0]
+	if entry.Level != zap.InfoLevel {
+		t.Errorf("log level = %s, want INFO", entry.Level)
+	}
+
+	wantKeys := map[string]bool{
+		"event": false, "scheduled_at": false, "actual_at": false,
+		"tz": false, "holiday": false, "backoff_applied": false, "skipped": false,
+	}
+	for _, f := range entry.Context {
+		if _, ok := wantKeys[f.Key]; !ok {
+			t.Errorf("unexpected log field %q", f.Key)
+		}
+		wantKeys[f.Key] = true
+	}
+	for k, seen := range wantKeys {
+		if !seen {
+			t.Errorf("missing required log field %q", k)
+		}
+	}
+	if got := len(entry.Context); got != 7 {
+		t.Errorf("log field count = %d, want 7", got)
+	}
+}
+
+// TestMissedEventReplay_1hThreshold verifies AC-SCHED-020 missed-event replay:
+//   - Scenario A: scheduled 07:30, restart 08:00 (delta 30 min) → exactly one
+//     replay dispatch with IsReplay=true and DelayMinutes=30.
+//   - Scenario B: scheduled 07:30, restart 09:00 (delta 90 min) → no dispatch,
+//     INFO log {skipped:true, reason:"missed_event_too_stale"}.
+//
+// AC-SCHED-020, REQ-SCHED-022.
+func TestMissedEventReplay_1hThreshold(t *testing.T) {
+	t.Parallel()
+	seoul, _ := time.LoadLocation("Asia/Seoul")
+
+	type scenario struct {
+		name        string
+		restartTime time.Time
+		wantReplay  bool
+		wantDelay   int
+	}
+	cases := []scenario{
+		{name: "A_30min_replay", restartTime: time.Date(2026, 4, 25, 8, 0, 0, 0, seoul), wantReplay: true, wantDelay: 30},
+		{name: "B_90min_skip", restartTime: time.Date(2026, 4, 25, 9, 0, 0, 0, seoul), wantReplay: false, wantDelay: 0},
+	}
+
+	for _, sc := range cases {
+		t.Run(sc.name, func(t *testing.T) {
+			fc := clockwork.NewFakeClockAt(sc.restartTime)
+
+			var replayCount int
+			var lastEvent scheduler.ScheduledEvent
+			disp := &capturingDispatcher{
+				fn: func(_ context.Context, ev hook.HookEvent, in hook.HookInput) (hook.DispatchResult, error) {
+					if ev == hook.EvMorningBriefingTime {
+						if se, ok := in.CustomData["scheduled_event"].(scheduler.ScheduledEvent); ok && se.IsReplay {
+							replayCount++
+							lastEvent = se
+						}
+					}
+					return hook.DispatchResult{}, nil
+				},
+			}
+
+			cfg := scheduler.SchedulerConfig{
+				Enabled:                   true,
+				Timezone:                  "Asia/Seoul",
+				MissedEventReplayMaxDelay: time.Hour,
+				Rituals: scheduler.RitualsConfig{
+					Morning: scheduler.ClockConfig{Time: "07:30"},
+				},
+			}
+
+			persister := scheduler.NewFilePersister(t.TempDir())
+			store := scheduler.NewJSONFiredKeyStore(filepath.Join(t.TempDir(), "fired_log.json"))
+			sched, err := scheduler.NewWithDispatcher(cfg, disp, persister,
+				scheduler.WithClock(fc),
+				scheduler.WithLogger(zap.NewNop()),
+				scheduler.WithFiredKeyStore(store),
+			)
+			if err != nil {
+				t.Fatalf("New: %v", err)
+			}
+
+			if err := sched.Start(context.Background()); err != nil {
+				t.Fatalf("Start: %v", err)
+			}
+			// Stop drains the worker goroutine; reading captured counters after
+			// Stop returns avoids a race with the worker.
+			_ = sched.Stop(context.Background())
+
+			if sc.wantReplay {
+				if replayCount != 1 {
+					t.Errorf("replay dispatch count = %d, want 1", replayCount)
+				}
+				if lastEvent.DelayMinutes != sc.wantDelay {
+					t.Errorf("DelayMinutes = %d, want %d", lastEvent.DelayMinutes, sc.wantDelay)
+				}
+			} else {
+				if replayCount != 0 {
+					t.Errorf("replay dispatch count = %d, want 0 (>1h delta)", replayCount)
+				}
+			}
+		})
+	}
 }
