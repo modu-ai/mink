@@ -1,0 +1,1 @@
+[[{"text":"옵션 A","callback_data":"opt_a"},{"text":"옵션 B","callback_data":"opt_b"}]]

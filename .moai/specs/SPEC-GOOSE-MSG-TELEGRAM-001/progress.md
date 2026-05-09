@@ -246,3 +246,78 @@ version 0.1.2 entry (위 HISTORY 섹션 참조).
 - [x] acceptance.md AC 상태 명시 완료
 - [x] progress.md Sync Phase entry 추가 완료
 - [x] frontmatter (version 0.1.2, status implemented) 갱신 완료
+
+---
+
+## P4 Implementation (2026-05-09 entry, 진행 중)
+
+Branch: feature/SPEC-GOOSE-MSG-TELEGRAM-001-P4
+Base: main = 3291f9c (sync v0.1.2 머지 완료)
+Methodology: TDD RED-GREEN-REFACTOR
+Lesson 정책: isolation 미사용 + foreground spawn (PR #127/#128/#129/#130 8회 무사고 검증)
+
+### P4 Task 분해 (plan.md §2 Phase 4)
+
+- T1 [pending]: handler streaming branch + StreamingChatService interface + 1-edit/sec rate limit (AC-MTGM-009 / REQ-MTGM-E02)
+- T2 [pending]: webhook mode + setWebhook + TLS fallback to polling (REQ-MTGM-E07)
+- T3 [pending]: silent_default + typing_indicator (REQ-MTGM-O01/O02)
+- T4 [pending]: streaming queue per chat_id FIFO max 5 (REQ-MTGM-S05)
+- T5 [pending]: golden output testdata Markdown V2 회귀 보호
+- T6 [pending]: manual_smoke.md + progress.md P4 entry 갱신
+
+### P4 Architectural Decision — Streaming via query.SubmitMessage native channel
+
+기존 `internal/agent/chat.go` 의 `ChatService.Chat` 은 `query.SubmitMessage(ctx, text)` 가 반환하는 `<-chan SDKMessage` 의 모든 chunk 를 합쳐 단일 string 으로 반환 중. P4 streaming 은 **별도 BRIDGE-001 RPC 추가 없이** 같은 채널을 wrap 하여 `StreamingChatService.ChatStream` 으로 노출하면 native streaming 가능.
+
+- `internal/agent/chat.go`: `StreamingChatService` interface + `ChatChunk` struct 추가
+- `QueryEngineChatService.ChatStream`: `query.SubmitMessage` chan 을 ChatChunk chan 으로 변환 (text block 만 emit, Final flag 마지막 1회)
+- `internal/messaging/telegram/agent_adapter.go`: `AgentStreamAdapter` 추가
+- `bridge_handler.go`: `/stream` prefix 또는 `cfg.DefaultStreaming` 시 streaming branch
+- `streaming.go` 신규: chunk-merge buffer + `time.Ticker(1s)` + final flush + audit `streaming_flag=true, edit_count=N`
+
+### P4 Exit Criteria
+
+- AC-MTGM-009 GREEN (streaming UX, /stream 접두 + DefaultStreaming yaml)
+- coverage telegram ≥ 85% (현재 84.6% → +0.4% 이상)
+- @MX:TODO 0개 유지
+- gofmt clean, go vet clean, go test -race PASS, -tags=integration PASS, -tags=nokeyring PASS
+- golangci-lint clean (P3 까지 미실행 → P4 에서 첫 수행)
+- AC-MTGM-005 E2 (CLI-TUI-002 modal) 은 외부 SPEC 의존 → P4 에서도 별도 SPEC 으로 deferred 표기 유지
+
+### P4 Task 진척 (실제 결과)
+
+- T1 [GREEN]: handler streaming branch + StreamingChatService + 1 edit/sec rate limit
+  - 신규: `internal/agent/streaming.go` (+test), `internal/messaging/telegram/streaming.go` (+test)
+  - 확장: `client.go` EditMessageText, `agent_adapter.go` AgentStream/AgentStreamAdapter, `bridge_handler.go` streaming branch, `bootstrap.go` Stream 필드
+  - AC-MTGM-009 GREEN, REQ-MTGM-E02 GREEN
+- T2 [GREEN]: webhook mode (BRIDGE HTTP mux + setWebhook + TLS fallback)
+  - 신규: `webhook.go` (+test), `bootstrap_webhook_test.go`, `config_webhook_test.go`
+  - 확장: `client.go` SetWebhook/DeleteWebhook, `config.go` WebhookConfig (FallbackToPolling 기본값 true), `bootstrap.go` Mode 분기
+  - REQ-MTGM-E07 GREEN
+- T3 [GREEN]: silent_default + typing_indicator
+  - 확장: `config.go` SilentDefault/TypingIndicator yaml 키, `client.go` SendChatAction + Silent 필드, `sender.go` WithSilentDefault, `bridge_handler.go` startTypingIndicator helper, `streaming.go` silent 파라미터
+  - 신규: `config_options_test.go`, `client_options_test.go`, `sender_silent_test.go`, `typing_test.go`
+  - REQ-MTGM-O01/O02 GREEN
+- T4 [GREEN]: streaming queue per chat_id (FIFO max 5)
+  - 신규: `streaming_queue.go` (+test) — chatStreamQueue (TryAcquire/Enqueue/Release)
+  - 확장: `bridge_handler.go` queue 통합 + `runStreamingForUpdate` helper 추출
+  - REQ-MTGM-S05 GREEN
+- T5 [GREEN]: golden output testdata
+  - 신규: `testdata/markdown_v2/` 7 fixture pair, `testdata/inline_keyboard/` 5 fixture pair, `golden_test.go` (-update-golden flag 지원)
+  - Markdown V2 18 reserved chars + inline keyboard 회귀 보호 자동화
+- T6 [GREEN]: 문서 갱신
+  - `manual_smoke.md` P4 시나리오 5개 추가 (streaming/queue/silent+typing/webhook fallback/V2 regression)
+  - `progress.md` 본 entry 갱신
+
+### Side-effect (사용자 요청 처리 — 같은 세션)
+
+- `internal/mcp/auth_test.go::TestOpenBrowser` 가 매 `go test ./...` 실행마다 macOS `open` 명령 호출 → 브라우저 팝업 noise 발생. `t.Skip` 처리.
+- 이유: assert.NotPanics 검증 가치 < dev 환경 noise. production `openBrowser` 코드 미변경 (OAuth flow 에서만 실행).
+- lesson 적재: `~/.claude/projects/-Users-goos-MoAI-AI-Goose/memory/lesson_unit_test_no_real_os_side_effects.md`
+
+### 누적 lesson 강화 (P4 세션)
+
+- isolation 미사용 + foreground spawn — 13회 연속 무사고 (PR #127~#130 의 8회 + P4 의 5 task 직접/agent 호출)
+- LSP stale after codegen — 8번째 reproduction (T2 mock 누락 진단 + T3 SendChatAction 진단 모두 stale, vet/test 직접 verify 로 결정)
+- mock client 갱신 누락 — `go vet ./...` 전 패키지 실행으로 검출 (T1 cli/commands fakeClient 직접 수정 lesson 반복 활용)
+- unit test 가 OS 부작용 호출 금지 — 신규 lesson (TestOpenBrowser 사례)

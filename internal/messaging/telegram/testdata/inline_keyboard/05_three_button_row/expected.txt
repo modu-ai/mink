@@ -1,0 +1,1 @@
+[[{"text":"확인","callback_data":"ok"},{"text":"취소","callback_data":"cancel"},{"text":"보류","callback_data":"hold"}]]

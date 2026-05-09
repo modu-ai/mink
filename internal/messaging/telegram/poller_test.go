@@ -63,6 +63,14 @@ func (f *fakePollerClient) SendPhoto(_ context.Context, req telegram.SendMediaRe
 func (f *fakePollerClient) SendDocument(_ context.Context, req telegram.SendMediaRequest) (telegram.Message, error) {
 	return telegram.Message{ID: 11, ChatID: req.ChatID}, nil
 }
+func (f *fakePollerClient) EditMessageText(_ context.Context, req telegram.EditMessageTextRequest) (telegram.Message, error) {
+	return telegram.Message{ID: req.MessageID, ChatID: req.ChatID, Text: req.Text}, nil
+}
+func (f *fakePollerClient) SetWebhook(_ context.Context, _ telegram.SetWebhookRequest) error {
+	return nil
+}
+func (f *fakePollerClient) DeleteWebhook(_ context.Context, _ bool) error             { return nil }
+func (f *fakePollerClient) SendChatAction(_ context.Context, _ int64, _ string) error { return nil }
 
 // recordingHandler records calls to Handle.
 type recordingHandler struct {

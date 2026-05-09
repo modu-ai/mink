@@ -57,6 +57,14 @@ func (b *bootstrapClient) SendPhoto(_ context.Context, req telegram.SendMediaReq
 func (b *bootstrapClient) SendDocument(_ context.Context, req telegram.SendMediaRequest) (telegram.Message, error) {
 	return telegram.Message{ID: 3, ChatID: req.ChatID}, nil
 }
+func (b *bootstrapClient) EditMessageText(_ context.Context, req telegram.EditMessageTextRequest) (telegram.Message, error) {
+	return telegram.Message{ID: req.MessageID, ChatID: req.ChatID, Text: req.Text}, nil
+}
+func (b *bootstrapClient) SetWebhook(_ context.Context, _ telegram.SetWebhookRequest) error {
+	return nil
+}
+func (b *bootstrapClient) DeleteWebhook(_ context.Context, _ bool) error             { return nil }
+func (b *bootstrapClient) SendChatAction(_ context.Context, _ int64, _ string) error { return nil }
 
 // TestStart_EchoRoundTrip verifies that Start wires handler+poller and an
 // inbound update produces a SendMessage echo call before ctx is cancelled.

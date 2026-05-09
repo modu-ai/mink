@@ -86,10 +86,11 @@ type SendResponse struct {
 // @MX:REASON: SPEC-GOOSE-MSG-TELEGRAM-001; fan_in via tool.go Call, integration tests,
 // bootstrap wiring, and BridgeQueryHandler response path (>= 3 callers).
 type Sender struct {
-	client Client
-	store  Store
-	audit  *AuditWrapper
-	logger *zap.Logger
+	client        Client
+	store         Store
+	audit         *AuditWrapper
+	silentDefault bool // when true all outbound messages set disable_notification (REQ-MTGM-O01)
+	logger        *zap.Logger
 }
 
 // NewSender constructs a Sender with the given dependencies.
@@ -100,6 +101,14 @@ func NewSender(client Client, store Store, audit *AuditWrapper, logger *zap.Logg
 		audit:  audit,
 		logger: logger,
 	}
+}
+
+// WithSilentDefault returns the Sender with silentDefault set to v. When true,
+// all outbound messages are sent with disable_notification=true (REQ-MTGM-O01).
+// Use method chaining: NewSender(...).WithSilentDefault(cfg.SilentDefault).
+func (s *Sender) WithSilentDefault(v bool) *Sender {
+	s.silentDefault = v
+	return s
 }
 
 // Send delivers a message to the specified chat_id.
@@ -127,6 +136,9 @@ func (s *Sender) Send(ctx context.Context, req SendRequest) (*SendResponse, erro
 		text = EscapeV2(text)
 	}
 
+	// Compute effective silent flag: silentDefault OR per-request override.
+	silent := s.silentDefault || req.Silent
+
 	// Dispatch: attachment type determines which API method to use.
 	var msg Message
 	if len(req.Attachments) > 0 {
@@ -138,6 +150,7 @@ func (s *Sender) Send(ctx context.Context, req SendRequest) (*SendResponse, erro
 				Caption: text,
 				Path:    a.Path,
 				URL:     a.URL,
+				Silent:  silent,
 			})
 		default: // AttachmentTypeDocument and unknown types
 			msg, err = s.client.SendDocument(ctx, SendMediaRequest{
@@ -145,12 +158,14 @@ func (s *Sender) Send(ctx context.Context, req SendRequest) (*SendResponse, erro
 				Caption: text,
 				Path:    a.Path,
 				URL:     a.URL,
+				Silent:  silent,
 			})
 		}
 	} else {
 		smr := SendMessageRequest{
 			ChatID: req.ChatID,
 			Text:   text,
+			Silent: silent,
 		}
 		msg, err = s.client.SendMessage(ctx, smr)
 	}

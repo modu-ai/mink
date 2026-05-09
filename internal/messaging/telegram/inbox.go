@@ -122,7 +122,7 @@ func downloadAttachment(ctx context.Context, downloadURL, dst string) (bool, err
 		}
 		return false, fmt.Errorf("inbox: open %q: %w", dst, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
 	if err != nil {
@@ -134,7 +134,7 @@ func downloadAttachment(ctx context.Context, downloadURL, dst string) (bool, err
 		_ = os.Remove(dst)
 		return false, fmt.Errorf("inbox: download: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		_ = os.Remove(dst)

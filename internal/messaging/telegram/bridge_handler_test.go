@@ -49,6 +49,14 @@ func (f *fakeBridgeClient) SendPhoto(_ context.Context, req telegram.SendMediaRe
 func (f *fakeBridgeClient) SendDocument(_ context.Context, req telegram.SendMediaRequest) (telegram.Message, error) {
 	return telegram.Message{ID: 201, ChatID: req.ChatID}, nil
 }
+func (f *fakeBridgeClient) EditMessageText(_ context.Context, req telegram.EditMessageTextRequest) (telegram.Message, error) {
+	return telegram.Message{ID: req.MessageID, ChatID: req.ChatID, Text: req.Text}, nil
+}
+func (f *fakeBridgeClient) SetWebhook(_ context.Context, _ telegram.SetWebhookRequest) error {
+	return nil
+}
+func (f *fakeBridgeClient) DeleteWebhook(_ context.Context, _ bool) error             { return nil }
+func (f *fakeBridgeClient) SendChatAction(_ context.Context, _ int64, _ string) error { return nil }
 
 // fakeAgentQuery is an AgentQuery test double.
 type fakeAgentQuery struct {
