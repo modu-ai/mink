@@ -2,6 +2,7 @@
 package scheduler
 
 import (
+	"strings"
 	"time"
 )
 
@@ -74,6 +75,55 @@ func NewKoreanHolidayProviderWithOverrides(overrides []CustomHolidayOverride) *K
 		p.overrides[k] = HolidayInfo{IsHoliday: true, Name: o.Name}
 	}
 	return p
+}
+
+// KoreanHolidayName returns the Korean display label for a canonical
+// holiday key (as emitted via ScheduledEvent.HolidayName). Returns the
+// input key unchanged if no mapping exists. Suitable for log/UI rendering
+// in Korean locale.
+//
+// @MX:NOTE: [AUTO] Stable mapping table for canonical-to-Korean i18n. Do not
+// remove entries — downstream consumers may pin specific keys.
+func KoreanHolidayName(key string) string {
+	switch key {
+	case HolidayNewYear:
+		return "신정"
+	case HolidaySeollalEve:
+		return "설날 전날"
+	case HolidaySeollal:
+		return "설날"
+	case HolidaySeollalPost:
+		return "설날 다음날"
+	case HolidayIndependenceDay:
+		return "삼일절"
+	case HolidayChildrensDay:
+		return "어린이날"
+	case HolidayBuddhaBirthday:
+		return "부처님오신날"
+	case HolidayMemorialDay:
+		return "현충일"
+	case HolidayLiberationDay:
+		return "광복절"
+	case HolidayChuseokEve:
+		return "추석 전날"
+	case HolidayChuseok:
+		return "추석"
+	case HolidayChuseokPost:
+		return "추석 다음날"
+	case HolidayFoundationDay:
+		return "개천절"
+	case HolidayHangeulDay:
+		return "한글날"
+	case HolidayChristmasDay:
+		return "성탄절"
+	}
+	// Substitute fallback: if key ends with _substitute, look up base key and append label.
+	if base, ok := strings.CutSuffix(key, HolidaySubstituteSuffix); ok {
+		if name := KoreanHolidayName(base); name != base {
+			return name + " 대체공휴일"
+		}
+	}
+	return key
 }
 
 // Lookup returns HolidayInfo for the given date.

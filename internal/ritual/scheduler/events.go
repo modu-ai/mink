@@ -39,7 +39,10 @@ type ScheduledEvent struct {
 	UserLocalDate string
 	// IsHoliday indicates whether the fire date is a public holiday (populated in P2).
 	IsHoliday bool
-	// HolidayName is the name of the holiday if IsHoliday is true (populated in P2).
+	// HolidayName is the canonical English snake_case key of the holiday if
+	// IsHoliday is true (e.g., "seollal", "chuseok_substitute"). Use
+	// KoreanHolidayName(HolidayName) for Korean display rendering.
+	// (populated in P2)
 	HolidayName string
 	// BackoffApplied is true when max_defer_count was reached and this is a force-emit.
 	// (REQ-SCHED-021, P3)
