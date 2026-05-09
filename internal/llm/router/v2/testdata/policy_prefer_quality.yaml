@@ -1,0 +1,4 @@
+mode: prefer_quality
+fallback_chain:
+  - provider: anthropic
+    model: claude-opus-4-7

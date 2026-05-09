@@ -1,0 +1,6 @@
+mode: always_specific
+fallback_chain:
+  - provider: mistral
+    model: nemo
+  - provider: openai
+    model: gpt-4o

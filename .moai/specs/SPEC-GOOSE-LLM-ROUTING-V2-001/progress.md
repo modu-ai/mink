@@ -141,3 +141,75 @@
 
 - P4 — Integration tests + OpenRouter 제외 검증 (AC-RV2-004, AC-RV2-005, AC-RV2-011, fixture 5 + e2e fallback chain rate_limit→content_filter).
 - 진입점: P3 PR 머지 후 신규 `feature/SPEC-GOOSE-LLM-ROUTING-V2-001-p4` 분기.
+
+---
+
+## 2026-05-09 — P3 머지 (PR #122, commit 4bb21c1) + P4 (Integration tests) GREEN
+
+### P3 PR #122 squash merged
+
+- commit 4bb21c1 on main, 10 files changed (+1951 LOC), branch `feature/SPEC-GOOSE-LLM-ROUTING-V2-001-p3` 자동 삭제.
+- 머지 후 즉시 P4 분기 — `feature/SPEC-GOOSE-LLM-ROUTING-V2-001-p4` (base=main).
+
+### P4 Integration tests 완료 — 1 신규 + 6 fixture
+
+- Branch: `feature/SPEC-GOOSE-LLM-ROUTING-V2-001-p4` (base=main, commit 4bb21c1)
+- Files NEW (P4 owner — drift 0):
+  - `internal/llm/router/v2/integration_test.go` — 10 E2E 시나리오 + makeRealV1Router/loadFixture/makeUserReq helpers
+  - `internal/llm/router/v2/testdata/policy_prefer_local.yaml`
+  - `internal/llm/router/v2/testdata/policy_prefer_cheap.yaml`
+  - `internal/llm/router/v2/testdata/policy_prefer_quality.yaml`
+  - `internal/llm/router/v2/testdata/policy_always_specific.yaml`
+  - `internal/llm/router/v2/testdata/policy_with_excluded.yaml`
+  - `internal/llm/router/v2/testdata/policy_with_openrouter.yaml` (AC-RV2-011 회귀 보호용)
+- E2E test inventory:
+  - `TestE2E_PreferLocal_OllamaSelected` — fixture → ollama 우선 (REQ-RV2-001)
+  - `TestE2E_PreferCheap_GroqFreeFirst` — fixture → groq 무료 tier (REQ-RV2-007)
+  - `TestE2E_PreferQuality_KeepsV1Anthropic` — fixture → v1 anthropic 결정 유지
+  - `TestE2E_AlwaysSpecific_OverridesAll` — fixture → mistral chain[0] 강제 (AC-RV2-002)
+  - `TestE2E_WithExcluded_SkipsAnthropic` — fixture → anthropic skip → openai (REQ-RV2-012)
+  - `TestE2E_OpenRouterInChain_NoSpecialTreatment` — pricing 표 부재 검증 + LookupPrice 회귀 가드 (AC-RV2-011)
+  - `TestE2E_FallbackChain_RateLimitToContextOverflow` — RateLimit (NEXT) → ContextOverflow (STOP) 분기 (REQ-RV2-013)
+  - `TestE2E_FixturesExist` — 6 fixture LoadPolicy 로드 가능 + RateLimitThreshold 0.80 default 적용
+  - `TestE2E_VisionFilter_E2E` — 5 vision-미지원 + google → google 단독 (AC-RV2-004)
+  - `TestE2E_RateLimit80Pct_E2E` — anthropic RPM 0.85 → openai 전환 (AC-RV2-005)
+
+### M4 Integration — DONE
+
+| AC | REQ | Phase | Status | Evidence |
+|----|-----|-------|--------|----------|
+| AC-RV2-004 (vision 필터 E2E) | REQ-RV2-010 | P2+P4 | GREEN | TestE2E_VisionFilter_E2E |
+| AC-RV2-005 (rate limit 80% E2E) | REQ-RV2-009 | P2+P4 | GREEN | TestE2E_RateLimit80Pct_E2E |
+| AC-RV2-011 (OpenRouter 단순 provider) | OpenRouter 정책 | P4 | GREEN | TestE2E_OpenRouterInChain_NoSpecialTreatment + LookupPrice 회귀 가드 |
+
+### Verify
+
+- `go test -race -cover ./internal/llm/router/v2/...` — **PASS, coverage 97.5%** (gate ≥ 92% 충족, P3 97.1% → P4 97.5%로 상승)
+- `go vet ./internal/llm/router/v2/...` — clean
+- `gofmt -l ./internal/llm/router/v2/...` — empty
+- `golangci-lint run ./internal/llm/router/v2/...` — 0 issues
+- Drift: 0 (외부 패키지 수정 없음, P4 owner files 만 생성)
+
+### 보수적 결정 기록 (P4 의 trade-off)
+
+1. **httptest 미사용 결정** — RouterV2.Route() 자체는 HTTP 호출 없음. integration 의 본질은 (a) YAML loader → RouterV2 wiring + (b) FallbackExecutor + ErrorClassifier 연동이며, FallbackExecutor.classify() 가 메시지 기반이므로 httptest 추가 가치 적음. e2e fallback test 는 errors.New 메시지로 충분히 14 reason 분기 검증.
+2. **fallback chain 시나리오 변경** — spec 의 "RateLimit → ContentFilter" 는 ERROR-CLASS-001 enum 에 ContentFilter 부재로 실현 불가. 대안: "RateLimit → ContextOverflow" 로 동등 효과 (둘 다 STOP_CHAIN reason). spec amendment 시 ContentFilter enum 추가 검토 가능.
+3. **6번째 fixture 추가** — spec 의 5 fixture (prefer_local, prefer_cheap, prefer_quality, always_specific, with_excluded) 외에 policy_with_openrouter.yaml 추가. AC-RV2-011 회귀 보호 (OpenRouter 가 pricing 표에 추가되면 본 테스트 깨짐 → SPEC §14 amendment 신호).
+4. **실 v1 Router 사용** — fake 가 아닌 router.New(DefaultRegistry, zaptest.Logger) 로 v1 baseline 가정 (v1.0.0 frozen status) 검증. v1 인터페이스 변경 시 본 테스트가 즉시 깨짐 → Risks #5 회귀 가드.
+5. **PreferQuality + chain 비어있지 않음 시 v1 결정 유지** — spec §7.3 의 "Opus/GPT-4o 우선" 은 v1 의 quality-aware 결정에 위임. 본 fixture 는 anthropic chain 명시로 v1 결정과 일치 → routing 결과 변화 없이 통합 path 만 검증.
+
+### SPEC-GOOSE-LLM-ROUTING-V2-001 — ALL PHASES COMPLETE
+
+| Milestone | Phase | Status | AC GREEN |
+|-----------|-------|--------|----------|
+| M1 Policy Layer | P1 | DONE | AC-RV2-001, -002, -003 |
+| M2 Filter Layer | P2 | DONE | AC-RV2-004 (P2 unit), -005 (P2 unit) |
+| M3 Decorator Layer | P3 | DONE | AC-RV2-001, -002, -003, -006, -007, -008, -009, -010 |
+| M4 Integration | P4 | DONE | AC-RV2-004 (E2E), -005 (E2E), -011 |
+
+전체 11 AC 중 GREEN: 11/11 (AC-RV2-001 ~ AC-RV2-011 all GREEN).
+
+### Next
+
+- /moai sync — 최종 sync PR + CHANGELOG + status: implemented + REQ coverage 보고서.
+- 진입점: P4 PR 머지 후 sync workflow.

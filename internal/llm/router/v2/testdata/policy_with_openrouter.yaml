@@ -1,0 +1,6 @@
+mode: prefer_cheap
+fallback_chain:
+  - provider: openrouter
+    model: gpt-oss-120b
+  - provider: openai
+    model: gpt-4o
