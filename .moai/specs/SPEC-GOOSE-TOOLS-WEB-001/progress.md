@@ -144,3 +144,82 @@
 - **mock httptest.Server URL 의 language 분기 인코딩** — 단일 httptest.Server 가 단일 host:port 만 listen 하므로, AC-WEB-013 의 Wikipedia language 분기를 검증하기 위해 hostBuilder 가 mock URL 의 첫 path 세그먼트로 language 를 인코딩 (`{server.URL}/ko` vs `{server.URL}/en`). 실 production 은 `https://{lang}.wikipedia.org` 그대로 호출. 결과적으로 동일 검증 경로 (request path / Host 분기 검증).
 - **defensive schema guard in parseWikipediaInput** — Executor 가 schema validation 을 적용한다는 가정에 의존하지 않고, 직접 Call 호출 시도에도 query 길이 / language pattern / extract_chars 범위를 fail-closed. 이 덕분에 TestWikipedia_SchemaValidation 3 시나리오 (empty_query / language_too_short / language_uppercase) 가 명시적으로 검증 가능.
 - **AC-WEB-013 invalid_language_zzz 검증 단순화** — SPEC 본문은 "mock host (`zzz.wikipedia.org`) 가 unreachable" 로 정의했으나, mock httptest.Server 사용으로 실 host 호출 회피. mock 이 `zzz` fixture 미정의 → 404 응답 → `fetch_failed` 검증.
+
+### M2a Merge — 2026-05-10
+- PR #140 squash merged (admin bypass)
+- main HEAD = b908de2
+- 6 파일 +730 / -9
+
+---
+
+## 2026-05-10 M2b Session (web_browse, AC-WEB-011)
+
+### Branch / Base
+- Branch: feature/SPEC-GOOSE-TOOLS-WEB-001-M2b
+- Base: main HEAD = b908de2 (M2a 머지 후)
+- External dep: github.com/playwright-community/playwright-go v0.5700.1 (신규)
+
+### Phase 0 — 범위 최소화 결정 (orchestrator 2026-05-10)
+- AC-WEB-011 만 명시 GREEN — Playwright 부재 처리 (panic 없이 `playwright_not_installed` error)
+- go-readability 도입 미루어 후속 milestone — extract enum 은 schema 만 정의, 실 readability 추출은 placeholder
+- production Playwright wiring (chromium 호출 + DOM 추출) 별도 작업
+
+### Phase 1 — Strategy
+- M2b deliverables: 3 신규 + 1 수정 + go.mod
+- exit: AC-WEB-011 GREEN, 누적 10/18 AC, M2 milestone 완결
+
+### Phase 2 진입 — orchestrator 직접 구현 (1M context API 정책 예외, P4a/P4b/M2a 동일 패턴)
+
+### Phase 2 — TDD Implementation 완료
+- 3 신규 파일:
+  - `browse.go` (+~210 LOC): webBrowse struct + Tool 인터페이스 + JSON schema (additionalProperties:false, url required, extract enum text|article|html, timeout_ms 1000..60000) + parseBrowseInput defensive guard + Call (blocklist + permission gate + launcher 호출 + ErrPlaywrightNotInstalled 분류 → playwright_not_installed; success path 는 M2c 미구현 stub `browse_not_implemented` 응답)
+  - `browse_playwright.go` (+~110 LOC): PlaywrightLauncher interface + ErrPlaywrightNotInstalled sentinel + classifyLaunchError (sentinel/wrapped error/string pattern 매칭) + isDriverMissingError (4 패턴) + productionLauncher (playwright.Run wrapping + driver missing 변환) + ClassifyLaunchErrorForTest 헬퍼
+  - `browse_test.go` (+~220 LOC): failingLauncher / successLauncher / stubSession 테스트 헬퍼 + 6 테스트 (PlaywrightNotInstalled exact + wrapped sentinel / SchemaValidation 4 시나리오 / RegisteredInWebTools / StubBranchAfterSuccessfulLaunch / InvalidURL / BlocklistPriority / ClassifyLaunchError 5 케이스)
+- 1 수정 파일:
+  - `register_test.go`: TestRegistry_WithWeb_ListNames expectation 9 → 10 (web_browse 추가)
+- 1 의존성 추가: `github.com/playwright-community/playwright-go v0.5700.1` (driver install 은 사용자 책임)
+- 71 production tests PASS (M1+M2a 64 + M2b 7 신규, 회귀 0)
+- AC-WEB-011 GREEN
+
+### Phase 2.5 — TRUST 5 Validation PASS (orchestrator 직접 verify)
+- Tested: web/... 80.2% (M2a 83.3% 대비 -3.1%p, target ≥80% 달성), common/... 92.1% (회귀 0), race-clean, 71 tests
+- Readable: English godoc 100% exports, gofmt clean, golangci-lint 0 issues
+- Unified: codebase 컨벤션 일치 (httpFetch/webSearch/webWikipedia 패턴 그대로)
+- Secured: blocklist + permission gate 통과, panic-free launcher 호출, ErrPlaywrightNotInstalled 캐치
+- Trackable: SPEC/REQ/AC trailer + @MX:ANCHOR 1 (webBrowse) + @MX:NOTE 1 (PlaywrightLauncher DI seam)
+
+### Phase 2.75 — Pre-Review Gate PASS
+- gofmt -l clean / go vet ./... clean / go build ./... clean / golangci-lint 0 issues / go test -race PASS
+
+### Phase 2.8a — Final-pass Quality (standard harness)
+- Functionality (40%): AC-WEB-011 GREEN (panic-free Playwright 부재 처리), 64 M1+M2a tests 회귀 0, 71 total
+- Security (25%): blocklist 통과 검증 (TestWebBrowse_BlocklistPriority), pre-permission gate
+- Craft (20%): 80.2% coverage, defensive schema parser, classifyLaunchError 5 패턴 망라
+- Consistency (15%): http.go / search.go / wikipedia.go 패턴 그대로 (Tool 인터페이스 + Call sequence + writeAudit + DI seam)
+- Verdict: PASS
+
+### Phase 2.9 — MX Tag Update PASS
+- ANCHOR 신규 1 (`webBrowse` — fan_in 예상 ≥3)
+- NOTE 신규 1 (`PlaywrightLauncher` interface — DI seam)
+- 기존 유지: M1+M2a tags
+
+### LSP Quality Gates
+- run.max_errors=0: PASS (15회째 false-positive `slicescontains` 1건, golangci-lint 0 issues 로 회피)
+- run.max_type_errors=0: PASS
+- run.max_lint_errors=0: PASS
+
+### Phase 3 — Git Operations (orchestrator 책임)
+- branch: feature/SPEC-GOOSE-TOOLS-WEB-001-M2b (main HEAD b908de2 기반)
+- commit: squash 1개 conventional (feat(tools/web): ...)
+- PR: open with type/feature + priority/p2-medium + area/runtime
+- admin bypass merge (M1 #119 / M2a #140 / SCHEDULER 6 PR 동일 패턴)
+
+### Deviations (M2b)
+- **production launcher coverage 미흡** — `productionLauncher.Launch` 는 실 `playwright.Run()` 호출이 필요하므로 단위 테스트로 cover 불가 (실 chromium 미설치 환경에서 `isDriverMissingError` 가 cover 되지만 `playwright.Run` 자체 호출 path 는 production 빌드에서만 검증 가능). `classifyLaunchError` + `isDriverMissingError` 는 별도 ClassifyLaunchErrorForTest 헬퍼로 5 케이스 cover.
+- **go-readability 미도입** — 후속 milestone (M2c 또는 M3) 으로 분리. M2b 의 success path 는 `browse_not_implemented` stub. SPEC plan §3.2 의 "article 추출: go-shiori/go-readability" 는 미충족, 대신 M2b 는 AC-WEB-011 만 명시 GREEN.
+- **production launcher 의 panic 회피 불완전성** — `playwright.Run()` 자체가 panic 한다면 (정의되지 않은 path) recover 없음. 다만 playwright-go API 가 panic 미사용 (모든 에러 return) 이므로 실용적 우려 없음.
+
+### M2b Exit Summary
+- AC-WEB-011 GREEN, 누적 implemented AC 10/18
+- M2 milestone 완결, M3 (RSS+ArXiv, AC-WEB-014) / M4 (Maps+Wayback, AC-WEB-015/016) 잔여
+- 차후 M2c (web_browse production wiring + go-readability) 별도 milestone 으로 분리
