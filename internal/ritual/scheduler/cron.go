@@ -30,20 +30,20 @@ type cronZapLogger struct {
 }
 
 // Info implements cron.Logger.
-func (l cronZapLogger) Info(msg string, keysAndValues ...interface{}) {
+func (l cronZapLogger) Info(msg string, keysAndValues ...any) {
 	fields := kvToZapFields(keysAndValues)
 	l.log.Info(msg, fields...)
 }
 
 // Error implements cron.Logger.
-func (l cronZapLogger) Error(err error, msg string, keysAndValues ...interface{}) {
+func (l cronZapLogger) Error(err error, msg string, keysAndValues ...any) {
 	fields := kvToZapFields(keysAndValues)
 	fields = append(fields, zap.Error(err))
 	l.log.Error(msg, fields...)
 }
 
 // kvToZapFields converts alternating key-value pairs from cron to zap.Field slice.
-func kvToZapFields(kv []interface{}) []zap.Field {
+func kvToZapFields(kv []any) []zap.Field {
 	fields := make([]zap.Field, 0, len(kv)/2)
 	for i := 0; i+1 < len(kv); i += 2 {
 		key, _ := kv[i].(string)

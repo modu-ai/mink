@@ -132,9 +132,6 @@ type HookJSONOutput struct {
 	UpdatedMCPToolOutput any                 `json:"updatedMCPToolOutput,omitempty"`
 }
 
-// ptrBool creates a pointer to a bool value.
-func ptrBool(b bool) *bool { return &b }
-
 // HookHandler is the interface for a single hook handler.
 // REQ-HK-002: handlers are called in registration order (FIFO).
 type HookHandler interface {
