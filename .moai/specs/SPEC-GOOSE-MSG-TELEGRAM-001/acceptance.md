@@ -144,14 +144,18 @@ updated_at: 2026-05-05
 
 **When**:
 1. agent 가 `telegram_send_message({"chat_id": "<C>", "text": "*Daily Brief*\n\n오늘의 일정 3건"})` 호출.
-2. TOOLS-001 permission gate 가 사용자에게 modal 표시 (또는 stored permission 적용).
-3. 사용자가 Allow → tool 실행.
-4. sender 가 allowed_users 검증 → `<C>` 통과 → Markdown V2 escape → sendMessage 호출.
+2. **(E1) TOOLS-001 registry preapproval default**: tool 등록시 기본값으로 내부 승인 → CLI-TUI-002 modal 미구현 (P4 deferred).
+   **(E2) sender allowed_users gate** (이중 방어): allowed_users 리스트에 `<C>` 있음.
+3. sender 가 Markdown V2 escape → sendMessage 호출.
 
 **Then**:
 - 사용자 Telegram 클라이언트에 "**Daily Brief**\n\n오늘의 일정 3건" 메시지 도착 (bold 렌더).
 - tool 응답: `{message_id: <m>, chat_id: "<C>", sent_at: <iso>, audit_id: <a>}`.
 - AUDIT-001 에 `direction=out, tool_call_id=<id>, content_hash=<>` entry append.
+
+**Note (P3 현황)**:
+- E1 (modal CLI-TUI-002 통과) — **P4 deferred** (CLI-TUI-002 미구현).
+- E2 (registry preapproval + allowed_users gate) — **P3 GREEN** (이중 방어 확인).
 
 **Edge Cases**:
 - E1) chat_id 가 allowed_users 미포함 → tool error `unauthorized_chat_id` + audit `denied: not_allowed`.
@@ -216,6 +220,10 @@ updated_at: 2026-05-05
 - 응답이 사용자에게 도착.
 - 30분 후 임시 파일이 자동 삭제 (filesystem 검증).
 - AUDIT-001 entry 에 `attachment_count: 1, attachment_size_bytes: 500000` 기록 (본문 hash 와 별도).
+
+**P3 상황**:
+- inbound file attach download + Janitor cleanup — **P3 GREEN** (확장자 화이트리스트 10개, O_CREATE|O_EXCL idempotent).
+- outbound attachment (sendPhoto/sendDocument) — **P3 GREEN** (≤ 50MB 검증).
 
 **Outbound 측**:
 - agent 가 `telegram_send_message({chat_id: "<C>", attachments: [{type: "image", path: "/tmp/chart.png"}]})` 호출 시 sendPhoto multipart upload.
@@ -299,10 +307,11 @@ updated_at: 2026-05-05
 - BRIDGE-001 가 `selected: opt_a` 컨텍스트로 query 호출됨.
 - AUDIT-001 에 callback_query entry 기록 (`callback_data: opt_a`).
 
-**Markdown V2 escape 검증** (markdown_test.go):
+**Markdown V2 escape 검증** (markdown_test.go) — **P3 GREEN**:
 - 18개 reserved chars (`_ * [ ] ( ) ~ \` > # + - = | { } . !`) 모두 `\` escape 적용 (Telegram MarkdownV2 spec §5).
 - 의도된 markdown (`*bold*`) 은 보존.
 - 사용자 입력 본문 (raw text) 이 markdown 으로 잘못 해석되지 않음.
+- inline keyboard 1단 렌더 — **P3 GREEN** (callback_data 62초 timeout 처리, callback_expired audit 기록).
 
 **Edge Cases**:
 - E1) 다단 inline keyboard (2단 이상) → 1단으로 flatten 또는 tool error `multi_row_keyboard_unsupported` (OUT-9 정합).
@@ -326,6 +335,7 @@ updated_at: 2026-05-05
   - `ts`, `source: "messaging.telegram"`, `direction (in|out)`, `chat_id`, `message_id`, `user_profile_id`, `content_hash (64자 hex)`, `streaming_flag (bool)`, `tool_call_id (out 일 때만)`.
 - `content_hash` 가 SHA-256 hex (64자) 이며 같은 본문에 대해 결정적 (다른 entry 와 충돌 시 본문 동일성 추정 가능).
 - entry 직렬화에 본문 raw text **포함되지 않음** (PII protection).
+- callback_data 도 동일 정책: audit 에 content_hash 만 기록, callback_data raw **미포함** (REQ-MTGM-N06).
 - entry 에 다른 사용자의 user_profile_id 또는 식별정보 **포함되지 않음** — `chat_id` + `user_profile_id` 는 본 메시지 송신자 본인 것만.
 - 메시지 처리 (inbound query) 가 AUDIT-001 write fail 후에도 **계속 진행** (audit 실패가 채널 막지 않음 — plan.md §3.4 정책).
 
