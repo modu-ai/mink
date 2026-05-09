@@ -87,3 +87,89 @@ Methodology: TDD RED-GREEN-REFACTOR
 - AC-MTGM-006 GREEN (graceful skip with nil deps)
 - Coverage: telegram 82.0%, cli/commands 73.8%, audit 85.5%
 - gofmt clean, go vet clean, go build PASS, go test -race PASS (전 패키지)
+
+---
+
+## P3 Implementation (2026-05-09)
+
+Branch: feature/SPEC-GOOSE-MSG-TELEGRAM-001-P3
+Methodology: TDD RED-GREEN-REFACTOR
+
+### Task 1: markdown.go — EscapeV2 + RenderInlineKeyboard
+
+- `internal/messaging/telegram/markdown.go` 생성
+- EscapeV2: 18개 reserved chars 모두 escape (Telegram MarkdownV2 spec)
+- RenderInlineKeyboard: 1단 inline keyboard JSON 렌더
+- markdown_test.go: 18자 전수 + 복합 케이스 + idempotent + empty
+- AC-MTGM-010 일부 GREEN
+
+### Task 2: sender.go — Sender.Send + Client interface P3 확장
+
+- `internal/messaging/telegram/sender.go` 생성 (Sender, SendRequest, SendResponse)
+- Client interface에 AnswerCallbackQuery/SendPhoto/SendDocument 추가
+- ErrUnauthorizedChatID (REQ-MTGM-N02), MarkdownV2 escape, attachment 분기
+- sender_test.go: 7 테스트 (권한 거부, V2 escape, 이미지/문서 분기, audit)
+- 기존 mock들 Client interface 준수로 업데이트
+- AC-MTGM-005 GREEN
+
+### Task 3: tool.go — TOOLS-001 registry 등록
+
+- `internal/messaging/telegram/tool.go` 생성 (telegramSendMessageTool, WithMessaging)
+- JSON Schema (draft 2020-12): chat_id/text/parse_mode/inline_keyboard/attachments/silent
+- toolSender 인터페이스로 의존 역전, ErrUnauthorizedChatID → tool error
+- tool_test.go: 8 테스트 (등록, 스키마, 호출, 권한 거부, 중복 등록 panic)
+- AC-MTGM-005 GREEN (일부)
+
+### Task 4: inbox.go — file attach + Janitor
+
+- `internal/messaging/telegram/inbox.go` 생성 (Janitor, downloadAttachment, isAllowedExt)
+- 확장자 화이트리스트 (10개), O_CREATE|O_EXCL idempotent skip, 중앙 janitor goroutine
+- AgentQuery interface attachments []string 확장 (strategy-p3.md §C.5 option i)
+- inbox_test.go, handler_attach_test.go: Janitor sweep/run, download/idempotent/ext
+- AC-MTGM-007 GREEN
+
+### Task 5: callback_query branch
+
+- BridgeQueryHandler.handleCallback 추가 (bridge_handler.go)
+- CallbackQuery 타입 + convertUpdates 확장 (client.go)
+- callbackQueryTimeout 60초, expired 감지 + audit 기록 (REQ-MTGM-N04)
+- callback_test.go: 3 테스트 (정상/만료/차단)
+- AC-MTGM-005 callback + REQ-MTGM-E05/N04 GREEN
+
+### Task 6: ChatService 어댑터 (NoOpAgentQuery deprecate)
+
+- `internal/agent/chat.go` 신설 (ChatService, QueryEngineChatService, ChatRequest/Response)
+- `internal/messaging/telegram/agent_adapter.go` 신설 (AgentAdapter)
+- bootstrap.go NoOpAgentQuery @MX:TODO P3 → @MX:NOTE로 변경
+- keyring.go @MX:TODO P3 → @MX:NOTE로 변경
+- agent_adapter_test.go: 4 테스트, chat_test.go: 6 테스트
+
+### Task 7: Integration Test P3
+
+- `internal/messaging/telegram/integration_p3_test.go` 신설 (build tag: integration)
+- AC-MTGM-005 통합 (SendTool → audit outbound)
+- AC-MTGM-010 통합 (MarkdownV2 18 reserved chars 전수 escape 검증)
+- inline keyboard 렌더 검증
+- Janitor 실행 without error 검증
+- 기존 P2 통합 테스트 회귀 0건
+
+### Task 8: zalando/go-keyring 도입
+
+- `go get github.com/zalando/go-keyring@v0.2.8`
+- `keyring_os.go` (//go:build !nokeyring) — OSKeyring 구현
+- `keyring_nokeyring.go` (//go:build nokeyring) — CI stub
+- messaging_telegram.go setup/start command 기본값 → NewOSKeyring()
+- telegramClientIface에 P3 메서드 추가
+- coverage_test.go: 추가 테스트 (decodeChatID, HTTP 메서드, Janitor 엣지케이스)
+- go test -tags=nokeyring PASS (전 패키지)
+
+## P3 Exit Criteria
+
+- AC-MTGM-005 GREEN (outbound tool + allowed_users gate; modal P4 deferred)
+- AC-MTGM-007 GREEN (file attach download + janitor cleanup)
+- AC-MTGM-008 GREEN (token security — P1/P2 기 구현)
+- AC-MTGM-010 GREEN (MarkdownV2 18 reserved chars escape + inline keyboard)
+- Coverage: telegram 83.5% (nokeyring), 84.6% (integration), agent 78.5%
+- gofmt clean, go vet clean, go build PASS, go test -race PASS
+- go test -tags=integration PASS, go test -tags=nokeyring PASS
+- @MX:TODO 0개

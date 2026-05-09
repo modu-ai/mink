@@ -32,6 +32,13 @@ func (f *fakeHandlerClient) SendMessage(_ context.Context, req telegram.SendMess
 func (f *fakeHandlerClient) GetUpdates(_ context.Context, _ int, _ int) ([]telegram.Update, error) {
 	return nil, nil
 }
+func (f *fakeHandlerClient) AnswerCallbackQuery(_ context.Context, _ string) error { return nil }
+func (f *fakeHandlerClient) SendPhoto(_ context.Context, req telegram.SendMediaRequest) (telegram.Message, error) {
+	return telegram.Message{ID: 10, ChatID: req.ChatID}, nil
+}
+func (f *fakeHandlerClient) SendDocument(_ context.Context, req telegram.SendMediaRequest) (telegram.Message, error) {
+	return telegram.Message{ID: 11, ChatID: req.ChatID}, nil
+}
 
 // TestEchoHandler_TextUpdate verifies that a text update triggers SendMessage
 // with the same chat ID and text.

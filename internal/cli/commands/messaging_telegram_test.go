@@ -35,6 +35,13 @@ func (f *fakeClient) SendMessage(_ context.Context, req telegram.SendMessageRequ
 func (f *fakeClient) GetUpdates(_ context.Context, _ int, _ int) ([]telegram.Update, error) {
 	return nil, nil
 }
+func (f *fakeClient) AnswerCallbackQuery(_ context.Context, _ string) error { return nil }
+func (f *fakeClient) SendPhoto(_ context.Context, req telegram.SendMediaRequest) (telegram.Message, error) {
+	return telegram.Message{ID: 10, ChatID: req.ChatID}, nil
+}
+func (f *fakeClient) SendDocument(_ context.Context, req telegram.SendMediaRequest) (telegram.Message, error) {
+	return telegram.Message{ID: 11, ChatID: req.ChatID}, nil
+}
 
 // runSetup executes the "messaging telegram setup" command with the given
 // options and returns stdout content and any error.

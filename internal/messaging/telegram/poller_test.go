@@ -56,6 +56,14 @@ func (f *fakePollerClient) SendMessage(_ context.Context, req telegram.SendMessa
 	return telegram.Message{}, nil
 }
 
+func (f *fakePollerClient) AnswerCallbackQuery(_ context.Context, _ string) error { return nil }
+func (f *fakePollerClient) SendPhoto(_ context.Context, req telegram.SendMediaRequest) (telegram.Message, error) {
+	return telegram.Message{ID: 10, ChatID: req.ChatID}, nil
+}
+func (f *fakePollerClient) SendDocument(_ context.Context, req telegram.SendMediaRequest) (telegram.Message, error) {
+	return telegram.Message{ID: 11, ChatID: req.ChatID}, nil
+}
+
 // recordingHandler records calls to Handle.
 type recordingHandler struct {
 	mu     sync.Mutex

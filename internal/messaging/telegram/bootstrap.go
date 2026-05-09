@@ -23,17 +23,18 @@ type Deps struct {
 	Logger *zap.Logger
 }
 
-// NoOpAgentQuery is a placeholder AgentQuery that returns a canned message.
-// It is used when the production Agent wiring is deferred (P3).
+// NoOpAgentQuery is a placeholder AgentQuery used in tests and during early
+// bootstrap when a real ChatService is not yet available.
 //
-// @MX:TODO P3 — replace NoOpAgentQuery with a real AgentServiceClient
-// wired to the goosed daemon's internal handler or loopback gRPC client.
-// The daemon does not yet have a self-accessible AgentServiceClient;
-// requires architectural work in SPEC-GOOSE-MSG-TELEGRAM-001 P3.
+// @MX:NOTE: [AUTO] OS keyring backend wired via OSKeyring (keyring_os.go),
+// fallback MemoryKeyring for tests and -tags=nokeyring builds. Selection rule:
+// production main.go uses OSKeyring; tests inject MemoryKeyring via Deps.
+// Production Agent wiring uses NewAgentAdapter(chatService) as of P3.
+// NoOpAgentQuery is retained for test/dev use only (strategy-p3.md §A.5).
 type NoOpAgentQuery struct{}
 
 // Query returns a fixed notice that agent wiring is pending.
-func (n *NoOpAgentQuery) Query(_ context.Context, _ string) (string, error) {
+func (n *NoOpAgentQuery) Query(_ context.Context, _ string, _ []string) (string, error) {
 	return "Telegram BRIDGE wiring deferred to P3. (goosed self-gRPC client not yet wired)", nil
 }
 

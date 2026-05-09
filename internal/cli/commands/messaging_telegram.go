@@ -24,6 +24,9 @@ type telegramClientIface interface {
 	GetMe(ctx context.Context) (telegram.User, error)
 	SendMessage(ctx context.Context, req telegram.SendMessageRequest) (telegram.Message, error)
 	GetUpdates(ctx context.Context, offset int, timeoutSec int) ([]telegram.Update, error)
+	AnswerCallbackQuery(ctx context.Context, callbackQueryID string) error
+	SendPhoto(ctx context.Context, req telegram.SendMediaRequest) (telegram.Message, error)
+	SendDocument(ctx context.Context, req telegram.SendMediaRequest) (telegram.Message, error)
 }
 
 // keyringIface is a local alias for test injection.
@@ -92,9 +95,11 @@ func newTelegramSetupCommand(client telegramClientIface, kr keyringIface, cfgDir
 			}
 
 			// Store token in keyring.
+			// Production default: OSKeyring (OS secret store).
+			// Tests inject a MemoryKeyring via the kr parameter.
 			activeKr := kr
 			if activeKr == nil {
-				activeKr = telegram.NewMemoryKeyring()
+				activeKr = telegram.NewOSKeyring()
 			}
 			if err := activeKr.Store(telegram.KeyringService, telegram.KeyringKey, []byte(token)); err != nil {
 				return fmt.Errorf("store token in keyring: %w", err)
@@ -139,8 +144,8 @@ func newTelegramSetupCommand(client telegramClientIface, kr keyringIface, cfgDir
 // it shows bot_username, mode, last_offset, mapped_count, allowed_count, and
 // blocked_count from the sqlite store.
 //
-// @MX:TODO P3 — add live poller state metrics (offset lag, poll interval)
-// via daemon IPC. Requires SPEC-GOOSE-MSG-TELEGRAM-001 P3 runtime state API.
+// @MX:NOTE: [AUTO] Live poller state metrics (offset lag, poll interval)
+// via daemon IPC are deferred to P4. Current status shows stored values only.
 func newTelegramStatusCommand(cfgDir, storePath string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "status",
@@ -257,9 +262,7 @@ func newTelegramRevokeCommand(storePath string) *cobra.Command {
 }
 
 // newTelegramStartCommand implements "goose messaging telegram start".
-// In P1 it loads the config and token, then delegates to bootstrap.Start.
-//
-// @MX:TODO P2 — wire to real credproxy keyring for token retrieval.
+// It loads the config and token from the OS keyring, then delegates to bootstrap.Start.
 func newTelegramStartCommand(kr keyringIface, cfgDir string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "start",
@@ -283,9 +286,10 @@ func newTelegramStartCommand(kr keyringIface, cfgDir string) *cobra.Command {
 			}
 
 			// Retrieve token from keyring.
+			// Production default: OSKeyring. Tests inject MemoryKeyring via kr.
 			activeKr := kr
 			if activeKr == nil {
-				activeKr = telegram.NewMemoryKeyring()
+				activeKr = telegram.NewOSKeyring()
 			}
 			tokenBytes, err := activeKr.Retrieve(telegram.KeyringService, telegram.KeyringKey)
 			if err != nil {
