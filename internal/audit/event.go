@@ -42,6 +42,12 @@ const (
 	EventTypeToolWebInvoke EventType = "tool.web.invoke"
 	// EventTypeToolWebSandboxWarning is emitted when a web tool triggers a sandbox policy warning
 	EventTypeToolWebSandboxWarning EventType = "tool.web.sandbox_warning"
+	// EventTypeMessagingInbound is emitted when a messaging channel receives an inbound message.
+	// SPEC-GOOSE-MSG-TELEGRAM-001 REQ-MTGM-U01 / REQ-MTGM-N06
+	EventTypeMessagingInbound EventType = "messaging.inbound"
+	// EventTypeMessagingOutbound is emitted when a messaging channel sends an outbound message.
+	// SPEC-GOOSE-MSG-TELEGRAM-001 REQ-MTGM-U01 / REQ-MTGM-N06
+	EventTypeMessagingOutbound EventType = "messaging.outbound"
 )
 
 // String returns the string representation of the event type

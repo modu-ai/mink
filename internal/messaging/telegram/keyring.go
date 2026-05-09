@@ -64,5 +64,8 @@ func (m *MemoryKeyring) Retrieve(service, key string) ([]byte, error) {
 	return cp, nil
 }
 
-// @MX:TODO P2 — wire CredproxyKeyring to credproxy.NewProxy when public
-// constructor is available in SPEC-GOOSE-CREDENTIAL-PROXY-001.
+// @MX:TODO P3 — evaluate OS keyring integration (e.g. zalando/go-keyring or
+// charmbracelet/x/exp/once) for production bot token storage.
+// credproxy (internal/credproxy) is an HTTP proxy pattern, not a KV keyring,
+// and is therefore not a fit for direct telegram token retrieval.
+// See analyze-p2.md §4 for the full rationale.
