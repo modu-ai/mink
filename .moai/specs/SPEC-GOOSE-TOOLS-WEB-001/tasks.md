@@ -165,5 +165,26 @@ External dep: 신규 1개 (`github.com/playwright-community/playwright-go` v0.57
 
 ---
 
+## M2c Task Decomposition (web_browse production wiring)
+SPEC: SPEC-GOOSE-TOOLS-WEB-001 M2c
+Branch: feature/tools-web-m2c (main HEAD = 17e1075)
+External dep: 신규 1개 (`github.com/go-shiori/go-readability`)
+
+### 범위 최소화 (orchestrator 결정 2026-05-10)
+- M2b stub success path 를 production wiring 으로 교체.
+- PlaywrightSession 인터페이스 확장 + extract enum 실 구현 + go-readability article 추출.
+- production chromium 실호출 (driver install 필요) 은 통합 환경 검증, 단위 테스트는 stubSession.
+- InnerText: page.InnerText deprecated → page.Locator(selector).InnerText() (golangci-lint SA1019 교정).
+
+### Tasks
+| Task ID | Description | Requirement | Dependencies | Planned Files | Status |
+|---------|-------------|-------------|--------------|---------------|--------|
+| T-034 | go.mod 신규 의존성 — github.com/go-shiori/go-readability | enabling | none | go.mod, go.sum | DONE |
+| T-035 | browse_playwright.go: PlaywrightSession 인터페이스 확장 (Goto/Title/Content/InnerText) + playwrightSessionAdapter (browser+page 추가) + productionLauncher.Launch chromium launch + new page | REQ-WEB-001/002 | T-034 | internal/tools/web/browse_playwright.go | DONE |
+| T-036 | browse.go: Call success path 교체 — Goto + extract 분기 (html/text/article) + extractArticle (readability) + countWords helper | REQ-WEB-002/018 | T-035 | internal/tools/web/browse.go | DONE |
+| T-037 | browse_test.go: stubSession 확장 + 7 신규 시나리오 (ExtractText/Html/Article + NavigationFailure + ExtractFailure x2 + ExtractText_InnerTextError) + StubBranchAfterSuccessfulLaunch 삭제 | success path coverage | T-035, T-036 | internal/tools/web/browse_test.go | DONE |
+
+---
+
 Version: 0.1.0
-Last Updated: 2026-05-06
+Last Updated: 2026-05-10

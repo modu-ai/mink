@@ -223,3 +223,45 @@
 - AC-WEB-011 GREEN, 누적 implemented AC 10/18
 - M2 milestone 완결, M3 (RSS+ArXiv, AC-WEB-014) / M4 (Maps+Wayback, AC-WEB-015/016) 잔여
 - 차후 M2c (web_browse production wiring + go-readability) 별도 milestone 으로 분리
+
+---
+
+## 2026-05-10 M2c Session (web_browse production wiring)
+
+### Branch / Base
+- Branch: feature/tools-web-m2c
+- Base: main HEAD = 17e1075 (v0.2.2)
+- External dep: github.com/go-shiori/go-readability v0.0.0-20251205110129-5db1dc9836f0 (신규)
+  - Note: deprecated upstream, successor = codeberg.org/readeck/go-readability/v2 (API incompatible — no TextContent field)
+  - go-shiori API confirmed: `FromReader(io.Reader, *url.URL) (Article, error)`, `Article.TextContent string`
+
+### Phase 0 — 범위
+- M2b stub `browse_not_implemented` 교체
+- PlaywrightSession 인터페이스 확장 (Goto/Title/Content/InnerText)
+- extract enum (text|article|html) 실 구현
+- go-readability 통합 (article 추출)
+- production launcher 의 chromium browser + page 생성 wiring (headless Chromium via playwright.Browser + playwright.Page)
+- InnerText: page.InnerText deprecated → Locator-based API (page.Locator(selector).InnerText()) 로 교체
+
+### Phase 2 — TDD Implementation 완료
+- 3 수정 파일: browse_playwright.go (interface 확장 + adapter + productionLauncher), browse.go (success path + extractArticle + countWords), browse_test.go (stubSession 확장 + 7 신규 시나리오)
+- 1 신규 의존성: go-shiori/go-readability
+- TestWebBrowse_StubBranchAfterSuccessfulLaunch 삭제 (M2b stub 분기 제거됨)
+- 신규 테스트: ExtractText, ExtractHtml, ExtractArticle, NavigationFailure, ExtractFailure (html+article), ExtractText_InnerTextError
+- All tests PASS, race -count=10 PASS, golangci-lint 0 issues
+
+### Coverage (M2c)
+- web 패키지: 77.0% / total (web+common): 79.9%
+- browse.go Call: 82.8%, extractArticle: 71.4%
+- browse_playwright.go production adapter (Goto/Title/Content/InnerText/Close/Launch): 0% — 실 Playwright 드라이버 없는 환경에서 단위 테스트 불가 (예상된 trade-off, production chromium 실호출은 통합 환경에서만 검증)
+- classifyLaunchError: 100%, ClassifyLaunchErrorForTest: 100%
+
+### LSP nitpick fix (post-review)
+- browse_test.go:191 + wikipedia_test.go:244 `for-range + ==` 를 `slices.Contains` 로 modernize (Go 1.21+, slicescontains 진단 처리)
+- import "slices" 추가 (browse_test.go, wikipedia_test.go)
+
+### M2c Exit
+- web_browse extract text/article/html 실 동작 (stubSession 환경)
+- production chromium 실호출은 driver install 필요한 통합 환경에서만 검증 가능
+- 누적 implemented AC 10/18 (M2c 는 success path quality 개선, AC 신규 없음)
+- M3 (RSS+ArXiv) / M4 (Maps+Wayback) 잔여

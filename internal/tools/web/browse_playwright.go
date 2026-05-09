@@ -17,11 +17,23 @@ import (
 // (errors.Is must work).
 var ErrPlaywrightNotInstalled = errors.New("playwright not installed")
 
-// PlaywrightSession is the abstract per-call session returned by a launcher.
-// M2b only uses Close(); the eventual M2c web_browse implementation will add
-// page navigation + DOM extraction methods. Keeping the interface minimal now
-// avoids leaking the playwright.Playwright type to callers.
+// PlaywrightSession is the abstract per-call session. It exposes page
+// navigation and DOM extraction methods used by the web_browse success path,
+// plus Close for resource cleanup.
+//
+// @MX:ANCHOR: [AUTO] PlaywrightSession interface — production page navigation contract
+// @MX:REASON: SPEC-GOOSE-TOOLS-WEB-001 M2c — fan_in >= 3 (browse.go, browse_test.go, production launcher)
 type PlaywrightSession interface {
+	// Goto navigates the page to url with a timeout hint in milliseconds.
+	Goto(ctx context.Context, url string, timeoutMs int) error
+	// Title returns the page <title> text.
+	Title() (string, error)
+	// Content returns the full raw HTML of the loaded page.
+	Content() (string, error)
+	// InnerText returns the inner text of the first element matching selector.
+	// Use "body" for full-page plain text.
+	InnerText(selector string) (string, error)
+	// Close releases the browser and Playwright subprocess.
 	Close() error
 }
 
@@ -38,28 +50,75 @@ type PlaywrightLauncher interface {
 	Launch(ctx context.Context) (PlaywrightSession, error)
 }
 
-// playwrightSessionAdapter wraps playwright.Playwright so we can return it
-// through the PlaywrightSession interface without exposing the upstream type.
+// playwrightSessionAdapter wraps a playwright Browser + Page so we can return
+// the session through the PlaywrightSession interface without exposing upstream types.
 type playwrightSessionAdapter struct {
-	pw *playwright.Playwright
+	pw      *playwright.Playwright
+	browser playwright.Browser
+	page    playwright.Page
 }
 
-// Close stops the underlying Playwright instance.
+// Goto navigates the underlying page to the given URL, applying timeoutMs as
+// the Playwright navigation timeout.
+func (s *playwrightSessionAdapter) Goto(_ context.Context, url string, timeoutMs int) error {
+	timeout := float64(timeoutMs)
+	_, err := s.page.Goto(url, playwright.PageGotoOptions{
+		Timeout: &timeout,
+	})
+	return err
+}
+
+// Title returns the page title.
+func (s *playwrightSessionAdapter) Title() (string, error) {
+	return s.page.Title()
+}
+
+// Content returns the full raw HTML source of the current page.
+func (s *playwrightSessionAdapter) Content() (string, error) {
+	return s.page.Content()
+}
+
+// InnerText returns the inner text of the first element matching selector.
+// Uses the Locator-based API as recommended by playwright-go.
+func (s *playwrightSessionAdapter) InnerText(selector string) (string, error) {
+	return s.page.Locator(selector).InnerText()
+}
+
+// Close closes the browser context and stops the Playwright subprocess.
+// Errors from each step are joined so callers can see all failures.
 func (s *playwrightSessionAdapter) Close() error {
-	if s == nil || s.pw == nil {
+	if s == nil {
 		return nil
 	}
-	return s.pw.Stop()
+	var errs []string
+	if s.browser != nil {
+		if err := s.browser.Close(); err != nil {
+			errs = append(errs, fmt.Sprintf("browser.Close: %v", err))
+		}
+	}
+	if s.pw != nil {
+		if err := s.pw.Stop(); err != nil {
+			errs = append(errs, fmt.Sprintf("pw.Stop: %v", err))
+		}
+	}
+	if len(errs) > 0 {
+		return errors.New(strings.Join(errs, "; "))
+	}
+	return nil
 }
 
 // productionLauncher is the default PlaywrightLauncher used when no test
-// double is injected. It calls playwright.Run() and translates the
-// driver-missing error message into ErrPlaywrightNotInstalled.
+// double is injected. It starts Playwright, launches Chromium headless, and
+// opens a new page.
 type productionLauncher struct{}
 
-// Launch implements PlaywrightLauncher by invoking playwright.Run. Driver /
-// binary missing errors are normalised to ErrPlaywrightNotInstalled so the
-// tool can return AC-WEB-011's canonical error code.
+// Launch implements PlaywrightLauncher by invoking playwright.Run, launching
+// Chromium headless, and opening a new blank page. Driver / binary missing
+// errors are normalised to ErrPlaywrightNotInstalled so the tool can return
+// AC-WEB-011's canonical error code.
+//
+// @MX:WARN: [AUTO] Subprocess launch — Playwright spawns an external chromium process
+// @MX:REASON: SPEC-GOOSE-TOOLS-WEB-001 M2c — long-lived subprocess must be closed via session.Close()
 func (productionLauncher) Launch(_ context.Context) (PlaywrightSession, error) {
 	pw, err := playwright.Run()
 	if err != nil {
@@ -68,7 +127,27 @@ func (productionLauncher) Launch(_ context.Context) (PlaywrightSession, error) {
 		}
 		return nil, err
 	}
-	return &playwrightSessionAdapter{pw: pw}, nil
+
+	headless := true
+	browser, err := pw.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
+		Headless: &headless,
+	})
+	if err != nil {
+		_ = pw.Stop()
+		if isDriverMissingError(err) {
+			return nil, fmt.Errorf("%w: %v", ErrPlaywrightNotInstalled, err)
+		}
+		return nil, fmt.Errorf("chromium launch: %w", err)
+	}
+
+	page, err := browser.NewPage()
+	if err != nil {
+		_ = browser.Close()
+		_ = pw.Stop()
+		return nil, fmt.Errorf("new page: %w", err)
+	}
+
+	return &playwrightSessionAdapter{pw: pw, browser: browser, page: page}, nil
 }
 
 // classifyLaunchError maps a launcher error to the user-facing error code
