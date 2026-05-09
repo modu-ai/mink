@@ -11,8 +11,7 @@ type HolidayInfo struct {
 	IsHoliday bool
 	// Name is the holiday name; empty if not a holiday.
 	Name string
-	// IsSubstitute reports whether the day is a substitute (대체공휴일) for a holiday
-	// that fell on a weekend.
+	// IsSubstitute reports whether the day is a substitute holiday for an actual holiday that fell on a weekend.
 	IsSubstitute bool
 }
 
@@ -32,7 +31,7 @@ type CustomHolidayOverride struct {
 }
 
 // KoreanHolidayProvider implements HolidayCalendar for South Korean public holidays.
-// It supports substitute holidays (대체공휴일) and optional user overrides.
+// It supports substitute holidays and optional user overrides.
 //
 // @MX:ANCHOR: [AUTO] KoreanHolidayProvider is the primary holiday lookup entry point
 // @MX:REASON: SPEC-GOOSE-SCHEDULER-001 REQ-SCHED-009 — fan_in >= 3 (Lookup, New, WithOverrides, Scheduler wiring)

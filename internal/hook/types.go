@@ -1,5 +1,5 @@
-// Package hook는 AI.GOOSE의 24개 lifecycle hook 이벤트 디스패처와
-// useCanUseTool 권한 결정 플로우를 구현한다.
+// Package hook implements the lifecycle hook event dispatcher and the
+// useCanUseTool permission decision flow for AI.GOOSE.
 // SPEC-GOOSE-HOOK-001
 package hook
 
@@ -8,13 +8,13 @@ import (
 	"errors"
 )
 
-// HookEvent는 29개 HookEvent 상수 (24 base + 5 ritual SCHEDULER-001)를 나타낸다.
+// HookEvent represents one of the 29 HookEvent constants (24 base + 5 ritual from SCHEDULER-001).
 // AC-HK-001 / REQ-HK-001
 type HookEvent string
 
-// 29개 HookEvent 상수 (24 base + 5 ritual SCHEDULER-001).
-// Base 24: claude-primitives §5.1 기반; Elicitation, ElicitationResult, InstructionsLoaded 제외 (AC-HK-001).
-// Ritual 5: SPEC-GOOSE-SCHEDULER-001 P1 추가.
+// 29 HookEvent constants (24 base + 5 ritual from SCHEDULER-001).
+// Base 24: derived from claude-primitives §5.1; Elicitation, ElicitationResult, InstructionsLoaded excluded (AC-HK-001).
+// Ritual 5: added by SPEC-GOOSE-SCHEDULER-001 P1.
 const (
 	EvSetup              HookEvent = "Setup"
 	EvSessionStart       HookEvent = "SessionStart"
@@ -48,8 +48,8 @@ const (
 	EvEveningCheckInTime  HookEvent = "EveningCheckInTime"
 )
 
-// HookEventNames는 29개 HookEvent 상수 (24 base + 5 ritual SCHEDULER-001)의 문자열 집합을 반환한다.
-// AC-HK-001 검증 함수.
+// HookEventNames returns the string set of all 29 HookEvent constants (24 base + 5 ritual from SCHEDULER-001).
+// Validation helper for AC-HK-001.
 func HookEventNames() []string {
 	return []string{
 		string(EvSetup),
@@ -85,41 +85,41 @@ func HookEventNames() []string {
 	}
 }
 
-// ToolInfo는 tool 관련 이벤트에서 사용되는 tool 메타데이터이다.
+// ToolInfo holds tool metadata used in tool-related events.
 type ToolInfo struct {
 	Name  string
 	Input map[string]any
 }
 
-// HookError는 PostToolUseFailure 이벤트에서 사용되는 오류 정보이다.
+// HookError holds error information used in the PostToolUseFailure event.
 type HookError struct {
 	Message string
 	Code    string
 }
 
-// HookInput은 모든 이벤트가 공유하는 공통 입력 구조이다.
-// REQ-HK-014: 디스패처는 각 핸들러에 독립적인 deep copy를 전달해야 한다.
+// HookInput is the common input structure shared by all events.
+// REQ-HK-014: the dispatcher must pass an independent deep copy to each handler.
 type HookInput struct {
 	HookEvent    HookEvent
-	ToolUseID    string    // tool 관련 이벤트에서만
+	ToolUseID    string    // tool-related events only
 	Tool         *ToolInfo // PreToolUse/PostToolUse
 	Input        map[string]any
-	Output       any        // PostToolUse만
-	Error        *HookError // PostToolUseFailure만
-	ChangedPaths []string   // FileChanged만
+	Output       any        // PostToolUse only
+	Error        *HookError // PostToolUseFailure only
+	ChangedPaths []string   // FileChanged only
 	SessionID    string
 	CustomData   map[string]any
 }
 
-// PermissionDecision은 hook이 반환하는 권한 결정이다.
+// PermissionDecision is the permission decision returned by a hook.
 type PermissionDecision struct {
 	Approve bool
 	Reason  string
 	Details map[string]any
 }
 
-// HookJSONOutput은 shell command hook의 stdout JSON 출력 구조이다.
-// REQ-HK-006: exit code 0 시 JSON 파싱, exit code 2 시 blocking signal.
+// HookJSONOutput is the stdout JSON output structure for shell command hooks.
+// REQ-HK-006: parse JSON on exit code 0; treat exit code 2 as a blocking signal.
 type HookJSONOutput struct {
 	Continue             *bool               `json:"continue,omitempty"`
 	SuppressOutput       bool                `json:"suppressOutput,omitempty"`
@@ -132,41 +132,41 @@ type HookJSONOutput struct {
 	UpdatedMCPToolOutput any                 `json:"updatedMCPToolOutput,omitempty"`
 }
 
-// ptrBool은 bool 포인터를 생성하는 헬퍼이다.
+// ptrBool creates a pointer to a bool value.
 func ptrBool(b bool) *bool { return &b }
 
-// HookHandler는 단일 hook 핸들러 인터페이스이다.
-// REQ-HK-002: 등록 순서(FIFO)로 호출된다.
+// HookHandler is the interface for a single hook handler.
+// REQ-HK-002: handlers are called in registration order (FIFO).
 type HookHandler interface {
-	// Handle은 hook 이벤트를 처리한다.
+	// Handle processes the hook event.
 	Handle(ctx context.Context, input HookInput) (HookJSONOutput, error)
-	// Matches는 이 핸들러가 주어진 input에 매치되는지 반환한다.
-	// REQ-HK-020: matcher 시스템 (glob 또는 regex: 접두사)
+	// Matches reports whether this handler matches the given input.
+	// REQ-HK-020: matcher system (glob or "regex:" prefix)
 	Matches(input HookInput) bool
 }
 
-// HookBinding은 HookRegistry 내부의 등록 항목이다.
+// HookBinding is a registration entry inside HookRegistry.
 type HookBinding struct {
 	Event   HookEvent
-	Matcher string // glob 또는 "regex:" 접두사
+	Matcher string // glob or "regex:" prefix
 	Handler HookHandler
 	Source  string // "inline" | "plugin" | "builtin"
 }
 
-// PermissionBehavior는 useCanUseTool 결정 결과이다.
+// PermissionBehavior is the outcome of a useCanUseTool decision.
 // REQ-HK-009
 type PermissionBehavior int
 
 const (
-	// PermAllow는 tool 즉시 실행을 허가한다.
+	// PermAllow grants immediate tool execution.
 	PermAllow PermissionBehavior = iota
-	// PermDeny는 tool 실행을 거부한다.
+	// PermDeny refuses tool execution.
 	PermDeny
-	// PermAsk는 외부 결정을 대기한다.
+	// PermAsk waits for an external decision.
 	PermAsk
 )
 
-// String은 PermissionBehavior의 문자열 표현을 반환한다.
+// String returns the string representation of PermissionBehavior.
 func (b PermissionBehavior) String() string {
 	switch b {
 	case PermAllow:
@@ -180,41 +180,41 @@ func (b PermissionBehavior) String() string {
 	}
 }
 
-// DecisionReason은 권한 결정 이유를 담는 구조이다.
+// DecisionReason carries the reason for a permission decision.
 type DecisionReason struct {
 	Type    string // "yolo_auto" | "handler" | "interactive" | "coordinator" | "swarm" | "no_interactive_fallback"
 	Reason  string
 	Details map[string]any
 }
 
-// PermissionResult는 useCanUseTool의 반환 타입이다.
+// PermissionResult is the return type of useCanUseTool.
 type PermissionResult struct {
 	Behavior       PermissionBehavior
 	DecisionReason *DecisionReason
 }
 
-// Role은 permCtx.Role 값 집합이다.
-// D12 resolution: SUBAGENT-001과 CLI-001이 사용하는 역할 enum.
+// Role is the set of permCtx.Role values.
+// D12 resolution: role enum used by SUBAGENT-001 and CLI-001.
 type Role string
 
 const (
-	// RoleCoordinator는 SUBAGENT-001 coordinator 모드이다.
+	// RoleCoordinator is the SUBAGENT-001 coordinator mode.
 	RoleCoordinator Role = "coordinator"
-	// RoleSwarmWorker는 SUBAGENT-001 swarm worker 모드이다.
+	// RoleSwarmWorker is the SUBAGENT-001 swarm worker mode.
 	RoleSwarmWorker Role = "swarm_worker"
-	// RoleInteractive는 사용자 터미널 세션이다.
+	// RoleInteractive is an interactive user terminal session.
 	RoleInteractive Role = "interactive"
-	// RoleNonTTY는 자동화·CI·파이프라인 환경이다.
+	// RoleNonTTY is an automated / CI / pipeline environment.
 	RoleNonTTY Role = "non_tty"
 )
 
-// PermissionContext는 useCanUseTool 호출 시 전달되는 컨텍스트이다.
+// PermissionContext is the context passed to useCanUseTool.
 type PermissionContext struct {
 	Role    Role
 	Details map[string]any
 }
 
-// PermissionQueueOps는 YOLO classifier 및 자동 모드 기록 인터페이스이다.
+// PermissionQueueOps is the interface for the YOLO classifier and auto-mode recording.
 // REQ-HK-012: SetYoloClassifierApproval, REQ-HK-009: RecordAutoModeDenial
 type PermissionQueueOps interface {
 	SetYoloClassifierApproval(toolPattern string)
@@ -222,104 +222,104 @@ type PermissionQueueOps interface {
 	LogPermissionDecision(result PermissionResult, toolName string)
 }
 
-// InteractiveHandler는 사용자 터미널 세션의 권한 처리 인터페이스이다.
-// CLI-001이 구현한다.
+// InteractiveHandler is the permission-handling interface for interactive user terminal sessions.
+// Implemented by CLI-001.
 type InteractiveHandler interface {
 	PromptUser(ctx context.Context, toolName string, input map[string]any) (PermissionResult, error)
 }
 
-// CoordinatorHandler는 SUBAGENT-001 coordinator 모드의 권한 처리 인터페이스이다.
+// CoordinatorHandler is the permission-handling interface for the SUBAGENT-001 coordinator mode.
 type CoordinatorHandler interface {
 	RequestPermission(ctx context.Context, toolName string, input map[string]any) (PermissionResult, error)
 }
 
-// SwarmWorkerHandler는 SUBAGENT-001 swarm worker 모드의 권한 처리 인터페이스이다.
+// SwarmWorkerHandler is the permission-handling interface for the SUBAGENT-001 swarm worker mode.
 type SwarmWorkerHandler interface {
 	BubbleUpPermission(ctx context.Context, toolName string, input map[string]any) (PermissionResult, error)
 }
 
-// SkillsFileChangedConsumer는 FileChanged 이벤트 후 호출되는 외부 consumer 타입이다.
-// SKILLS-001이 등록하고 본 SPEC은 호출만 한다.
+// SkillsFileChangedConsumer is the external consumer type called after a FileChanged event.
+// Registered by SKILLS-001; this SPEC only invokes it.
 // D11 resolution
 type SkillsFileChangedConsumer func(ctx context.Context, changed []string) []string
 
-// WorkspaceRootResolver는 sessionID로 workspace root를 반환하는 인터페이스이다.
-// SPEC-GOOSE-CORE-001이 구현한다. 본 SPEC은 consumer.
+// WorkspaceRootResolver is the interface that returns the workspace root for a given sessionID.
+// Implemented by SPEC-GOOSE-CORE-001; this SPEC is a consumer.
 // D15 resolution / REQ-HK-021 b clause
 type WorkspaceRootResolver interface {
 	WorkspaceRoot(sessionID string) (string, error)
 }
 
-// PluginHookLoader는 plugin manifest에서 hook을 로드하는 인터페이스이다.
-// PLUGIN-001이 구현한다.
+// PluginHookLoader is the interface that loads hooks from a plugin manifest.
+// Implemented by PLUGIN-001.
 type PluginHookLoader interface {
-	// IsLoading은 플러그인 로드 중 여부를 반환한다.
-	// REQ-HK-013: 로드 중에는 Register를 거부한다.
+	// IsLoading reports whether the plugin loader is currently loading.
+	// REQ-HK-013: Register calls are rejected while loading is in progress.
 	IsLoading() bool
-	// Load는 manifest에서 hook을 로드하여 registry에 등록한다.
+	// Load loads hooks from the manifest and registers them in the registry.
 	Load(manifest any, registry *HookRegistry) error
 }
 
-// 에러 sentinel 정의
+// Error sentinels
 var (
-	// ErrRegistryLocked는 PluginHookLoader.IsLoading 중 Register 호출 시 반환된다.
+	// ErrRegistryLocked is returned when Register is called while PluginHookLoader.IsLoading is true.
 	// REQ-HK-013 / AC-HK-014
 	ErrRegistryLocked = errors.New("hook: registry is locked while plugin loader is loading")
 
-	// ErrInvalidHookInput은 HookInput이 스키마 검증에 실패했을 때 반환된다.
+	// ErrInvalidHookInput is returned when HookInput fails schema validation.
 	// REQ-HK-015 / AC-HK-016
 	ErrInvalidHookInput = errors.New("hook: HookInput failed schema validation")
 
-	// ErrHookPayloadTooLarge는 HookInput JSON이 4 MiB 초과 시 반환된다.
+	// ErrHookPayloadTooLarge is returned when the HookInput JSON exceeds 4 MiB.
 	// REQ-HK-022 / AC-HK-024
 	ErrHookPayloadTooLarge = errors.New("hook: HookInput JSON exceeds 4 MiB limit")
 
-	// ErrHookSessionUnresolved는 WorkspaceRoot resolver가 빈 경로/오류 반환 시 반환된다.
+	// ErrHookSessionUnresolved is returned when the WorkspaceRoot resolver returns an empty path or an error.
 	// REQ-HK-021 b clause / AC-HK-022
 	ErrHookSessionUnresolved = errors.New("hook: WorkspaceRoot resolver returned empty path or failed")
 
-	// ErrInvalidConsumer는 nil consumer/resolver를 등록하려 할 때 반환된다.
+	// ErrInvalidConsumer is returned when a nil consumer or resolver is registered.
 	// SPEC-GOOSE-DAEMON-WIRE-001 REQ-WIRE-008
 	ErrInvalidConsumer = errors.New("hook: cannot register nil consumer or resolver")
 )
 
-// InteractiveOptsInternal은 InteractiveOpt 함수의 수신 타입이다.
-// wire-up 코드에서 opts 상태를 읽기 위해 export된다.
+// InteractiveOptsInternal is the receiver type for InteractiveOpt functions.
+// Exported so that wire-up code can read the opts state.
 // SPEC-GOOSE-DAEMON-WIRE-001 REQ-WIRE-009
 type InteractiveOptsInternal struct {
 	ExplicitNoOp bool
 }
 
-// InteractiveOpt는 wireInteractiveHandler의 옵션 타입이다.
+// InteractiveOpt is the option type for wireInteractiveHandler.
 // SPEC-GOOSE-DAEMON-WIRE-001 REQ-WIRE-009
 type InteractiveOpt func(*InteractiveOptsInternal)
 
-// WithExplicitNoOp은 nil handler 등록이 의도된 placeholder임을 표시한다.
-// REQ-WIRE-008의 accidental-nil과 구분된다.
+// WithExplicitNoOp marks a nil handler registration as an intentional placeholder,
+// distinguishing it from an accidental nil covered by REQ-WIRE-008.
 // SPEC-GOOSE-DAEMON-WIRE-001 REQ-WIRE-009
 func WithExplicitNoOp() InteractiveOpt {
 	return func(o *InteractiveOptsInternal) { o.ExplicitNoOp = true }
 }
 
-// maxPayloadBytes는 HookInput JSON 최대 크기 (4 MiB).
-// REQ-HK-022 / D16: 정확히 4 MiB는 허용, 초과 시 에러.
+// maxPayloadBytes is the maximum size of a HookInput JSON payload (4 MiB).
+// REQ-HK-022 / D16: exactly 4 MiB is allowed; exceeding it returns an error.
 const maxPayloadBytes = 4 * 1024 * 1024
 
-// defaultShellTimeout은 shell command hook의 기본 타임아웃이다.
-// REQ-HK-006 c, D17: cfg.Timeout <= 0 이면 이 값을 사용한다.
-const defaultShellTimeout = 30 // 초
+// defaultShellTimeout is the default timeout for shell command hooks in seconds.
+// REQ-HK-006 c, D17: used when cfg.Timeout <= 0.
+const defaultShellTimeout = 30 // seconds
 
-// defaultAsyncTimeout은 async hook의 기본 타임아웃이다.
+// defaultAsyncTimeout is the default timeout for async hooks in seconds.
 // REQ-HK-010
-const defaultAsyncTimeout = 60 // 초
+const defaultAsyncTimeout = 60 // seconds
 
-// PreToolUseResult는 DispatchPreToolUse의 반환 타입이다.
+// PreToolUseResult is the return type of DispatchPreToolUse.
 type PreToolUseResult struct {
 	Blocked            bool
 	PermissionDecision *PermissionDecision
 }
 
-// PostToolUseResult는 DispatchPostToolUse의 반환 타입이다.
+// PostToolUseResult is the return type of DispatchPostToolUse.
 type PostToolUseResult struct {
 	SuppressOutput       bool
 	AdditionalContext    string
@@ -327,14 +327,14 @@ type PostToolUseResult struct {
 	Outputs              []HookJSONOutput
 }
 
-// SessionStartResult는 DispatchSessionStart의 반환 타입이다.
+// SessionStartResult is the return type of DispatchSessionStart.
 type SessionStartResult struct {
 	InitialUserMessage string
 	WatchPaths         []string
 	AdditionalContext  string
 }
 
-// DispatchResult는 일반 Dispatch 함수의 반환 타입이다.
+// DispatchResult is the return type of the generic Dispatch function.
 type DispatchResult struct {
 	HandlerCount int
 	Outcome      string // "ok" | "blocked" | "handler_error" | "timeout"

@@ -112,7 +112,7 @@ labels: [scheduler, ritual, hook, phase-7, daily-companion, acceptance]
 
 ---
 
-### AC-SCHED-007 — 시간표 영속성 (round-trip)
+### AC-SCHED-007 — 시간표 영속성 (round-trip) [PARTIAL]
 
 **Covers**: REQ-SCHED-003
 
@@ -123,6 +123,8 @@ labels: [scheduler, ritual, hook, phase-7, daily-companion, acceptance]
   - MEMORY-001 `facts` 테이블의 `ritual_schedule` 네임스페이스에 동일 3 엔트리 존재,
   - 재시작 후 load 된 RitualTime 3개의 `{EventName, LocalClock, TZ}` 가 저장 시와 완전 일치.
 - 100ms 초과·둘 중 하나 누락·필드 불일치 시 FAIL.
+
+> **PARTIAL 사유**: MEMORY-001 facts 테이블 round-trip은 MEMORY-001 SPEC 완성 후 통합 예정. 파일 round-trip(`schedule.json`)만 현재 GREEN. 출처: REVIEW-SCHEDULER-001-2026-05-10 W2.
 
 ---
 
