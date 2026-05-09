@@ -47,6 +47,12 @@ type ScheduledEvent struct {
 	// DelayHint is the total accumulated defer time when force-emit occurs.
 	// Computed as defer_count * active_window. (REQ-SCHED-021, P3)
 	DelayHint time.Duration
+	// IsReplay indicates whether this event was replayed by Scheduler.Start
+	// after a process restart that missed the scheduled time. (REQ-SCHED-022, P4b)
+	IsReplay bool
+	// DelayMinutes is the elapsed minutes between ScheduledAt and FiredAt for a
+	// replayed event. Zero when IsReplay is false.
+	DelayMinutes int
 }
 
 // RitualTime associates a ritual event with a scheduling specification.

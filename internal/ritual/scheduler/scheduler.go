@@ -81,6 +81,11 @@ type Scheduler struct {
 	// 03:00 daily learner cron entry is not registered.
 	patternReader PatternReader
 	learner       *PatternLearner
+
+	// P4b field: 3-tuple suppression and missed-event replay store.
+	// Defaults to noopFiredKeyStore (no persistence) when WithFiredKeyStore is
+	// not used.
+	firedKeys FiredKeyStore
 }
 
 // Option is a functional option for Scheduler construction.
@@ -135,6 +140,14 @@ func WithPatternReader(p PatternReader) Option {
 	return func(s *Scheduler) { s.patternReader = p }
 }
 
+// WithFiredKeyStore wires a FiredKeyStore into the Scheduler. When set, every
+// dispatched ritual is recorded with its 3-tuple key (REQ-SCHED-013), and
+// Start replays missed events whose schedule fell within the configured
+// MissedEventReplayMaxDelay (REQ-SCHED-022).
+func WithFiredKeyStore(store FiredKeyStore) Option {
+	return func(s *Scheduler) { s.firedKeys = store }
+}
+
 // withCronSpecOverride replaces all ritual cron specs with the given spec.
 // This is intentionally unexported and used only in tests via the export_test.go bridge.
 //
@@ -177,6 +190,8 @@ func NewWithDispatcher(cfg SchedulerConfig, dispatch dispatcherI, persister Sche
 	// Initialise the PatternLearner whenever a learner config is supplied; the
 	// 03:00 cron registration in Start gates on Enabled+PatternReader.
 	s.learner = NewPatternLearner(cfg.PatternLearner)
+	// Default fired-key store is a no-op; WithFiredKeyStore overrides.
+	s.firedKeys = noopFiredKeyStore{}
 
 	for _, opt := range opts {
 		opt(s)
@@ -251,6 +266,11 @@ func (s *Scheduler) Start(ctx context.Context) error {
 	engine.Start()
 	s.cron = engine
 	s.state.Store(int32(stateRunning))
+
+	// P4b: replay missed events whose scheduled time falls within
+	// MissedEventReplayMaxDelay of now. Runs synchronously on the caller's
+	// goroutine; events are pushed onto workerCh just like normal cron fires.
+	s.replayMissedEvents(ctx, rituals)
 
 	// Best-effort persist: log on error but do not fail Start.
 	if err := s.persister.Save(ctx, s.cfg); err != nil {
@@ -432,16 +452,44 @@ func (s *Scheduler) makeCallback(ctx context.Context, rt RitualTime) func() {
 			}
 		}
 
+		// P4b: 3-tuple suppression key (TZ-aware).
+		tz := s.cfg.effectiveTimezone()
+		firedKey := BuildFiredKey(string(rt.Event), localDate, tz)
+		if s.firedKeys != nil && s.firedKeys.Has(firedKey) {
+			ev := ScheduledEvent{
+				Event:         rt.Event,
+				FiredAt:       now,
+				ScheduledAt:   now,
+				Timezone:      tz,
+				UserLocalDate: localDate,
+				IsHoliday:     isHoliday,
+				HolidayName:   holidayName,
+			}
+			EmitFireLog(s.logger, ev, true, "duplicate_suppressed")
+			return
+		}
+
 		ev := ScheduledEvent{
 			Event:          rt.Event,
 			FiredAt:        now,
 			ScheduledAt:    now,
-			Timezone:       s.cfg.Timezone,
+			Timezone:       tz,
 			UserLocalDate:  localDate,
 			IsHoliday:      isHoliday,
 			HolidayName:    holidayName,
 			BackoffApplied: backoffApplied,
 			DelayHint:      delayHint,
+		}
+
+		// P4b: emit canonical fire-log entry (REQ-SCHED-004 schema).
+		EmitFireLog(s.logger, ev, false, "")
+
+		// P4b: record the fired key before enqueueing so a duplicate cron tick
+		// during the same minute is suppressed.
+		if s.firedKeys != nil {
+			if err := s.firedKeys.Mark(firedKey, now); err != nil {
+				s.logger.Warn("firedkeys_mark_error", zap.Error(err))
+			}
 		}
 
 		// P3: enqueue onto workerCh (non-blocking). Worker dispatches asynchronously.
@@ -489,6 +537,70 @@ func (s *Scheduler) NotifyTimezoneChange(ctx context.Context, newLoc *time.Locat
 		s.logger.Warn("tz_shift_notification_dispatch_error", zap.Error(err))
 	}
 	return nil
+}
+
+// replayMissedEvents inspects each configured ritual and emits a one-shot
+// replay event for any whose scheduled local time today already passed and
+// whose 3-tuple suppression key is unset. The replay window is capped at
+// cfg.MissedEventReplayMaxDelay (default 1 hour, REQ-SCHED-022).
+//
+// Replays carry IsReplay=true and DelayMinutes=<actual>, so downstream
+// consumers can adapt tone (e.g. BRIEFING-001 may say "you missed your
+// morning briefing 30 minutes ago" instead of "good morning").
+func (s *Scheduler) replayMissedEvents(ctx context.Context, rituals []RitualTime) {
+	if s.firedKeys == nil {
+		return
+	}
+	now := s.clock.Now()
+	maxDelay := s.cfg.effectiveMissedReplayDelay()
+	tz := s.cfg.effectiveTimezone()
+
+	for _, rt := range rituals {
+		if rt.Clock == "" {
+			continue
+		}
+		h, m, err := parseClock(rt.Clock)
+		if err != nil {
+			continue
+		}
+		// Today's scheduled local time.
+		localNow := now.In(s.location)
+		scheduledLocal := time.Date(localNow.Year(), localNow.Month(), localNow.Day(), h, m, 0, 0, s.location)
+		if !localNow.After(scheduledLocal) {
+			// Schedule has not happened yet today.
+			continue
+		}
+		key := BuildFiredKey(string(rt.Event), scheduledLocal.Format("2006-01-02"), tz)
+		if s.firedKeys.Has(key) {
+			// Already fired today.
+			continue
+		}
+		delta := localNow.Sub(scheduledLocal)
+		ev := ScheduledEvent{
+			Event:         rt.Event,
+			FiredAt:       now,
+			ScheduledAt:   scheduledLocal,
+			Timezone:      tz,
+			UserLocalDate: scheduledLocal.Format("2006-01-02"),
+			IsReplay:      true,
+			DelayMinutes:  int(delta.Minutes()),
+		}
+		if delta > maxDelay {
+			// Too stale — log skip and move on.
+			EmitFireLog(s.logger, ev, true, "missed_event_too_stale")
+			continue
+		}
+		// Within the replay window: enqueue exactly once.
+		select {
+		case s.workerCh <- ev:
+		default:
+			s.logger.Warn("ritual_replay_workerch_full", zap.String("event", string(ev.Event)))
+		}
+		// Record the replay so later callbacks do not re-fire it today.
+		if err := s.firedKeys.Mark(key, now); err != nil {
+			s.logger.Warn("firedkeys_mark_error", zap.Error(err))
+		}
+	}
 }
 
 // runDailyLearner is the 03:00-local cron callback. It reads the current

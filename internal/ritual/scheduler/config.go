@@ -54,6 +54,20 @@ type SchedulerConfig struct {
 	// PatternLearner holds parameters for the daily PatternLearner cron job.
 	// (REQ-SCHED-006, REQ-SCHED-019)
 	PatternLearner PatternLearnerConfig
+	// MissedEventReplayMaxDelay is the maximum lag between a missed scheduled
+	// time and process restart for which the scheduler will replay the event.
+	// Default: 1 hour. Zero or negative values fall back to the default.
+	// (REQ-SCHED-022)
+	MissedEventReplayMaxDelay time.Duration
+}
+
+// effectiveMissedReplayDelay returns MissedEventReplayMaxDelay or the default
+// 1-hour threshold when unset.
+func (cfg SchedulerConfig) effectiveMissedReplayDelay() time.Duration {
+	if cfg.MissedEventReplayMaxDelay <= 0 {
+		return time.Hour
+	}
+	return cfg.MissedEventReplayMaxDelay
 }
 
 // PatternLearnerConfig parameterises the daily PatternLearner that proposes

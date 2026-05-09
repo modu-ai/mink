@@ -169,3 +169,54 @@ External dep: 신규 없음
   - isolation 미사용 15회 무사고
   - LSP stale 11회 reproduction → orchestrator 직접 verify
   - agent self-report 11회 일치 (lint/vet/gofmt) — LSP false-positive 만 차이
+
+---
+
+## P4b Task Decomposition (Suppression + Log Schema + FastForward + Missed Replay)
+SPEC: SPEC-GOOSE-SCHEDULER-001 P4b
+Branch: feature/SPEC-GOOSE-SCHEDULER-001-P4b (main HEAD = 4433e49)
+External dep: 신규 없음
+
+### 의사결정 — 영속 위치 (orchestrator + user 합의 2026-05-09)
+- **결정**: AC-008 3-tuple suppression + AC-020 missed event replay 모두 JSON 파일 영속 (`~/.goose/ritual/fired_log.json`, schedule.json 동일 디렉토리). MEMORY-001 facts dispatcher 침범 회피.
+- **자료구조**: `fired_log.json` = `map[string]time.Time` (key = "{event}:{userLocalDate}:{TZ}", value = UTC FiredAt). 단일 파일이 suppression key 와 last fire time 모두 충족.
+- **AC-008 + AC-020 통합 로직**: Start 시 fired_log 로드 → 각 ritual의 today scheduled local time 계산 → 이미 지나간 + key 없음 → delta ≤ MissedEventReplayMaxDelay 면 replay 1회 + IsReplay=true, DelayMinutes=delta; delta > 면 skip + INFO log.
+- **TZ-aware**: TZ 변경 시 새 key 발생 → suppression 효과 우회 (REQ-013 명시 동작).
+
+### Tasks
+
+| Task ID | Description | Requirement | Dependencies | Planned Files | Status |
+|---------|-------------|-------------|--------------|---------------|--------|
+| T-025 | suppression.go: FiredKeyStore interface + JSONFiredKeyStore impl (Load/Mark/Has) + buildFiredKey(event, localDate, TZ) 3-tuple formatter + atomic write 보존 | REQ-SCHED-013 | - | internal/ritual/scheduler/suppression.go (신규) | pending |
+| T-026 | events.go 확장: ScheduledEvent.IsReplay bool + DelayMinutes int 필드 추가 (REQ-SCHED-022) | REQ-SCHED-022 | - | internal/ritual/scheduler/events.go (modify) | pending |
+| T-027 | config.go 확장: MissedEventReplayMaxDelay time.Duration (default 1h) | REQ-SCHED-022 | - | internal/ritual/scheduler/config.go (modify) | pending |
+| T-028 | scheduler.go: callback에서 buildFiredKey → store.Has check → 이미 fired 면 skip + INFO log; emit 후 store.Mark(key, FiredAt). Start에서 replayMissedEvents(ctx) 추가 — 각 ritual의 today scheduled local time 계산 → 이미 지나간 + 미발화 → delta ≤ MaxDelay 면 dispatch with IsReplay=true; > 면 INFO `{skipped:true, reason:"missed_event_too_stale"}` | REQ-SCHED-013, REQ-SCHED-022 | T-025, T-026, T-027 | internal/ritual/scheduler/scheduler.go (modify) | pending |
+| T-029 | logfields.go: emitFireLog(logger, ev, skipped, reason) 헬퍼 — INFO level zap 호출, exactly 7 fields {event, scheduled_at, actual_at, tz, holiday, backoff_applied, skipped} | REQ-SCHED-004 | T-026 | internal/ritual/scheduler/logfields.go (신규) + scheduler.go 통합 | pending |
+| T-030 | scheduler_test_only.go (build tag `//go:build test_only`): Scheduler.FastForward(d time.Duration) 메서드 — clock.Advance(d) + 대기 중 이벤트 emit 트리거 (clockwork FakeClock 만 동작) | REQ-SCHED-020 | - | internal/ritual/scheduler/scheduler_test_only.go (신규) | pending |
+| T-031 | scheduler_test.go 확장 — 4 RED tests (clockwork mock + tempdir fired_log + zaptest log capture): TestDuplicateSuppression_3Tuple_TZAware(AC-008) / TestLogSchema_Exactly7Fields(AC-010) / TestFastForward_BuildTagGating(AC-018) / TestMissedEventReplay_1hThreshold(AC-020) | AC-SCHED-008, 010, 018, 020 | T-025~T-030 | internal/ritual/scheduler/scheduler_test.go (extend) + scheduler_test_only_test.go (신규, build tag test_only) | pending |
+
+### P4b RED → GREEN → REFACTOR sequence
+1. RED: T-031 의 4 테스트 작성 (모두 stub 단계 실패)
+2. GREEN: T-025 → T-026 → T-027 → T-029 → T-028 → T-030 순서로 최소 구현
+3. REFACTOR: 중복 제거, English godoc, @MX 태그 갱신
+4. coverage 측정 → ≥80% (P4a 84.8% 회귀 0)
+5. golangci-lint + go vet + gofmt clean
+6. (FastForward) `go test -tags=test_only` 별도 검증 — production binary 컴파일 안 됨 확인
+7. commit (squash 1개 PR)
+
+### P4b Exit Criteria
+- AC-SCHED-008 GREEN (3-tuple TZ-aware suppression: 같은 날 같은 TZ → suppress, TZ 변경 → 새 key 처리)
+- AC-SCHED-010 GREEN (zap INFO 로그 정확히 7 fields)
+- AC-SCHED-018 GREEN (production build에 FastForward 미링크, test_only build tag 시에만 동작)
+- AC-SCHED-020 GREEN (시나리오 A 30min → replay; 시나리오 B 1h30m → skip)
+- 누적 20/20 AC GREEN — SPEC v0.2.0 완수, sync 진입 가능
+
+### Drift Guard baseline (P4b)
+- Planned new files: 3 (suppression.go, logfields.go, scheduler_test_only.go)
+- Planned modifications: 3 (events.go, config.go, scheduler.go) + 1 test extend (scheduler_test.go)
+- Total planned: 7 files
+- 외부 의존 신규: 없음
+- 누적 lesson (P4a 이후):
+  - isolation 미사용 16회 무사고
+  - LSP stale 12회 reproduction
+  - 1M context API 차단 (P4a 1회) → orchestrator 직접 구현 정책 예외 적용 패턴
