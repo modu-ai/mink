@@ -8,14 +8,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// permissionState는 useCanUseTool 호출 시 사용하는 YOLO classifier 상태이다.
-// REQ-HK-012: SetYoloClassifierApproval 후 Clear까지 유지.
-type permissionState struct {
-	mu           sync.RWMutex
-	yoloPatterns map[string]struct{}
-}
-
-// DefaultPermissionQueue는 인메모리 PermissionQueueOps 구현체이다.
+// DefaultPermissionQueue is the in-memory PermissionQueueOps implementation.
 // 단순 로깅 기반 구현; 실제 세션 상태는 세션 종료 시 reset.
 type DefaultPermissionQueue struct {
 	mu     sync.RWMutex

@@ -4,6 +4,7 @@ package scheduler
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"sync"
@@ -99,9 +100,7 @@ func (s *JSONFiredKeyStore) Mark(key string, firedAt time.Time) error {
 	s.mu.Lock()
 	s.entries[key] = firedAt
 	snapshot := make(map[string]time.Time, len(s.entries))
-	for k, v := range s.entries {
-		snapshot[k] = v
-	}
+	maps.Copy(snapshot, s.entries)
 	s.mu.Unlock()
 
 	dir := filepath.Dir(s.path)

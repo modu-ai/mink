@@ -1017,7 +1017,7 @@ func TestPatternLearner_2hCap_3DayCommit(t *testing.T) {
 	pat := makePeakPattern(11, 30, 7)
 
 	var lastProposal *scheduler.RitualTimeProposal
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		prop, err := learner.Observe(scheduler.KindBreakfast, "08:00", pat)
 		if err != nil {
 			t.Fatalf("Observe(day %d): %v", i+1, err)

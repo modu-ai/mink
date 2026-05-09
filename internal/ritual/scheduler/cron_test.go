@@ -21,7 +21,6 @@ func TestParseClock_Valid(t *testing.T) {
 		{"00:00", 0, 0},
 	}
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.input, func(t *testing.T) {
 			t.Parallel()
 			h, m, err := parseClock(tc.input)
@@ -57,7 +56,6 @@ func TestParseClock_Invalid(t *testing.T) {
 		"not:int": true,
 	}
 	for _, c := range cases {
-		c := c
 		t.Run(c, func(t *testing.T) {
 			t.Parallel()
 			_, _, err := parseClock(c)
@@ -114,7 +112,7 @@ func TestCronZapLogger_Error(t *testing.T) {
 func TestKvToZapFields_OddLength(t *testing.T) {
 	t.Parallel()
 	// Odd-length: the last element has no value pair and should be skipped.
-	fields := kvToZapFields([]interface{}{"k1", "v1", "orphan"})
+	fields := kvToZapFields([]any{"k1", "v1", "orphan"})
 	if len(fields) != 1 {
 		t.Errorf("expected 1 field, got %d", len(fields))
 	}
