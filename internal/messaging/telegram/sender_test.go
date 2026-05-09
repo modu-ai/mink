@@ -54,6 +54,12 @@ func (m *mockSenderClient) SendDocument(ctx context.Context, req SendMediaReques
 	}
 	return Message{ID: 102, ChatID: req.ChatID}, nil
 }
+func (m *mockSenderClient) EditMessageText(_ context.Context, req EditMessageTextRequest) (Message, error) {
+	return Message{ID: req.MessageID, ChatID: req.ChatID, Text: req.Text}, nil
+}
+func (m *mockSenderClient) SetWebhook(_ context.Context, _ SetWebhookRequest) error   { return nil }
+func (m *mockSenderClient) DeleteWebhook(_ context.Context, _ bool) error             { return nil }
+func (m *mockSenderClient) SendChatAction(_ context.Context, _ int64, _ string) error { return nil }
 
 // mockSenderStore is a minimal Store mock for sender tests.
 type mockSenderStore struct {

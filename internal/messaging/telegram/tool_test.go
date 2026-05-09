@@ -159,13 +159,6 @@ func TestTool_Call_MissingText(t *testing.T) {
 	// If this reaches here without panic, the test passes.
 }
 
-// senderFunc adapts a function to the toolSender interface for test injection.
-type senderFunc func(ctx context.Context, req SendRequest) (*SendResponse, error)
-
-func (f senderFunc) Send(ctx context.Context, req SendRequest) (*SendResponse, error) {
-	return f(ctx, req)
-}
-
 // TestTool_Call_SendError verifies that a non-ErrUnauthorizedChatID send error
 // is wrapped and returned as a tool error.
 func TestTool_Call_SendError(t *testing.T) {

@@ -37,6 +37,12 @@ func (c *callbackTestClient) SendPhoto(_ context.Context, req SendMediaRequest) 
 func (c *callbackTestClient) SendDocument(_ context.Context, req SendMediaRequest) (Message, error) {
 	return Message{ID: 11, ChatID: req.ChatID}, nil
 }
+func (c *callbackTestClient) EditMessageText(_ context.Context, req EditMessageTextRequest) (Message, error) {
+	return Message{ID: req.MessageID, ChatID: req.ChatID, Text: req.Text}, nil
+}
+func (c *callbackTestClient) SetWebhook(_ context.Context, _ SetWebhookRequest) error   { return nil }
+func (c *callbackTestClient) DeleteWebhook(_ context.Context, _ bool) error             { return nil }
+func (c *callbackTestClient) SendChatAction(_ context.Context, _ int64, _ string) error { return nil }
 
 // recordingAgentQuery captures both text and attachments passed to Query.
 type recordingAgentQuery struct {

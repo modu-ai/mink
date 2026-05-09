@@ -237,13 +237,18 @@ func TestAuthFlow_WaitForCallback_CtxTimeout(t *testing.T) {
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
 }
 
-// TestOpenBrowser는 openBrowser가 패닉 없이 동작하는지 검증한다.
+// TestOpenBrowser is intentionally skipped in unit tests.
+//
+// openBrowser launches the OS default browser via `open` (macOS) or
+// `xdg-open` (Linux). Running this test on a developer workstation pops up
+// the browser (or registered URL handler) every test invocation, which is
+// disruptive noise during routine `go test ./...` runs.
+//
+// The function itself is exercised end-to-end via the OAuth flow when a real
+// authentication redirect is required; a unit-level NotPanics assertion does
+// not justify the side effect.
 func TestOpenBrowser(t *testing.T) {
-	// openBrowser는 브라우저를 실제로 열지 않지만 패닉 없이 완료해야 한다
-	// Windows에서는 noop이므로 모든 플랫폼에서 안전하게 호출 가능
-	assert.NotPanics(t, func() {
-		openBrowser("http://localhost:9999/test")
-	})
+	t.Skip("openBrowser launches the OS default browser; skipped to avoid test-time browser pop-ups")
 }
 
 // TestAuthFlow_HandleCallback_StateVerification은 state 검증을 검증한다.

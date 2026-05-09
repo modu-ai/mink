@@ -42,6 +42,12 @@ func (f *fakeClient) SendPhoto(_ context.Context, req telegram.SendMediaRequest)
 func (f *fakeClient) SendDocument(_ context.Context, req telegram.SendMediaRequest) (telegram.Message, error) {
 	return telegram.Message{ID: 11, ChatID: req.ChatID}, nil
 }
+func (f *fakeClient) EditMessageText(_ context.Context, req telegram.EditMessageTextRequest) (telegram.Message, error) {
+	return telegram.Message{ID: req.MessageID, ChatID: req.ChatID, Text: req.Text}, nil
+}
+func (f *fakeClient) SetWebhook(_ context.Context, _ telegram.SetWebhookRequest) error { return nil }
+func (f *fakeClient) DeleteWebhook(_ context.Context, _ bool) error                    { return nil }
+func (f *fakeClient) SendChatAction(_ context.Context, _ int64, _ string) error        { return nil }
 
 // runSetup executes the "messaging telegram setup" command with the given
 // options and returns stdout content and any error.
