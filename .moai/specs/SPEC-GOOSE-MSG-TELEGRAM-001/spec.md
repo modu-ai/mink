@@ -1,16 +1,16 @@
 ---
 id: SPEC-GOOSE-MSG-TELEGRAM-001
-version: "0.1.0"
+version: "0.1.1"
 status: audit-ready
 created_at: 2026-05-05
-updated_at: 2026-05-06
+updated_at: 2026-05-09
 author: manager-spec
 priority: P0
 phase: 4
 size: M
 lifecycle: spec-anchored
 labels: [messaging, telegram, ingress, tool, bridge, p0, channel-1st]
-issue_number: null
+issue_number: 125
 ---
 
 # SPEC-GOOSE-MSG-TELEGRAM-001 — Telegram Bot Ingress + Send Tool (BRIDGE-001 연동)
@@ -21,6 +21,7 @@ issue_number: null
 |-----|------|---------|------|
 | 0.1.0 | 2026-05-05 | 초안 — GOOSE 8주 로드맵 Phase 4 (channel rollout) 첫 채널. Telegram Bot API 6.x 기반 1:1 ingress + outbound `telegram_send_message` tool. BRIDGE-001 (Daemon ↔ UI) 위에 wiring, TOOLS-001 registry 에 등록, MEMORY-001 으로 chat_id ↔ user_profile mapping, CREDENTIAL-PROXY-001 로 bot token keyring 보관, AUDIT-001 으로 모든 메시지 감사 로그 append. 사용자 마찰 가장 낮은 (5분 셋업) 첫 1차 접점 채널. | manager-spec |
 | 0.1.0 | 2026-05-06 | plan-auditor iter-1 CONDITIONAL_GO (5 defects D1~D5: AC count 10→11, plan.md L39 AC-MTGM-009 mis-binding, spec-compact.md §4 헤더, spec-compact.md §10 "10 AC", Markdown V2 reserved char count 16→18) 보강. 모든 결함 수정 후 plan-auditor iter-2 PASS (overall 0.91, 0 defects). status `draft` → `audit-ready` 전환. | manager-spec |
+| 0.1.1 | 2026-05-09 | plan workflow Phase 2.5 — GitHub Issue #125 생성 후 frontmatter `issue_number: 125` 동기화. SPEC 본문 변경 없음, Issue ↔ SPEC 양방향 링크 확립 (영문 Issue body, run.md Phase 3 에서 `Fixes #125` 사용). | MoAI |
 
 ---
 
