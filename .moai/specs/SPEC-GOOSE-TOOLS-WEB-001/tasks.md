@@ -205,3 +205,19 @@ External dep: github.com/mmcdole/gofeed v1.3.0 (신규)
 | T-041 | arxiv.go: webArxiv + apiBaseBuilder + Call (URL build + http.Get + gofeed parse + result mapping) | REQ-WEB-001/002 | T-038 | internal/tools/web/arxiv.go | DONE |
 | T-042 | arxiv_test.go: 8 시나리오 (QuerySuccess / SortBy / SchemaValidation / BlocklistPriority / PermissionDenied / RegisteredInWebTools / AuditWriter / EmptyCategories) | REQ-WEB-001/002 | T-041 | internal/tools/web/arxiv_test.go | DONE |
 | T-043 | register_test.go: expectation 10 → 12 | wiring | T-039, T-041 | internal/tools/web/register_test.go | DONE |
+
+---
+
+## M4 Task Decomposition (web_maps + web_wayback)
+SPEC: SPEC-GOOSE-TOOLS-WEB-001 M4
+Branch: feature/tools-web-m4 (main HEAD = e52b618)
+External dep: 없음 (stdlib only)
+
+### Tasks
+| Task ID | Description | Requirement | Dependencies | Planned Files | Status |
+|---------|-------------|-------------|--------------|---------------|--------|
+| T-044 | maps.go: webMaps + apiBaseBuilder + parseMapsInput (operation enum, geocode/reverse validation) + Call (URL build geocode/reverse + Nominatim lat/lon string→float64 정규화) | REQ-WEB-001/002, AC-WEB-015 | M3 common 인프라 | internal/tools/web/maps.go | DONE |
+| T-045 | maps_test.go: 7 시나리오 (GeocodeAndReverse / SchemaValidation 7 subcases / BlocklistPriority / PermissionDenied / RegisteredInWebTools / AuditWriter / FetchFailure) | AC-WEB-015 | T-044 | internal/tools/web/maps_test.go | DONE |
+| T-046 | wayback.go: webWayback + apiBaseBuilder + parseWaybackInput (url scheme + 14-digit timestamp pattern) + Call (Wayback Machine API + closest.available → status 변환) | REQ-WEB-001/002, AC-WEB-016 | M3 common 인프라 | internal/tools/web/wayback.go | DONE |
+| T-047 | wayback_test.go: 7 시나리오 (LatestSnapshot / Unavailable / SchemaValidation 7 subcases / BlocklistPriority / PermissionDenied / RegisteredInWebTools / AuditWriter) | AC-WEB-016 | T-046 | internal/tools/web/wayback_test.go | DONE |
+| T-048 | register_test.go: expectation 12 → 14 | wiring | T-044, T-046 | internal/tools/web/register_test.go | DONE |
