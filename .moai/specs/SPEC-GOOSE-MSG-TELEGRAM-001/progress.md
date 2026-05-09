@@ -173,3 +173,76 @@ Methodology: TDD RED-GREEN-REFACTOR
 - gofmt clean, go vet clean, go build PASS, go test -race PASS
 - go test -tags=integration PASS, go test -tags=nokeyring PASS
 - @MX:TODO 0개
+
+---
+
+## Sync Phase (2026-05-09)
+
+Branch: feature/SPEC-GOOSE-MSG-TELEGRAM-001-SYNC
+
+### Divergence 일괄 반영 (12건)
+
+**P2 에서 발견된 6건 (analyze-p2.md §6 기준)**:
+
+1. **AgentService/Query → Chat**: gRPC 메서드명은 `Chat()`, adapter interface `ChatService` 로 래핑
+   - 반영: spec.md §3.1 Area 2.3, §3.1 Area 2 메시지 처리 흐름, plan.md §3.2 wiring, §7 검증
+
+2. **MEMORY-001 BoltDB → sqlite (Option B)**: `modernc.org/sqlite` v1.50.0 독립 DB (`~/.goose/messaging/telegram.db`)
+   - 반영: spec.md §3.1 Area 4, §5.2 의존 라이브러리, §6 의존성, plan.md §3.2, §3.5 test
+
+3. **NoOpAgentQuery 임시 (P2) → ChatService (P3)**: P3에서 domain interface로 대체 완료
+   - 반영: spec.md HISTORY version 0.1.2
+
+4. **AgentChatRequest.Agent 필드명**: 실제 gRPC schema 명시
+   - 반영: plan.md §3.2 의사코드
+
+5. **P2 NoOp 응답 → P3 ChatService 응답**: 완전 폐기
+   - 반영: progress.md (본 entry)
+
+6. **credproxy 부적합 → OS keyring (zalando/go-keyring v0.2.8)**: bot token keyring alternative
+   - 반영: spec.md §3.1 Area 1, §4.1 REQ-MTGM-U02, §5.2 의존, §6 의존성, plan.md §3.4 보안
+
+**P3 에서 발견된 6건 (strategy-p3.md §F 기준)**:
+
+7. **CLI-TUI-002 modal 미구현 → AC-MTGM-005 E2 P4 deferred**: registry preapproval + sender allowed_users gate 이중 방어
+   - 반영: spec.md §9 AC 요약, acceptance.md AC-MTGM-005 "Note (P3 현황)"
+
+8. **callback_data PII 정책**: audit 에 content_hash 만 기록, raw 미포함
+   - 반영: spec.md §4.4 REQ-MTGM-N06 (callback_data 정책 추가)
+
+9. **REQ-MTGM-N04 표현 보완**: callback timeout 초과 시 answerCallbackQuery만 skip, 응답은 진행
+   - 반영: spec.md §4.4 REQ-MTGM-N04 표현 정정
+
+10. **attachment JSON Schema strict oneOf**: path | url oneOf 형태
+    - 반영: spec.md §3.1 Area 3 JSON schema 정정
+
+11. **daemon hook wiring**: `cmd/goosed/main.go` Step 10.9/11.5 위치 명시
+    - 반영: spec.md §5.1 패키지 레이아웃 (new marker [NEW] (P3), Step 숫자 명시)
+
+12. **BRIDGE Query → Chat**: P2 #1과 중복 (ChatService domain interface 이미 반영)
+    - 반영: spec.md §3.1 Area 2.3 표현 보강
+
+### Frontmatter 변경
+
+- version: `0.1.1` → `0.1.2`
+- status: `audit-ready` → `implemented` (P3 까지)
+- updated_at: `2026-05-09` (유지)
+
+### HISTORY entry 추가
+
+version 0.1.2 entry (위 HISTORY 섹션 참조).
+
+### 완료 상태
+
+- spec.md: 12건 divergence 모두 반영 완료
+- plan.md: BRIDGE Query→Chat, MEMORY-001→sqlite, test 전략, 보안 고려사항 정정 완료
+- acceptance.md: AC-MTGM-005 E2 P4 deferred, AC-MTGM-007/010 P3 GREEN, AC-MTGM-011 callback_data PII 완료
+- progress.md: Sync Phase entry 추가 완료
+
+### Sync Exit Criteria
+
+- [x] spec.md 12건 divergence 반영 완료
+- [x] plan.md BRIDGE/MEMORY/test/security 정정 완료
+- [x] acceptance.md AC 상태 명시 완료
+- [x] progress.md Sync Phase entry 추가 완료
+- [x] frontmatter (version 0.1.2, status implemented) 갱신 완료

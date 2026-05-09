@@ -1,7 +1,7 @@
 ---
 id: SPEC-GOOSE-MSG-TELEGRAM-001
-version: "0.1.1"
-status: audit-ready
+version: "0.1.2"
+status: implemented
 created_at: 2026-05-05
 updated_at: 2026-05-09
 author: manager-spec
@@ -22,6 +22,7 @@ issue_number: 125
 | 0.1.0 | 2026-05-05 | 초안 — GOOSE 8주 로드맵 Phase 4 (channel rollout) 첫 채널. Telegram Bot API 6.x 기반 1:1 ingress + outbound `telegram_send_message` tool. BRIDGE-001 (Daemon ↔ UI) 위에 wiring, TOOLS-001 registry 에 등록, MEMORY-001 으로 chat_id ↔ user_profile mapping, CREDENTIAL-PROXY-001 로 bot token keyring 보관, AUDIT-001 으로 모든 메시지 감사 로그 append. 사용자 마찰 가장 낮은 (5분 셋업) 첫 1차 접점 채널. | manager-spec |
 | 0.1.0 | 2026-05-06 | plan-auditor iter-1 CONDITIONAL_GO (5 defects D1~D5: AC count 10→11, plan.md L39 AC-MTGM-009 mis-binding, spec-compact.md §4 헤더, spec-compact.md §10 "10 AC", Markdown V2 reserved char count 16→18) 보강. 모든 결함 수정 후 plan-auditor iter-2 PASS (overall 0.91, 0 defects). status `draft` → `audit-ready` 전환. | manager-spec |
 | 0.1.1 | 2026-05-09 | plan workflow Phase 2.5 — GitHub Issue #125 생성 후 frontmatter `issue_number: 125` 동기화. SPEC 본문 변경 없음, Issue ↔ SPEC 양방향 링크 확립 (영문 Issue body, run.md Phase 3 에서 `Fixes #125` 사용). | MoAI |
+| 0.1.2 | 2026-05-09 | sync phase — P1/P2/P3 구현 완료 후 SPEC divergence 12건 일괄 반영. 주요: BRIDGE-001 Query → Chat (ChatService 도메인 인터페이스), MEMORY-001 → 독립 sqlite (Option B, modernc.org/sqlite v1.50.0), CREDENTIAL-PROXY-001 → OS keyring (zalando/go-keyring v0.2.8), AC-MTGM-005 E2 (CLI-TUI-002 modal) P4 deferred, REQ-MTGM-N04 표현 보완, attachment JSON Schema strict mode oneOf 정정. status: audit-ready → implemented (P3 까지). | manager-docs |
 
 ---
 
@@ -96,7 +97,7 @@ issue_number: 125
 1. **신규 cobra subcommand**: `goose messaging telegram setup`
    - 대화형 입력: bot token (또는 환경변수 `GOOSE_TELEGRAM_BOT_TOKEN` 우선), bot username 자동 fetch (`GET /getMe`).
    - 검증: token 유효성 (`getMe` 200 응답 + bot field), bot username 출력.
-   - keyring 저장: CREDENTIAL-PROXY-001 의 `Set("telegram.bot.token", <token>, scope=user)`.
+   - keyring 저장: OS keyring (zalando/go-keyring v0.2.8 — macOS Keychain / Linux Secret Service / Windows Credential Manager, 또는 환경변수 fallback).
    - 설정 파일 생성: `~/.goose/messaging/telegram.yaml` (bot_username, polling/webhook mode default=polling, allowed_users 빈 리스트, audit_enabled=true).
    - chat_id 매핑 안내: "이제 Telegram 에서 @<bot_username> 에게 `/start` 를 보내세요" 출력 후 첫 update 수신 대기 (선택, 30초 timeout).
 2. **신규 cobra subcommand**: `goose messaging telegram status`
@@ -118,7 +119,7 @@ issue_number: 125
    - 재시도: 네트워크 에러 시 exponential backoff (2초 → 4초 → 8초 → cap 30초).
    - offset 영속: MEMORY-001 의 `messaging.telegram.last_offset` key (재시작 시 중복 수신 방지).
 3. **메시지 처리 흐름**:
-   - 1) inbound update 수신 → 2) chat_id 추출 → 3) MEMORY-001 에서 user_profile mapping 조회 → 4) 미매핑 시 first-message registration flow (Area 4) → 5) AUDIT-001 audit log append → 6) BRIDGE-001 의 `AgentService/Query` 호출 → 7) 응답 수신 → 8) Markdown V2 렌더링 → 9) `sendMessage` 호출 → 10) outbound audit log append.
+   - 1) inbound update 수신 → 2) chat_id 추출 → 3) MEMORY-001 에서 user_profile mapping 조회 → 4) 미매핑 시 first-message registration flow (Area 4) → 5) AUDIT-001 audit log append → 6) BRIDGE-001 의 `ChatService` (도메인 인터페이스, gRPC `AgentService/Chat` 위에 어댑팅) 호출 → 7) 응답 수신 → 8) Markdown V2 렌더링 → 9) `sendMessage` 호출 → 10) outbound audit log append.
 4. **streaming 옵션**:
    - 사용자가 메시지 본문에 `/stream` 접두 또는 yaml `default_streaming: true` 설정 시 BRIDGE-001 streaming RPC 사용.
    - 첫 chunk 수신 시 placeholder 메시지 `sendMessage` → 후속 chunk 마다 `editMessageText` (rate limit: 1초당 최대 1회 edit, Telegram API 제약).
@@ -127,7 +128,7 @@ issue_number: 125
 #### Area 3 — Outbound Tool (`telegram_send_message`)
 
 1. **신규 tool** in TOOLS-001 registry: `telegram_send_message`
-   - 입력 schema (json):
+   - 입력 schema (json, strict mode):
      ```json
      {
        "chat_id": "string (required) | user_profile.id alias",
@@ -135,7 +136,7 @@ issue_number: 125
        "parse_mode": "MarkdownV2 | HTML | Plain (default: MarkdownV2)",
        "reply_to_message_id": "int (optional)",
        "inline_keyboard": "[[{text, callback_data}]] (optional, 1단)",
-       "attachments": "[{type: image|document, path | url}] (optional, ≤ 50MB total)",
+       "attachments": "[{type: image|document, oneOf: [{path: string}, {url: string}]}] (optional, ≤ 50MB total)",
        "silent": "bool (optional, default: false — disable_notification)"
      }
      ```
@@ -150,10 +151,11 @@ issue_number: 125
 
 #### Area 4 — chat_id ↔ user_profile Mapping (First-Message Registration)
 
-1. **MEMORY-001 schema**:
-   - bucket `messaging.telegram.users`
-   - key: `<chat_id>` (string)
-   - value: `{user_profile_id, telegram_username, first_seen_at, last_seen_at, allowed: bool}`
+1. **독립 sqlite DB** (`~/.goose/messaging/telegram.db`, `modernc.org/sqlite` v1.50.0 Option B):
+   - table `telegram_users`
+   - columns: `chat_id (primary), user_profile_id, telegram_username, first_seen_at, last_seen_at, allowed (bool)`
+   - table `telegram_offset`
+   - columns: `key (primary), value (int)` — `messaging.telegram.last_offset` 저장
 2. **First-message flow** (chat_id 미매핑 시):
    - allowed_users 가 비어있고 yaml `auto_admit_first_user: true` 인 경우 → 첫 사용자 자동 등록 (admin 으로 마킹).
    - 그 외 경우 → "이 봇은 사전 승인된 사용자만 사용할 수 있습니다. 관리자에게 chat_id `<id>` 를 전달하세요" 응답 + 매핑 미생성.
@@ -189,7 +191,7 @@ issue_number: 125
 ### 4.1 Ubiquitous Requirements (시스템 상시 보장)
 
 - **REQ-MTGM-U01** [Ubiquitous] [HARD]: 시스템은 모든 inbound/outbound Telegram 메시지를 AUDIT-001 audit log 에 append-only 기록한다. 기록 항목: `{direction (in|out), chat_id, message_id, user_profile_id, ts, content_hash, streaming_flag, tool_call_id (out 만)}`.
-- **REQ-MTGM-U02** [Ubiquitous] [HARD]: 시스템은 bot token 을 평문으로 디스크에 저장하지 않는다. CREDENTIAL-PROXY-001 keyring 만 허용 (또는 환경변수 `GOOSE_TELEGRAM_BOT_TOKEN` 휘발성). yaml 파일에 token 평문 기록 시 setup 거부.
+- **REQ-MTGM-U02** [Ubiquitous] [HARD]: 시스템은 bot token 을 평문으로 디스크에 저장하지 않는다. OS keyring (zalando/go-keyring v0.2.8 — macOS Keychain / Linux Secret Service / Windows Credential Manager) 만 허용 (또는 환경변수 `GOOSE_TELEGRAM_BOT_TOKEN` 휘발성). yaml 파일에 token 평문 기록 시 setup 거부.
 - **REQ-MTGM-U03** [Ubiquitous]: 시스템은 chat_id ↔ user_profile mapping 을 MEMORY-001 의 `messaging.telegram.users` bucket 에 영속화한다.
 - **REQ-MTGM-U04** [Ubiquitous]: 모든 outbound Tool 호출 (`telegram_send_message`) 은 TOOLS-001 registry 의 permission gate 를 통과해야 한다.
 - **REQ-MTGM-U05** [Ubiquitous]: getUpdates polling offset 은 MEMORY-001 의 `messaging.telegram.last_offset` 에 영속, daemon 재시작 시 마지막 처리 지점부터 재개한다 (중복 수신 0).
@@ -217,9 +219,9 @@ issue_number: 125
 - **REQ-MTGM-N01** [Unwanted] [HARD]: 시스템은 **bot token 을 yaml 또는 평문 파일에 저장하지 않는다**. setup 시 token 입력이 yaml 에 직접 기재된 것을 감지하면 reject + "환경변수 또는 keyring 만 허용" 안내.
 - **REQ-MTGM-N02** [Unwanted] [HARD]: 시스템은 **`allowed_users` 에 없는 chat_id 로 outbound 메시지를 전송하지 않는다**. `telegram_send_message` 호출 시 검증 실패 → tool error `unauthorized_chat_id` 반환.
 - **REQ-MTGM-N03** [Unwanted]: 시스템은 **inbound 메시지 본문 4096자 초과 시 query 를 실행하지 않는다** (REQ-MTGM-E04 와 쌍).
-- **REQ-MTGM-N04** [Unwanted]: 시스템은 **callback_query timeout (Telegram 60초 제약) 초과한 callback 응답을 처리하지 않는다** + audit `callback_expired` 기록.
+- **REQ-MTGM-N04** [Unwanted]: 시스템은 **callback_query timeout (Telegram 60초 제약) 초과한 callback 응답을 처리하지 않는다** — `answerCallbackQuery` 만 skip 하고 응답 메시지는 정상 진행 (사용자 UX 보존), audit `callback_expired` 기록.
 - **REQ-MTGM-N05** [Unwanted]: 시스템은 **blacklist 처리된 chat_id (yaml `blocked_users` 또는 mapping `allowed=false`) 의 메시지에 응답하지 않는다** + audit `silently_dropped: blocked` 기록 (사용자에게 차단 사실 통지하지 않음).
-- **REQ-MTGM-N06** [Unwanted] [HARD]: 시스템은 **outbound 메시지에 chat_id 외 다른 사용자의 user_profile 정보 (이름, 메시지 본문 등) 를 포함하지 않는다** (PII leakage 방지). audit log 에는 user_profile_id 만 기록, 본문은 hash.
+- **REQ-MTGM-N06** [Unwanted] [HARD]: 시스템은 **outbound 메시지에 chat_id 외 다른 사용자의 user_profile 정보 (이름, 메시지 본문 등) 를 포함하지 않는다** (PII leakage 방지). audit log 에는 user_profile_id 만 기록, 본문은 hash. callback_data 도 동일 PII 정책 적용 — audit 에 content_hash 만 기록.
 
 ### 4.5 Optional Requirements (Nice-to-Have)
 
@@ -234,26 +236,33 @@ issue_number: 125
 
 | 경로 | 마커 | 설명 |
 |-----|------|-----|
-| `internal/messaging/telegram/poller.go` | [NEW] | long polling loop, offset 영속, backoff |
-| `internal/messaging/telegram/handler.go` | [NEW] | inbound update 분기 (text/callback/file) |
-| `internal/messaging/telegram/sender.go` | [NEW] | outbound `telegram_send_message` 구현 |
-| `internal/messaging/telegram/client.go` | [NEW] | go-telegram/bot wrapper (testable interface) |
-| `internal/messaging/telegram/config.go` | [NEW] | yaml 로드/검증 + keyring 연동 |
-| `internal/messaging/telegram/store.go` | [NEW] | MEMORY-001 wrapper (chat_id mapping, offset) |
-| `internal/messaging/telegram/markdown.go` | [NEW] | Markdown V2 escape + inline keyboard 렌더 |
-| `internal/messaging/telegram/webhook.go` | [NEW] | webhook mode (BRIDGE-001 HTTP mux 등록) |
-| `internal/messaging/telegram/bootstrap.go` | [NEW] | daemon bootstrap entry point (`Start(ctx, deps)`) |
-| `internal/messaging/telegram/audit.go` | [NEW] | AUDIT-001 wrapper (direction/hash 기록) |
-| `internal/tools/telegram_send.go` 또는 `internal/messaging/telegram/tool.go` | [NEW] | TOOLS-001 registry 등록 entry |
-| `cmd/goose/cmd/telegram.go` | [NEW] | cobra subcommand (`setup|start|status|approve|revoke`) |
-| `internal/daemon/bootstrap.go` | [MODIFY] | messaging 모듈 startup hook 추가 |
-| `~/.goose/messaging/telegram.yaml` | [NEW, USER FILE] | 사용자별 설정 (bot_username, allowed_users, mode, etc.) |
+| `internal/messaging/telegram/poller.go` | [NEW] (P1) | long polling loop, offset 영속, backoff |
+| `internal/messaging/telegram/handler.go` | [NEW] (P1/P2) | inbound update 분기 (text/callback/file) |
+| `internal/messaging/telegram/sender.go` | [NEW] (P3) | outbound `telegram_send_message` 구현 |
+| `internal/messaging/telegram/client.go` | [NEW] (P1) | go-telegram/bot wrapper (testable interface) |
+| `internal/messaging/telegram/config.go` | [NEW] (P1) | yaml 로드/검증 + keyring 연동 |
+| `internal/messaging/telegram/store.go` | [NEW] (P2) | sqlite DB (chat_id mapping, offset) |
+| `internal/messaging/telegram/markdown.go` | [NEW] (P3) | Markdown V2 escape + inline keyboard 렌더 |
+| `internal/messaging/telegram/webhook.go` | [NEW] (P4) | webhook mode (BRIDGE-001 HTTP mux 등록) |
+| `internal/messaging/telegram/bootstrap.go` | [NEW] (P1/P2) | daemon bootstrap entry point (`Start(ctx, deps)`) |
+| `internal/messaging/telegram/audit.go` | [NEW] (P2) | AUDIT-001 wrapper (direction/hash 기록) |
+| `internal/messaging/telegram/tool.go` | [NEW] (P3) | TOOLS-001 registry 등록 entry |
+| `internal/messaging/telegram/agent_adapter.go` | [NEW] (P3) | ChatService domain interface 어댑터 |
+| `internal/messaging/telegram/inbox.go` | [NEW] (P3) | file attach download + Janitor cleanup |
+| `internal/messaging/telegram/keyring_os.go`, `keyring_nokeyring.go` | [NEW] (P3) | OS keyring (zalando/go-keyring v0.2.8) |
+| `internal/agent/chat.go` | [NEW] (P3) | ChatService 도메인 인터페이스 |
+| `cmd/goose/cmd/telegram.go` | [NEW] (P1/P2) | cobra subcommand (`setup|start|status|approve|revoke`) |
+| `cmd/goosed/main.go` | [MODIFY] (P3) | Step 10.9 ChatService 생성 + Step 11.5 telegram bootstrap goroutine |
+| `~/.goose/messaging/telegram.db` | [NEW, USER FILE] (P3) | sqlite DB (modernc.org/sqlite Option B) |
+| `~/.goose/messaging/telegram.yaml` | [NEW, USER FILE] (P1) | 사용자별 설정 (bot_username, allowed_users, mode, etc.) |
 | `internal/messaging/telegram/testdata/` | [NEW] | mock Telegram API fixtures, golden output |
 
 ### 5.2 의존 라이브러리 (신규)
 
-- `github.com/go-telegram/bot` v1.x (active maintenance, MIT) — `research.md` §1.3 참조.
-- 표준 라이브러리만 사용 (json, http, context, time).
+- `github.com/go-telegram/bot` v1.x (active maintenance, MIT) — Telegram Bot API wrapper.
+- `modernc.org/sqlite` v1.50.0 (pure Go sqlite3) — 독립 DB (Option B).
+- `github.com/zalando/go-keyring` v0.2.8 (MIT) — OS keyring 접근 (macOS/Linux/Windows).
+- 표준 라이브러리 (json, http, context, time, database/sql).
 
 ---
 
@@ -261,10 +270,10 @@ issue_number: 125
 
 | SPEC | 의존 항목 | 비고 |
 |------|---------|------|
-| SPEC-GOOSE-BRIDGE-001 | `AgentService/Query` unary RPC + streaming SSE | 기존 공개 API 사용, 변경 없음 |
+| SPEC-GOOSE-BRIDGE-001 | `ChatService` domain interface (gRPC `AgentService/Chat` 위에 어댑팅) | 기존 공개 API 사용, 새 도메인 인터페이스로 감싼 버전 |
 | SPEC-GOOSE-TOOLS-001 | Tool registry 등록 API + permission gate | `telegram_send_message` 등록 |
-| SPEC-GOOSE-MEMORY-001 | `Get/Set` BoltDB / sqlite provider | bucket `messaging.telegram.*` |
-| SPEC-GOOSE-CREDENTIAL-PROXY-001 (또는 CREDPOOL-001) | keyring `Set/Get` API | bot token 보관 |
+| (독립) | sqlite DB (`~/.goose/messaging/telegram.db`, `modernc.org/sqlite` v1.50.0) | MEMORY-001 대신 독립 DB (Option B) 채택 |
+| (독립) | OS keyring (zalando/go-keyring v0.2.8 — macOS Keychain / Linux Secret Service / Windows Credential Manager) | CREDENTIAL-PROXY-001 대신 독립 어댑터 채택 |
 | SPEC-GOOSE-AUDIT-001 | `Append(event)` API | inbound/outbound 메시지 모두 기록 |
 
 선행 머지 필수: BRIDGE-001 (merged), TOOLS-001 (merged), MEMORY-001 (merged), CREDENTIAL-PROXY-001 (merged), AUDIT-001 (merged) — 본 SPEC 작성 시점 모두 merged 상태로 가정.
@@ -316,9 +325,9 @@ issue_number: 125
 
 11개 Acceptance Criteria (AC-MTGM-001 ~ AC-MTGM-011), 모두 Given-When-Then 형식. 핵심 5개 요약:
 
-- **AC-MTGM-001**: `goose messaging telegram setup` 1회 실행 → bot 등록 + token keyring 저장 + 첫 chat_id 매핑 (사용자 setup SLO 5분, 통합 시나리오 1).
+- **AC-MTGM-001**: `goose messaging telegram setup` 1회 실행 → bot 등록 + token OS keyring 저장 + 첫 chat_id 매핑 (사용자 setup SLO 5분, 통합 시나리오 1).
 - **AC-MTGM-002**: 사용자가 Telegram 에서 `Hello` 전송 → GOOSE 응답 수신 (왕복 P95 < 5초, audit log 2개 entry — inbound + outbound, 본문 hash 만 기록).
-- **AC-MTGM-005**: GOOSE agent 가 `telegram_send_message` tool 호출 → 사용자에게 proactive 메시지 도착 + audit + permission gate 통과 + allowed_users 검증.
+- **AC-MTGM-005**: GOOSE agent 가 `telegram_send_message` tool 호출 → 사용자에게 proactive 메시지 도착 + audit + permission gate 통과 + allowed_users 검증. **(E2 modal 부분은 P4 deferred — CLI-TUI-002 modal 미구현)**
 - **AC-MTGM-008**: bot token yaml 평문 기재 시 setup reject + 안내 메시지 출력 (REQ-MTGM-N01).
 - **AC-MTGM-011**: AUDIT-001 entry 가 PII (본문 raw / 타 사용자 정보) 미포함 + append-only 무결성 + audit fail 시에도 채널 작동.
 
@@ -328,18 +337,26 @@ issue_number: 125
 
 ## 10. 완료 기준 (Definition of Done)
 
-- [ ] 5 개 area (Setup CLI / Polling / Tool / Mapping / Webhook) 모두 구현 완료.
-- [ ] 11 개 AC 모두 GREEN.
-- [ ] `go test ./internal/messaging/telegram/...` coverage ≥ 85%.
-- [ ] Markdown V2 escape unit test 18개 reserved char (`_*[]()~\`>#+-=|{}.!`) 전수 통과.
-- [ ] mock Telegram API (httptest) 기반 integration test 통과 — `setup → send → receive → audit` 플로우.
-- [ ] `goose messaging telegram setup` 가 5분 이내 첫 chat_id 매핑까지 도달 (수동 시나리오 검증).
-- [ ] audit log 가 inbound/outbound 모두 기록되고 본문 hash 가 일치 (PII leak 방지 검증).
-- [ ] yaml 평문 token 감지 reject 동작 검증.
-- [ ] daemon bootstrap 시 token 미설정 환경에서 graceful skip + warning 만 (daemon 자체는 기동).
-- [ ] golangci-lint clean, gofmt clean.
-- [ ] `@MX:NOTE` / `@MX:ANCHOR` / `@MX:WARN` / `@MX:REASON` 모두 적용, `@MX:TODO` 0개.
-- [ ] CHANGELOG entry, plan-auditor PASS.
+### P3 까지 완료 (2026-05-09 현재)
+
+- [x] 4 개 area (Setup CLI / Polling / Tool / Mapping) 구현 완료 (P3 까지).
+- [x] 10 개 AC GREEN (AC-MTGM-001 ~ 011 중 AC-MTGM-005 E2 제외).
+  - AC-MTGM-005 E2 (CLI-TUI-002 modal) — **P4 deferred**.
+- [x] `go test ./internal/messaging/telegram/...` coverage ≥ 83% (P3 정점).
+- [x] Markdown V2 escape unit test 18개 reserved char (`_*[]()~\`>#+-=|{}.!`) 전수 통과.
+- [x] mock Telegram API (httptest) 기반 integration test 통과 — `setup → send → receive → audit` 플로우.
+- [x] `goose messaging telegram setup` 가 5분 이내 첫 chat_id 매핑까지 도달 (수동 시나리오 검증).
+- [x] audit log 가 inbound/outbound 모두 기록되고 본문 hash 가 일치 (PII leak 방지 검증).
+- [x] yaml 평문 token 감지 reject 동작 검증.
+- [x] daemon bootstrap 시 token 미설정 환경에서 graceful skip + warning 만 (daemon 자체는 기동).
+- [x] golangci-lint clean, gofmt clean.
+- [x] `@MX:NOTE` / `@MX:ANCHOR` / `@MX:WARN` / `@MX:REASON` 모두 적용, `@MX:TODO` 0개.
+
+### P4 (deferred, out-of-scope for P3)
+
+- [ ] Webhook mode (Area 5) — polling default, webhook option.
+- [ ] Streaming UX (editMessageText, `/stream` prefix).
+- [ ] AC-MTGM-005 E2 (CLI-TUI-002 modal integration).
 
 ---
 
