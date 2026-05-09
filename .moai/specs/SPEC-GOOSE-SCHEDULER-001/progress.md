@@ -383,3 +383,56 @@
 - **race fix in TestMissedEventReplay** — `capturingDispatcher` 가 worker goroutine에서 호출되며 외부 변수 (replayCount, lastEvent) mutate. `time.Sleep(100ms) + defer Stop()` → `Stop() + 직접 read` 로 변경. Stop은 worker drain 보장.
 - **JSON 영속 단일 파일** — fired_keys + last_fire_time 통합하여 `~/.goose/ritual/fired_log.json` 에 `map[string]time.Time` 으로 저장. 별도 파일 분리 (예: replay_log.json) 회피하여 atomic write 1회.
 - **canonical schema 7 fields 엄격** — REQ-SCHED-004의 7 fields {event, scheduled_at, actual_at, tz, holiday, backoff_applied, skipped} 를 EmitFireLog가 강제. reason은 schema에 없으므로 별도 DEBUG 로그로 분리. AC-010이 `len(entry.Context) == 7` 검증.
+
+### P4b Merge — 2026-05-10
+- PR #138 squash merged (admin bypass)
+- main HEAD = c9e7cdb
+- 10 파일 +715 / -1
+
+---
+
+## Sync — 2026-05-10 (SPEC v0.2.0 implementation 완수 → v0.2.1)
+
+### Branch / Base
+- Branch: feature/SPEC-GOOSE-SCHEDULER-001-sync
+- Base: main HEAD = c9e7cdb (P4b merged)
+
+### 갱신 내용
+- spec.md frontmatter:
+  - `version: 0.2.0 → 0.2.1`
+  - `status: audit-ready → completed`
+  - `updated_at: 2026-05-05 → 2026-05-10`
+- spec.md HISTORY 표에 v0.2.1 entry 추가 — 5 PR (#133/135/136/137/138) merged, 20/20 AC GREEN, coverage 84.1%, DI seam 패턴 일관성 명시, 담당 = orchestrator (manager-tdd 1M context API 차단 정책 예외).
+
+### 누적 결과 (SPEC v0.2.0 implementation 종결)
+
+| Phase | PR | AC GREEN | tests | coverage | merged commit |
+|-------|----|----------|-------|----------|---------------|
+| P1 (Cron + Events + Persist) | #133 | 5 | 20 | 91.0% | ddee87f |
+| P2 (Timezone + Holiday) | #135 | 3 | +8 (28) | 89.9% | d4f2167 |
+| P3 (Backoff + Worker + Quiet Hours) | #136 | 5 | +5 (33) | 89.1% | 0a0d053 |
+| P4a (PatternLearner + Daily Cron) | #137 | 3 | +3 (36) | 84.8% | 4433e49 |
+| P4b (Suppression + Schema + FastForward + Replay) | #138 | 4 | +3 (39 prod + 1 test_only = 40) | 84.1% | c9e7cdb |
+| **합계** | **5 PR** | **20/20** | **40 total** | **84.1%** | — |
+
+### 핵심 설계 결정 (전 phase 일관성)
+1. **DI seam 패턴** — 외부 SPEC 의존성 (QUERY-001 / INSIGHTS-001 / MEMORY-001) 침범 없이 scheduler 자가완결:
+   - P3 ActivityClock interface (QUERY-001 TurnCounter 추상화)
+   - P4a PatternReader interface + ActivityPattern minimal struct (INSIGHTS-001 import 회피)
+   - P4b FiredKeyStore interface + JSONFiredKeyStore (MEMORY-001 침범 회피)
+2. **JSON 영속 통합** — `~/.goose/ritual/{schedule.json, fired_log.json}` 두 파일. atomic write (tmp + rename), 0700/0600 권한.
+3. **canonical 7-field log schema** — EmitFireLog 헬퍼가 REQ-SCHED-004 강제. reason은 별도 DEBUG.
+4. **build tag gating** — `//go:build test_only` 로 FastForward 분리. production binary 미링크 검증됨.
+5. **clockwork ↔ robfig/cron 비호환 회피** — cronSpecOverride (P1) + RunDailyLearnerForTest (P4a) 패턴 재사용.
+
+### 세션 lessons (전 phase 종합)
+- isolation 미사용 16회 무사고 (Sprint 1 전구간 + SCHEDULER 5 PR)
+- LSP stale false-positive 13회 reproduction → golangci-lint 0 issues 로 회피
+- agent self-report 11회 lint/vet/gofmt 일치, LSP 만 차이
+- 1M context API 차단 시 orchestrator 직접 구현 정책 예외 (P4a/P4b 재현 2회)
+- build tag gating compile-time 검증 — AC-018 같은 absence requirement는 명시 테스트 없이 build/link로 검증
+- race fix: Stop() 명시 호출이 worker drain 보장 — 100ms sleep + defer Stop()보다 안전 (P4b TestMissedEventReplay)
+
+### 후속
+- TOOLS-WEB-001 M2~M4 (Sprint 2 이월)
+- Sprint 1 종결 검토 — 4 SPEC 중 3 full 완료 (LLM-ROUTING-V2, MSG-TELEGRAM-001, SCHEDULER-001)

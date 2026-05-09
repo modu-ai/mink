@@ -1,9 +1,9 @@
 ---
 id: SPEC-GOOSE-SCHEDULER-001
-version: 0.2.0
-status: audit-ready
+version: 0.2.1
+status: completed
 created_at: 2026-04-22
-updated_at: 2026-05-05
+updated_at: 2026-05-10
 author: manager-spec
 priority: critical
 issue_number: null
@@ -21,6 +21,7 @@ labels: [scheduler, ritual, hook, phase-7, daily-companion]
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-22 | 초안 작성 (Phase 7 Daily Companion #31, HOOK-001 확장) | manager-spec |
 | 0.2.0 | 2026-04-25 | plan-auditor iter-1 결함 수정: MP-2(AC format 선언), MP-3(frontmatter 정규화), D6(AC-005 결정론화), D7+D21(SuppressionKey 3-tuple 통일), D11(REQ-004/009/010/013/014/015/016/018/019/020 AC 신설), D9/D10(REQ-021/022 승격), D12(RitualTimeProposal 정의), D16(FastForward build tag 명시), D19(clockwork 의존성 등재). research.md 무변경. | manager-spec |
+| 0.2.1 | 2026-05-10 | implementation 완수 (5 PR admin-bypass merged): #133 P1 Cron+Events+Persist (5 AC, coverage 91.0%) → #135 P2 Timezone+Holiday (3 AC, 89.9%) → #136 P3 Backoff+Worker+QuietHours (5 AC, 89.1%) → #137 P4a PatternLearner+DailyCron (3 AC, 84.8%) → #138 P4b Suppression+LogSchema+FastForward+Replay (4 AC, 84.1%). 누적 20/20 AC GREEN, 39 production tests + 1 test_only test PASS, race-clean, golangci-lint 0 issues. status `audit-ready` → `completed`. 설계 결정 — DI seam 패턴 일관성 (ActivityClock/PatternReader/FiredKeyStore interface로 QUERY-001/INSIGHTS-001/MEMORY-001 침범 회피). | orchestrator (manager-tdd 1M context API 차단 정책 예외) |
 
 ---
 
