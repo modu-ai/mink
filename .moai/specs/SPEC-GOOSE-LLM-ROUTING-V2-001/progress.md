@@ -72,3 +72,72 @@
 
 - P3 — Fallback chain + RouterV2 decorator + Pricing (`fallback.go`, `router.go`, `pricing.go`, `trace.go`).
 - 진입점: P2 PR 머지 후 신규 `feature/SPEC-GOOSE-LLM-ROUTING-V2-001-p3` 분기.
+
+---
+
+## 2026-05-09 — P2 머지 (PR #121, commit 98ccedc) + P3 (Decorator Layer) GREEN
+
+### P2 PR #121 squash merged
+
+- commit 98ccedc on main, 5 files changed (+671), branch `feature/SPEC-GOOSE-LLM-ROUTING-V2-001-p2` 자동 삭제.
+- 머지 후 즉시 P3 분기 — `feature/SPEC-GOOSE-LLM-ROUTING-V2-001-p3` (base=main).
+
+### P3 Decorator Layer 완료 — 4 신규 파일
+
+- Branch: `feature/SPEC-GOOSE-LLM-ROUTING-V2-001-p3` (base=main, commit 98ccedc)
+- Files NEW (P3 owner — drift 0):
+  - `internal/llm/router/v2/fallback.go` — `FallbackExecutor` + `Attempt` + `FallbackError` + 14 FailoverReason 분기 (3 stop / 11 next), `SetExcluded` (REQ-RV2-012), `LastAttempts()` trace (REQ-RV2-011), `ErrEmptyChain` + `ErrAllExcluded` sentinel
+  - `internal/llm/router/v2/pricing.go` — `Price{Input, Output}` + `Average()`, `defaultPrices` 16 entry (spec.md §6.2 source-of-truth), `LookupPrice` (정확 매칭 → wildcard fallback), `SortByCost` (오름차순, stable tie-break, 입력 미변경)
+  - `internal/llm/router/v2/router.go` — `V1Router` 인터페이스, `RouterV2` decorator, `New(base, policy, matrix, view, hooks)`, `Route()` 7-step 의사결정 트리 (zero-policy fast path → AlwaysSpecific override → PreferLocal/Cheap/Quality 빌드 → capability/exclude/ratelimit 필터 → silent recovery), `SetClassifier` (테스트 hook), `FallbackExecutor()` 노출, hook panic 격리
+  - `internal/llm/router/v2/trace.go` — 7 RoutingReason builder (`TraceV1Simple`, `TraceV1Complex`, `TraceV2Policy`, `TraceV2Capability`, `TraceV2RateLimit`, `TraceV2FallbackStep`, `TraceV2FallbackExhausted`)
+- Test files NEW (RED-first, 95+ cases):
+  - `fallback_test.go` — 14 reason coverage (3 stop + 11 next subtests) + multi-error + ctx canceled + exclude silent skip + ALL excluded + nil classifier + Error/Unwrap 형식 + LastAttempts 기록
+  - `pricing_test.go` — 16 entry 정적 표 + wildcard fallback + SortByCost ascending/stable/unknown-last/no-mutation/empty
+  - `trace_test.go` — 7 builder 형식 회귀 + RateLimit 부동소수 2자리 반올림
+  - `router_test.go` — table-driven 9 cases + ZeroPolicy byte-pass-through + AlwaysSpecific override + PreferCheap sort + Vision/Realtime capability filter + RateLimit 80% exclude + Excluded silent skip + AllFiltered v1 recovery + PreferLocal prepend ollama + PreferQuality keep v1 + hook called + concurrent race-free + FallbackExecutor wiring (default + stop-chain reason)
+  - `router_bench_test.go` — `BenchmarkRouterV2_Route_ZeroPolicy` + `BenchmarkRouterV2_Route_PreferCheap`
+
+### M3 Decorator Layer — DONE
+
+| AC | REQ | Phase | Status | Evidence |
+|----|-----|-------|--------|----------|
+| AC-RV2-001 (정책 파일 부재 시 v1 byte-identical) | REQ-RV2-002 | P1+P3 | GREEN | `TestRouterV2_ZeroPolicy_BytePassThrough` |
+| AC-RV2-002 (AlwaysSpecific override v1) | REQ-RV2-008 | P3 | GREEN | `TestRouterV2_AlwaysSpecific_OverridesV1` |
+| AC-RV2-003 (PreferCheap 정렬) | REQ-RV2-007 | P3 | GREEN | `TestRouterV2_PreferCheap_SortsByCost` + `TestSortByCost_Ascending` |
+| AC-RV2-006 (RateLimit → 다음 후보) | REQ-RV2-005 | P3 | GREEN | `TestFallback_NextCandidateReasons/rate_limit` |
+| AC-RV2-007 (ContentFilter/Overflow/Malformed → chain 중단) | REQ-RV2-013 | P3 | GREEN | `TestFallback_StopChainReasons` (3 stop reasons: ContextOverflow, FormatError, PayloadTooLarge) |
+| AC-RV2-008 (excluded silent skip) | REQ-RV2-012 | P3 | GREEN | `TestRouterV2_Excluded_SilentSkip` + `TestFallback_ExcludedProviders_SilentSkip` |
+| AC-RV2-009 (모든 후보 0개 → v1 silent recovery) | REQ-RV2-014 | P3 | GREEN | `TestRouterV2_AllFiltered_RecoverV1` |
+| AC-RV2-010 (chain trace 기록) | REQ-RV2-011 | P3 | GREEN | `TestFallback_AttemptsRecorded` (Attempt struct + LastAttempts()) |
+
+### Verify
+
+- `go test -race -cover ./internal/llm/router/v2/...` — **PASS, coverage 97.1%** (gate ≥ 90% 충족, P3 이전 100% → REFACTOR 후 일부 error path 추가로 97.1%)
+- `go vet ./internal/llm/router/v2/...` — clean
+- `gofmt -l ./internal/llm/router/v2/...` — empty
+- `golangci-lint run ./internal/llm/router/v2/...` — 0 issues
+- `BenchmarkRouterV2_Route_ZeroPolicy` — **27.73 ns/op, 144 B/op, 1 alloc** (NFR 5ms 의 0.0006%)
+- `BenchmarkRouterV2_Route_PreferCheap` (worst case 8 candidates + capability + ratelimit + exclude + sort) — **1736 ns/op, 1537 B/op, 15 allocs** (NFR 5ms 의 0.034%)
+- Drift: 0 (외부 패키지 수정 없음, P3 owner files 만 생성).
+
+### 보수적 결정 기록 (P3 의 trade-off)
+
+1. **14 FailoverReason 매핑** — spec.md §4.4 의 "ContentFilter / ContextWindowExceeded / MalformedResponse" 명칭이 ERROR-CLASS-001 enum 과 정확히 일치하지 않음. 실제 ERROR-CLASS-001 의 14 enum 중 STOP_CHAIN 으로 매핑한 3 개:
+   - `ContextOverflow` (← spec ContextWindowExceeded) — 다음 provider 도 같은 길이 입력이라 동일 실패
+   - `FormatError` (← spec MalformedResponse) — 잘못된 request body 는 다음 provider 도 동일
+   - `PayloadTooLarge` — 다음 provider 도 같은 데이터 크기라 동일 실패
+   
+   spec 의 "ContentFilter" 는 현재 ERROR-CLASS-001 enum 에 없으므로 SPEC amendment 시 추가 검토 필요. 본 P3 는 14 enum 기반으로 11+3 분류 완성.
+
+2. **Signature 재계산 정책** — v1 의 `makeSignature` 가 unexported 이라 v2 가 새 Route 를 구성할 때 재현 불가. v2 substitution 시 `"v2|provider|model"` 단순 fingerprint 로 대체 — caller 가 v1/v2 origin 을 구분 가능. zero-policy 경로는 v1 Signature 보존.
+
+3. **PreferLocal default model** — chain 에 ollama 없을 때 inject 할 default model 을 `llama3` 으로 (production 검증 시 model id 확인 필요). chain 에 ollama 가 명시되어 있으면 그 model 우선.
+
+4. **PreferQuality + chain non-empty** — spec §7.3 의 "PreferQuality → v1 결정 + Opus/GPT-4o 우선" 중 후자는 Opus/GPT-4o **하드코딩 inject** 가 아닌 **v1 결정을 head 에 두고 chain 을 fallback** 으로 결합. v1 이 이미 quality-aware 결정을 했다고 가정.
+
+5. **Concurrent_Safe race fix** — production 코드는 stateless 라 race 없음. 테스트의 `fakeV1Router.calls` 카운터를 `atomic.Int64` 로 변경해 race detector 충족.
+
+### Next
+
+- P4 — Integration tests + OpenRouter 제외 검증 (AC-RV2-004, AC-RV2-005, AC-RV2-011, fixture 5 + e2e fallback chain rate_limit→content_filter).
+- 진입점: P3 PR 머지 후 신규 `feature/SPEC-GOOSE-LLM-ROUTING-V2-001-p4` 분기.
