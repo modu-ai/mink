@@ -1,6 +1,6 @@
 ---
 id: SPEC-GOOSE-MSG-TELEGRAM-001
-version: "0.1.2"
+version: "0.1.3"
 status: implemented
 created_at: 2026-05-05
 updated_at: 2026-05-09
@@ -23,6 +23,7 @@ issue_number: 125
 | 0.1.0 | 2026-05-06 | plan-auditor iter-1 CONDITIONAL_GO (5 defects D1~D5: AC count 10→11, plan.md L39 AC-MTGM-009 mis-binding, spec-compact.md §4 헤더, spec-compact.md §10 "10 AC", Markdown V2 reserved char count 16→18) 보강. 모든 결함 수정 후 plan-auditor iter-2 PASS (overall 0.91, 0 defects). status `draft` → `audit-ready` 전환. | manager-spec |
 | 0.1.1 | 2026-05-09 | plan workflow Phase 2.5 — GitHub Issue #125 생성 후 frontmatter `issue_number: 125` 동기화. SPEC 본문 변경 없음, Issue ↔ SPEC 양방향 링크 확립 (영문 Issue body, run.md Phase 3 에서 `Fixes #125` 사용). | MoAI |
 | 0.1.2 | 2026-05-09 | sync phase — P1/P2/P3 구현 완료 후 SPEC divergence 12건 일괄 반영. 주요: BRIDGE-001 Query → Chat (ChatService 도메인 인터페이스), MEMORY-001 → 독립 sqlite (Option B, modernc.org/sqlite v1.50.0), CREDENTIAL-PROXY-001 → OS keyring (zalando/go-keyring v0.2.8), AC-MTGM-005 E2 (CLI-TUI-002 modal) P4 deferred, REQ-MTGM-N04 표현 보완, attachment JSON Schema strict mode oneOf 정정. status: audit-ready → implemented (P3 까지). | manager-docs |
+| 0.1.3 | 2026-05-09 | P4 (Streaming + Webhook + Polish) PR #131 머지 후 sync. AC-MTGM-009 GREEN 추가 — `/stream` 접두 + `default_streaming: true` 시 BRIDGE 측 `query.SubmitMessage` native channel 을 `agent.StreamingChatService.ChatStream` 으로 wrap, telegram 측 `runStreaming` 가 chunk-merge buffer + 1초 ticker 로 `editMessageText` rate-limit 호출. REQ-MTGM-E02 (streaming) / E07 (webhook fallback) / O01 (silent_default) / O02 (typing_indicator) / S05 (per-chat_id FIFO max 5) 모두 GREEN. AC-MTGM-005 E2 (CLI-TUI-002 modal) 만 외부 SPEC 의존으로 deferred 유지. testdata/ 12 fixture pair (markdown_v2 7 + inline_keyboard 5) 회귀 보호 추가. coverage telegram 84.6% (P3 종점 회복; ticker 5초 wait path 단위 테스트 한계로 strict 85% 미달). golangci-lint 0 issues (errcheck inbox.go fix + unused helper 제거 포함). status: implemented 유지. | manager-docs |
 
 ---
 
@@ -337,11 +338,12 @@ issue_number: 125
 
 ## 10. 완료 기준 (Definition of Done)
 
-### P3 까지 완료 (2026-05-09 현재)
+### P3 까지 완료 (2026-05-09)
 
 - [x] 4 개 area (Setup CLI / Polling / Tool / Mapping) 구현 완료 (P3 까지).
-- [x] 10 개 AC GREEN (AC-MTGM-001 ~ 011 중 AC-MTGM-005 E2 제외).
-  - AC-MTGM-005 E2 (CLI-TUI-002 modal) — **P4 deferred**.
+- [x] 10 개 AC GREEN (AC-MTGM-001 ~ 011 중 AC-MTGM-005 E2 / AC-MTGM-009 제외).
+  - AC-MTGM-005 E2 (CLI-TUI-002 modal) — **P4 에서도 외부 SPEC 의존으로 deferred 유지**.
+  - AC-MTGM-009 (streaming UX) — **P4 에서 GREEN 처리**.
 - [x] `go test ./internal/messaging/telegram/...` coverage ≥ 83% (P3 정점).
 - [x] Markdown V2 escape unit test 18개 reserved char (`_*[]()~\`>#+-=|{}.!`) 전수 통과.
 - [x] mock Telegram API (httptest) 기반 integration test 통과 — `setup → send → receive → audit` 플로우.
@@ -352,11 +354,22 @@ issue_number: 125
 - [x] golangci-lint clean, gofmt clean.
 - [x] `@MX:NOTE` / `@MX:ANCHOR` / `@MX:WARN` / `@MX:REASON` 모두 적용, `@MX:TODO` 0개.
 
-### P4 (deferred, out-of-scope for P3)
+### P4 완료 (2026-05-09, PR #131 머지)
 
-- [ ] Webhook mode (Area 5) — polling default, webhook option.
-- [ ] Streaming UX (editMessageText, `/stream` prefix).
-- [ ] AC-MTGM-005 E2 (CLI-TUI-002 modal integration).
+- [x] Webhook mode (Area 5) — polling default + `mode: webhook` + setWebhook + TLS 부재/등록 실패 시 polling 자동 fallback (REQ-MTGM-E07).
+- [x] Streaming UX — `/stream` 접두 또는 `default_streaming: true` 시 placeholder `sendMessage` → chunk-merge buffer 1초 ticker `editMessageText` → final flush (REQ-MTGM-E02, AC-MTGM-009).
+- [x] silent_default — outbound `disable_notification: true` (REQ-MTGM-O01).
+- [x] typing_indicator — query 처리 중 매 5초 `sendChatAction(typing)` (REQ-MTGM-O02).
+- [x] streaming queue — per chat_id FIFO max 5, 가득 시 안내 메시지 + drop (REQ-MTGM-S05).
+- [x] testdata/ golden output 회귀 보호 — markdown_v2 7 fixture pair + inline_keyboard 5 fixture pair, `-update-golden` flag 지원.
+- [x] manual_smoke.md P4 시나리오 5개 추가.
+- [x] coverage telegram 84.6% (P3 종점 회복; ticker 5초 wait path 단위 테스트 한계로 strict 85% 미달).
+- [x] golangci-lint 0 issues, gofmt clean, go vet clean.
+- [x] `@MX:TODO` 0개 유지.
+
+### 외부 SPEC 의존으로 본 SPEC 범위 외 (deferred)
+
+- [ ] AC-MTGM-005 E2 (CLI-TUI-002 modal integration) — CLI-TUI-002 modal 구현 SPEC 머지 후 자동 GREEN 화 가능. 현재 본 SPEC 측 sender/registry preapproval 이중 방어로 기능적 완성도는 확보됨.
 
 ---
 
