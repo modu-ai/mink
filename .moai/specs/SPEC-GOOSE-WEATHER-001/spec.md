@@ -1,7 +1,7 @@
 ---
 id: SPEC-GOOSE-WEATHER-001
-version: 0.1.1
-status: audit-ready
+version: 0.2.0
+status: completed
 created_at: 2026-04-22
 updated_at: 2026-05-10
 author: manager-spec
@@ -21,6 +21,7 @@ labels: [phase-7, daily-companion, weather, openweathermap, kma, air-quality, ca
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-22 | 초안 작성 (Phase 7 Daily Companion #32, TOOLS-001 확장) | manager-spec |
 | 0.1.1 | 2026-05-10 | Sprint 2 진입 — TOOLS-WEB-001 common 인프라(Blocklist/Cache/Permission/Audit/RateLimit) 재사용 결정. 패키지 위치 `internal/ritual/weather/` → `internal/tools/web/weather*.go` 이전. Tool naming `Weather` (PascalCase) → `weather_current` / `weather_forecast` / `weather_air_quality` 3 도구 split (TOOLS-WEB-001 snake_case 컨벤션 정렬). M1=current(OWM) / M2=forecast+KMA / M3=air_quality(Korean standard). 신규 REQ-WEATHER-016 (표준 응답 shape) + AC-WEATHER-009 (registry count) + AC-WEATHER-010 (response shape). status `planned` → `audit-ready`. plan.md/acceptance.md/tasks.md/spec-compact.md/progress.md 신규 작성. | manager-spec |
+| 0.2.0 | 2026-05-10 | **WEATHER-001 implementation 완수** — M1 (PR #154, weather_current OWM + cache + offline + IP geo) + M2 (PR #155, weather_forecast + KMAProvider + DFS_XY_CONV + auto-routing) + M3 (PR #156, weather_air_quality + AirKoreaProvider + Korean PM2.5 boundary) + sync (PR #157, status implemented → completed). 3 도구 모두 Registry 등록 (registry = builtin 6 + web 11 = **17 도구**). 누적 implemented AC: **10/10 GREEN**. coverage web 78.3% / common 92.1%. status: audit-ready → **completed**. | manager-docs |
 
 ---
 

@@ -319,5 +319,49 @@ research.md §3 goldenfile 의 두 도시가 ±1 오프-바이-원 오류 포함
 
 ---
 
-Version: 0.1.3
+## 2026-05-10 sync Session (WEATHER-001 종결)
+
+### Branch / Base
+- Branch: feature/SPEC-GOOSE-WEATHER-001-sync
+- Base: main HEAD = 4fe676a (M3 머지 후)
+- 외부 의존성: 없음 (doc 갱신만)
+
+### Phase 0 — sync 범위
+1. spec.md status audit-ready → completed, version 0.1.1 → 0.2.0
+2. spec.md HISTORY append v0.2.0 entry (M1+M2+M3+sync 머지 + WEATHER 완수)
+3. progress.md WEATHER-001 종결 마무리 섹션
+
+### Phase 1 — 검증 (M3 머지 시점 그대로)
+- 3 도구 모두 Registry 등록 (weather_current + weather_forecast + weather_air_quality)
+- registry = builtin 6 + web 11 = **17 도구**
+- 누적 implemented AC: **10/10 GREEN**
+- coverage: web 78.3% / common 92.1%
+- 회귀: 0
+- gofmt + vet + golangci-lint: 0
+
+### Final AC Coverage (10/10)
+
+| AC | Test | Milestone |
+|----|------|-----------|
+| AC-WEATHER-001 | TestWeatherCurrent_Registered_InWebTools | M1 #154 |
+| AC-WEATHER-002 | TestWeatherCurrent_CacheHitWithin10Min | M1 #154 |
+| AC-WEATHER-003 | TestWeatherCurrent_OfflineFallback_DiskRead | M1 #154 |
+| AC-WEATHER-004 | TestAutoRoute_KRCountryUsesKMA | M2 #155 |
+| AC-WEATHER-005 | TestAirQuality_PM25_KoreanStandardMapping (7 boundary) | M3 #156 |
+| AC-WEATHER-006 | TestWeatherCurrent_APIKey_Redacted_NotInLogs | M1 #154 |
+| AC-WEATHER-007 | TestWeatherCurrent_Singleflight_ConcurrentDedup | M1 #154 |
+| AC-WEATHER-008 | TestRateLimitExhausted_Weather | M1 #154 |
+| AC-WEATHER-009 | TestWeatherAirQuality_Registered (registry 17) | M3 #156 |
+| AC-WEATHER-010 | TestWeatherCurrent_StandardResponseShape | M1 #154 |
+
+### WEATHER-001 종결
+- status: audit-ready → **completed** (v0.2.0)
+- 3 도구 (weather_current + weather_forecast + weather_air_quality) Registry 등록
+- 누적 implemented AC: **10/10 GREEN**
+- 4 머지 PR sequence: #154 (M1) → #155 (M2) → #156 (M3) → #157 (sync, this PR)
+- WEATHER-001 = Sprint 2 첫 SPEC 완수
+
+---
+
+Version: 0.2.0
 Last Updated: 2026-05-10
