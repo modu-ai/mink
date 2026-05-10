@@ -181,5 +181,79 @@ PASS — Plan Phase 산출물이 EARS 컴플라이언스 + 완전성 + 일관성
 
 ---
 
-Version: 0.1.1
+## 2026-05-10 M2 Run Phase (expert-backend)
+
+### 구현 결과
+
+- weather_forecast 도구 + KMAProvider (초단기실황 + 단기예보 + DFS_XY_CONV) 구현 완료.
+- provider auto-routing (Country=="KR" → KMA, 그 외 OWM) 구현 완료.
+- AC-WEATHER-004 GREEN.
+
+### Deviation
+
+**Option A 채택**: weather_current 는 M2 에서도 OWM 고정 유지 (acceptance.md AC-WEATHER-004 명시 대상이 webWeatherForecast 만). weather_current 의 KMA 라우팅 적용은 M3/별도 PR 가능.
+
+### DFS_XY_CONV goldenfile 정정
+
+research.md §3 goldenfile 의 두 도시가 ±1 오프-바이-원 오류 포함 (Python 공식 C 공식으로 재검증):
+- 제주 (33.4996, 126.5312): research.md 기록 nx=52 → 실제 nx=53 (raw x=52.718, int(x+0.5)=53)
+- 강릉 (37.7519, 128.8761): research.md 기록 ny=131 → 실제 ny=132 (raw y=131.509, int(y+0.5)=132)
+
+테스트 goldenfile을 실제 계산값으로 수정. 서울/부산/대전은 정확히 일치.
+
+### 신규 / 수정 파일 (Production)
+
+| 파일 | 유형 | 주요 내용 |
+|------|------|----------|
+| `internal/tools/web/weather_kma.go` | 신규 | KMAProvider (GetCurrent+GetForecast+DFS_XY_CONV+LatLonToGrid) |
+| `internal/tools/web/weather_route.go` | 신규 | routeProvider + selectProvider (auto/forced routing) |
+| `internal/tools/web/weather_forecast.go` | 신규 | webWeatherForecast 11-step Call + WeatherConfigForTest + init() |
+
+### 신규 / 수정 파일 (Test)
+
+| 파일 | 유형 |
+|------|------|
+| `internal/tools/web/weather_kma_test.go` | 신규 (7 tests) |
+| `internal/tools/web/weather_route_test.go` | 신규 (9 tests) |
+| `internal/tools/web/schema_test.go` | 수정 (expectedNames +1 weather_forecast) |
+| `internal/tools/web/register_test.go` | 수정 (15 → 16) |
+| `internal/tools/web/audit_integration_test.go` | 수정 (+TestAuditLog_WeatherForecastCall) |
+
+### Coverage
+
+- `internal/tools/web/...`: 77.7%
+- `internal/tools/web/common/...`: 92.1%
+- M1 기준 (77.2%) 대비 회귀 0
+
+### AC GREEN 상태 (M2 추가)
+
+| AC | 상태 | Test function |
+|----|------|---------------|
+| AC-WEATHER-004 | **GREEN** | TestAutoRoute_KRCountryUsesKMA |
+
+### Quality Gate 결과
+
+- `gofmt -l`: 0 lines
+- `go vet ./internal/tools/web/...`: 0 issues
+- `golangci-lint run ./internal/tools/web/...`: 0 issues (1 unused 수정 포함)
+- `go test -race -count=10` (M2 신규): PASS
+- `go test -race -count=3` (web 전체): PASS
+- DFS_XY_CONV 5개 도시 goldenfile: 5/5 PASS (제주/강릉 수정 후)
+- 회귀: Sprint 1 + WEATHER M1 기존 테스트 전부 PASS
+
+### 잔여 deviation / open question
+
+1. **weather_current 라우팅 미적용** (Option A 결정): forecast 만 routing 적용. current 는 M3 에서 적용 가능.
+2. **OWM GetForecast M2 미구현**: `OpenWeatherMapProvider.GetForecast` 는 M1 stub 유지. 한국 외 forecast 는 OWM 기본 stub 오류 반환. M3 에서 구현 예정.
+3. **production factory 0% coverage**: productionForecastProviderFactory 는 실 key/network 필요 (integration test 커버).
+4. **research.md goldenfile 정정**: Jeju ny=38 (research 기록 동일), Gangneung ny=132 (research 기록 ny=131은 off-by-one 오류) — DFS_XY_CONV 알고리즘 실측 결과로 정정. 향후 research.md 갱신 권장.
+
+### LSP nitpick fix (post-review)
+
+- weather_forecast.go:197 — `if retryAfter < 0 { retryAfter = 0 }` → `retryAfter = max(retryAfter, 0)` (Go 1.21+ builtin, minmax 진단 처리)
+- weather_kma.go:44 `kmaAPIHost` + weather_route.go:52 `selectProvider` unusedfunc 진단은 **false positive** (weather_forecast.go:307 / 135 에서 cross-file 사용 중). main session grep 으로 재검증 후 무시. LSP 의 unusedfunc analyzer 가 cross-file usage 를 일부 케이스에서 누락하는 stale 사례.
+
+---
+
+Version: 0.1.2
 Last Updated: 2026-05-10

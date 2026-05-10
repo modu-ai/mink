@@ -92,11 +92,27 @@ Total planned files (M1):
 
 ---
 
-## M2 분할 정책 (예비, Sprint 3 진입 시 상세화)
+## M2 Task Decomposition (완료 — 2026-05-10)
 
-- M2a: weather_forecast 도구 + OWM v3.0 onecall API (4~5 신규 task)
-- M2b: weather_kma.go + DFS_XY_CONV + 5 city goldenfile (4~5 신규 task)
-- M2c: weather_route.go + provider="auto" 라우팅 + AC-WEATHER-004 (2~3 신규 task)
+| Task ID | Description | Requirement | Planned Files | Status |
+|---------|-------------|-------------|---------------|--------|
+| T-024 | weather_kma.go: KMAProvider struct + Name() + LatLonToGrid() + GetCurrent (UltraSrtNcst) + GetForecast (VilageFcst, days clamp 3) + GetAirQuality/GetSunTimes stubs | REQ-WEATHER-001, REQ-WEATHER-004, REQ-WEATHER-006 | internal/tools/web/weather_kma.go | completed |
+| T-025 | weather_route.go: routeProvider() + selectProvider() — auto/forced routing with KMA key presence check | REQ-WEATHER-006, REQ-WEATHER-011 | internal/tools/web/weather_route.go | completed |
+| T-026 | weather_forecast.go: webWeatherForecast 11-step Call + parseWeatherForecastInput + weatherForecastCacheKey + WeatherConfigForTest + init() | REQ-WEATHER-005, REQ-WEATHER-006, REQ-WEATHER-015 | internal/tools/web/weather_forecast.go | completed |
+| T-027 | weather_kma_test.go: TestLatLonToGrid_5Cities (goldenfile) + TestKMA_GetCurrent_Seoul_NowCast + TestKMA_GetForecast_Seoul_3Days + TestKMA_MissingAPIKey + TestKMA_APIError_5xx + TestKMA_APIKey_Redacted + TestKMA_DaysClamp_When7 | AC-WEATHER-004, REQ-WEATHER-004 | internal/tools/web/weather_kma_test.go | completed |
+| T-028 | weather_route_test.go: TestAutoRoute_KRCountryUsesKMA (AC-WEATHER-004) + TestAutoRoute_NonKRUsesOWM + TestAutoRoute_KMAKeyMissingFallback + TestForceKMA_NoKey + TestWeatherForecast_Registered + TestWeatherForecast_StandardResponseShape + TestWeatherForecast_DaysOutOfRange + TestWeatherForecast_BlocklistPriority + TestWeatherForecast_RateLimit_Exhausted | AC-WEATHER-004, AC-WEATHER-009 (M2) | internal/tools/web/weather_route_test.go | completed |
+| T-029 | register_test.go 수정: expectation 15 → 16 (weather_forecast 추가) | AC-WEATHER-009 (M2) | internal/tools/web/register_test.go | completed |
+| T-030 | schema_test.go 수정: expectedNames +1 (weather_forecast) | AC-WEATHER-009 (M2) | internal/tools/web/schema_test.go | completed |
+| T-031 | audit_integration_test.go 수정: +TestAuditLog_WeatherForecastCall | AC-WEATHER-004 audit | internal/tools/web/audit_integration_test.go | completed |
+| T-032 | progress.md M2 Run Phase 섹션 append (AC-WEATHER-004 GREEN, DFS_XY_CONV goldenfile 정정, deviation Option A) | — | .moai/specs/SPEC-GOOSE-WEATHER-001/progress.md | completed |
+| T-033 | tasks.md M2 task breakdown append (T-024 ~ T-033) | — | .moai/specs/SPEC-GOOSE-WEATHER-001/tasks.md | completed |
+
+### DFS_XY_CONV goldenfile 정정 note (T-027)
+
+Python/C 공식으로 재검증한 결과:
+- 제주 nx: research.md 52 → 실제 53 (off-by-one)
+- 강릉 ny: research.md 131 → 실제 132 (off-by-one)
+서울/부산/대전은 정확. 테스트는 실제 계산값 기준으로 수정.
 
 ---
 
