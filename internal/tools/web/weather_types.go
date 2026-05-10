@@ -42,12 +42,15 @@ type WeatherReport struct {
 // AirQuality holds normalized air-quality data using Korean Ministry of
 // Environment boundaries. M1/M2 leave this zero-valued; M3 populates it.
 type AirQuality struct {
-	Level   string  `json:"level"`    // "good" | "moderate" | "unhealthy" | "very_unhealthy" | "hazardous"
-	LevelKo string  `json:"level_ko"` // "좋음" | "보통" | "나쁨" | "매우 나쁨" | "위험"
-	PM10    int     `json:"pm10"`
-	PM25    int     `json:"pm25"`
-	O3      float64 `json:"o3"`
-	NO2     float64 `json:"no2"`
+	Level      string    `json:"level"`    // "good" | "moderate" | "unhealthy" | "very_unhealthy" | "hazardous"
+	LevelKo    string    `json:"level_ko"` // "좋음" | "보통" | "나쁨" | "매우 나쁨" | "위험"
+	PM10       int       `json:"pm10"`
+	PM25       int       `json:"pm25"`
+	O3         float64   `json:"o3"`
+	NO2        float64   `json:"no2"`
+	Station    string    `json:"station,omitempty"`    // AirKorea station name (M3)
+	MeasuredAt time.Time `json:"measured_at,omitzero"` // timestamp of the measurement (M3)
+	Source     string    `json:"source,omitempty"`     // "airkorea" (M3)
 }
 
 // Pollen carries pollen-count information, applicable only to Korean

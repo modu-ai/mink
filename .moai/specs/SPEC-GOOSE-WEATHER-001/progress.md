@@ -255,5 +255,69 @@ research.md §3 goldenfile 의 두 도시가 ±1 오프-바이-원 오류 포함
 
 ---
 
-Version: 0.1.2
+---
+
+## 2026-05-10 M3 Run Phase (expert-backend)
+
+### 구현 결과
+
+- AirKoreaProvider (CTPRVN 실시간 측정 밀집도 API, PM2.5 5단계 한국 환경부 기준) 구현 완료.
+- weather_air_quality 도구 10-step pipeline 구현 완료.
+- AC-WEATHER-005 GREEN (7 boundary case 모두 통과).
+- AC-WEATHER-009 GREEN (registry count 17).
+- registry 17 도구 완성 → M3 완료.
+
+### 신규 / 수정 파일 (Production)
+
+| 파일 | 유형 | 주요 내용 |
+|------|------|----------|
+| `internal/tools/web/weather_types.go` | 수정 | AirQuality +Station/MeasuredAt/Source 필드 |
+| `internal/tools/web/weather_airkorea.go` | 신규 | AirKoreaProvider (GetAirQuality, mapPM25ToLevel, deriveSidoName) |
+| `internal/tools/web/weather_air_quality.go` | 신규 | webWeatherAirQuality 10-step Call + NewWeatherAirQualityForTest + init() |
+| `internal/tools/web/ratelimit_weather_parser.go` | 수정 | RegisterAirKoreaRateLimitParser 추가 |
+
+### 신규 / 수정 파일 (Test)
+
+| 파일 | 유형 |
+|------|------|
+| `internal/tools/web/weather_airkorea_test.go` | 신규 (7 tests) |
+| `internal/tools/web/weather_air_quality_test.go` | 신규 (11 tests + TestAuditLog_WeatherAirQualityCall) |
+| `internal/tools/web/schema_test.go` | 수정 (expectedNames +1 weather_air_quality, count 10 → 11) |
+| `internal/tools/web/register_test.go` | 수정 (16 → 17, +weather_air_quality assert) |
+
+### Coverage
+
+- `internal/tools/web/...`: 78.3% (목표 ≥ 77% 충족)
+- `internal/tools/web/common/...`: 92.1%
+
+### AC GREEN 상태 (M3 추가)
+
+| AC | 상태 | Test function |
+|----|------|---------------|
+| AC-WEATHER-005 | **GREEN** | TestAirQuality_PM25_KoreanStandardMapping (7 boundary cases) |
+| AC-WEATHER-009 | **GREEN** | TestRegistry_WithWeb_ListNames (17 tools) |
+
+### Quality Gate 결과
+
+- `gofmt -l`: 0 lines
+- `go vet ./internal/tools/web/...`: 0 issues
+- `golangci-lint run ./internal/tools/web/...`: 0 issues
+- `go test -race -count=3 ./internal/tools/web/...`: PASS
+- 회귀: Sprint 1 + WEATHER M1/M2 기존 테스트 전부 PASS
+
+### 잔여 deviation / open question
+
+1. **AirKorea 실 API 키 없음**: 모든 테스트는 httptest.Server mock 사용. 실 API 키 integration test 는 미래 작업.
+2. **sidoName 전국 커버리지**: deriveSidoName 은 17개 시도 keyword matching + "서울" 기본값. 세종 등 소규모 도시는 충분히 커버됨.
+3. **M3 이후 잔여**: OWM GetForecast (한국 외 forecast), weather_current KMA 라우팅, M4 pollen data.
+
+### LSP nitpick fix (post-review)
+
+- weather_types.go:52 — `MeasuredAt time.Time \`json:"measured_at,omitempty"\`` → `\`json:"measured_at,omitzero"\`` (omitzero 진단 처리, time.Time nested struct 에 omitempty 무효, Go 1.24+ omitzero 적용)
+- weather_airkorea.go:31 `airkoreaAPIHost` unusedfunc 진단은 **false positive** (weather_air_quality.go:116 에서 cross-file 사용 중). main session grep 재검증 후 무시.
+- weather_airkorea.go:169-171 `unknown field Station/MeasuredAt/Source` compiler 진단은 **stale gopls cache false positive** (weather_types.go AirQuality struct 에 모든 필드 정의됨). go build/vet/lint 0 + race PASS 로 검증.
+
+---
+
+Version: 0.1.3
 Last Updated: 2026-05-10

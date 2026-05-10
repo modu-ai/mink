@@ -116,12 +116,22 @@ Python/C 공식으로 재검증한 결과:
 
 ---
 
-## M3 분할 정책 (예비)
+## M3 Task Decomposition (완료 — 2026-05-10)
 
-- M3a: weather_airkorea.go + AirKorea API wrapper
-- M3b: weather_air_quality.go 도구 + 한국 PM2.5 매핑 + AC-WEATHER-005 boundary
+| Task ID | Description | Requirement | Planned Files | Status |
+|---------|-------------|-------------|---------------|--------|
+| T-034 | weather_types.go 수정: AirQuality struct 에 Station/MeasuredAt/Source 필드 추가 (M3 field backfill) | REQ-WEATHER-008 | internal/tools/web/weather_types.go | completed |
+| T-035 | weather_airkorea.go: AirKoreaProvider struct + NewAirKoreaProvider/ForTest + GetAirQuality (CTPRVN 실시간 측정 밀집도 API, 최신 station 선택, mapPM25ToLevel, API key redaction) + deriveSidoName | REQ-WEATHER-008, REQ-WEATHER-004 | internal/tools/web/weather_airkorea.go | completed |
+| T-036 | weather_airkorea_test.go: TestAirKorea_GetAirQuality_Seoul_PM25_55 + TestAirKorea_MissingAPIKey + TestAirKorea_APIError_5xx + TestAirKorea_APIKey_Redacted_NotInLogs + TestAirKorea_InvalidJSON + TestAirKorea_ParsesMostRecentStation + TestAirKorea_PM25LevelBoundaries (9 sub-cases) | AC-WEATHER-005, REQ-WEATHER-004, REQ-WEATHER-008 | internal/tools/web/weather_airkorea_test.go | completed |
+| T-037 | ratelimit_weather_parser.go 수정: RegisterAirKoreaRateLimitParser + airkoreaParser 추가 (테스트에서 exhausted state inject 용) | AC-WEATHER-005 (보조) | internal/tools/web/ratelimit_weather_parser.go | completed |
+| T-038 | weather_air_quality.go: webWeatherAirQuality 10-step pipeline + isKoreanCoordinate + isKoreanLocationString + deriveKoreanLocation + airQualityCacheKey + parseWeatherAirQualityInput + NewWeatherAirQualityForTest + init() | REQ-WEATHER-008, REQ-WEATHER-016, REQ-WEATHER-017 | internal/tools/web/weather_air_quality.go | completed |
+| T-039 | weather_air_quality_test.go: TestAirQuality_PM25_KoreanStandardMapping (7 cases, AC-WEATHER-005) + TestWeatherAirQuality_Registered + TestWeatherAirQuality_StandardResponseShape + TestWeatherAirQuality_UnsupportedRegion (4 cases) + TestWeatherAirQuality_BlocklistPriority + TestWeatherAirQuality_PermissionDenied + TestWeatherAirQuality_RateLimit_Exhausted + TestWeatherAirQuality_AuditWriter + TestWeatherAirQuality_KoreanCoordinate_LatLonOnly + TestWeatherAirQuality_KoreanLocationString_Busan + TestAuditLog_WeatherAirQualityCall | AC-WEATHER-005, AC-WEATHER-009, AC-WEATHER-010, REQ-WEATHER-008 | internal/tools/web/weather_air_quality_test.go | completed |
+| T-040 | register_test.go 수정: expectation 16 → 17 (weather_air_quality 추가) | AC-WEATHER-009 (M3) | internal/tools/web/register_test.go | completed |
+| T-041 | schema_test.go 수정: expectedNames +1 (weather_air_quality), require.GreaterOrEqual count 10 → 11 | AC-WEATHER-009 (M3) | internal/tools/web/schema_test.go | completed |
+| T-042 | progress.md M3 Run Phase 섹션 append | — | .moai/specs/SPEC-GOOSE-WEATHER-001/progress.md | completed |
+| T-043 | tasks.md M3 task breakdown append (T-034 ~ T-043) | — | .moai/specs/SPEC-GOOSE-WEATHER-001/tasks.md | completed |
 
 ---
 
-Version: 0.1.0
+Version: 0.1.1
 Last Updated: 2026-05-10

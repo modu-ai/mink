@@ -96,8 +96,8 @@ func TestRegistry_WithWeb_ListNames(t *testing.T) {
 	reg := tools.NewRegistry(tools.WithBuiltins(), web.WithWeb())
 	names := reg.ListNames()
 
-	// M2 weather expectation: 6 built-in + 8 web + 2 weather = 16.
-	require.Equal(t, 16, len(names), "expected 6 builtins + 8 web tools + weather_current + weather_forecast, got %v", names)
+	// M3 weather expectation: 6 built-in + 8 web + 3 weather = 17.
+	require.Equal(t, 17, len(names), "expected 6 builtins + 8 web tools + weather_current + weather_forecast + weather_air_quality, got %v", names)
 	assert.Contains(t, names, "http_fetch")
 	assert.Contains(t, names, "web_search")
 	assert.Contains(t, names, "web_wikipedia")
@@ -108,12 +108,13 @@ func TestRegistry_WithWeb_ListNames(t *testing.T) {
 	assert.Contains(t, names, "web_wayback")
 	assert.Contains(t, names, "weather_current")
 	assert.Contains(t, names, "weather_forecast")
+	assert.Contains(t, names, "weather_air_quality")
 
-	// All ten web tools must resolve to non-nil Tool with ScopeShared.
+	// All eleven web tools must resolve to non-nil Tool with ScopeShared.
 	for _, n := range []string{
 		"http_fetch", "web_search", "web_wikipedia", "web_browse",
 		"web_rss", "web_arxiv", "web_maps", "web_wayback",
-		"weather_current", "weather_forecast",
+		"weather_current", "weather_forecast", "weather_air_quality",
 	} {
 		tool, ok := reg.Resolve(n)
 		require.True(t, ok, "tool %q must resolve", n)
