@@ -19,11 +19,12 @@ import (
 // individual constructors so it remains stable as constructors evolve.
 func TestAllToolSchemasValid(t *testing.T) {
 	registered := web.RegisteredWebToolsForTest()
-	require.GreaterOrEqual(t, len(registered), 8, "expected at least 8 web tools registered")
+	require.GreaterOrEqual(t, len(registered), 9, "expected at least 9 web tools registered (8 Sprint 1 + weather_current)")
 
 	expectedNames := []string{
 		"http_fetch", "web_search", "web_wikipedia", "web_browse",
 		"web_rss", "web_arxiv", "web_maps", "web_wayback",
+		"weather_current",
 	}
 	gotNames := make([]string, 0, len(registered))
 	for _, tool := range registered {
@@ -31,7 +32,7 @@ func TestAllToolSchemasValid(t *testing.T) {
 	}
 	sort.Strings(gotNames)
 	sort.Strings(expectedNames)
-	assert.Equal(t, expectedNames, gotNames, "all 8 Sprint 1 web tools must be registered")
+	assert.Equal(t, expectedNames, gotNames, "all Sprint 1+weather web tools must be registered")
 
 	for _, tool := range registered {
 		t.Run(tool.Name(), func(t *testing.T) {

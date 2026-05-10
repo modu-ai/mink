@@ -11,6 +11,7 @@ import (
 
 	"github.com/modu-ai/goose/internal/llm/ratelimit"
 	"github.com/modu-ai/goose/internal/tools/web"
+	"github.com/modu-ai/goose/internal/tools/web/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -146,4 +147,87 @@ func TestRateLimit429WithHeader(t *testing.T) {
 	require.True(t, isFloat, "retry_after_seconds must be a JSON number")
 	assert.Equal(t, retryFloat, float64(int(retryFloat)),
 		"retry_after_seconds must be an integer, got %v", retryFloat)
+}
+
+// --------------------------------------------------------------------------
+// TestRateLimitExhausted_Weather — T-019 / AC-WEATHER-008
+// --------------------------------------------------------------------------
+
+// rlWeatherStubProvider is a minimal WeatherProvider for ratelimit tests.
+type rlWeatherStubProvider struct {
+	callCount atomic.Int64
+}
+
+func (p *rlWeatherStubProvider) Name() string { return "openweathermap" }
+func (p *rlWeatherStubProvider) GetCurrent(_ context.Context, _ web.Location) (*web.WeatherReport, error) {
+	p.callCount.Add(1)
+	return &web.WeatherReport{SourceProvider: "openweathermap"}, nil
+}
+func (p *rlWeatherStubProvider) GetForecast(_ context.Context, _ web.Location, _ int) ([]web.WeatherForecastDay, error) {
+	return nil, nil
+}
+func (p *rlWeatherStubProvider) GetAirQuality(_ context.Context, _ web.Location) (*web.AirQuality, error) {
+	return nil, nil
+}
+func (p *rlWeatherStubProvider) GetSunTimes(_ context.Context, _ web.Location, _ time.Time) (*web.SunTimes, error) {
+	return nil, nil
+}
+
+// rlWeatherGeo is a stub IPGeolocator for ratelimit tests.
+type rlWeatherGeo struct{}
+
+func (g *rlWeatherGeo) Resolve(_ context.Context) (web.Location, error) {
+	return web.Location{Lat: 37.57, Lon: 126.98, Country: "KR"}, nil
+}
+
+// TestRateLimitExhausted_Weather forces the "openweathermap" provider to
+// exhausted state and verifies that weather_current returns ratelimit_exhausted
+// without calling the provider.
+func TestRateLimitExhausted_Weather(t *testing.T) {
+	now := time.Now()
+
+	tracker, err := ratelimit.New(ratelimit.TrackerOptions{ThresholdPct: 80})
+	require.NoError(t, err)
+	web.RegisterWeatherParser(tracker)
+
+	// Synthesize exhausted state.
+	syntheticHeaders := map[string]string{
+		"X-RateLimit-Limit":     "60",
+		"X-RateLimit-Remaining": "0",
+		"X-RateLimit-Reset":     "30",
+	}
+	require.NoError(t, tracker.Parse("openweathermap", syntheticHeaders, now))
+
+	state := tracker.State("openweathermap")
+	require.GreaterOrEqual(t, state.RequestsMin.UsagePct(), 100.0,
+		"RequestsMin must be exhausted (UsagePct >= 100)")
+
+	deps, _, _ := newTestDeps(t, []string{"api.openweathermap.org"})
+	deps.RateTracker = tracker
+	deps.Clock = func() time.Time { return now }
+	deps.Cwd = t.TempDir()
+
+	provider := &rlWeatherStubProvider{}
+	offline := web.NewDiskOfflineStore(deps.Cwd + "/weather")
+
+	cfg, _ := web.LoadWeatherConfig("")
+	cfg.OpenWeatherMap.APIKey = "rl-test-key"
+
+	tool := web.NewWeatherCurrentForTest(deps, cfg, provider, &rlWeatherGeo{}, offline)
+	input, _ := json.Marshal(map[string]any{"lat": 37.57, "lon": 126.98})
+
+	result, err := tool.Call(context.Background(), input)
+	require.NoError(t, err)
+
+	var resp common.Response
+	require.NoError(t, json.Unmarshal(result.Content, &resp))
+	assert.False(t, resp.OK)
+	require.NotNil(t, resp.Error)
+	assert.Equal(t, "ratelimit_exhausted", resp.Error.Code)
+	assert.True(t, resp.Error.Retryable, "ratelimit_exhausted must be retryable")
+	assert.Greater(t, resp.Error.RetryAfterSeconds, 0,
+		"retry_after_seconds must be > 0 when reset seconds remain")
+
+	assert.Equal(t, int64(0), provider.callCount.Load(),
+		"provider must NOT be called when rate limit is exhausted")
 }

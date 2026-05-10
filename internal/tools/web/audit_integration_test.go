@@ -384,3 +384,110 @@ func unmarshalToolResponse(t *testing.T, result tools.ToolResult) common.Respons
 	require.NoError(t, json.Unmarshal(result.Content, &resp))
 	return resp
 }
+
+// --------------------------------------------------------------------------
+// TestAuditLog_WeatherCurrentCall — T-018
+// --------------------------------------------------------------------------
+
+// auditWeatherStubProvider is a minimal WeatherProvider for audit tests.
+type auditWeatherStubProvider struct{}
+
+func (p *auditWeatherStubProvider) Name() string { return "openweathermap" }
+func (p *auditWeatherStubProvider) GetCurrent(_ context.Context, _ web.Location) (*web.WeatherReport, error) {
+	return &web.WeatherReport{
+		Location:       web.Location{Lat: 37.57, Lon: 126.98, Country: "KR"},
+		Timestamp:      time.Now().UTC(),
+		TemperatureC:   22.5,
+		Condition:      "clear",
+		SourceProvider: "openweathermap",
+	}, nil
+}
+func (p *auditWeatherStubProvider) GetForecast(_ context.Context, _ web.Location, _ int) ([]web.WeatherForecastDay, error) {
+	return nil, nil
+}
+func (p *auditWeatherStubProvider) GetAirQuality(_ context.Context, _ web.Location) (*web.AirQuality, error) {
+	return nil, nil
+}
+func (p *auditWeatherStubProvider) GetSunTimes(_ context.Context, _ web.Location, _ time.Time) (*web.SunTimes, error) {
+	return nil, nil
+}
+
+// auditWeatherGeo is a stub IPGeolocator for audit tests.
+type auditWeatherGeo struct{}
+
+func (g *auditWeatherGeo) Resolve(_ context.Context) (web.Location, error) {
+	return web.Location{Lat: 37.57, Lon: 126.98, Country: "KR"}, nil
+}
+
+// TestAuditLog_WeatherCurrentCall verifies that a single weather_current call
+// produces exactly one audit log line with tool="weather_current", outcome="ok",
+// and all required metadata keys.
+func TestAuditLog_WeatherCurrentCall(t *testing.T) {
+	var clockTick atomic.Int64
+	baseTime := time.Now().UTC().Truncate(time.Microsecond)
+	testClock := func() time.Time {
+		tick := clockTick.Add(1)
+		return baseTime.Add(time.Duration(tick) * time.Microsecond)
+	}
+
+	logDir := t.TempDir()
+	logPath := filepath.Join(logDir, "audit-weather.log")
+	auditWriter, err := audit.NewFileWriter(logPath)
+	require.NoError(t, err)
+	defer func() { _ = auditWriter.Close() }()
+
+	store := permstore.NewMemoryStore()
+	require.NoError(t, store.Open())
+	mgr, err := permission.New(store, permission.AlwaysAllowConfirmer{}, nil, nil, nil)
+	require.NoError(t, err)
+	require.NoError(t, mgr.Register("agent:goose", permission.Manifest{
+		NetHosts: []string{"api.openweathermap.org", "ipapi.co"},
+	}))
+
+	deps := &common.Deps{
+		PermMgr:     mgr,
+		AuditWriter: auditWriter,
+		Clock:       testClock,
+		Cwd:         t.TempDir(),
+	}
+
+	cfg, _ := web.LoadWeatherConfig("")
+	cfg.OpenWeatherMap.APIKey = "audit-test-key"
+
+	offline := web.NewDiskOfflineStore(deps.Cwd + "/weather")
+	tool := web.NewWeatherCurrentForTest(deps, cfg, &auditWeatherStubProvider{}, &auditWeatherGeo{}, offline)
+
+	input, _ := json.Marshal(map[string]any{"lat": 37.57, "lon": 126.98})
+	result, err := tool.Call(context.Background(), input)
+	require.NoError(t, err)
+	resp := unmarshalToolResponse(t, result)
+	require.True(t, resp.OK, "weather_current call must succeed; error=%v", resp.Error)
+
+	require.NoError(t, auditWriter.Close())
+
+	f, err := os.Open(logPath)
+	require.NoError(t, err)
+	defer func() { _ = f.Close() }()
+
+	var lines []map[string]any
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			continue
+		}
+		var entry map[string]any
+		require.NoError(t, json.Unmarshal([]byte(line), &entry))
+		lines = append(lines, entry)
+	}
+	require.NoError(t, scanner.Err())
+	require.Len(t, lines, 1, "exactly 1 audit line expected for a single weather_current call")
+
+	entry := lines[0]
+	assert.Equal(t, "tool.web.invoke", entry["type"])
+	meta, ok := entry["metadata"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "weather_current", meta["tool"])
+	assert.Equal(t, "ok", meta["outcome"])
+	assert.Contains(t, meta, "duration_ms")
+}
