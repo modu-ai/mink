@@ -491,3 +491,114 @@ func TestAuditLog_WeatherCurrentCall(t *testing.T) {
 	assert.Equal(t, "ok", meta["outcome"])
 	assert.Contains(t, meta, "duration_ms")
 }
+
+// --------------------------------------------------------------------------
+// TestAuditLog_WeatherForecastCall — AC-WEATHER-004 audit verification
+// --------------------------------------------------------------------------
+
+// auditForecastProvider is a minimal WeatherProvider stub for forecast audit tests.
+type auditForecastProvider struct {
+	name string
+}
+
+func (p *auditForecastProvider) Name() string { return p.name }
+func (p *auditForecastProvider) GetCurrent(_ context.Context, _ web.Location) (*web.WeatherReport, error) {
+	return nil, nil
+}
+func (p *auditForecastProvider) GetForecast(_ context.Context, _ web.Location, _ int) ([]web.WeatherForecastDay, error) {
+	return []web.WeatherForecastDay{
+		{Date: "2026-05-10", HighC: 22.0, LowC: 12.0, Condition: "clear", PrecipProbPct: 10},
+	}, nil
+}
+func (p *auditForecastProvider) GetAirQuality(_ context.Context, _ web.Location) (*web.AirQuality, error) {
+	return nil, nil
+}
+func (p *auditForecastProvider) GetSunTimes(_ context.Context, _ web.Location, _ time.Time) (*web.SunTimes, error) {
+	return nil, nil
+}
+
+// auditForecastGeo is a stub IPGeolocator for forecast audit tests.
+type auditForecastGeo struct{}
+
+func (g *auditForecastGeo) Resolve(_ context.Context) (web.Location, error) {
+	return web.Location{Lat: 37.57, Lon: 126.98, Country: "KR"}, nil
+}
+
+// TestAuditLog_WeatherForecastCall verifies that a single weather_forecast call
+// produces exactly one audit log line with tool="weather_forecast", outcome="ok".
+func TestAuditLog_WeatherForecastCall(t *testing.T) {
+	var clockTick atomic.Int64
+	baseTime := time.Now().UTC().Truncate(time.Microsecond)
+	testClock := func() time.Time {
+		tick := clockTick.Add(1)
+		return baseTime.Add(time.Duration(tick) * time.Microsecond)
+	}
+
+	logDir := t.TempDir()
+	logPath := filepath.Join(logDir, "audit-forecast.log")
+	auditWriter, err := audit.NewFileWriter(logPath)
+	require.NoError(t, err)
+	defer func() { _ = auditWriter.Close() }()
+
+	store := permstore.NewMemoryStore()
+	require.NoError(t, store.Open())
+	mgr, err := permission.New(store, permission.AlwaysAllowConfirmer{}, nil, nil, nil)
+	require.NoError(t, err)
+	require.NoError(t, mgr.Register("agent:goose", permission.Manifest{
+		NetHosts: []string{"api.openweathermap.org", "apis.data.go.kr", "ipapi.co"},
+	}))
+
+	deps := &common.Deps{
+		PermMgr:     mgr,
+		AuditWriter: auditWriter,
+		Clock:       testClock,
+		Cwd:         t.TempDir(),
+	}
+
+	cfg := web.WeatherConfigForTest(web.WeatherConfigOptions{
+		Provider: "openweathermap",
+		OWMKey:   "audit-forecast-key",
+	})
+
+	provider := &auditForecastProvider{name: "openweathermap"}
+	geolocator := &auditForecastGeo{}
+
+	tool := web.NewWeatherForecastForTest(deps, cfg,
+		map[string]web.WeatherProvider{"openweathermap": provider},
+		geolocator,
+	)
+
+	input, _ := json.Marshal(map[string]any{"lat": 37.57, "lon": 126.98, "days": 1})
+	result, err := tool.Call(context.Background(), input)
+	require.NoError(t, err)
+	resp := unmarshalToolResponse(t, result)
+	require.True(t, resp.OK, "weather_forecast call must succeed; error=%v", resp.Error)
+
+	require.NoError(t, auditWriter.Close())
+
+	f, err := os.Open(logPath)
+	require.NoError(t, err)
+	defer func() { _ = f.Close() }()
+
+	var lines []map[string]any
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			continue
+		}
+		var entry map[string]any
+		require.NoError(t, json.Unmarshal([]byte(line), &entry))
+		lines = append(lines, entry)
+	}
+	require.NoError(t, scanner.Err())
+	require.Len(t, lines, 1, "exactly 1 audit line expected for a single weather_forecast call")
+
+	entry := lines[0]
+	assert.Equal(t, "tool.web.invoke", entry["type"])
+	meta, ok := entry["metadata"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "weather_forecast", meta["tool"])
+	assert.Equal(t, "ok", meta["outcome"])
+	assert.Contains(t, meta, "duration_ms")
+}
