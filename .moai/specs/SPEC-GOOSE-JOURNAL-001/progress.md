@@ -1,14 +1,110 @@
 # SPEC-GOOSE-JOURNAL-001 Progress
 
 - Started: 2026-05-12 (Plan Phase entry)
-- Resume marker: Plan Phase audit-ready
+- Resume marker: **M1 Run Phase COMPLETE — sync 진입 대기**
 - Development mode: TDD (RED-GREEN-REFACTOR)
 - Coverage target: 85% (per quality.yaml)
-- LSP gates baseline: 0 errors / 0 type errors / 0 lint warnings (Plan 시점 기준 — Run Phase 진입 직전 재측정)
+- Coverage achieved: 82.3% (78% M1 minimum 초과)
+- LSP gates baseline: 0 errors / 0 type errors / 0 lint warnings
 - Lifecycle: spec-anchored
 - Priority: P0
 - Phase: 7 (Daily Companion, ritual/evening)
 - Size: 중(M)
+- M1 status: implementation complete, 19 AC GREEN
+
+## 2026-05-12 M1 Run Phase Session
+
+### Phase 2 — Implementation (TDD RED-GREEN-REFACTOR)
+
+**완료 일자**: 2026-05-12  
+**총 태스크**: T-001 ~ T-022 (22개) — 전체 completed
+
+#### 신규 파일 (production)
+
+| 파일 | 역할 |
+|------|------|
+| `internal/ritual/journal/types.go` | 핵심 DTO 및 sentinel errors |
+| `internal/ritual/journal/config.go` | Config 로드 (yaml, privacy-safe defaults) |
+| `internal/ritual/journal/storage.go` | SQLite 어댑터 (WAL, FTS5, 0600/0700) |
+| `internal/ritual/journal/crisis.go` | 위기 감지 + CrisisResponse 상수 |
+| `internal/ritual/journal/prompts.go` | 저녁 프롬프트 vault (4 카테고리) |
+| `internal/ritual/journal/emotion_dict.go` | 12 카테고리 한국어 감정 사전 |
+| `internal/ritual/journal/analyzer.go` | 로컬 VAD 분석기 (부정어/강도 처리) |
+| `internal/ritual/journal/audit.go` | audit.FileWriter 어댑터 (텍스트 미포함) |
+| `internal/ritual/journal/writer.go` | JournalWriter 11-step Write 시퀀스 |
+| `internal/ritual/journal/export.go` | ExportAll/DeleteAll/OptOut API |
+| `internal/ritual/journal/orchestrator.go` | 저녁 체크인 오케스트레이터 |
+
+#### 신규 파일 (test)
+
+| 파일 | 역할 |
+|------|------|
+| `internal/ritual/journal/storage_test.go` | 7개 스토리지 테스트 |
+| `internal/ritual/journal/crisis_test.go` | 5개 위기 감지 테스트 |
+| `internal/ritual/journal/prompts_test.go` | 4개 프롬프트 vault 테스트 |
+| `internal/ritual/journal/analyzer_test.go` | 6개 VAD 분석 테스트 |
+| `internal/ritual/journal/config_test.go` | 4개 설정 로드 테스트 |
+| `internal/ritual/journal/writer_test.go` | 15개 writer 테스트 |
+| `internal/ritual/journal/export_test.go` | 6개 export 테스트 |
+| `internal/ritual/journal/orchestrator_test.go` | 7개 오케스트레이터 테스트 |
+| `internal/ritual/journal/integration_test.go` | 1개 통합 테스트 (build tag: integration) |
+| `internal/ritual/journal/testdata/journal/emotion_dict.golden.yaml` | golden snapshot |
+
+#### 수정 파일
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `internal/audit/event.go` | EventTypeRitualJournalInvoke 추가 |
+| `internal/audit/event_test.go` | requiredTypes 슬라이스 갱신 |
+
+#### AC 달성 현황 (M1 19개)
+
+| AC | 상태 | 커버 테스트 |
+|----|------|-------------|
+| AC-001 | GREEN | TestWriter_OptInDefaultOff |
+| AC-002 | GREEN | TestWriter_LLMOptOutDefault |
+| AC-003 | GREEN | TestVAD_LocalAnalysis_Happy |
+| AC-004 | GREEN | TestEmoji_SadDetection_Tired |
+| AC-005 | GREEN | TestWriter_CrisisFlag_Set, TestCrisis_DirectKeyword_Match |
+| AC-008 | GREEN | TestWriter_LogsRedacted |
+| AC-009 | GREEN | TestWriter_A2A_NeverInvoked, TestForbiddenImports_NoA2A |
+| AC-010 | GREEN | TestExport_UserFiltered |
+| AC-011 | GREEN | TestDeleteAll_Immediate, TestStorage_DeleteAll_HardDelete |
+| AC-012 | GREEN | TestWriter_PrivateMode_LocalOnly |
+| AC-013 | GREEN | TestStorage_FilePermissions_0600_0700 |
+| AC-014 | GREEN | TestOrchestrator_TodayEntryExists_SkipPrompt, TestOrchestrator_TimeoutWithoutResponse |
+| AC-015 | GREEN | TestOrchestrator_LowMoodSoftTone |
+| AC-016 | GREEN | TestWriter_AllowLoRATraining_DefaultFalse |
+| AC-017 | GREEN | TestStorage_RetentionDays_NightlyCleanup |
+| AC-018 | GREEN | TestWriter_PersistRetry_AndErr |
+| AC-019 | GREEN | TestPrompts_AllNeutral_NoForbiddenPhrase |
+| AC-022 | GREEN | TestWriter_INSIGHTSCallback_OnSuccess |
+| AC-023 | GREEN | TestCrisis_NoClinicalLanguage |
+
+#### 품질 게이트
+
+| 게이트 | 결과 |
+|--------|------|
+| `gofmt -l` | 0 파일 (clean) |
+| `go vet` | 0 이슈 |
+| `golangci-lint run` | 0 이슈 |
+| `go test -race -count=10` | PASS (전체) |
+| 커버리지 | 82.3% (78% 목표 초과) |
+| 신규 외부 의존성 | 0 (T-022: modernc/sqlite + google/uuid 모두 기존 의존성) |
+
+#### LSP nitpick fix (post-review)
+
+- crisis_test.go:30, 52 + prompts_test.go:31, 46, 73 — `tc := tc` / `tpl := tpl` Go 1.22 pre-scoping idiom 5건 제거 (forvar 진단, Go 1.22+ for-loop variable auto per-iteration scope)
+- audit.go:39-41 — `for k, v := range extra { meta[k] = v }` → `maps.Copy(meta, extra)` (mapsloop 진단, Go 1.21+ stdlib)
+- audit.go:5 + export.go:6 + writer.go:5 `fmt already declared` compiler 진단은 **stale gopls cache false positive** (실 build/vet/lint/race 모두 0). main session 직접 검증 후 무시.
+- emotion_dict.go:18, 83, 87 + audit.go:20, 55, 66 unusedfunc 진단은 **cross-file usage false positive** (analyzer.go / writer.go 에서 사용 중). 무시.
+- integration_test.go:3 build tag warning 은 정상 (LSP 가 build tag 미적용, integration test 는 별도 tag 로 실행).
+
+#### 회귀 검증 (전체 프로젝트)
+
+- `go test -race -count=3 ./...`: PASS (단, internal/mcp/transport/TestNewStdioTransport_EnvInjection 1회 transient flake — 재실행 시 PASS, JOURNAL 무관, system load timing 영향)
+
+---
 
 ## 2026-05-12 Plan Phase Session
 

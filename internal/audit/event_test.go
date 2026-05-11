@@ -95,6 +95,7 @@ func TestEventType_Values(t *testing.T) {
 		EventTypeTaskPlanRejected,
 		EventTypeGoosedStart,
 		EventTypeGoosedStop,
+		EventTypeRitualJournalInvoke,
 	}
 
 	for _, eventType := range requiredTypes {

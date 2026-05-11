@@ -1,0 +1,101 @@
+# Golden snapshot of the emotion_dict.go category definitions.
+# This file mirrors the hardcoded emotionCategories slice in emotion_dict.go.
+# Update this file whenever emotionCategories is modified.
+# SPEC-GOOSE-JOURNAL-001 REQ-004
+
+categories:
+  - name: happy
+    keywords: [행복, 기쁘, 즐거, 좋아, 웃음, 신나, 설레, 흥분, 만족]
+    emoji: ["😊", "😄", "🥰", "😁", "🎉"]
+    vad:
+      valence: 0.9
+      arousal: 0.7
+      dominance: 0.6
+
+  - name: sad
+    keywords: [슬프, 울었, 눈물, 우울, 힘들, 괴롭, 외로, 허전]
+    emoji: ["😢", "😭", "😞", "💔"]
+    vad:
+      valence: 0.2
+      arousal: 0.3
+      dominance: 0.3
+
+  - name: anxious
+    keywords: [불안, 걱정, 초조, 떨려, 무섭, 두렵, 긴장]
+    emoji: ["😰", "😟", "😧", "😨"]
+    vad:
+      valence: 0.2
+      arousal: 0.8
+      dominance: 0.2
+
+  - name: angry
+    keywords: [화나, 짜증, 분노, 열받, 억울, 답답]
+    emoji: ["😠", "😡", "🤬", "😤"]
+    vad:
+      valence: 0.1
+      arousal: 0.9
+      dominance: 0.7
+
+  - name: tired
+    keywords: [피곤, 지쳐, 힘들, 피로, 탈진, 무기력, 졸려]
+    emoji: ["😴", "😪", "🥱", "😩"]
+    vad:
+      valence: 0.2
+      arousal: 0.2
+      dominance: 0.3
+
+  - name: calm
+    keywords: [평온, 차분, 안정, 편안, 여유, 느긋]
+    emoji: ["😌", "🧘", "☺️"]
+    vad:
+      valence: 0.7
+      arousal: 0.2
+      dominance: 0.6
+
+  - name: excited
+    keywords: [신났, 들뜨, 두근, 떨려, 흥분, 기대]
+    emoji: ["🤩", "🥳", "🎊", "⚡"]
+    vad:
+      valence: 0.8
+      arousal: 0.9
+      dominance: 0.6
+
+  - name: grateful
+    keywords: [감사, 고마, 감동, 뭉클, 행운]
+    emoji: ["🙏", "💛", "🤗"]
+    vad:
+      valence: 0.85
+      arousal: 0.5
+      dominance: 0.5
+
+  - name: lonely
+    keywords: [외로, 혼자, 고독, 쓸쓸, 허전, 외딴]
+    emoji: ["😶", "🌑", "😔"]
+    vad:
+      valence: 0.2
+      arousal: 0.3
+      dominance: 0.2
+
+  - name: regret
+    keywords: [후회, 아쉬, 미안, 잘못, 실수]
+    emoji: ["😔", "😣", "🙁"]
+    vad:
+      valence: 0.2
+      arousal: 0.4
+      dominance: 0.3
+
+  - name: bored
+    keywords: [지루, 무료, 심심, 따분, 지겨]
+    emoji: ["😑", "😒", "🥴"]
+    vad:
+      valence: 0.3
+      arousal: 0.2
+      dominance: 0.4
+
+  - name: proud
+    keywords: [뿌듯, 자랑, 성취, 해냈, 성공, 잘했]
+    emoji: ["💪", "🏆", "✨", "😤"]
+    vad:
+      valence: 0.85
+      arousal: 0.6
+      dominance: 0.8
