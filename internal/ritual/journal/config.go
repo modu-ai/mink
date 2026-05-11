@@ -29,6 +29,9 @@ type Config struct {
 	PromptTimeoutMin int `yaml:"prompt_timeout_min"`
 	// WeeklySummary enables the weekly digest job (M2 cadence, M3 LLM). Default: false.
 	WeeklySummary bool `yaml:"weekly_summary"`
+	// RecallLowValence, when true, includes entries with valence < 0.3 in anniversary
+	// recall. Default false — suppresses traumatic memories (R6, research.md §5.3).
+	RecallLowValence bool `yaml:"recall_low_valence"`
 }
 
 // defaultConfig returns the privacy-preserving defaults.

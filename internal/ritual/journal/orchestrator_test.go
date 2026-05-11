@@ -211,6 +211,80 @@ func TestOrchestrator_OnEveningCheckIn_PropagatesError(t *testing.T) {
 	})
 }
 
+// TestOrchestrator_AnniversaryPrompt_Wedding verifies AC-007:
+// When IDENTITY-001 returns a matching important date, the emitted prompt
+// contains "결혼기념일" or "특별한 날" and comes from PickAnniversary.
+func TestOrchestrator_AnniversaryPrompt_Wedding(t *testing.T) {
+	t.Parallel()
+
+	var capturedPrompt string
+	promptFn := func(_ context.Context, prompt string) (string, error) {
+		capturedPrompt = prompt
+		return "좋은 하루였어요", nil
+	}
+
+	// Build orchestrator with anniversary detector.
+	o, _ := newTestOrchestrator(t, enabledCfg(), promptFn)
+
+	// Today: April 22, 2026; anniversary: April 22, 2020.
+	today := time.Date(2026, 4, 22, 0, 0, 0, 0, time.UTC)
+	identity := &mockIdentityClient{
+		dates: []ImportantDate{
+			{
+				Type: "wedding",
+				Name: "결혼기념일",
+				Date: time.Date(2020, 4, 22, 0, 0, 0, 0, time.UTC),
+			},
+		},
+	}
+	det := NewAnniversaryDetector(identity)
+	o.WithAnniversaryDetector(det).WithClock(func() time.Time { return today })
+
+	err := o.Prompt(context.Background(), "u1")
+	require.NoError(t, err)
+
+	assert.NotEmpty(t, capturedPrompt, "a prompt must be emitted")
+	hasWedding := strings.Contains(capturedPrompt, "결혼기념일")
+	hasSpecial := strings.Contains(capturedPrompt, "특별한 날")
+	assert.True(t, hasWedding || hasSpecial,
+		"anniversary prompt must mention '결혼기념일' or '특별한 날'; got: %q", capturedPrompt)
+}
+
+// TestOrchestrator_AnniversaryDateOutOfWindow_NeutralPrompt verifies that
+// when the important date is outside the ±1 day window a neutral prompt is used.
+func TestOrchestrator_AnniversaryDateOutOfWindow_NeutralPrompt(t *testing.T) {
+	t.Parallel()
+
+	var capturedPrompt string
+	promptFn := func(_ context.Context, prompt string) (string, error) {
+		capturedPrompt = prompt
+		return "오늘 하루 좋았어요", nil
+	}
+
+	o, _ := newTestOrchestrator(t, enabledCfg(), promptFn)
+
+	today := time.Date(2026, 4, 22, 0, 0, 0, 0, time.UTC)
+	// April 25 is 3 days away — outside ±1 day window.
+	identity := &mockIdentityClient{
+		dates: []ImportantDate{
+			{
+				Type: "wedding",
+				Name: "결혼기념일",
+				Date: time.Date(2020, 4, 25, 0, 0, 0, 0, time.UTC),
+			},
+		},
+	}
+	det := NewAnniversaryDetector(identity)
+	o.WithAnniversaryDetector(det).WithClock(func() time.Time { return today })
+
+	err := o.Prompt(context.Background(), "u1")
+	require.NoError(t, err)
+
+	// Out-of-window anniversary must not appear in prompt.
+	assert.NotContains(t, capturedPrompt, "결혼기념일",
+		"out-of-window anniversary must not appear in prompt")
+}
+
 // TestOrchestrator_isLowMood_EdgeCases exercises the isLowMood helper directly.
 func TestOrchestrator_isLowMood_EdgeCases(t *testing.T) {
 	t.Parallel()

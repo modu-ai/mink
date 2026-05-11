@@ -26,6 +26,10 @@ type JournalOrchestrator struct {
 	// prompt is the user-facing prompt emission function.
 	// Tests can substitute this to avoid blocking on real I/O.
 	prompt PromptFunc
+	// anniversary is the M2 detector; nil in M1 (anniversary branch is skipped).
+	anniversary *AnniversaryDetector
+	// clock returns the current time; nil means time.Now (production default).
+	clock func() time.Time
 }
 
 // NewJournalOrchestrator creates an orchestrator for the evening journal ritual.
@@ -48,6 +52,27 @@ func NewJournalOrchestrator(
 		auditor: auditor,
 		prompt:  prompt,
 	}
+}
+
+// WithAnniversaryDetector injects an AnniversaryDetector into the orchestrator (M2).
+// When set, Prompt checks for important dates and emits anniversary-aware prompts.
+func (o *JournalOrchestrator) WithAnniversaryDetector(det *AnniversaryDetector) *JournalOrchestrator {
+	o.anniversary = det
+	return o
+}
+
+// WithClock replaces the orchestrator's time source (used in tests).
+func (o *JournalOrchestrator) WithClock(clock func() time.Time) *JournalOrchestrator {
+	o.clock = clock
+	return o
+}
+
+// now returns the current time via the injected clock, or time.Now().
+func (o *JournalOrchestrator) now() time.Time {
+	if o.clock != nil {
+		return o.clock()
+	}
+	return time.Now()
 }
 
 // Prompt executes the full evening-prompt flow for userID.
@@ -95,7 +120,20 @@ func (o *JournalOrchestrator) Prompt(ctx context.Context, userID string) error {
 		selectedPrompt = PickNeutral(dayOfYear())
 	}
 
-	// Step 4: Anniversary check — M1 always nil; M2 will call AnniversaryDetector.
+	// Step 4: Anniversary check — active in M2 when AnniversaryDetector is injected.
+	if o.anniversary != nil {
+		today := o.now()
+		matches, annErr := o.anniversary.Check(ctx, userID, today)
+		if annErr != nil {
+			o.logger.Warn("anniversary check failed; using default prompt",
+				zap.String("user_id_hash", hashUserID(userID)),
+				zap.Error(annErr),
+			)
+		} else if len(matches) > 0 {
+			// Use the first matching important date for the prompt.
+			selectedPrompt = PickAnniversary(matches[0].Name)
+		}
+	}
 
 	// Step 5: Emit prompt and wait for user response.
 	o.auditor.emitOperation("evening_prompt_emit", userID, "ok")
