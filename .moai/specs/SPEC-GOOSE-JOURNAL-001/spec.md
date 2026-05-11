@@ -1,7 +1,7 @@
 ---
 id: SPEC-GOOSE-JOURNAL-001
-version: 0.2.1
-status: audit-ready
+version: 0.3.0
+status: completed
 created_at: 2026-04-22
 updated_at: 2026-05-12
 author: manager-spec
@@ -34,6 +34,7 @@ labels:
 | 0.1.0 | 2026-04-22 | 초안 작성 (Phase 7 #37, MEMORY + INSIGHTS + SCHEDULER 의존) | manager-spec |
 | 0.2.0 | 2026-04-25 | 감사 리포트(JOURNAL-001-audit.md, 0.55/FAIL) 결함 교정. MP-3 labels 채움. MP-2 EARS 라벨 정합성 확보(REQ-013/014/016 [Ubiquitous] 재라벨, REQ-015 `If ... then ... shall` 패턴으로 재작성 + 진단 금지 조항 REQ-020 분리). Traceability: AC-013~026 신설(기존 미커버 REQ 10건 + 신설 REQ 4건). D4: Search/TrendAggregator/RenderChart를 REQ-021/022/023으로 승격. D5: AC-006에서 존재하지 않는 `distance_years` 참조 제거(검증 방식 수정). D6: config 샘플에 `prompt_timeout_min`, `weekly_summary` 추가. REQ-001~019 번호·순서 불변. | manager-spec |
 | 0.2.1 | 2026-05-12 | Sprint 2 진입 — Sprint 1+2 인프라 검토 (`internal/audit` AuditWriter / `internal/permission` Manager 재사용, MEMORY-001 SQLite 별도 storage 유지). Milestone 분할 명시: M1 = Journal core(Writer + storage + Local emotion + Crisis), M2 = Long-term recall(Anniversary + Trend + Search + Weekly summary), M3 = LLM 통합(emotion deeper + summary). plan.md / acceptance.md / tasks.md / spec-compact.md / progress.md 신규 작성 (Phase 1.5 + Phase 2 산출물). §3.1 IN SCOPE 에 milestone 표기 추가. §6.1 패키지 레이아웃 검토 — `internal/ritual/journal/` 위치 유지(원안 그대로, web tool 아님). REQ / AC 본문 무변경(0.2.0 audit 통과 내용 보존). status `planned` → `audit-ready`. | manager-spec |
+| 0.3.0 | 2026-05-12 | **JOURNAL-001 implementation 완수** — M1 (PR #159, Journal Core: Writer + SQLite + LocalDictAnalyzer + Crisis + Orchestrator + Export, 19 AC) + M2 (PR #160, Long-term Memory Recall: recall/anniversary/trend/chart/search/summary, 6 AC) + M3 (PR #161, LLM-assisted: analyzer_llm + summary_llm + writer LLM 분기 활성, AC-020 + AC-002/012/023 보강) + sync (PR #162, status audit-ready → completed). 3 milestone 모두 implemented, 누적 implemented AC: **26/26 GREEN**. ritual/journal 패키지 = 19 production + 18 test + testdata (총 4860+ lines). coverage 84.1% (목표 80% 초과). 신규 외부 의존성 0 (modernc/sqlite + google/uuid 모두 MEMORY-001 의존). Privacy invariants 6개 검증 (logs redacted / no A2A / 0600 perms / LLM payload entry.Text only / no clinical / hotline canned). status: audit-ready → **completed**. | manager-docs |
 
 ---
 
