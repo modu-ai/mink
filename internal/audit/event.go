@@ -48,6 +48,9 @@ const (
 	// EventTypeMessagingOutbound is emitted when a messaging channel sends an outbound message.
 	// SPEC-GOOSE-MSG-TELEGRAM-001 REQ-MTGM-U01 / REQ-MTGM-N06
 	EventTypeMessagingOutbound EventType = "messaging.outbound"
+	// EventTypeRitualJournalInvoke is emitted on each journal write/delete/export/prompt operation.
+	// SPEC-GOOSE-JOURNAL-001 REQ-004 — entry text is never included in metadata.
+	EventTypeRitualJournalInvoke EventType = "ritual.journal.invoke"
 )
 
 // String returns the string representation of the event type
