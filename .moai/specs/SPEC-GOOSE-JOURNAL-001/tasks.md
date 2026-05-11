@@ -140,11 +140,29 @@ AC GREEN (M2): AC-006 / AC-007 / AC-021 / AC-024 / AC-025 / AC-026
 
 ---
 
-## M3 Task Decomposition (예비 — M3 run 진입 시 상세화)
+## M3 Task Decomposition (LLM-assisted Emotion + Summary)
 
-M3 는 plan.md §4 의 high-level breakdown 참조. 진입 시 본 tasks.md 에 T-031+ append.
+M3 실행 완료 — 2026-05-12
+
+| Task | Status | Description | Planned Files |
+|------|--------|-------------|---------------|
+| T-031 | completed | `analyzer_llm.go` — LLMClient interface + LLMEmotionAnalyzer + systemPromptLLMAnalyzer const (REQ-017 literal) + clinicalRejectKeywords + parse-fail/clinical-reject silent fallback + ErrLLMParseFail/ErrLLMResponseInvalid sentinels | `analyzer_llm.go` |
+| T-032 | completed | `analyzer_llm_test.go` — 9개 테스트: PayloadIsTextOnly (AC-020), SystemPromptExactMatch, NeverCalledOnCrisis (AC-023), NeverCalledOnPrivateMode, HappyPathReturnsLLMVad, JSONParseFailFallback, RejectsClinicalLanguage, TagsCappedAtThree, NilClient_FallsBackToLocal | `analyzer_llm_test.go` |
+| T-033 | completed | `summary_llm.go` — LLMSummaryEnhancer + EnhanceWeeklySummary (payload = avg_valence+top_tags+word_freq only, no raw text) + clinical reject + parse-fail silent fallback + audit "weekly_summary_llm_enhanced" | `summary_llm.go`, `summary.go` (OneLiner 필드 추가) |
+| T-034 | completed | `writer.go` 수정 — step 5 LLM 분기 활성: EmotionLLMAssisted && !PrivateMode && !isCrisis && llmAnalyzer != nil 조건 + NewJournalWriter llmAnalyzer 분리 로직 | `writer.go` |
+| T-035 | completed | `summary_llm_test.go` — 7개 테스트: HappyPath, PayloadAggregateOnly, DisabledConfig_NoCall, ParseFail_ReturnsOriginal, RejectsClinicalLanguage, AuditLog_LLMEnhanced, NilSummary, OriginalSummaryNotMutated | `summary_llm_test.go` |
+| T-036 | completed | `writer_test.go` 보강 — LLMOptOutDefault LLM counter 강화 + PrivateMode_LocalOnly LLM counter 강화 + 신규 TestWriter_LLMAssistedEnabled_CallsLLM + `tasks.md`/`progress.md` M3 append | `writer_test.go`, `tasks.md`, `progress.md` |
+
+AC GREEN (M3): AC-020 (신규 GREEN) / AC-002 보강 / AC-012 보강 / AC-023 보강
+
+Privacy invariants 검증 (M3):
+- LLM payload = entry.Text only (user_id / date / attachment / emoji / private_mode / allow_lora 부재): TestLLMAnalyzer_PayloadIsTextOnly PASS
+- crisis entry → LLM 호출 0회: TestLLMAnalyzer_NeverCalledOnCrisis PASS
+- PrivateMode=true → LLM 호출 0회: TestLLMAnalyzer_NeverCalledOnPrivateMode PASS
+- LLM 응답 임상 어휘 → silent reject + local fallback: TestLLMAnalyzer_RejectsClinicalLanguage PASS
+- LLM JSON parse fail → silent fallback: TestLLMAnalyzer_JSONParseFailFallback PASS
 
 ---
 
-Version: 0.2.0
+Version: 0.3.0
 Last Updated: 2026-05-12

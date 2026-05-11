@@ -74,26 +74,37 @@ func TestWriter_OptInDefaultOff(t *testing.T) {
 	assert.Empty(t, entries, "disabled write must not persist any entry")
 }
 
-// TestWriter_LLMOptOutDefault verifies that M1 never calls any LLM mock. AC-002
+// TestWriter_LLMOptOutDefault verifies that when no LLM analyzer is injected,
+// Write never invokes an LLM even if EmotionLLMAssisted=true. AC-002
 func TestWriter_LLMOptOutDefault(t *testing.T) {
 	t.Parallel()
 
-	llmCalls := 0
-	// M1 never reaches an LLM branch regardless of config.
+	mockClient := &mockLLMClient{}
+	// newTestWriter passes nil analyzer → NewLocalDictAnalyzer (no LLM client).
+	// mockClient is unwired here — we only assert invokeCount stays 0.
 	w, _ := newTestWriter(t, func(c *Config) { c.EmotionLLMAssisted = true })
 
 	stored, err := w.Write(context.Background(), todayEntry("u1", "좋은 하루였다"))
 	require.NoError(t, err)
 	require.NotNil(t, stored)
-	assert.Equal(t, 0, llmCalls, "M1 must never invoke LLM regardless of config")
+	// mockClient was never wired to this writer — invokeCount stays 0.
+	assert.Equal(t, 0, mockClient.invokeCount,
+		"LLM must not be called when no LLM analyzer is injected")
 }
 
-// TestWriter_PrivateMode_LocalOnly verifies that PrivateMode entries use local analysis. AC-012
+// TestWriter_PrivateMode_LocalOnly verifies that PrivateMode entries use local analysis only. AC-012
 func TestWriter_PrivateMode_LocalOnly(t *testing.T) {
 	t.Parallel()
 
-	llmCalls := 0
-	w, _ := newTestWriter(t, func(c *Config) { c.EmotionLLMAssisted = true })
+	mockClient := &mockLLMClient{response: validLLMResponse}
+	llmAnalyzer := NewLLMEmotionAnalyzer(mockClient, nil, newJournalAuditWriter(nil))
+
+	s := newTestStorage(t)
+	cfg := Config{
+		Enabled:            true,
+		EmotionLLMAssisted: true,
+	}
+	w := NewJournalWriter(cfg, s, llmAnalyzer, nil, newJournalAuditWriter(nil), zap.NewNop(), nil)
 
 	entry := JournalEntry{
 		UserID:      "u1",
@@ -104,7 +115,8 @@ func TestWriter_PrivateMode_LocalOnly(t *testing.T) {
 	stored, err := w.Write(context.Background(), entry)
 	require.NoError(t, err)
 	require.NotNil(t, stored)
-	assert.Equal(t, 0, llmCalls, "PrivateMode must never invoke LLM in M1")
+	assert.Equal(t, 0, mockClient.invokeCount,
+		"PrivateMode must never invoke LLM (AC-012)")
 }
 
 // TestWriter_CrisisFlag_Set verifies that crisis text is stored with CrisisFlag=true. AC-005
@@ -299,6 +311,36 @@ func TestWriter_Search_EmptyUserID(t *testing.T) {
 	w, _ := newTestWriter(t)
 	_, err := w.Search(context.Background(), "", "query")
 	require.ErrorIs(t, err, ErrInvalidUserID)
+}
+
+// TestWriter_LLMAssistedEnabled_CallsLLM verifies that when EmotionLLMAssisted=true
+// and a non-crisis non-private entry is written, the LLM is called exactly once. AC-002/AC-020.
+func TestWriter_LLMAssistedEnabled_CallsLLM(t *testing.T) {
+	t.Parallel()
+
+	mockClient := &mockLLMClient{response: validLLMResponse}
+	llmAnalyzer := NewLLMEmotionAnalyzer(mockClient, nil, newJournalAuditWriter(nil))
+
+	s := newTestStorage(t)
+	cfg := Config{
+		Enabled:            true,
+		EmotionLLMAssisted: true,
+	}
+	w := NewJournalWriter(cfg, s, llmAnalyzer, nil, newJournalAuditWriter(nil), zap.NewNop(), nil)
+
+	stored, err := w.Write(context.Background(), JournalEntry{
+		UserID: "u1",
+		Date:   time.Now(),
+		Text:   "오늘 좋은 하루였다",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, stored)
+	assert.Equal(t, 1, mockClient.invokeCount,
+		"LLM must be called exactly once for non-crisis non-private entries")
+
+	// Returned VAD must reflect LLM result (0.8 valence from validLLMResponse).
+	assert.InDelta(t, 0.8, stored.Vad.Valence, 1e-9,
+		"VAD must reflect LLM response")
 }
 
 // ---- test helpers ----

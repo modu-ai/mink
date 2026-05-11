@@ -34,9 +34,13 @@ type sqliteJournalWriter struct {
 	cfg      Config
 	storage  *Storage
 	analyzer EmotionAnalyzer
-	crisis   *CrisisDetector
-	auditor  *journalAuditWriter
-	logger   *zap.Logger
+	// llmAnalyzer is the optional LLM-assisted emotion analyzer (M3).
+	// When non-nil and config.EmotionLLMAssisted is true, it overrides the local
+	// analyzer result unless the entry is PrivateMode or a crisis entry.
+	llmAnalyzer *LLMEmotionAnalyzer
+	crisis      *CrisisDetector
+	auditor     *journalAuditWriter
+	logger      *zap.Logger
 	// onEntry is called after a successful write (INSIGHTS-001 consumer). May be nil.
 	onEntry OnJournalEntryFunc
 	// searcher implements FTS5 search (M2). Initialised lazily on first Search call.
@@ -47,6 +51,10 @@ type sqliteJournalWriter struct {
 const maxRetries = 3
 
 // NewJournalWriter constructs a sqliteJournalWriter with all required dependencies.
+//
+// If analyzer is a *LLMEmotionAnalyzer, it is stored in the llmAnalyzer field and the
+// step-4 local analyzer is set to the LLMEmotionAnalyzer's embedded localFallback.
+// This ensures step 4 always runs LocalDictAnalyzer, and step 5 conditionally runs LLM.
 func NewJournalWriter(
 	cfg Config,
 	storage *Storage,
@@ -56,9 +64,21 @@ func NewJournalWriter(
 	logger *zap.Logger,
 	onEntry OnJournalEntryFunc,
 ) JournalWriter {
-	if analyzer == nil {
-		analyzer = NewLocalDictAnalyzer()
+	var llmAnalyzer *LLMEmotionAnalyzer
+	localAnalyzer := EmotionAnalyzer(NewLocalDictAnalyzer())
+
+	switch a := analyzer.(type) {
+	case *LLMEmotionAnalyzer:
+		// Separate the LLM analyzer from the local fallback.
+		// Step 4 uses local; step 5 uses LLM (guarded by privacy invariants).
+		llmAnalyzer = a
+		localAnalyzer = a.localFallback
+	case nil:
+		// Use defaults already set above.
+	default:
+		localAnalyzer = a
 	}
+
 	if crisis == nil {
 		crisis = NewCrisisDetector()
 	}
@@ -66,14 +86,15 @@ func NewJournalWriter(
 		logger = zap.NewNop()
 	}
 	return &sqliteJournalWriter{
-		cfg:      cfg,
-		storage:  storage,
-		analyzer: analyzer,
-		crisis:   crisis,
-		auditor:  auditor,
-		logger:   logger,
-		onEntry:  onEntry,
-		searcher: NewJournalSearch(storage),
+		cfg:         cfg,
+		storage:     storage,
+		analyzer:    localAnalyzer,
+		llmAnalyzer: llmAnalyzer,
+		crisis:      crisis,
+		auditor:     auditor,
+		logger:      logger,
+		onEntry:     onEntry,
+		searcher:    NewJournalSearch(storage),
 	}
 }
 
@@ -110,8 +131,19 @@ func (w *sqliteJournalWriter) Write(ctx context.Context, entry JournalEntry) (*S
 		)
 	}
 
-	// Step 5: LLM branch — unconditional skip in M1 (config ignored).
-	// M3 will add: if w.cfg.EmotionLLMAssisted && !entry.PrivateMode { ... }
+	// Step 5: LLM branch — active in M3 when EmotionLLMAssisted=true.
+	// Privacy invariants (AC-020, AC-023, REQ-003):
+	//   - PrivateMode=true → LLM access permanently forbidden.
+	//   - CrisisFlag=true → LLM must not be called (crisis entries go local-only).
+	// When all guards pass, LLMEmotionAnalyzer overrides the local step-4 result.
+	// LLMEmotionAnalyzer handles parse-fail and clinical-reject silently.
+	if w.cfg.EmotionLLMAssisted && !entry.PrivateMode && !isCrisis && w.llmAnalyzer != nil {
+		if llmVad, llmTags, llmErr := w.llmAnalyzer.Analyze(ctx, entry.Text, entry.EmojiMood); llmErr == nil {
+			vad = llmVad
+			tags = llmTags
+		}
+		// On LLM error, keep the local analysis result from step 4 (already set).
+	}
 
 	// Step 6: Anniversary detection — always nil in M1.
 	var anniversary *Anniversary

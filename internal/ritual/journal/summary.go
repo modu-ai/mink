@@ -9,7 +9,7 @@ import (
 )
 
 // WeeklySummary holds the aggregated statistics for a 7-day journal period.
-// LLM-assisted narrative summary is added in M3; M2 provides local aggregation only.
+// LLM-assisted narrative summary is added in M3 via LLMSummaryEnhancer.
 type WeeklySummary struct {
 	// UserID is the user this summary was generated for.
 	UserID string
@@ -27,6 +27,9 @@ type WeeklySummary struct {
 	WordCloud []string
 	// PendingSummaryFlag indicates that this summary should be shown in the next evening prompt.
 	PendingSummaryFlag bool
+	// OneLiner is an optional LLM-generated natural-language summary sentence (M3).
+	// Empty string when LLM is disabled or unavailable.
+	OneLiner string
 }
 
 // SummaryJob generates weekly summaries for a user.
