@@ -437,5 +437,65 @@ WEATHER-001 의 plan 산출물 (plan.md / acceptance.md / tasks.md / spec-compac
 
 ---
 
-Version: 0.1.0
+## 2026-05-12 sync Session (JOURNAL-001 종결)
+
+### Branch / Base
+- Branch: feature/SPEC-GOOSE-JOURNAL-001-sync
+- Base: main HEAD = 9081b9d (M3 머지 후)
+- 외부 의존성: 없음 (doc 갱신만)
+
+### Phase 0 — sync 범위
+1. spec.md status audit-ready → completed, version 0.2.1 → 0.3.0
+2. spec.md HISTORY append v0.3.0 entry (M1+M2+M3+sync 머지 + JOURNAL 완수)
+3. progress.md JOURNAL-001 종결 마무리 섹션
+4. status.txt 갱신 (implemented → completed)
+
+### Phase 1 — 검증 (M3 머지 시점 그대로)
+- 19 production + 18 test (ritual/journal 패키지 4860+ lines)
+- 누적 implemented AC: **26/26 GREEN**
+- coverage: ritual/journal 84.1% (목표 80% 초과)
+- 회귀 0
+- gofmt + vet + golangci-lint: 0
+- 신규 외부 의존성: 0
+
+### Final AC Coverage (26/26)
+
+| AC | Test | Milestone |
+|----|------|-----------|
+| AC-001 | TestWriter_OptInDefaultOff | M1 #159 |
+| AC-002 | TestWriter_LLMOptOutDefault (LLM mock counter) | M1 #159 + M3 보강 |
+| AC-003 | TestVAD_LocalAnalysis_Happy | M1 #159 |
+| AC-004 | TestEmoji_SadDetection_Tired | M1 #159 |
+| AC-005 | TestCrisis_DirectKeyword_Match + TestWriter_CrisisFlag_Set | M1 #159 |
+| AC-006 | TestRecall_AnniversaryEvents_LastYear | M2 #160 |
+| AC-007 | TestOrchestrator_AnniversaryPrompt_Wedding | M2 #160 |
+| AC-008 | TestWriter_LogsRedacted | M1 #159 |
+| AC-009 | TestWriter_A2A_NeverInvoked + TestForbiddenImports_NoA2A | M1 #159 |
+| AC-010 | TestExport_UserFiltered | M1 #159 |
+| AC-011 | TestDeleteAll_Immediate | M1 #159 |
+| AC-012 | TestWriter_PrivateMode_LocalOnly (LLM mock counter) | M1 #159 + M3 보강 |
+| AC-013 | TestStorage_FilePermissions_0600_0700 | M1 #159 |
+| AC-014 | TestOrchestrator_TodayEntryExists_SkipPrompt + TimeoutWithoutResponse | M1 #159 |
+| AC-015 | TestOrchestrator_LowMoodSoftTone | M1 #159 |
+| AC-016 | TestWriter_AllowLoRATraining_DefaultFalse | M1 #159 |
+| AC-017 | TestStorage_RetentionDays_NightlyCleanup | M1 #159 |
+| AC-018 | TestWriter_PersistRetry_AndErr | M1 #159 |
+| AC-019 | TestPrompts_AllNeutral_NoForbiddenPhrase | M1 #159 |
+| **AC-020** | **TestLLMAnalyzer_PayloadIsTextOnly** | **M3 #161 (신규)** |
+| AC-021 | TestWeeklySummary_SundayCadence_Generates | M2 #160 |
+| AC-022 | TestWriter_INSIGHTSCallback_OnSuccess | M1 #159 |
+| AC-023 | TestCrisis_NoClinicalLanguage + TestLLMAnalyzer_NeverCalledOnCrisis + RejectsClinicalLanguage | M1 #159 + M3 보강 |
+| AC-024 | TestSearch_FTS5_UserScoped | M2 #160 |
+| AC-025 | TestWeeklyTrend_AggregationWithGaps | M2 #160 |
+| AC-026 | TestRenderChart_SevenDaysWithNaN | M2 #160 |
+
+### JOURNAL-001 종결
+- status: audit-ready → **completed** (v0.3.0)
+- 3 milestone 모두 implemented (M1 19 AC + M2 6 AC + M3 1 AC = **26/26 GREEN**)
+- 4 PR sequence: #159 (M1) → #160 (M2) → #161 (M3) → #162 (sync, this PR)
+- ritual/journal 패키지 신설 + Privacy invariants 6개 검증
+
+---
+
+Version: 0.3.0
 Last Updated: 2026-05-12
