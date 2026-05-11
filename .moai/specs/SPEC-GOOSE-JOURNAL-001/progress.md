@@ -1,10 +1,10 @@
 # SPEC-GOOSE-JOURNAL-001 Progress
 
 - Started: 2026-05-12 (Plan Phase entry)
-- Resume marker: **M2 Run Phase COMPLETE — PR open → merge 대기**
+- Resume marker: **M3 Run Phase COMPLETE — 26/26 AC GREEN — sync 진입 가능**
 - Development mode: TDD (RED-GREEN-REFACTOR)
 - Coverage target: 85% (per quality.yaml)
-- Coverage achieved: 83.5% (M2 누적)
+- Coverage achieved: 84.1% (M3 누적, M2 83.5% 대비 +0.6%)
 - LSP gates baseline: 0 errors / 0 type errors / 0 lint warnings
 - Lifecycle: spec-anchored
 - Priority: P0
@@ -12,6 +12,7 @@
 - Size: 중(M)
 - M1 status: implementation complete, 19 AC GREEN
 - M2 status: implementation complete, 6 AC GREEN (AC-006/007/021/024/025/026)
+- M3 status: implementation complete, 1 AC GREEN 신규 (AC-020) + AC-002/012/023 보강
 
 ## 2026-05-12 M1 Run Phase Session
 
@@ -330,6 +331,90 @@ WEATHER-001 의 plan 산출물 (plan.md / acceptance.md / tasks.md / spec-compac
 - IDENTITY-001 실제 client 구현 없음 (M2는 interface + mock). 실 wiring은 M3 또는 별도 SPEC.
 - weekly summary의 `pendingSummaryFlag`는 orchestrator와 통신 채널 미구현 (flag 필드만 존재). M3에서 orchestrator가 flag를 읽어 prompt 시 summary 제시.
 - LLM 기반 summary 서술은 M3 scope (M2는 로컬 집계만).
+
+---
+
+## 2026-05-12 M3 Run Phase Session
+
+### Phase 2 — Implementation (TDD RED-GREEN-REFACTOR)
+
+**완료 일자**: 2026-05-12
+**총 태스크**: T-031 ~ T-036 (6개) — 전체 completed
+
+#### 신규 파일 (production)
+
+| 파일 | 역할 |
+|------|------|
+| `internal/ritual/journal/analyzer_llm.go` | LLMClient interface + LLMEmotionAnalyzer (REQ-017 system prompt + clinical reject + parse-fail fallback) |
+| `internal/ritual/journal/summary_llm.go` | LLMSummaryEnhancer.EnhanceWeeklySummary (aggregated payload only, no raw text) |
+
+#### 수정 파일
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `internal/ritual/journal/writer.go` | step 5 LLM 분기 활성 (EmotionLLMAssisted guard + llmAnalyzer 분리 필드) |
+| `internal/ritual/journal/summary.go` | WeeklySummary.OneLiner 필드 추가 (M3 LLM 서술) |
+
+#### 신규 파일 (test)
+
+| 파일 | 역할 |
+|------|------|
+| `internal/ritual/journal/analyzer_llm_test.go` | 9개 LLM 분석기 테스트 (AC-020 payload assertion + AC-023 보강) |
+| `internal/ritual/journal/summary_llm_test.go` | 8개 LLM summary enhancer 테스트 (aggregate payload + clinical reject + parse-fail) |
+
+#### 수정 파일 (test)
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `internal/ritual/journal/writer_test.go` | AC-002/AC-012 LLM mock counter 보강 + TestWriter_LLMAssistedEnabled_CallsLLM 신규 |
+
+#### AC 달성 현황 (M3)
+
+| AC | 상태 | 커버 테스트 |
+|----|------|-------------|
+| AC-020 | GREEN (신규) | TestLLMAnalyzer_PayloadIsTextOnly |
+| AC-002 | GREEN (보강) | TestWriter_LLMOptOutDefault (LLM mock counter 강화) |
+| AC-012 | GREEN (보강) | TestWriter_PrivateMode_LocalOnly (LLM mock counter 강화) |
+| AC-023 | GREEN (보강) | TestLLMAnalyzer_NeverCalledOnCrisis, TestLLMAnalyzer_RejectsClinicalLanguage |
+
+**누적 AC**: 26/26 GREEN (M1=19 + M2=6 + M3=1)
+
+#### 품질 게이트
+
+| 게이트 | 결과 |
+|--------|------|
+| `gofmt -l` | 0 파일 (clean) |
+| `go vet` | 0 이슈 |
+| `golangci-lint run` | 0 이슈 |
+| `go test -race -count=10 ./internal/ritual/journal/...` | PASS |
+| 커버리지 | 84.1% (M2 83.5% 대비 +0.6%, 회귀 0) |
+| 신규 외부 의존성 | 0 (LLMClient interface만 — 실 wiring 없음) |
+
+#### LSP nitpick fix (post-review)
+
+- writer_test.go:82 — `mockClient := &mockLLMClient{response: validLLMResponse}` 의 `response` field unused write (mockClient 가 wire 안 됨, invokeCount==0 만 검증). `&mockLLMClient{}` 로 단순화 (unusedwrite 진단 처리).
+
+#### Privacy invariants 검증
+
+| Invariant | 검증 테스트 | 결과 |
+|-----------|-------------|------|
+| LLM payload = entry.Text only (user_id/date/attachment/emoji/private_mode/allow_lora 부재) | TestLLMAnalyzer_PayloadIsTextOnly | PASS |
+| crisis entry → LLM 호출 0회 | TestLLMAnalyzer_NeverCalledOnCrisis | PASS |
+| PrivateMode=true → LLM 호출 0회 | TestLLMAnalyzer_NeverCalledOnPrivateMode, TestWriter_PrivateMode_LocalOnly | PASS |
+| LLM 응답 임상 어휘 → silent reject + local fallback | TestLLMAnalyzer_RejectsClinicalLanguage | PASS |
+| LLM JSON parse fail → silent fallback (사용자 가시 에러 없음) | TestLLMAnalyzer_JSONParseFailFallback | PASS |
+| summary LLM payload = aggregated stats only (raw entry text 부재) | TestSummaryLLM_PayloadAggregateOnly | PASS |
+
+#### 설계 결정
+
+1. **LLMEmotionAnalyzer 분리**: `NewJournalWriter` 가 `*LLMEmotionAnalyzer` 를 감지해 `llmAnalyzer` 필드에 분리 저장. Step 4 = 항상 LocalDictAnalyzer, Step 5 = LLM guard (EmotionLLMAssisted && !PrivateMode && !isCrisis && llmAnalyzer != nil) 조건 통과 시 override. 기존 step 4 타입 assertion 설계는 step 4 에서 LLM 이 이미 호출되는 버그를 내포했으므로 폐기.
+2. **WeeklySummary.OneLiner**: summary.go 의 `WeeklySummary` 구조체에 `OneLiner string` 필드 추가. M2 기존 테스트 회귀 없음 (zero value = "").
+3. **LLM real wiring deferred**: `LLMClient` interface 는 mock 만으로 구현됨. 실제 LLM-ROUTING-V2 provider 연결은 별도 wiring SPEC (또는 orchestrator 수정 PR) 에서 처리.
+
+#### 잔여 deviation / open question
+
+- `LLMClient` interface 의 실 wiring (provider 연결) 은 orchestrator 또는 별도 wiring layer 에서 처리 필요. 본 M3 는 interface + mock 으로 종결.
+- `WeeklySummary.OneLiner` 를 orchestrator 가 읽어 prompt 에 포함하는 로직은 미구현 (M3 scope 외). orchestrator 수정 PR 에서 처리.
 
 ---
 
