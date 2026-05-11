@@ -121,11 +121,30 @@ unplanned files 가 5건 이하 → drift ≤ 20% (informational), 그 이상 �
 
 ---
 
-## M2 / M3 Task Decomposition (예비 — Sprint 3+ 진입 시 상세화)
+## M2 Task Decomposition (Long-term Memory Recall)
 
-M2 / M3 는 본 plan.md 의 §3 / §4 에서 high-level breakdown 으로 정의되었으며, 별도 atomic task 는 M1 audit-ready → ready → run 진입 후 본 tasks.md 에 append 한다 (WEATHER-001 의 T-024~T-043 추가 패턴 정렬).
+M2 실행 완료 — 2026-05-12
+
+| Task | Status | Description | Planned Files |
+|------|--------|-------------|---------------|
+| T-023 | completed | `recall.go` — MemoryRecall struct + FindAnniversaryEvents (SQL month/day ±1day, 10yr cutoff, valence filter) + FindSimilarMood (cosine similarity Vad) | `recall.go`, `recall_test.go` |
+| T-024 | completed | `anniversary.go` — AnniversaryDetector interface + dateInWindow ±1day + mockIdentityClient | `anniversary.go`, `anniversary_test.go` |
+| T-025 | completed | `trend.go` — TrendAggregator + WeeklyTrend/MonthlyTrend + SparklinePoints NaN for missing days | `trend.go`, `trend_test.go` |
+| T-026 | completed | `chart.go` — RenderChart Unicode ▁▂▃▄▅▆▇█ + NO_COLOR env + NaN→· | `chart.go`, `chart_test.go` |
+| T-027 | completed | `search.go` — JournalSearch FTS5 + rowid subquery + user_id SQL isolation + ftsQuote prefix | `search.go`, `search_test.go` |
+| T-028 | completed | `summary.go` — SummaryJob.RunWeekly (local aggregation: AvgValence + TopTags + WordCloud) + RunWeeklyCron | `summary.go`, `summary_test.go` |
+| T-029 | completed | `orchestrator.go` 수정 — anniversary branch 활성 + WithAnniversaryDetector/WithClock DI | `orchestrator.go`, `orchestrator_test.go` |
+| T-030 | completed | `tasks.md` M2 append + `progress.md` M2 Run Phase append | `tasks.md`, `progress.md` |
+
+AC GREEN (M2): AC-006 / AC-007 / AC-021 / AC-024 / AC-025 / AC-026
 
 ---
 
-Version: 0.1.0
+## M3 Task Decomposition (예비 — M3 run 진입 시 상세화)
+
+M3 는 plan.md §4 의 high-level breakdown 참조. 진입 시 본 tasks.md 에 T-031+ append.
+
+---
+
+Version: 0.2.0
 Last Updated: 2026-05-12

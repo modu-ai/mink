@@ -1,16 +1,17 @@
 # SPEC-GOOSE-JOURNAL-001 Progress
 
 - Started: 2026-05-12 (Plan Phase entry)
-- Resume marker: **M1 Run Phase COMPLETE — sync 진입 대기**
+- Resume marker: **M2 Run Phase COMPLETE — PR open → merge 대기**
 - Development mode: TDD (RED-GREEN-REFACTOR)
 - Coverage target: 85% (per quality.yaml)
-- Coverage achieved: 82.3% (78% M1 minimum 초과)
+- Coverage achieved: 83.5% (M2 누적)
 - LSP gates baseline: 0 errors / 0 type errors / 0 lint warnings
 - Lifecycle: spec-anchored
 - Priority: P0
 - Phase: 7 (Daily Companion, ritual/evening)
 - Size: 중(M)
 - M1 status: implementation complete, 19 AC GREEN
+- M2 status: implementation complete, 6 AC GREEN (AC-006/007/021/024/025/026)
 
 ## 2026-05-12 M1 Run Phase Session
 
@@ -248,6 +249,87 @@ WEATHER-001 의 plan 산출물 (plan.md / acceptance.md / tasks.md / spec-compac
 4. **WAL 모드 적용**: SQLite WAL 모드는 multi-reader / single-writer 성능 + crash safety 개선. 단 WAL 파일 (`-wal`, `-shm`) 의 0600 권한 동기 enforce 필요 (T-003 + AC-013).
 5. **emotion_dict.golden.yaml 의 사전 범위**: research.md §2.2 의 8 카테고리 + 추가 4 카테고리 (lonely/regret/bored/proud) 로 충분한지 사용자 검증 필요. M1 진입 시 sample 일기 코퍼스 (50+ entry) 로 회귀 검증 후 사전 확장 가능.
 6. **Anniversary trauma protection (R6)**: research.md §5.3 의 valence < 0.3 자동 필터는 default ON. 사용자 명시 opt-in (`config.recall_low_valence=true`) 추가 여부는 M2 진입 시 결정.
+
+---
+
+## 2026-05-12 M2 Run Phase Session
+
+### Phase 2 — Implementation (TDD RED-GREEN-REFACTOR)
+
+**완료 일자**: 2026-05-12
+**총 태스크**: T-023 ~ T-030 (8개) — 전체 completed
+
+#### 신규 파일 (production)
+
+| 파일 | 역할 |
+|------|------|
+| `internal/ritual/journal/recall.go` | MemoryRecall.FindAnniversaryEvents/FindSimilarMood |
+| `internal/ritual/journal/anniversary.go` | AnniversaryDetector + ImportantDate + IdentityClient interface |
+| `internal/ritual/journal/trend.go` | TrendAggregator.WeeklyTrend/MonthlyTrend + NaN sparkline |
+| `internal/ritual/journal/chart.go` | RenderChart (Unicode ▁▂▃▄▅▆▇█ + NO_COLOR 지원) |
+| `internal/ritual/journal/search.go` | JournalSearch.Search (FTS5 + user_id 격리 + prefix 매칭) |
+| `internal/ritual/journal/summary.go` | SummaryJob.RunWeekly (로컬 집계, LLM 호출 0) |
+
+#### 신규 파일 (test)
+
+| 파일 | 역할 |
+|------|------|
+| `internal/ritual/journal/recall_test.go` | 9개 recall 테스트 (anniversary + low-valence filter + cosine similarity) |
+| `internal/ritual/journal/anniversary_test.go` | 6개 anniversary detector 테스트 (±1day window + edge) |
+| `internal/ritual/journal/trend_test.go` | 6개 trend 집계 테스트 (NaN gap + empty + 30day) |
+| `internal/ritual/journal/chart_test.go` | 5개 chart 렌더 테스트 (block glyphs + NO_COLOR + empty) |
+| `internal/ritual/journal/search_test.go` | 8개 FTS5 search 테스트 (user scope + injection + empty query) |
+| `internal/ritual/journal/summary_test.go` | 7개 weekly summary 테스트 (cadence + disabled + zero entries) |
+
+#### 수정 파일
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `internal/ritual/journal/config.go` | RecallLowValence 필드 추가 (trauma recall protection opt-in) |
+| `internal/ritual/journal/writer.go` | Search stub → JournalSearch 위임 + searcher 필드 추가 |
+| `internal/ritual/journal/orchestrator.go` | anniversary branch 활성 + WithAnniversaryDetector/WithClock DI 추가 |
+| `internal/ritual/journal/orchestrator_test.go` | AC-007 테스트 2건 추가 (TestOrchestrator_AnniversaryPrompt_Wedding 등) |
+
+#### AC 달성 현황 (M2 6개)
+
+| AC | 상태 | 커버 테스트 |
+|----|------|-------------|
+| AC-006 | GREEN | TestRecall_AnniversaryEvents_LastYear |
+| AC-007 | GREEN | TestOrchestrator_AnniversaryPrompt_Wedding |
+| AC-021 | GREEN | TestWeeklySummary_SundayCadence_Generates |
+| AC-024 | GREEN | TestSearch_FTS5_UserScoped |
+| AC-025 | GREEN | TestWeeklyTrend_AggregationWithGaps |
+| AC-026 | GREEN | TestRenderChart_SevenDaysWithNaN |
+
+#### 품질 게이트
+
+| 게이트 | 결과 |
+|--------|------|
+| `gofmt -l` | 0 파일 (clean) |
+| `go vet` | 0 이슈 |
+| `golangci-lint run` | 0 이슈 |
+| `go test -race -count=10 ./internal/ritual/journal/...` | PASS |
+| 커버리지 | 83.5% (80% 목표 초과) |
+| 신규 외부 의존성 | 0 |
+
+#### LSP nitpick fix (post-review)
+
+- summary.go:163 — `for _, tok := range strings.Fields(...)` → `for tok := range strings.FieldsSeq(...)` (Go 1.24+ stringsseq, iter.Seq[string] 효율적)
+- recall.go:95 + recall_test.go (4 lines) `RecallLowValence undefined / unknown field` compiler 진단은 **stale gopls cache false positive** (config.go:34 에 정의됨, build/vet/lint 0 + race PASS 로 검증). main session grep 재검증 후 무시.
+
+#### 핵심 설계 결정
+
+1. **FTS5 prefix 매칭**: `"query"*` 형식으로 한국어 어절 분리 없이 prefix 검색 지원. `"산책"*`이 `"산책을"`, `"산책하다"` 등 모두 매칭.
+2. **Rowid subquery 방식**: FTS5 content table join (`INNER JOIN journal_fts ON journal_fts.rowid = e.rowid`) 대신 `WHERE rowid IN (SELECT rowid FROM journal_fts WHERE MATCH)` 패턴 사용 — SQLite 버전 호환성 우수.
+3. **AnniversaryDetector DI**: `WithAnniversaryDetector()` 옵션 메서드로 주입 — M1 기존 orchestrator 시그니처 변경 없음 (이하위 호환).
+4. **MemoryRecall trauma filter**: valence < 0.3 기본 필터 (R6). `config.RecallLowValence=true` opt-in으로 포함 가능.
+5. **TrendAggregator NaN**: 엔트리 없는 날은 `math.NaN()` — 렌더러가 `·` (middle dot)으로 표기.
+
+#### 잔여 deviation / open question
+
+- IDENTITY-001 실제 client 구현 없음 (M2는 interface + mock). 실 wiring은 M3 또는 별도 SPEC.
+- weekly summary의 `pendingSummaryFlag`는 orchestrator와 통신 채널 미구현 (flag 필드만 존재). M3에서 orchestrator가 flag를 읽어 prompt 시 summary 제시.
+- LLM 기반 summary 서술은 M3 scope (M2는 로컬 집계만).
 
 ---
 

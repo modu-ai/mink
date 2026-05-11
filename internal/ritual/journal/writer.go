@@ -39,6 +39,8 @@ type sqliteJournalWriter struct {
 	logger   *zap.Logger
 	// onEntry is called after a successful write (INSIGHTS-001 consumer). May be nil.
 	onEntry OnJournalEntryFunc
+	// searcher implements FTS5 search (M2). Initialised lazily on first Search call.
+	searcher *JournalSearch
 }
 
 // maxRetries is the number of storage insert attempts before giving up.
@@ -71,6 +73,7 @@ func NewJournalWriter(
 		auditor:  auditor,
 		logger:   logger,
 		onEntry:  onEntry,
+		searcher: NewJournalSearch(storage),
 	}
 }
 
@@ -207,10 +210,9 @@ func (w *sqliteJournalWriter) ListByDate(ctx context.Context, userID string, fro
 	return w.storage.ListByDateRange(ctx, userID, from, to)
 }
 
-// Search is a stub in M1. It returns an empty slice; FTS5 search is implemented in M2.
-func (w *sqliteJournalWriter) Search(_ context.Context, userID, _ string) ([]*StoredEntry, error) {
-	if userID == "" {
-		return nil, ErrInvalidUserID
-	}
-	return nil, nil
+// Search performs an FTS5 full-text search for query within userID's journal entries.
+// Delegates to JournalSearch which enforces user-scoped isolation at the SQL level.
+// Returns ErrInvalidQuery when query is empty, ErrInvalidUserID when userID is empty.
+func (w *sqliteJournalWriter) Search(ctx context.Context, userID, query string) ([]*StoredEntry, error) {
+	return w.searcher.Search(ctx, userID, query)
 }
