@@ -1,3 +1,20 @@
+---
+id: SPEC-MINK-ENV-MIGRATE-001
+version: "0.1.1"
+status: draft
+created_at: 2026-05-13
+updated_at: 2026-05-13
+author: manager-spec
+priority: High
+labels: [env-migration, deprecation, alias-loader, brand-cleanup, acceptance-criteria]
+issue_number: null
+depends_on: [SPEC-MINK-BRAND-RENAME-001]
+related_specs: [SPEC-MINK-USERDATA-MIGRATE-001]
+phase: meta
+lifecycle: spec-anchored
+description: "Acceptance criteria — Given-When-Then scenarios + verification commands for SPEC-MINK-ENV-MIGRATE-001 (10 AC, 6 phase mapping)"
+---
+
 # Acceptance Criteria — SPEC-MINK-ENV-MIGRATE-001
 
 > 본 문서는 spec.md §5 의 10 AC 를 Given-When-Then 전수 시나리오 + 검증 명령으로 확장한다.
@@ -13,7 +30,7 @@
 | AC-MINK-EM-004 | REQ-MINK-EM-006 | Phase 2, 6 | Critical | unit + integration |
 | AC-MINK-EM-005 | REQ-MINK-EM-003, REQ-MINK-EM-007 | Phase 1 | Critical | unit (sync.Once, race detector) |
 | AC-MINK-EM-006 | REQ-MINK-EM-008 | Phase 1 | High | unit (nil logger) |
-| AC-MINK-EM-007 | (test consistency) | Phase 4 | High | grep automation |
+| AC-MINK-EM-007 | (test consistency) | Phase 3, 4 | High | grep automation (Phase 3 production migration + Phase 4 test migration 동시 의존) |
 | AC-MINK-EM-008 | REQ-MINK-EM-002 | Phase 1, 6 | High | table-driven + race |
 | AC-MINK-EM-009 | (env scrub backward+forward compat) | Phase 4 | High | unit (table-driven) |
 | AC-MINK-EM-010 | (prose migration) | Phase 5 | Medium | grep + visual review |
@@ -189,8 +206,8 @@ grep -rn 't\.Setenv("GOOSE_' --include="*.go" . \
 - `TestSyncOncePerKey_Conflict_AlsoOnce` — REQ-MINK-EM-007
 - `TestSyncOncePerKey_DistinctKeysDistinctOnces` — REQ-MINK-EM-003
 - `TestNilLoggerSafety` — REQ-MINK-EM-008
-- `TestAllKeysRegistered` — REQ-MINK-EM-002 (22-key mapping 검증)
-- `TestStrictMode_UnknownKey_Logs` — REQ-MINK-EM-009 (optional)
+- `TestAllKeysRegistered` — REQ-MINK-EM-002 (21-key single-key mapping table + 1 prefix glob = AUTH_; AUTH_ prefix 는 `internal/hook/isolation_*.go` 에서 별도 처리됨, keys.go 의 const map 은 21 entries)
+- `TestStrictMode_UnknownKey_Logs` — REQ-MINK-EM-009 (Optional, EARS Where 패턴, Phase 1 안에서 구현 + test)
 
 **Verification command**:
 ```bash

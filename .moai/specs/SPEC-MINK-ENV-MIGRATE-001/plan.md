@@ -1,3 +1,20 @@
+---
+id: SPEC-MINK-ENV-MIGRATE-001
+version: "0.1.1"
+status: draft
+created_at: 2026-05-13
+updated_at: 2026-05-13
+author: manager-spec
+priority: High
+labels: [env-migration, deprecation, alias-loader, brand-cleanup, plan-document]
+issue_number: null
+depends_on: [SPEC-MINK-BRAND-RENAME-001]
+related_specs: [SPEC-MINK-USERDATA-MIGRATE-001]
+phase: meta
+lifecycle: spec-anchored
+description: "Implementation plan — phase roadmap, technical approach, risks for SPEC-MINK-ENV-MIGRATE-001"
+---
+
 # Plan — SPEC-MINK-ENV-MIGRATE-001
 
 > 본 plan 은 spec.md §6 Technical Approach 의 6 phase 를 atomic commit 단위로 구체화한 구현 계획이다.
@@ -9,8 +26,8 @@
 |-------|--------------------|---------------------------|----------------|----------|
 | 1 | feat(env-alias): introduce envalias package skeleton + 22 key mapping table | +4 (new: loader.go, keys.go, doc.go, loader_test.go) | go build + go test ./internal/envalias | Critical |
 | 2 | feat(env-alias): adopt alias loader in config.envOverlay (5 keys) | ~3 (env.go, env_test.go, config.go test additions) | go test ./internal/config | Critical |
-| 3 | feat(env-alias): migrate 10 distributed production read sites | ~12 (audit/dual.go, config/config.go, aliasconfig/loader.go, transport/grpc/server.go, hook/handlers.go, hook/permission.go, cmd/minkd/main.go, llm/provider/qwen/client.go, kimi/client.go + each test) | go test ./... | Critical |
-| 4 | feat(env-alias): extend env scrub deny-list (MINK_AUTH_*) + migrate in-tree test setenv | ~10 (isolation_unix.go, isolation_other.go, hook_test.go + 7 test files with t.Setenv migration) | go test ./internal/hook + grep verification | High |
+| 3 | feat(env-alias): migrate 11 distributed production read sites | ~13 (audit/dual.go, config/config.go, aliasconfig/loader.go, transport/grpc/server.go (3 callsite), hook/handlers.go, hook/permission.go, cmd/minkd/main.go, llm/provider/qwen/client.go, kimi/client.go + each test) | go test ./... | Critical |
+| 4 | feat(env-alias): extend env scrub deny-list (MINK_AUTH_*) + migrate 28 t.Setenv + 6 os.Setenv → t.Setenv("MINK_*") | ~14 (isolation_unix.go, isolation_other.go, hook_test.go + 10 test files with t.Setenv migration + 3 test files with os.Setenv → t.Setenv migration) | go test ./internal/hook + grep verification | High |
 | 5 | docs(env-alias): update prose / error messages / @MX:SPEC tags for MINK_* | ~8 (messaging_telegram.go, keyring_nokeyring.go, qwen/kimi client.go comments, env.go @MX tag) | grep verification + visual review | Medium |
 | 6 | test(env-alias): integration test for main wire-up + final pass | ~3 (integration_test.go new TestMain_EnvAlias_* + final cleanups) | go test ./... + go vet ./... | High |
 
@@ -169,8 +186,9 @@ REQ-MINK-EM-001 ~ REQ-MINK-EM-009 의 일대일 트레일 + @MX:SPEC tag 부착.
 Phase 1 의 test:
 - `TestEnvSourceString` — enum String() 검증
 - `TestNew_DefaultsEnvLookupToOsGetenv` — opts.EnvLookup nil → os.Getenv fallback
-- `TestGet_UnregisteredKey_ReturnsDefault` — 등록되지 않은 key 시 (default false)
-- `TestAllKeysRegistered` — 22 keys (21 + AUTH 별도 noted) 매핑 검증 (table-driven)
+- `TestGet_UnregisteredKey_ReturnsDefault` — 등록되지 않은 key 시 (default false, strict mode off)
+- `TestStrictMode_UnknownKey_Logs` — REQ-MINK-EM-009 (strict mode on → unregistered key 시 warning log + default 값 반환). Phase 1 안에서 strict mode 구현 + test 동시 작성
+- `TestAllKeysRegistered` — 21 single-key + 1 prefix glob (AUTH_, isolation 별도 처리) 매핑 검증 (table-driven). REQ-MINK-EM-002 의 22-key 매핑은 21 single-key entries (keys.go) + 1 AUTH_ prefix glob (isolation_*.go 별도 처리) 의 합으로 해석.
 
 ### §2.2 검증
 
@@ -212,19 +230,26 @@ if v, _, ok := loader.Get("LOG_LEVEL"); ok {
 
 ## §4 Phase 3 — 분산 production read site migration
 
-### §4.1 변경 site 목록 (각 줄 = 1 production callsite)
+### §4.1 변경 site 목록 (각 줄 = 1 production callsite, 총 11)
+
+> **Frame anchor**: 모든 file:line 참조는 base commit `f0f02e4` 기준. Phase 3 commit 직전 grep 으로 keyword 재확인 (line drift 가능).
+
+`os.Getenv` direct callsite (8):
 
 1. `internal/audit/dual.go:140` — `os.Getenv("GOOSE_HOME")` → `loader.Get("HOME")`
 2. `internal/config/config.go:274` — `os.Getenv("GOOSE_HOME")` → `loader.Get("HOME")` (resolveGooseHome 함수 안)
-3. `internal/command/adapter/aliasconfig/loader.go:32` — const `homeEnv = "GOOSE_HOME"` → const + alias loader 호출 path 정리
-4. `internal/transport/grpc/server.go:169` — `GOOSE_GRPC_REFLECTION`
-5. `internal/transport/grpc/server.go:277` — `GOOSE_GRPC_MAX_RECV_MSG_BYTES`
-6. `internal/transport/grpc/server.go:297` — `GOOSE_SHUTDOWN_TOKEN`
-7. `internal/hook/handlers.go:270` — `GOOSE_HOOK_TRACE`
-8. `internal/hook/permission.go:251` — `GOOSE_HOOK_NON_INTERACTIVE`
-9. `cmd/minkd/main.go:89` — `GOOSE_ALIAS_STRICT`
-10. `internal/llm/provider/qwen/client.go:38` — const `envQwenRegion = "GOOSE_QWEN_REGION"` + 함수 내 호출
-11. `internal/llm/provider/kimi/client.go:40` — const `envKimiRegion = "GOOSE_KIMI_REGION"` + 함수 내 호출
+3. `internal/transport/grpc/server.go:169` — `GOOSE_GRPC_REFLECTION`
+4. `internal/transport/grpc/server.go:277` — `GOOSE_GRPC_MAX_RECV_MSG_BYTES`
+5. `internal/transport/grpc/server.go:297` — `GOOSE_SHUTDOWN_TOKEN`
+6. `internal/hook/handlers.go:270` — `GOOSE_HOOK_TRACE`
+7. `internal/hook/permission.go:251` — `GOOSE_HOOK_NON_INTERACTIVE`
+8. `cmd/minkd/main.go:89` — `GOOSE_ALIAS_STRICT`
+
+const-based callsite (3):
+
+9. `internal/command/adapter/aliasconfig/loader.go:32` (const `homeEnv = "GOOSE_HOME"`) + `loader.go:92` (callsite `os.Getenv(homeEnv)`) — 정정 패턴은 §4.5 OQ-PL-2 RESOLVED 참조 (const 이름 유지, 값만 short key 변경)
+10. `internal/llm/provider/qwen/client.go:38` (const `envQwenRegion`) + `client.go:99` (callsite) — OQ-PL-2 RESOLVED 동일 패턴
+11. `internal/llm/provider/kimi/client.go:40` (const `envKimiRegion`) + `client.go:135` (callsite) — OQ-PL-2 RESOLVED 동일 패턴
 
 ### §4.2 Loader 인스턴스 공유 전략
 
@@ -302,14 +327,20 @@ denyListed := []string{
 ### §5.3 t.Setenv migration 자동화 안전 검사
 
 ```bash
-# before-state grep (Phase 4 시작 전)
+# before-state grep (Phase 4 시작 전, base commit f0f02e4 기준)
 cd /Users/goos/.moai/worktrees/goose/SPEC-MINK-ENV-MIGRATE-001
 grep -rn 't\.Setenv("GOOSE_' --include="*.go" . | grep -v "/vendor/" | grep -v "envalias/loader_test.go" | wc -l
-# 예상: 50+
+# 예상: 28 (10 test files: cmd/minkd/integration_test.go (9), internal/command/adapter/aliasconfig/integration_test.go (5), aliasconfig/loader_amend_test.go (3), aliasconfig/loader_test.go (2), aliasconfig/loader_p3_test.go (1), aliasconfig/merge_test.go (1), llm/provider/qwen/client_test.go (2), kimi/client_test.go (2), hook/hook_test.go (2), config/config_test.go (1))
+
+# os.Setenv 호출도 함께 migrate (research.md §2.4, R10 mitigation)
+grep -rn 'os\.Setenv("GOOSE_' --include="*.go" . | grep -v "/vendor/" | wc -l
+# 예상: 6 (3 test files: internal/audit/dual_test.go (3), internal/transport/grpc/server_test.go (2), internal/tools/builtin/terminal/bash_test.go (1))
 
 # after-state grep (Phase 4 commit 직전)
 grep -rn 't\.Setenv("GOOSE_' --include="*.go" . | grep -v "/vendor/" | grep -v "envalias/loader_test.go" | wc -l
 # 목표: 0
+grep -rn 'os\.Setenv("GOOSE_' --include="*.go" . | grep -v "/vendor/" | wc -l
+# 목표: 0 (모두 t.Setenv("MINK_*") 로 migrate)
 ```
 
 `sed -i` 대신 `Edit` tool 사용 (BSD/GNU sed 호환성 회피, MoAI 운영 규칙 § Tool Selection 일치).
@@ -409,16 +440,16 @@ grep -rn "GOOSE_" --include="*.go" . | grep -v "/vendor/" \
 | OQ # | Question | 결정 시점 |
 |------|----------|----------|
 | OQ-PL-1 | Loader 의 typed API 신설 (e.g., `GetInt`, `GetBool`) — 호출부 strconv.Atoi 중복 줄임 — 도입할지? | spec.md §6.2 OUT scope 명시 결정: 본 SPEC 외 (over-engineering 회피). 호출부 conversion 유지. |
-| OQ-PL-2 | qwen/kimi 의 const `envQwenRegion = "GOOSE_QWEN_REGION"` 을 const `envQwenKey = "QWEN_REGION"` (alias short key) 로 변경할지? | Phase 3 작업 시 결정 — alias loader Get 함수가 short key 받으므로 const 도 short key 로 변경하는 게 일관성. plan-auditor 검토 시 재확인. |
+| OQ-PL-2 | qwen/kimi 의 const `envQwenRegion = "GOOSE_QWEN_REGION"` 을 const `envQwenKey = "QWEN_REGION"` (alias short key) 로 변경할지? | **RESOLVED (v0.1.1, plan-auditor cycle D11)**: const **이름 유지** (`envQwenRegion`, `envKimiRegion`, `homeEnv`) + **값만 short key 변경** (`"QWEN_REGION"`, `"KIMI_REGION"`, `"HOME"`). 결정 trail: (a) const 이름 변경 시 외부 import 영향 — `grep -rn "envQwenRegion\|envKimiRegion\|homeEnv"` → import 0건 (package-private 이므로 안전). (b) 그러나 이름 유지로 git blame 연속성 보존 + minimal diff (rename refactor 분리). (c) const 의 의미는 "alias loader Get 의 newKey argument" — 값이 short key 인 게 일관성 유지. **결정**: 첫번째 옵션 채택 = const 이름 유지 + 값만 변경 (`envQwenRegion = "QWEN_REGION"` 형태). Phase 3 commit 시 적용. |
 | OQ-PL-3 | `internal/envalias` 가 zap 외 logger interface 추상화 (`Logger interface { Warn(...) }`) 도입할지? | NO — 프로젝트 전체가 zap 단일 사용, abstraction 도입은 over-engineering. |
 | OQ-PL-4 | `cmd/minkd/main.go` 의 `envalias.Init(logger)` 호출 위치 (logger 생성 직후 vs config load 직후)? | logger 생성 직후 — envOverlay 가 logger 를 받기 전에 alias loader 가 준비되어야 함 (chicken-egg 회피). |
 
 ## §9 Risks (plan-level 누적)
 
-spec.md §9 risk table 8개 외 plan-level 추가:
+spec.md §9 risk table 13개 (R1~R13, plan-auditor cycle D7 에서 R11/R12/R13 추가) 외 plan-level 추가:
 
-- R9: Phase 4 의 50+ t.Setenv 변경 중 1~2 곳 누락 → CI 통과하지만 backward compat 미검증. Mitigation: AC-MINK-EM-007 의 grep 자동화 + plan-auditor 가 Phase 4 commit 의 diff 를 grep 결과와 cross-check.
-- R10: `cmd/minkd/integration_test.go` 의 신규 test 가 `os.Setenv` (not `t.Setenv`) 를 사용하면 병렬 test 간 env 오염. Mitigation: 강제 `t.Setenv` 사용 + `t.Parallel()` 호출 분리.
+- R9: Phase 4 의 28 t.Setenv + 6 os.Setenv 변경 중 1~2 곳 누락 → CI 통과하지만 backward compat 미검증. Mitigation: AC-MINK-EM-007 의 grep 자동화 + plan-auditor 가 Phase 4 commit 의 diff 를 grep 결과와 cross-check.
+- R10: `cmd/minkd/integration_test.go` 의 신규 test 가 `os.Setenv` (not `t.Setenv`) 를 사용하면 병렬 test 간 env 오염. Mitigation: 강제 `t.Setenv` 사용 + `t.Parallel()` 호출 분리. (research.md §2.4 의 6 `os.Setenv` callsite 도 본 SPEC 에서 `t.Setenv` 로 migrate.)
 
 ## §10 References
 

@@ -1,3 +1,20 @@
+---
+id: SPEC-MINK-ENV-MIGRATE-001
+version: "0.1.1"
+status: draft
+created_at: 2026-05-13
+updated_at: 2026-05-13
+author: manager-spec
+priority: High
+labels: [env-migration, deprecation, alias-loader, brand-cleanup, research-document]
+issue_number: null
+depends_on: [SPEC-MINK-BRAND-RENAME-001]
+related_specs: [SPEC-MINK-USERDATA-MIGRATE-001]
+phase: meta
+lifecycle: spec-anchored
+description: "Research document — current state analysis (22-key inventory, module distribution, industry patterns, OUT-of-scope boundary) for SPEC-MINK-ENV-MIGRATE-001"
+---
+
 # Research — SPEC-MINK-ENV-MIGRATE-001
 
 > 본 문서는 `GOOSE_*` 환경변수 22개를 `MINK_*` 로 alias 하는 deprecation loader 도입을 위한 사전 조사 자료다.
@@ -63,13 +80,13 @@ grep -rh "GOOSE_[A-Z_]*" --include="*.go" -o . | grep -v "/vendor/" | sort | uni
 | `cmd/minkd/` | ALIAS_STRICT | main.go 89 직접 read |
 | `internal/cli/commands/`, `internal/messaging/telegram/` | TELEGRAM_BOT_TOKEN | 산문 hint 만 |
 
-→ **단일 진입점 부재**: envOverlay (5 key) 외 10 개 production read site 가 분산. alias loader 도입은 envOverlay 확장 + 분산 read site 의 점진 migration 둘 다 필요.
+→ **단일 진입점 부재**: envOverlay (5 key) 외 11 개 production read site 가 분산 (8 `os.Getenv` direct callsite + 3 const-based callsite via `homeEnv` / `envQwenRegion` / `envKimiRegion` const). alias loader 도입은 envOverlay 확장 + 11 분산 read site 의 점진 migration 둘 다 필요. const-based callsite 는 const 이름 유지 + 값만 short key 변경 (plan.md OQ-PL-2 RESOLVED).
 
 ## §2 현재 env var 로딩 패턴
 
 ### §2.1 `os.Getenv` 직접 호출 (production)
 
-위 §1.1 의 "Runtime read site (production)" 컬럼 = 10 unique production file (15 keys 처리). 모든 호출이 직접적이고 wrapper 부재.
+위 §1.1 의 "Runtime read site (production)" 컬럼 = 11 unique production callsite (8 `os.Getenv` direct + 3 const-based via `homeEnv` / `envQwenRegion` / `envKimiRegion`). 15 keys 처리. 모든 호출이 직접적이고 wrapper 부재.
 
 ### §2.2 envOverlay (부분 단일 진입점)
 
@@ -87,10 +104,12 @@ grep -rh "GOOSE_[A-Z_]*" --include="*.go" -o . | grep -v "/vendor/" | sort | uni
 
 ### §2.4 test setup (`os.Setenv` / `t.Setenv`)
 
-| 패턴 | 호출 횟수 | 안전성 |
-|------|----------|--------|
-| `t.Setenv("GOOSE_*", ...)` | ~50+ (대다수 `cmd/minkd/integration_test.go`, `internal/command/adapter/aliasconfig/*_test.go`, qwen/kimi client_test.go) | **안전** — Go testing framework 가 자동 cleanup |
-| `os.Setenv("GOOSE_*", ...)` | 5 (`internal/audit/dual_test.go:128,130,293`, `internal/tools/builtin/terminal/bash_test.go:211`, `internal/transport/grpc/server_test.go:532,537`) | process-wide, 명시 cleanup 필요 |
+> **검증 명령** (base commit `f0f02e4` 기준): `grep -rEn 't\.Setenv\("GOOSE_' --include='*.go' . | grep -v vendor | wc -l` → 28; `grep -rEn 'os\.Setenv\("GOOSE_' --include='*.go' . | grep -v vendor | wc -l` → 6.
+
+| 패턴 | 호출 횟수 | 분포 | 안전성 |
+|------|----------|------|--------|
+| `t.Setenv("GOOSE_*", ...)` | 28 | `cmd/minkd/integration_test.go` (9), `internal/command/adapter/aliasconfig/integration_test.go` (5), `aliasconfig/loader_amend_test.go` (3), `aliasconfig/loader_test.go` (2), `aliasconfig/loader_p3_test.go` (1), `aliasconfig/merge_test.go` (1), `internal/llm/provider/qwen/client_test.go` (2), `kimi/client_test.go` (2), `internal/hook/hook_test.go` (2), `internal/config/config_test.go` (1) | **안전** — Go testing framework 가 자동 cleanup |
+| `os.Setenv("GOOSE_*", ...)` | 6 | `internal/audit/dual_test.go` (3), `internal/transport/grpc/server_test.go` (2), `internal/tools/builtin/terminal/bash_test.go` (1) | process-wide, 명시 cleanup 필요 → 본 SPEC Phase 4 에서 모두 `t.Setenv` 로 migrate |
 
 → §5 정책: in-tree test 의 `t.Setenv("GOOSE_*", ...)` 도 본 SPEC 안에서 `t.Setenv("MINK_*", ...)` 로 migrate (consistency). `GOOSE_*` 호출은 alias 동작 검증 test (deprecation warning emit, fallback semantic) 로만 한정.
 
@@ -146,9 +165,9 @@ Go 표준 라이브러리는 env var alias 메커니즘을 내장하지 않는�
 
 ### §4.3 단위 test 의 `os.Setenv("GOOSE_*", ...)` 직접 호출
 
-- 영향: §2.4 의 5 곳 + `t.Setenv` 50+ 곳
+- 영향: §2.4 의 6 `os.Setenv` 곳 + `t.Setenv` 28 곳 (총 34 callsite)
 - 본 SPEC 적용 후: alias loader 가 GOOSE_* 도 인식 → 기존 test 동작 유지 (backward compat)
-- 단, **§5 policy 5** 에 따라 in-tree consistency 위해 `MINK_*` 로 migrate; `GOOSE_*` 호출은 alias 검증 test (1~2 곳) 로만 한정
+- 단, **§5 policy 5** 에 따라 in-tree consistency 위해 `MINK_*` 로 migrate; `GOOSE_*` 호출은 alias 검증 test (1~2 곳, `internal/envalias/loader_test.go`) 로만 한정. 6 `os.Setenv` callsite 는 모두 `t.Setenv` 로 변환 (R10 mitigation: process-wide 오염 방지)
 - 검증: AC-MINK-EM-007 (test migration 완료 검증), AC-MINK-EM-008 (alias 검증 test 존재)
 
 ### §4.4 Docker / k8s manifest
@@ -187,7 +206,7 @@ BRAND-RENAME spec.md REQ-MINK-BR-027:
 ### §6.1 본 SPEC IN scope
 
 - 22 GOOSE_* env var 의 alias loader 도입
-- envOverlay 5 key + 분산 production read site 10 곳의 alias 채택 (15 runtime-read keys)
+- envOverlay 5 key + 분산 production read site 11 곳의 alias 채택 (15 runtime-read keys; 8 `os.Getenv` direct + 3 const-based via `homeEnv` / `envQwenRegion` / `envKimiRegion`)
 - 4 doc-only key (TELEGRAM_BOT_TOKEN, HISTORY_SNIP, METRICS_ENABLED, GRPC_BIND) 의 alias 등록 (미래-proof, runtime read 신설은 본 SPEC 외)
 - `GOOSE_AUTH_*` prefix deny-list 에 `MINK_AUTH_*` 추가 (env scrub backward + forward compat)
 - in-tree test 의 `t.Setenv("GOOSE_*", ...)` 를 `MINK_*` 로 migrate (alias 검증 test 1~2 곳 제외)
