@@ -49,6 +49,6 @@ go build ./cmd/goose
 
 ## 관련 문서
 
-- [`README.md`](../../README.md) — AI.GOOSE 전체 개요
+- [`README.md`](../../README.md) — MINK 전체 개요
 - [`SPEC-GOOSE-CLI-001`](../../.moai/specs/SPEC-GOOSE-CLI-001/spec.md) — CLI 명세 (EARS 형식)
 - [`.moai/specs/SPEC-GOOSE-CLI-001/progress.md`](../../.moai/specs/SPEC-GOOSE-CLI-001/progress.md) — Phase A~D + 후속 작업 이력

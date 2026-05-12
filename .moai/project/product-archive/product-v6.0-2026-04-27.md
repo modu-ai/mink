@@ -1,4 +1,4 @@
-# AI.GOOSE - 제품 문서 v4.0 GLOBAL EDITION
+# MINK - 제품 문서 v4.0 GLOBAL EDITION
 
 ## 0. 패러다임 진화 (5번의 피벗)
 
@@ -18,7 +18,7 @@
 
 ### 1.1 기본 정보
 
-- **프로젝트명:** AI.GOOSE (거위 에이전트)
+- **프로젝트명:** MINK (거위 에이전트)
 - **코드명:** goose
 - **완전형:** **G**enerative **O**wn **O**ne **S**elf-**E**volving companion
 - **버전:** 5.0.0 Tamagotchi Edition

@@ -8,7 +8,7 @@ This document records the norms we hold ourselves to. It is short by design — 
 
 ## 1. Our Pledge
 
-We pledge to make participation in AI.GOOSE and its community a welcoming experience for everyone, regardless of background, identity, or experience level.
+We pledge to make participation in MINK and its community a welcoming experience for everyone, regardless of background, identity, or experience level.
 
 We pledge to act and interact in ways that contribute to an open, kind, and healthy community.
 

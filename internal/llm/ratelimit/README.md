@@ -4,7 +4,7 @@
 
 ## 개요
 
-본 패키지는 AI.GOOSE의 **Rate Limit 추적**을 구현합니다. LLM provider 응답 헤더에서 rate limit 정보를 파싱하여, 요청 빈도 조절, 대기 시간 계산, backoff 전략을 수행합니다.
+본 패키지는 MINK의 **Rate Limit 추적**을 구현합니다. LLM provider 응답 헤더에서 rate limit 정보를 파싱하여, 요청 빈도 조절, 대기 시간 계산, backoff 전략을 수행합니다.
 
 ## 핵심 기능
 

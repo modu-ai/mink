@@ -1,4 +1,4 @@
-# AI.GOOSE 다음 세션 핸드오프
+# MINK 다음 세션 핸드오프
 
 작성: 2026-04-27 (1차 갱신) / 작성자: claude(orchestrator)
 직전 세션: M1 closure + CREDPOOL OI-05/06 머지 + Org Team plan 활성 + Branch protection 셋업

@@ -1,4 +1,4 @@
-# AI.GOOSE - Technology Document v4.1 POLYGLOT HYBRID
+# MINK - Technology Document v4.1 POLYGLOT HYBRID
 
 > **비전:** 글로벌 오픈소스 AI 에이전트 - Polyglot 3-언어 하이브리드 아키텍처
 > **핵심:** Rust (크리티컬 20%) + Go (오케스트레이션 70%) + TypeScript (UI 10%)
@@ -659,7 +659,7 @@ Lock states:
 **Decision:** 모든 PR은 merge 전에 `scripts/check-brand.sh` 통과 필수
 
 **Rules:**
-- 모든 user-facing prose에 "AI.GOOSE" 사용 (대문자, 마침표 후)
+- 모든 user-facing prose에 "MINK" 사용 (대문자, 마침표 후)
 - 코드 식별자는 `goose` (소문자, 영어만)
 - 제외: `.moai/specs/SPEC-GOOSE-BRAND-RENAME-001/` (원본 보존)
 - Fallback: SPEC 파일의 HISTORY 섹션은 lint 제외

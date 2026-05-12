@@ -4,7 +4,7 @@
 
 ## 개요
 
-본 패키지는 AI.GOOSE의 **Sub-agent 시스템**을 구현합니다. Claude Code의 agent spawning 모델을 Go로 포팅하여, 메인 에이전트가 독립적인 하위 에이전트를 생성·실행·관리할 수 있게 합니다. 각 sub-agent는 자체 system prompt, context window, tool 권한을 가진 격리된 실행 환경에서 동작합니다.
+본 패키지는 MINK의 **Sub-agent 시스템**을 구현합니다. Claude Code의 agent spawning 모델을 Go로 포팅하여, 메인 에이전트가 독립적인 하위 에이전트를 생성·실행·관리할 수 있게 합니다. 각 sub-agent는 자체 system prompt, context window, tool 권한을 가진 격리된 실행 환경에서 동작합니다.
 
 ## 핵심 구성 요소
 

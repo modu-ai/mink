@@ -4,7 +4,7 @@
 
 ## 개요
 
-본 패키지는 AI.GOOSE의 **Prompt Cache** 시스템을 구현합니다. Anthropic API의 prompt caching 기능을 활용하여 반복되는 system prompt, tool 정의, 이전 대화의 토큰 사용량을 최소화합니다.
+본 패키지는 MINK의 **Prompt Cache** 시스템을 구현합니다. Anthropic API의 prompt caching 기능을 활용하여 반복되는 system prompt, tool 정의, 이전 대화의 토큰 사용량을 최소화합니다.
 
 ## 핵심 기능
 

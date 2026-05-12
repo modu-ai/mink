@@ -4,7 +4,7 @@
 
 ## 개요
 
-본 패키지는 AI.GOOSE의 **MCP(Model Context Protocol) 클라이언트/서버**를 구현합니다. 외부 MCP 서버에 연결하여 tool, resource, prompt를 검색하고 실행합니다. JSON-RPC 2.0 기반의 표준 MCP 프로토콜을 지원하며, stdio 및 SSE transport를 제공합니다.
+본 패키지는 MINK의 **MCP(Model Context Protocol) 클라이언트/서버**를 구현합니다. 외부 MCP 서버에 연결하여 tool, resource, prompt를 검색하고 실행합니다. JSON-RPC 2.0 기반의 표준 MCP 프로토콜을 지원하며, stdio 및 SSE transport를 제공합니다.
 
 ## 핵심 구성 요소
 

@@ -58,7 +58,7 @@ else
       ! -path "./.git/*" \
       ! -path "./vendor/*" \
       ! -path "./.moai/specs/SPEC-GOOSE-*/*" \
-      ! -path "./.moai/specs/SPEC-MINK-BRAND-RENAME-001/*" \
+      ! -path "./.moai/specs/SPEC-MINK-*/*" \
       ! -path "./.moai/brain/IDEA-*/*" \
       ! -path "./.claude/agent-memory/*" \
       ! -name "*.sum" \

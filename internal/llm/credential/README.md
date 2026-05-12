@@ -4,7 +4,7 @@
 
 ## 개요
 
-본 패키지는 AI.GOOSE의 **Credential Pool**을 구현합니다. 다중 API key/OAuth token을 풀로 관리하며, rate limit 도달 시 자동 rotate, 만료 임박 시 자동 refresh, credential 전환 시 무중단 처리를 제공합니다.
+본 패키지는 MINK의 **Credential Pool**을 구현합니다. 다중 API key/OAuth token을 풀로 관리하며, rate limit 도달 시 자동 rotate, 만료 임박 시 자동 refresh, credential 전환 시 무중단 처리를 제공합니다.
 
 ## 핵심 기능
 

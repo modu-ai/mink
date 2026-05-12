@@ -1,4 +1,4 @@
-# AI.GOOSE - Migration Guide & Pivot Journey v4.0
+# MINK - Migration Guide & Pivot Journey v4.0
 
 > **문서 목적:** 5번의 피벗을 거쳐 GOOSE에 도착한 여정을 기록. 새 팀원, 기여자, 이해관계자를 위한 프로젝트 스토리.
 
@@ -664,7 +664,7 @@ v4.0 이후 모든 중대 변경은 RFC 필요:
 
 ### 10.2 새로운 v4.0 지지자
 
-"안녕하세요, AI.GOOSE 커뮤니티에 오신 것을 환영합니다.
+"안녕하세요, MINK 커뮤니티에 오신 것을 환영합니다.
 Apache License 2.0의 완전 오픈소스 AI 에이전트입니다.
 자기진화 + 100% 개인화 = 평생 동반자 AI.
 참여 방법은 github.com/modu-ai/goose."

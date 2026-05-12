@@ -1,4 +1,4 @@
-# AI.GOOSE - Structure Document v4.0 GLOBAL EDITION
+# MINK - Structure Document v4.0 GLOBAL EDITION
 
 **Version**: 4.0.0 GLOBAL EDITION  
 **Language**: Go + TypeScript (영문 기술 문서, 한국어 주석)  
@@ -52,7 +52,7 @@ goose-agent/
 ├── SECURITY.md                 # 보안 정책
 │
 ├── scripts/                    # 빌드/배포 스크립트
-│   ├── check-brand.sh          # 신규: AI.GOOSE 브랜드 린트 (BRAND-RENAME-001)
+│   ├── check-brand.sh          # 신규: MINK 브랜드 린트 (BRAND-RENAME-001)
 │   └── build.sh                # 통합 빌드 스크립트
 │
 ├── .github/                    # GitHub 설정

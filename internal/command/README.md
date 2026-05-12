@@ -4,7 +4,7 @@
 
 ## 개요
 
-본 패키지는 AI.GOOSE의 **Slash Command 파서 및 디스패처**를 구현합니다. Claude Code `commands/` 디렉토리의 slash command 시스템을 Go로 포팅하여, 사용자가 입력한 `/help`, `/clear`, `/model <alias>`, `/compact [target]`, `/exit` 등 내장 command를 LLM 호출 없이 local로 처리합니다.
+본 패키지는 MINK의 **Slash Command 파서 및 디스패처**를 구현합니다. Claude Code `commands/` 디렉토리의 slash command 시스템을 Go로 포팅하여, 사용자가 입력한 `/help`, `/clear`, `/model <alias>`, `/compact [target]`, `/exit` 등 내장 command를 LLM 호출 없이 local로 처리합니다.
 
 또한 `/moai`, `/agency`, `/custom` 등 사용자 정의 slash command를 YAML frontmatter 기반으로 `~/.goose/commands/` + `.goose/commands/` 에서 로드하며, `$ARGUMENTS`, `$N` (positional) 치환을 수행합니다.
 

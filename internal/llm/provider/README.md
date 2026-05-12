@@ -4,7 +4,7 @@
 
 ## 개요
 
-본 패키지는 AI.GOOSE Phase 1의 **LLM HTTP 호출 경계**를 정의합니다. `QUERY-001`의 `LLMCallFunc` 인터페이스에 대한 6개 주요 provider 구현(Anthropic, OpenAI, Google Gemini, xAI Grok, DeepSeek, Ollama)과 9개 metadata-only provider를 제공합니다.
+본 패키지는 MINK Phase 1의 **LLM HTTP 호출 경계**를 정의합니다. `QUERY-001`의 `LLMCallFunc` 인터페이스에 대한 6개 주요 provider 구현(Anthropic, OpenAI, Google Gemini, xAI Grok, DeepSeek, Ollama)과 9개 metadata-only provider를 제공합니다.
 
 모든 provider는 공통 `Provider` interface를 구현하며, OAuth PKCE refresh, tool schema 변환, prompt cache, rate limit 연계 등의 기능을 제공합니다.
 

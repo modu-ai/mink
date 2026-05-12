@@ -1,4 +1,4 @@
-# AI.GOOSE SPEC 로드맵 v6.2 (★ v0.2 재편 amendment 적용)
+# MINK SPEC 로드맵 v6.2 (★ v0.2 재편 amendment 적용)
 
 > **⚠ v0.2 Amendment (2026-04-24)**
 > SPEC-GOOSE-ARCH-REDESIGN-v0.2 확정본에 따라 주요 변경 발생. 아래 본문은 v6.2 기준이며, **실제 구현 우선순위와 범위는 재편본을 따른다**.
