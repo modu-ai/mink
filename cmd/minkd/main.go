@@ -1,4 +1,4 @@
-// minkd는 AI.MINK의 핵심 데몬 프로세스다.
+// minkd는 MINK의 핵심 데몬 프로세스다.
 // SPEC-GOOSE-CORE-001 — 부트스트랩 및 Graceful Shutdown
 // SPEC-GOOSE-CONFIG-001 — 계층형 설정 로더 적용
 // SPEC-GOOSE-DAEMON-WIRE-001 — 7개 cross-package SPEC wire-up
