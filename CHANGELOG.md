@@ -5,11 +5,11 @@
 
 ## [Unreleased]
 
-### Changed — SPEC-MINK-BRAND-RENAME-001 v0.1.0 (BREAKING: brand AI.GOOSE → MINK + module path goose → mink)
+### Changed — SPEC-MINK-BRAND-RENAME-001 v0.1.0 (BREAKING: brand `AI.GOOSE` → MINK + module path goose → mink)
 
 8-phase atomic 전역 brand rename. Single PR squash merge (PR #168, 11 commits, 600+ files):
 
-- **Brand**: `AI.GOOSE` → `MINK` (style-guide.md v2.0.0 frozen reference)
+- **Brand**: `AI.GOOSE` → `MINK` (style-guide v2.0.0 frozen reference)
 - **Go module path**: `github.com/modu-ai/goose` → `github.com/modu-ai/mink` (Phase 2 atomic, 456 .go 파일 import 일괄 치환)
 - **CLI binary**: `cmd/goose` → `cmd/mink`, `cmd/goosed` → `cmd/minkd` (Phase 5)
 - **Proto package**: `goose.v1` → `mink.v1`, generated `internal/transport/grpc/gen/goosev1/` → `gen/minkv1/` (Phase 4 atomic, buf 재생성)
