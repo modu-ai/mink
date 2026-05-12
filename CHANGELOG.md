@@ -5,6 +5,47 @@
 
 ## [Unreleased]
 
+### Changed — SPEC-MINK-BRAND-RENAME-001 v0.1.0 (BREAKING: brand AI.GOOSE → MINK + module path goose → mink)
+
+8-phase atomic 전역 brand rename. Single PR squash merge (PR #168, 11 commits, 600+ files):
+
+- **Brand**: `AI.GOOSE` → `MINK` (style-guide.md v2.0.0 frozen reference)
+- **Go module path**: `github.com/modu-ai/goose` → `github.com/modu-ai/mink` (Phase 2 atomic, 456 .go 파일 import 일괄 치환)
+- **CLI binary**: `cmd/goose` → `cmd/mink`, `cmd/goosed` → `cmd/minkd` (Phase 5)
+- **Proto package**: `goose.v1` → `mink.v1`, generated `internal/transport/grpc/gen/goosev1/` → `gen/minkv1/` (Phase 4 atomic, buf 재생성)
+- **Go 식별자**: `GooseHome` → `MinkHome` 64건 + brand-position doc-comment + test fixture (Phase 3)
+- **GitHub repo (post-merge)**: `modu-ai/goose` → `modu-ai/mink` (별도 작업)
+- **brand-lint** (`scripts/check-brand.sh`): 위반 패턴 4종 활성, exemption zone (`SPEC-GOOSE-*` 88개 + `SPEC-MINK-*` + `IDEA-*` + `agent-memory`)
+- **선행 SPEC**: `SPEC-GOOSE-BRAND-RENAME-001` (v0.1.1, 2026-04-27 completed) supersede 표시 — body content immutable
+
+#### Out-of-Scope (별도 후속 SPEC)
+
+- `SPEC-MINK-ENV-MIGRATE-001`: `GOOSE_*` 21개 env vars → `MINK_*` deprecation alias loader
+- `SPEC-MINK-USERDATA-MIGRATE-001`: `~/.goose/` → `~/.mink/` user-data path 1회 마이그레이션 logic
+- 88개 `SPEC-GOOSE-*` 디렉토리: immutable archive (byte-identical 보존)
+- 과거 release CHANGELOG entry: 보존 (신규 entry 만 MINK 표기)
+
+#### Migration guide for existing clones
+
+```bash
+# 1. Pull latest main
+git pull --ff-only origin main
+
+# 2. Update remote URL (post repo-rename)
+git remote set-url origin https://github.com/modu-ai/mink.git
+
+# 3. Clear Go module proxy cache (필수: 옛 module path 캐시 stale)
+go clean -modcache
+
+# 4. Verify new module path
+head -1 go.mod   # → module github.com/modu-ai/mink
+
+# 5. Re-build
+go build ./...   # → cmd/mink + cmd/minkd 바이너리 생성
+```
+
+**환경변수 (`GOOSE_*` 21개) 와 user-data 경로 (`~/.goose/`)**: 본 SPEC scope 외. 후속 SPEC 머지 전까지 옛 표기 그대로 동작.
+
 ### Added — SPEC-GOOSE-TOOLS-WEB-001 v0.1.0 M1 (web 8 도구 Registry + web_search + http_fetch + 공통 인프라)
 
 Sprint 1 첫 SPEC. M1 범위 — 8 도구 Registry 등록 + 2 도구 (web_search, http_fetch) 실제 구현 + 공통 인프라 8종 (PR #119, 4 commits, 16 DC GREEN, coverage 91.2%):
