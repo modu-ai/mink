@@ -1,4 +1,4 @@
-// Package plugin은 AI.GOOSE의 Plugin Host를 구현한다.
+// Package plugin은 MINK의 Plugin Host를 구현한다.
 // manifest.json 스키마 파싱, 3-tier discovery, MCPB 번들, atomic ClearThenRegister를 제공한다.
 //
 // SPEC: SPEC-GOOSE-PLUGIN-001 v0.1.0

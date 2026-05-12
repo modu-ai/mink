@@ -1,4 +1,4 @@
-// Package command implements the slash command system for AI.GOOSE.
+// Package command implements the slash command system for MINK.
 // SPEC: SPEC-GOOSE-COMMAND-001
 package command_test
 

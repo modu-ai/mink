@@ -1,4 +1,4 @@
-// Package subagent는 AI.GOOSE의 Sub-agent 런타임을 구현한다.
+// Package subagent는 MINK의 Sub-agent 런타임을 구현한다.
 // 3종 isolation(fork / worktree / background) + 3-scope memory(user / project / local)
 // + role profile override를 제공한다.
 //

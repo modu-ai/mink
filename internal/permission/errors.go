@@ -1,4 +1,4 @@
-// Package permission은 AI.GOOSE의 선언 기반 권한 시스템(Declared Permission)을 구현한다.
+// Package permission은 MINK의 선언 기반 권한 시스템(Declared Permission)을 구현한다.
 // frontmatter requires: 스키마 파싱, 첫 호출 확인(Confirmer), grant 영속화(Store),
 // 감사 로그(Auditor), sub-agent 상속을 제공한다.
 //

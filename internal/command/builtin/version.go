@@ -1,4 +1,4 @@
-// Package builtin provides the built-in slash commands for AI.GOOSE.
+// Package builtin provides the built-in slash commands for MINK.
 // SPEC: SPEC-GOOSE-COMMAND-001
 package builtin
 

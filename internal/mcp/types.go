@@ -1,4 +1,4 @@
-// Package mcp는 AI.GOOSE의 Model Context Protocol(MCP) 클라이언트/서버를 구현한다.
+// Package mcp는 MINK의 Model Context Protocol(MCP) 클라이언트/서버를 구현한다.
 // JSON-RPC 2.0 위에 stdio/WebSocket/SSE 3종 transport, OAuth 2.1 + PKCE,
 // capability negotiation, $/cancelRequest, tool registry sync를 제공한다.
 //
