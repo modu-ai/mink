@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/modu-ai/goose/internal/cli/transport"
-	"github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1"
-	"github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1/goosev1connect"
+	"github.com/modu-ai/mink/internal/cli/transport"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/goosev1"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/goosev1/goosev1connect"
 )
 
 // mockAgentForTUI is a minimal AgentService stub serving a scripted stream.

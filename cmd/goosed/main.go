@@ -11,12 +11,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/modu-ai/goose/internal/command/adapter/aliasconfig"
-	"github.com/modu-ai/goose/internal/config"
-	"github.com/modu-ai/goose/internal/core"
-	"github.com/modu-ai/goose/internal/health"
-	"github.com/modu-ai/goose/internal/hook"
-	"github.com/modu-ai/goose/internal/llm/router"
+	"github.com/modu-ai/mink/internal/command/adapter/aliasconfig"
+	"github.com/modu-ai/mink/internal/config"
+	"github.com/modu-ai/mink/internal/core"
+	"github.com/modu-ai/mink/internal/health"
+	"github.com/modu-ai/mink/internal/hook"
+	"github.com/modu-ai/mink/internal/llm/router"
 	"go.uber.org/zap"
 )
 

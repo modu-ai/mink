@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/tools/web"
-	"github.com/modu-ai/goose/internal/tools/web/common"
+	"github.com/modu-ai/mink/internal/tools/web"
+	"github.com/modu-ai/mink/internal/tools/web/common"
 )
 
 // failingLauncher always returns ErrPlaywrightNotInstalled — simulates an

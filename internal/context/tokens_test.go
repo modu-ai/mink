@@ -9,8 +9,8 @@ import (
 	"os"
 	"testing"
 
-	goosecontext "github.com/modu-ai/goose/internal/context"
-	"github.com/modu-ai/goose/internal/message"
+	goosecontext "github.com/modu-ai/mink/internal/context"
+	"github.com/modu-ai/mink/internal/message"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -3,7 +3,7 @@ package adapter
 import (
 	"context"
 
-	"github.com/modu-ai/goose/internal/command"
+	"github.com/modu-ai/mink/internal/command"
 )
 
 // LoopController is the abstraction the adapter uses to communicate with the

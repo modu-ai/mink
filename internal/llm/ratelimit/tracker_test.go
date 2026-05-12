@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/llm/ratelimit"
+	"github.com/modu-ai/mink/internal/llm/ratelimit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"

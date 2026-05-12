@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/memory"
+	"github.com/modu-ai/mink/internal/memory"
 )
 
 // TestBuiltin_UserMdReadOnly_WritingReturnsError verifies that any attempt

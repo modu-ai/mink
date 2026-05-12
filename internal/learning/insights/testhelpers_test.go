@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/learning/trajectory"
+	"github.com/modu-ai/mink/internal/learning/trajectory"
 )
 
 // writeTestJSONLFile creates a .jsonl file in baseDir/bucket/ with n trajectories.

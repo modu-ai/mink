@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/command"
+	"github.com/modu-ai/mink/internal/command"
 	// Import custom to trigger init() which wires SetCustomLoader.
-	_ "github.com/modu-ai/goose/internal/command/custom"
+	_ "github.com/modu-ai/mink/internal/command/custom"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"

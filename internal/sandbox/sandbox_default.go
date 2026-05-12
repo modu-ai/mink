@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/modu-ai/goose/internal/audit"
+	"github.com/modu-ai/mink/internal/audit"
 	"go.uber.org/zap"
 )
 

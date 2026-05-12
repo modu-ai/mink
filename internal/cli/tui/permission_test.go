@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/modu-ai/goose/internal/cli/tui/permission"
-	"github.com/modu-ai/goose/internal/cli/tui/snapshots"
+	"github.com/modu-ai/mink/internal/cli/tui/permission"
+	"github.com/modu-ai/mink/internal/cli/tui/snapshots"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -11,10 +11,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/modu-ai/goose/internal/message"
-	"github.com/modu-ai/goose/internal/permissions"
-	"github.com/modu-ai/goose/internal/query"
-	"github.com/modu-ai/goose/internal/query/loop"
+	"github.com/modu-ai/mink/internal/message"
+	"github.com/modu-ai/mink/internal/permissions"
+	"github.com/modu-ai/mink/internal/query"
+	"github.com/modu-ai/mink/internal/query/loop"
 )
 
 // --- StubLLMCall ---

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/message"
+	"github.com/modu-ai/mink/internal/message"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
@@ -94,11 +94,11 @@ func TestRunAgent_ChannelCloseOnCancel(t *testing.T) {
 func TestNoGoroutineLeak_AllModes(t *testing.T) {
 	defer goleak.VerifyNone(t,
 		goleak.IgnoreAnyFunction("go.uber.org/zap/zapcore.(*CheckedEntry).Write"),
-		goleak.IgnoreAnyFunction("github.com/modu-ai/goose/internal/query.(*QueryEngine).SubmitMessage"),
-		goleak.IgnoreAnyFunction("github.com/modu-ai/goose/internal/query.(*QueryEngine).SubmitMessage.func1"),
-		goleak.IgnoreAnyFunction("github.com/modu-ai/goose/internal/query/loop.queryLoop"),
-		goleak.IgnoreAnyFunction("github.com/modu-ai/goose/internal/query/loop.queryLoop.func2"),
-		goleak.IgnoreAnyFunction("github.com/modu-ai/goose/internal/query/loop.send"),
+		goleak.IgnoreAnyFunction("github.com/modu-ai/mink/internal/query.(*QueryEngine).SubmitMessage"),
+		goleak.IgnoreAnyFunction("github.com/modu-ai/mink/internal/query.(*QueryEngine).SubmitMessage.func1"),
+		goleak.IgnoreAnyFunction("github.com/modu-ai/mink/internal/query/loop.queryLoop"),
+		goleak.IgnoreAnyFunction("github.com/modu-ai/mink/internal/query/loop.queryLoop.func2"),
+		goleak.IgnoreAnyFunction("github.com/modu-ai/mink/internal/query/loop.send"),
 	)
 
 	modes := []IsolationMode{IsolationFork, IsolationBackground}

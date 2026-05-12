@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/tools/web"
-	"github.com/modu-ai/goose/internal/tools/web/common"
+	"github.com/modu-ai/mink/internal/tools/web"
+	"github.com/modu-ai/mink/internal/tools/web/common"
 )
 
 // koreanFixture is the canonical mock response for the Korean variant.

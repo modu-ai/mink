@@ -4,7 +4,7 @@ package aliasconfig
 import (
 	"testing"
 
-	"github.com/modu-ai/goose/internal/llm/router"
+	"github.com/modu-ai/mink/internal/llm/router"
 )
 
 // TestValidate_ValidAliases 유효한 alias 검증 테스트

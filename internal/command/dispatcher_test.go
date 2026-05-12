@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/command"
-	"github.com/modu-ai/goose/internal/command/custom"
+	"github.com/modu-ai/mink/internal/command"
+	"github.com/modu-ai/mink/internal/command/custom"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )

@@ -8,8 +8,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/message"
-	"github.com/modu-ai/goose/internal/permissions"
+	"github.com/modu-ai/mink/internal/message"
+	"github.com/modu-ai/mink/internal/permissions"
 	"github.com/stretchr/testify/assert"
 )
 

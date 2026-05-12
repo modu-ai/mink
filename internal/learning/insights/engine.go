@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/modu-ai/goose/internal/learning/compressor"
-	"github.com/modu-ai/goose/internal/learning/trajectory"
+	"github.com/modu-ai/mink/internal/learning/compressor"
+	"github.com/modu-ai/mink/internal/learning/trajectory"
 	"go.uber.org/zap"
 )
 

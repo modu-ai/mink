@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/modu-ai/goose/internal/learning/trajectory/redact"
+	"github.com/modu-ai/mink/internal/learning/trajectory/redact"
 	"go.uber.org/zap"
 )
 

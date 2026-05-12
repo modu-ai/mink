@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/modu-ai/goose/internal/audit"
+	"github.com/modu-ai/mink/internal/audit"
 )
 
 // AuditLogger logs filesystem access decisions to the audit log.

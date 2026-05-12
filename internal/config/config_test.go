@@ -11,7 +11,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/modu-ai/goose/internal/config"
+	"github.com/modu-ai/mink/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/cli/tui/snapshots"
+	"github.com/modu-ai/mink/internal/cli/tui/snapshots"
 	"github.com/stretchr/testify/assert"
 )
 

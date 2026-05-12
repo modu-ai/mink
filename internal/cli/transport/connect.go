@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1"
-	"github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1/goosev1connect"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/goosev1"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/goosev1/goosev1connect"
 )
 
 // ConnectClient wraps Connect-gRPC clients for all four services.

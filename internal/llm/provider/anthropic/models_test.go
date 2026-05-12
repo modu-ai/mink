@@ -3,7 +3,7 @@ package anthropic_test
 import (
 	"testing"
 
-	"github.com/modu-ai/goose/internal/llm/provider/anthropic"
+	"github.com/modu-ai/mink/internal/llm/provider/anthropic"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 )

@@ -5,7 +5,7 @@ package scheduler
 import (
 	"time"
 
-	"github.com/modu-ai/goose/internal/hook"
+	"github.com/modu-ai/mink/internal/hook"
 )
 
 // Re-export the 5 ritual HookEvent constants for ergonomic access from this package.

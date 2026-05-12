@@ -4,7 +4,7 @@ package tui
 import (
 	"fmt"
 
-	"github.com/modu-ai/goose/internal/cli/session"
+	"github.com/modu-ai/mink/internal/cli/session"
 )
 
 // loadSessionByName loads a session into the model and returns the status message.

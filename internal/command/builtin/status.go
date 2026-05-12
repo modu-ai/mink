@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/modu-ai/goose/internal/command"
+	"github.com/modu-ai/mink/internal/command"
 )
 
 // statusCommand implements /status.

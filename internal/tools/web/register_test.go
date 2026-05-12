@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/tools"
-	_ "github.com/modu-ai/goose/internal/tools/builtin/file"     // trigger init() for read/write/edit/grep/glob
-	_ "github.com/modu-ai/goose/internal/tools/builtin/terminal" // trigger init() for bash
-	"github.com/modu-ai/goose/internal/tools/web"
+	"github.com/modu-ai/mink/internal/tools"
+	_ "github.com/modu-ai/mink/internal/tools/builtin/file"     // trigger init() for read/write/edit/grep/glob
+	_ "github.com/modu-ai/mink/internal/tools/builtin/terminal" // trigger init() for bash
+	"github.com/modu-ai/mink/internal/tools/web"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

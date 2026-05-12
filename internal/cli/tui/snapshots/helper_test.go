@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/modu-ai/goose/internal/cli/tui/snapshots"
+	"github.com/modu-ai/mink/internal/cli/tui/snapshots"
 )
 
 // TestSnapshot_Helper_RequireSnapshot_Determinism verifies that

@@ -1,7 +1,7 @@
 package insights
 
 import (
-	"github.com/modu-ai/goose/internal/learning/trajectory"
+	"github.com/modu-ai/mink/internal/learning/trajectory"
 )
 
 // aggregateOverview computes the Overview dimension from a set of trajectories.

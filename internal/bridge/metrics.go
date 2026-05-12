@@ -77,7 +77,7 @@ type bridgeMetrics struct {
 // registration never fails for the noop meter.
 func newBridgeMetrics(registry *Registry, gate *flushGate, meter metric.Meter) (*bridgeMetrics, error) {
 	if meter == nil {
-		meter = otel.GetMeterProvider().Meter("github.com/modu-ai/goose/internal/bridge")
+		meter = otel.GetMeterProvider().Meter("github.com/modu-ai/mink/internal/bridge")
 	}
 	m := &bridgeMetrics{
 		registry: registry,

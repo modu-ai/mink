@@ -6,9 +6,9 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/modu-ai/goose/internal/llm/router"
-	"github.com/modu-ai/goose/internal/message"
-	"github.com/modu-ai/goose/internal/tool"
+	"github.com/modu-ai/mink/internal/llm/router"
+	"github.com/modu-ai/mink/internal/message"
+	"github.com/modu-ai/mink/internal/tool"
 )
 
 // Capabilities는 LLM provider가 지원하는 기능 목록이다.

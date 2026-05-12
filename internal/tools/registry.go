@@ -8,8 +8,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/modu-ai/goose/internal/tools/mcp"
-	"github.com/modu-ai/goose/internal/tools/naming"
+	"github.com/modu-ai/mink/internal/tools/mcp"
+	"github.com/modu-ai/mink/internal/tools/naming"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 	"go.uber.org/zap"
 )

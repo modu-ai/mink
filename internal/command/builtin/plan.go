@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/modu-ai/goose/internal/command"
+	"github.com/modu-ai/mink/internal/command"
 )
 
 // Compile-time assertion: planCommand implements command.Command.

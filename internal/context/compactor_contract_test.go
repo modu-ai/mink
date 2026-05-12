@@ -4,8 +4,8 @@
 package context_test
 
 import (
-	goosecontext "github.com/modu-ai/goose/internal/context"
-	"github.com/modu-ai/goose/internal/query"
+	goosecontext "github.com/modu-ai/mink/internal/context"
+	"github.com/modu-ai/mink/internal/query"
 )
 
 // 빌드타임 인터페이스 assertion.

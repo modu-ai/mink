@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/observability/metrics"
-	metricsexpvar "github.com/modu-ai/goose/internal/observability/metrics/expvar"
+	"github.com/modu-ai/mink/internal/observability/metrics"
+	metricsexpvar "github.com/modu-ai/mink/internal/observability/metrics/expvar"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"

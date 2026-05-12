@@ -5,9 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/llm/provider"
-	"github.com/modu-ai/goose/internal/llm/router"
-	"github.com/modu-ai/goose/internal/message"
+	"github.com/modu-ai/mink/internal/llm/provider"
+	"github.com/modu-ai/mink/internal/llm/router"
+	"github.com/modu-ai/mink/internal/message"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

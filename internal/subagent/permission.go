@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/modu-ai/goose/internal/permissions"
+	"github.com/modu-ai/mink/internal/permissions"
 )
 
 // writeTool은 write-class tool 이름 집합이다.

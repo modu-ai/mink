@@ -7,7 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/modu-ai/goose/internal/llm/router"
+	"github.com/modu-ai/mink/internal/llm/router"
 )
 
 // TestRouter_Signature_ArgsOrderIndependent는 Args 키 순서가 달라도

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	metricsexpvar "github.com/modu-ai/goose/internal/observability/metrics/expvar"
+	metricsexpvar "github.com/modu-ai/mink/internal/observability/metrics/expvar"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )

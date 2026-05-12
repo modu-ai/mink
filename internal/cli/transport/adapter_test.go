@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/goosev1"
 )
 
 // RED #1: PingClientAdapter writes a byte-identical status line for a

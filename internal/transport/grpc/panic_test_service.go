@@ -10,7 +10,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/goosev1"
 )
 
 // PanicTestClient는 테스트 전용 PanicTest RPC 클라이언트다.

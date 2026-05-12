@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/modu-ai/goose/internal/cli/tui/i18n"
+	"github.com/modu-ai/mink/internal/cli/tui/i18n"
 )
 
 // newModelForEditTest returns a Model pre-populated with messages

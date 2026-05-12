@@ -3,8 +3,8 @@ package factory_test
 import (
 	"testing"
 
-	"github.com/modu-ai/goose/internal/llm/factory"
-	"github.com/modu-ai/goose/internal/llm/provider"
+	"github.com/modu-ai/mink/internal/llm/factory"
+	"github.com/modu-ai/mink/internal/llm/provider"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"

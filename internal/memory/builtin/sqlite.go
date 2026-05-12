@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/modu-ai/goose/internal/memory"
+	"github.com/modu-ai/mink/internal/memory"
 )
 
 // createSchema creates the facts table and FTS5 virtual table.

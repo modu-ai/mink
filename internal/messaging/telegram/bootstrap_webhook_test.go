@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/messaging/telegram"
+	"github.com/modu-ai/mink/internal/messaging/telegram"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"

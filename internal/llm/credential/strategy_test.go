@@ -4,7 +4,7 @@ package credential_test
 import (
 	"testing"
 
-	"github.com/modu-ai/goose/internal/llm/credential"
+	"github.com/modu-ai/mink/internal/llm/credential"
 )
 
 // TestRoundRobinStrategy_RotatesEvenly는 RoundRobin 전략이 N개의 크레덴셜에 걸쳐

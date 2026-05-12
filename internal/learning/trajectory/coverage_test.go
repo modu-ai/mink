@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/jonboulle/clockwork"
-	"github.com/modu-ai/goose/internal/learning/trajectory"
-	"github.com/modu-ai/goose/internal/learning/trajectory/redact"
+	"github.com/modu-ai/mink/internal/learning/trajectory"
+	"github.com/modu-ai/mink/internal/learning/trajectory/redact"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"

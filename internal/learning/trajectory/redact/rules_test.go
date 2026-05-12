@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/learning/trajectory/redact"
+	"github.com/modu-ai/mink/internal/learning/trajectory/redact"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 	"go.uber.org/zap"

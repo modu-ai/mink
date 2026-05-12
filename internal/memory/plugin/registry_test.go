@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/memory"
+	"github.com/modu-ai/mink/internal/memory"
 )
 
 // mockPlugin is a mock implementation of MemoryProvider for testing.

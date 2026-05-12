@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/modu-ai/goose/internal/config"
+	"github.com/modu-ai/mink/internal/config"
 	"go.uber.org/zap"
 )
 

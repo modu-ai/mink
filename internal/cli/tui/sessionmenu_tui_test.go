@@ -11,7 +11,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/modu-ai/goose/internal/cli/tui/sessionmenu"
+	"github.com/modu-ai/mink/internal/cli/tui/sessionmenu"
 )
 
 // setupSessionMenuHome creates a temp HOME with .goose/sessions/ and returns cleanup.

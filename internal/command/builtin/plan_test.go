@@ -6,8 +6,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/command"
-	"github.com/modu-ai/goose/internal/command/adapter"
+	"github.com/modu-ai/mink/internal/command"
+	"github.com/modu-ai/mink/internal/command/adapter"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

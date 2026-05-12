@@ -28,9 +28,9 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	"github.com/modu-ai/goose/internal/core"
-	grpcserver "github.com/modu-ai/goose/internal/transport/grpc"
-	"github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1"
+	"github.com/modu-ai/mink/internal/core"
+	grpcserver "github.com/modu-ai/mink/internal/transport/grpc"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/goosev1"
 )
 
 func TestMain(m *testing.M) {

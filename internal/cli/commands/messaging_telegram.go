@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/modu-ai/goose/internal/messaging/telegram"
+	"github.com/modu-ai/mink/internal/messaging/telegram"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )

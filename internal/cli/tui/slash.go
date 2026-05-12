@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/modu-ai/goose/internal/cli/session"
+	"github.com/modu-ai/mink/internal/cli/session"
 )
 
 // SlashCmd represents a parsed slash command.

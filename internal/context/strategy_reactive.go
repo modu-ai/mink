@@ -4,8 +4,8 @@ package context
 import (
 	"context"
 
-	"github.com/modu-ai/goose/internal/message"
-	"github.com/modu-ai/goose/internal/query/loop"
+	"github.com/modu-ai/mink/internal/message"
+	"github.com/modu-ai/mink/internal/query/loop"
 )
 
 // reactiveCompact는 ReactiveCompact 전략을 실행한다.

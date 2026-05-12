@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/modu-ai/goose/internal/audit"
-	"github.com/modu-ai/goose/internal/llm/ratelimit"
-	"github.com/modu-ai/goose/internal/permission"
+	"github.com/modu-ai/mink/internal/audit"
+	"github.com/modu-ai/mink/internal/llm/ratelimit"
+	"github.com/modu-ai/mink/internal/permission"
 )
 
 // RobotsCheckerIface abstracts common.RobotsChecker for testability.

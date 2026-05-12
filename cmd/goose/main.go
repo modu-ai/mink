@@ -5,7 +5,7 @@ package main
 import (
 	"os"
 
-	"github.com/modu-ai/goose/internal/cli"
+	"github.com/modu-ai/mink/internal/cli"
 )
 
 // @MX:NOTE Version information is injected via ldflags at build time.

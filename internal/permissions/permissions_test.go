@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/modu-ai/goose/internal/permissions"
+	"github.com/modu-ai/mink/internal/permissions"
 )
 
 // --- T2.1: Allow bypasses gate ---

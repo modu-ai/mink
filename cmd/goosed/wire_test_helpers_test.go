@@ -6,12 +6,12 @@ import (
 	"context"
 	"time"
 
-	"github.com/modu-ai/goose/internal/config"
-	"github.com/modu-ai/goose/internal/core"
-	"github.com/modu-ai/goose/internal/health"
-	"github.com/modu-ai/goose/internal/hook"
-	"github.com/modu-ai/goose/internal/skill"
-	"github.com/modu-ai/goose/internal/tools"
+	"github.com/modu-ai/mink/internal/config"
+	"github.com/modu-ai/mink/internal/core"
+	"github.com/modu-ai/mink/internal/health"
+	"github.com/modu-ai/mink/internal/hook"
+	"github.com/modu-ai/mink/internal/skill"
+	"github.com/modu-ai/mink/internal/tools"
 	"go.uber.org/zap"
 )
 

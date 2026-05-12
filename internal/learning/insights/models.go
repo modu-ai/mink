@@ -3,7 +3,7 @@ package insights
 import (
 	"sort"
 
-	"github.com/modu-ai/goose/internal/learning/trajectory"
+	"github.com/modu-ai/mink/internal/learning/trajectory"
 )
 
 // aggregateModels computes per-model statistics from a set of trajectories.

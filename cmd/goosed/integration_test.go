@@ -15,9 +15,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/core"
-	"github.com/modu-ai/goose/internal/hook"
-	"github.com/modu-ai/goose/internal/tools"
+	"github.com/modu-ai/mink/internal/core"
+	"github.com/modu-ai/mink/internal/hook"
+	"github.com/modu-ai/mink/internal/tools"
 	"go.uber.org/zap"
 )
 

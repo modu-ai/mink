@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/modu-ai/goose/internal/tools"
+	"github.com/modu-ai/mink/internal/tools"
 )
 
 // toolSender is the narrow interface that telegramSendMessageTool depends on.

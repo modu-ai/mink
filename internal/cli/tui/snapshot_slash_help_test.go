@@ -9,7 +9,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/exp/teatest"
-	"github.com/modu-ai/goose/internal/cli/tui/snapshots"
+	"github.com/modu-ai/mink/internal/cli/tui/snapshots"
 )
 
 // TestSlashHelp_LocalNoNetwork_Snapshot verifies that /help renders locally

@@ -4,7 +4,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/modu-ai/goose/internal/learning/trajectory"
+	"github.com/modu-ai/mink/internal/learning/trajectory"
 )
 
 // dayLabels maps the Mon=0 index to weekday abbreviations (spec §6.4).

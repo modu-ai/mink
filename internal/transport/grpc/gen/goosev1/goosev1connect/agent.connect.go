@@ -11,7 +11,7 @@ import (
 	connect "connectrpc.com/connect"
 	context "context"
 	errors "errors"
-	goosev1 "github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1"
+	goosev1 "github.com/modu-ai/mink/internal/transport/grpc/gen/goosev1"
 	http "net/http"
 	strings "strings"
 )

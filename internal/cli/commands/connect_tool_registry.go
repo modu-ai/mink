@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/modu-ai/goose/internal/cli/transport"
+	"github.com/modu-ai/mink/internal/cli/transport"
 )
 
 // connectToolClient captures the subset of *transport.ConnectClient that

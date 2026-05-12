@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/llm/credential"
-	"github.com/modu-ai/goose/internal/message"
+	"github.com/modu-ai/mink/internal/llm/credential"
+	"github.com/modu-ai/mink/internal/message"
 )
 
 // FakePool은 주어진 credID 목록으로 구성된 테스트용 CredentialPool을 생성한다.

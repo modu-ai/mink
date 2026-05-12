@@ -7,8 +7,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/modu-ai/goose/internal/message"
-	"github.com/modu-ai/goose/internal/query"
+	"github.com/modu-ai/mink/internal/message"
+	"github.com/modu-ai/mink/internal/query"
 	"go.uber.org/zap"
 )
 

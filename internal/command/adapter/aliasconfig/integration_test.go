@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/llm/router"
+	"github.com/modu-ai/mink/internal/llm/router"
 	"go.uber.org/zap"
 )
 

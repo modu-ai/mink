@@ -5,8 +5,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/modu-ai/goose/internal/message"
-	"github.com/modu-ai/goose/internal/query"
+	"github.com/modu-ai/mink/internal/message"
+	"github.com/modu-ai/mink/internal/query"
 )
 
 // ChatChunk represents a single streaming output chunk from the agent.

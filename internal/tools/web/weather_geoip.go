@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/modu-ai/goose/internal/tools/web/common"
+	"github.com/modu-ai/mink/internal/tools/web/common"
 )
 
 const (

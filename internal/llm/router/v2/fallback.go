@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/modu-ai/goose/internal/evolve/errorclass"
+	"github.com/modu-ai/mink/internal/evolve/errorclass"
 )
 
 // ErrEmptyChain 은 Execute 가 빈 chain 으로 호출되었을 때 반환되는 sentinel.

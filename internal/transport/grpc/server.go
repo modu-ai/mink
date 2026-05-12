@@ -17,8 +17,8 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 
-	"github.com/modu-ai/goose/internal/core"
-	"github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1"
+	"github.com/modu-ai/mink/internal/core"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/goosev1"
 )
 
 // Config는 gRPC 서버 설정이다.

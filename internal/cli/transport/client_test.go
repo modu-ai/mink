@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/goosev1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"

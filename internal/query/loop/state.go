@@ -2,7 +2,7 @@
 // SPEC-GOOSE-QUERY-001 S0 T3.5
 package loop
 
-import "github.com/modu-ai/goose/internal/message"
+import "github.com/modu-ai/mink/internal/message"
 
 // AutoCompactTracking은 compaction 트리거 추적 상태이다.
 // SPEC-GOOSE-CONTEXT-001 REQ-CTX-007/017/018

@@ -16,8 +16,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/modu-ai/goose/internal/evolve/errorclass"
-	"github.com/modu-ai/goose/internal/llm/router"
+	"github.com/modu-ai/mink/internal/evolve/errorclass"
+	"github.com/modu-ai/mink/internal/llm/router"
 )
 
 // V1Router 는 RouterV2 가 의존하는 v1 router.Router 의 최소 인터페이스이다.

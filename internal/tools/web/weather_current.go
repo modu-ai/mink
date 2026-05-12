@@ -13,10 +13,10 @@ import (
 
 	"golang.org/x/sync/singleflight"
 
-	"github.com/modu-ai/goose/internal/audit"
-	"github.com/modu-ai/goose/internal/permission"
-	"github.com/modu-ai/goose/internal/tools"
-	"github.com/modu-ai/goose/internal/tools/web/common"
+	"github.com/modu-ai/mink/internal/audit"
+	"github.com/modu-ai/mink/internal/permission"
+	"github.com/modu-ai/mink/internal/tools"
+	"github.com/modu-ai/mink/internal/tools/web/common"
 )
 
 // weatherCurrentSchema is the JSON Schema for the weather_current tool input.

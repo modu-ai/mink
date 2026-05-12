@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/cli"
-	"github.com/modu-ai/goose/internal/cli/commands"
+	"github.com/modu-ai/mink/internal/cli"
+	"github.com/modu-ai/mink/internal/cli/commands"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

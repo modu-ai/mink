@@ -5,7 +5,7 @@ package parser_test
 import (
 	"testing"
 
-	"github.com/modu-ai/goose/internal/command/parser"
+	"github.com/modu-ai/mink/internal/command/parser"
 	"github.com/stretchr/testify/require"
 )
 

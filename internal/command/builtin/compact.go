@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/modu-ai/goose/internal/command"
+	"github.com/modu-ai/mink/internal/command"
 )
 
 // compactCommand implements /compact [target_tokens].

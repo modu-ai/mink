@@ -87,9 +87,9 @@ Phase 1 진입 직전 worktree 에 BRAND-RENAME 무관한 322개 변경 (114 M +
 
 > spec.md §6 Phase 1 §verification "bash scripts/check-brand.sh exit 0" 항목은 PR 종결 시점 (Phase 7 후) 기준 의미로 해석. Phase 1 commit 시점에는 script/style-guide 의 정합성만 검증한다.
 
-### Phase 1 commit hash — pending
+### Phase 1 commit hash
 
-(commit 직후 채움)
+`bba61a8` on `feature/SPEC-MINK-BRAND-RENAME-001` (3 files changed, +214/-77, +1 new file)
 
 ---
 

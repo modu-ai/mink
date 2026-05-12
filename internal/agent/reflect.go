@@ -5,7 +5,7 @@ package agent
 import (
 	"context"
 
-	"github.com/modu-ai/goose/internal/query/loop"
+	"github.com/modu-ai/mink/internal/query/loop"
 )
 
 // ReflectResult contains the self-critique output.

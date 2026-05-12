@@ -8,7 +8,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/modu-ai/goose/internal/learning/trajectory"
+	"github.com/modu-ai/mink/internal/learning/trajectory"
 )
 
 // Summarizer abstracts the LLM call used to summarize middle trajectory sections.

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/audit"
+	"github.com/modu-ai/mink/internal/audit"
 )
 
 // mockTypingClient records SendChatAction calls and implements Client.

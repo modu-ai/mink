@@ -8,8 +8,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/modu-ai/goose/internal/llm/provider"
-	"github.com/modu-ai/goose/internal/message"
+	"github.com/modu-ai/mink/internal/llm/provider"
+	"github.com/modu-ai/mink/internal/message"
 )
 
 // Agent represents an AI agent with persona and conversation management.

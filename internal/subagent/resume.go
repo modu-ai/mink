@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/modu-ai/goose/internal/message"
+	"github.com/modu-ai/mink/internal/message"
 )
 
 // resumePrompt는 ResumeAgent가 전달하는 재개 큐 프롬프트이다.

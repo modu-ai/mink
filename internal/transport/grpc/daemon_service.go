@@ -9,8 +9,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/modu-ai/goose/internal/core"
-	"github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1"
+	"github.com/modu-ai/mink/internal/core"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/goosev1"
 )
 
 // 빌드 메타데이터 변수 (ldflags로 주입 가능)

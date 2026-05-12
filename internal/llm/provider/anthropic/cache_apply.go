@@ -1,6 +1,6 @@
 package anthropic
 
-import "github.com/modu-ai/goose/internal/llm/cache"
+import "github.com/modu-ai/mink/internal/llm/cache"
 
 // ApplyCacheMarkers는 CachePlan의 Markers를 AnthropicMessage 목록에 적용한다.
 // 각 마커의 MessageIndex에 해당하는 메시지의 마지막 ContentBlock에

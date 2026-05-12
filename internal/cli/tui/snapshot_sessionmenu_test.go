@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/cli/tui/sessionmenu"
-	"github.com/modu-ai/goose/internal/cli/tui/snapshots"
+	"github.com/modu-ai/mink/internal/cli/tui/sessionmenu"
+	"github.com/modu-ai/mink/internal/cli/tui/snapshots"
 )
 
 // TestSnapshot_SessionMenuOpen verifies that the session menu overlay renders

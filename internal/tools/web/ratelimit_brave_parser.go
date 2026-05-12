@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/modu-ai/goose/internal/llm/ratelimit"
+	"github.com/modu-ai/mink/internal/llm/ratelimit"
 )
 
 // braveParser parses Brave Search API rate-limit response headers into a

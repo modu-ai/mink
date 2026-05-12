@@ -9,7 +9,7 @@ import (
 	"errors"
 
 	connect "connectrpc.com/connect"
-	goosev1 "github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1"
+	goosev1 "github.com/modu-ai/mink/internal/transport/grpc/gen/goosev1"
 )
 
 const (

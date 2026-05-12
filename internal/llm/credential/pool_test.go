@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/llm/credential"
+	"github.com/modu-ai/mink/internal/llm/credential"
 )
 
 // TestEmptyPool_ReturnsErrExhausted는 빈 풀에서 Select 호출 시 ErrExhausted를 반환하는지 검증한다.

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/tools"
+	"github.com/modu-ai/mink/internal/tools"
 	"github.com/stretchr/testify/assert"
 )
 

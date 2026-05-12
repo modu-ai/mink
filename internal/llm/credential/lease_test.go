@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/llm/credential"
+	"github.com/modu-ai/mink/internal/llm/credential"
 )
 
 // TestLease_AcquireRelease는 리스 취득과 반환이 올바르게 작동하는지 검증한다.

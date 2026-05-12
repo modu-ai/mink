@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/message"
-	"github.com/modu-ai/goose/internal/query"
+	"github.com/modu-ai/mink/internal/message"
+	"github.com/modu-ai/mink/internal/query"
 )
 
 // TestChatService_Implements verifies that *QueryEngineChatService satisfies ChatService.

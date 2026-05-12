@@ -14,8 +14,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/modu-ai/goose/internal/command"
-	"github.com/modu-ai/goose/internal/llm/router"
+	"github.com/modu-ai/mink/internal/command"
+	"github.com/modu-ai/mink/internal/llm/router"
 	"go.uber.org/zap"
 )
 

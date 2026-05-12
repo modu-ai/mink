@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/modu-ai/goose/internal/skill"
-	toolsmcp "github.com/modu-ai/goose/internal/tools/mcp"
+	"github.com/modu-ai/mink/internal/skill"
+	toolsmcp "github.com/modu-ai/mink/internal/tools/mcp"
 )
 
 // Adapter는 MCP 클라이언트와 TOOLS-001 레지스트리 사이의 경계 계약을 구현한다.

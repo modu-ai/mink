@@ -3,7 +3,7 @@ package naming_test
 import (
 	"testing"
 
-	"github.com/modu-ai/goose/internal/tools/naming"
+	"github.com/modu-ai/mink/internal/tools/naming"
 	"github.com/stretchr/testify/assert"
 )
 

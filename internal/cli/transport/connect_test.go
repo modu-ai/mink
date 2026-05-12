@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1"
-	"github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1/goosev1connect"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/goosev1"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/goosev1/goosev1connect"
 )
 
 // RED #1: Verify generated code constants exist (compile-time proof)

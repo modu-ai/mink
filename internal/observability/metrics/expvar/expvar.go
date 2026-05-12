@@ -13,7 +13,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/modu-ai/goose/internal/observability/metrics"
+	"github.com/modu-ai/mink/internal/observability/metrics"
 	"go.uber.org/zap"
 )
 

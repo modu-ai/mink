@@ -10,8 +10,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/modu-ai/goose/internal/cli/tui/permission"
-	"github.com/modu-ai/goose/internal/cli/tui/sessionmenu"
+	"github.com/modu-ai/mink/internal/cli/tui/permission"
+	"github.com/modu-ai/mink/internal/cli/tui/sessionmenu"
 )
 
 // handleKeyMsg processes keyboard input.

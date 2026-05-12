@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/modu-ai/goose/internal/message"
-	"github.com/modu-ai/goose/internal/query"
-	"github.com/modu-ai/goose/internal/query/loop"
+	"github.com/modu-ai/mink/internal/message"
+	"github.com/modu-ai/mink/internal/query"
+	"github.com/modu-ai/mink/internal/query/loop"
 	"go.uber.org/zap"
 )
 

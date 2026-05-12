@@ -5,7 +5,7 @@ package expvar_test
 import (
 	"testing"
 
-	metricsexpvar "github.com/modu-ai/goose/internal/observability/metrics/expvar"
+	metricsexpvar "github.com/modu-ai/mink/internal/observability/metrics/expvar"
 	"go.uber.org/zap"
 )
 

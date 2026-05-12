@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/learning/trajectory"
+	"github.com/modu-ai/mink/internal/learning/trajectory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

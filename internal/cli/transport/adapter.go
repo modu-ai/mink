@@ -15,7 +15,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/goosev1"
 )
 
 // connectClientFactory builds a *ConnectClient for the given daemon URL.

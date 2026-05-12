@@ -3,7 +3,7 @@ package audit
 import (
 	"fmt"
 
-	"github.com/modu-ai/goose/internal/permission"
+	"github.com/modu-ai/mink/internal/permission"
 )
 
 // PermissionAuditor adapts the audit system to implement the permission.Auditor interface.

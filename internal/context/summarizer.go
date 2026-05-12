@@ -4,7 +4,7 @@ package context
 import (
 	"context"
 
-	"github.com/modu-ai/goose/internal/message"
+	"github.com/modu-ai/mink/internal/message"
 )
 
 // Summarizer는 메시지를 LLM으로 요약하는 인터페이스이다.

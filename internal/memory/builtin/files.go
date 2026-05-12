@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/modu-ai/goose/internal/memory"
+	"github.com/modu-ai/mink/internal/memory"
 	"go.uber.org/zap"
 )
 

@@ -3,8 +3,8 @@ package anthropic_test
 import (
 	"testing"
 
-	"github.com/modu-ai/goose/internal/llm/provider/anthropic"
-	"github.com/modu-ai/goose/internal/tool"
+	"github.com/modu-ai/mink/internal/llm/provider/anthropic"
+	"github.com/modu-ai/mink/internal/tool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

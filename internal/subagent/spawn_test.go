@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/message"
-	"github.com/modu-ai/goose/internal/permissions"
+	"github.com/modu-ai/mink/internal/message"
+	"github.com/modu-ai/mink/internal/permissions"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
@@ -331,11 +331,11 @@ func TestNoGoroutineLeak(t *testing.T) {
 		goleak.IgnoreAnyFunction("go.uber.org/zap/zapcore.(*CheckedEntry).Write"),
 		// QueryEngine loop goroutine은 LLM call의 ctx cancellation에 의해 종료된다.
 		// stubLLMCall이 ctx cancel 후 곧 종료되므로 잠시 후 사라진다.
-		goleak.IgnoreAnyFunction("github.com/modu-ai/goose/internal/query.(*QueryEngine).SubmitMessage"),
-		goleak.IgnoreAnyFunction("github.com/modu-ai/goose/internal/query.(*QueryEngine).SubmitMessage.func1"),
-		goleak.IgnoreAnyFunction("github.com/modu-ai/goose/internal/query/loop.queryLoop"),
-		goleak.IgnoreAnyFunction("github.com/modu-ai/goose/internal/query/loop.queryLoop.func2"),
-		goleak.IgnoreAnyFunction("github.com/modu-ai/goose/internal/query/loop.send"),
+		goleak.IgnoreAnyFunction("github.com/modu-ai/mink/internal/query.(*QueryEngine).SubmitMessage"),
+		goleak.IgnoreAnyFunction("github.com/modu-ai/mink/internal/query.(*QueryEngine).SubmitMessage.func1"),
+		goleak.IgnoreAnyFunction("github.com/modu-ai/mink/internal/query/loop.queryLoop"),
+		goleak.IgnoreAnyFunction("github.com/modu-ai/mink/internal/query/loop.queryLoop.func2"),
+		goleak.IgnoreAnyFunction("github.com/modu-ai/mink/internal/query/loop.send"),
 	)
 
 	// fork

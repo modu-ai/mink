@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/modu-ai/goose/internal/tools"
+	"github.com/modu-ai/mink/internal/tools"
 )
 
 var (

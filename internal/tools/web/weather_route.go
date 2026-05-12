@@ -5,7 +5,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/modu-ai/goose/internal/tools/web/common"
+	"github.com/modu-ai/mink/internal/tools/web/common"
 )
 
 // routeProvider determines the provider name for a given config and location.
