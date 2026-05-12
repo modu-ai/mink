@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/command"
-	"github.com/modu-ai/goose/internal/command/adapter"
-	"github.com/modu-ai/goose/internal/llm/credential"
-	"github.com/modu-ai/goose/internal/message"
-	"github.com/modu-ai/goose/internal/query/loop"
+	"github.com/modu-ai/mink/internal/command"
+	"github.com/modu-ai/mink/internal/command/adapter"
+	"github.com/modu-ai/mink/internal/llm/credential"
+	"github.com/modu-ai/mink/internal/message"
+	"github.com/modu-ai/mink/internal/query/loop"
 )
 
 // AC-CMDLOOP-006: Compile-time interface assertion

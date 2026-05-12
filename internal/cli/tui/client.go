@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/modu-ai/goose/internal/cli/transport"
+	"github.com/modu-ai/mink/internal/cli/transport"
 )
 
 // daemonClientAdapter wraps transport.DaemonClient to implement tui.DaemonClient.

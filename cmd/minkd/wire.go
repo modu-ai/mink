@@ -1,4 +1,4 @@
-// wire.go는 goosed daemon wire-up 헬퍼와 adapter를 제공한다.
+// wire.go는 minkd daemon wire-up 헬퍼와 adapter를 제공한다.
 // SPEC-GOOSE-DAEMON-WIRE-001
 package main
 
@@ -8,15 +8,15 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/modu-ai/goose/internal/command"
-	"github.com/modu-ai/goose/internal/command/adapter"
-	"github.com/modu-ai/goose/internal/command/builtin"
-	"github.com/modu-ai/goose/internal/core"
-	"github.com/modu-ai/goose/internal/hook"
-	"github.com/modu-ai/goose/internal/llm/router"
-	"github.com/modu-ai/goose/internal/query/cmdctrl"
-	"github.com/modu-ai/goose/internal/skill"
-	"github.com/modu-ai/goose/internal/tools"
+	"github.com/modu-ai/mink/internal/command"
+	"github.com/modu-ai/mink/internal/command/adapter"
+	"github.com/modu-ai/mink/internal/command/builtin"
+	"github.com/modu-ai/mink/internal/core"
+	"github.com/modu-ai/mink/internal/hook"
+	"github.com/modu-ai/mink/internal/llm/router"
+	"github.com/modu-ai/mink/internal/query/cmdctrl"
+	"github.com/modu-ai/mink/internal/skill"
+	"github.com/modu-ai/mink/internal/tools"
 	"go.uber.org/zap"
 )
 

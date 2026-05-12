@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/agent"
+	"github.com/modu-ai/mink/internal/agent"
 )
 
 // stubStreamingChatService is a minimal agent.StreamingChatService for stream adapter tests.

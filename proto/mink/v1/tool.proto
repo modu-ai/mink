@@ -1,10 +1,10 @@
-// Package goose.v1 defines the ToolService RPC contract.
+// Package mink.v1 defines the ToolService RPC contract.
 // SPEC-GOOSE-CLI-001 Phase A REQ-CLI-004
 syntax = "proto3";
 
-package goose.v1;
+package mink.v1;
 
-option go_package = "github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1;goosev1";
+option go_package = "github.com/modu-ai/mink/internal/transport/grpc/gen/minkv1;minkv1";
 
 // ToolService provides tool discovery operations.
 service ToolService {

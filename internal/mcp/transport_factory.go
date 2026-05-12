@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/modu-ai/goose/internal/mcp/transport"
+	"github.com/modu-ai/mink/internal/mcp/transport"
 	"go.uber.org/zap"
 )
 

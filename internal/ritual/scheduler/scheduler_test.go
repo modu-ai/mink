@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/jonboulle/clockwork"
-	"github.com/modu-ai/goose/internal/hook"
-	"github.com/modu-ai/goose/internal/ritual/scheduler"
+	"github.com/modu-ai/mink/internal/hook"
+	"github.com/modu-ai/mink/internal/ritual/scheduler"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
 )

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/query"
+	"github.com/modu-ai/mink/internal/query"
 )
 
 // TestStreamingChatService_Implements verifies that *QueryEngineChatService

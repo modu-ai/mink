@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/modu-ai/goose/internal/hook"
+	"github.com/modu-ai/mink/internal/hook"
 )
 
 // pluginNameRE는 유효한 플러그인 이름 패턴이다.

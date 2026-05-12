@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/minkv1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -17,22 +17,22 @@ import (
 
 // mockDaemonServer is a mock implementation of DaemonService for testing.
 type mockDaemonServer struct {
-	goosev1.UnimplementedDaemonServiceServer
-	pingFunc func(context.Context, *goosev1.PingRequest) (*goosev1.PingResponse, error)
+	minkv1.UnimplementedDaemonServiceServer
+	pingFunc func(context.Context, *minkv1.PingRequest) (*minkv1.PingResponse, error)
 }
 
-func (m *mockDaemonServer) Ping(ctx context.Context, req *goosev1.PingRequest) (*goosev1.PingResponse, error) {
+func (m *mockDaemonServer) Ping(ctx context.Context, req *minkv1.PingRequest) (*minkv1.PingResponse, error) {
 	if m.pingFunc != nil {
 		return m.pingFunc(ctx, req)
 	}
-	return &goosev1.PingResponse{
+	return &minkv1.PingResponse{
 		Version:  "test-version",
 		UptimeMs: 1000,
 		State:    "serving",
 	}, nil
 }
 
-func (m *mockDaemonServer) ChatStream(srv goosev1.DaemonService_ChatStreamServer) error {
+func (m *mockDaemonServer) ChatStream(srv minkv1.DaemonService_ChatStreamServer) error {
 	// Receive request (consume it)
 	_, err := srv.Recv()
 	if err != nil {
@@ -40,18 +40,18 @@ func (m *mockDaemonServer) ChatStream(srv goosev1.DaemonService_ChatStreamServer
 	}
 
 	// Send text response
-	if err := srv.Send(&goosev1.ChatStreamResponse{
-		Event: &goosev1.ChatStreamResponse_Text{
-			Text: &goosev1.TextEvent{Content: "Hi!"},
+	if err := srv.Send(&minkv1.ChatStreamResponse{
+		Event: &minkv1.ChatStreamResponse_Text{
+			Text: &minkv1.TextEvent{Content: "Hi!"},
 		},
 	}); err != nil {
 		return err
 	}
 
 	// Send done event
-	return srv.Send(&goosev1.ChatStreamResponse{
-		Event: &goosev1.ChatStreamResponse_Done{
-			Done: &goosev1.DoneEvent{},
+	return srv.Send(&minkv1.ChatStreamResponse{
+		Event: &minkv1.ChatStreamResponse_Done{
+			Done: &minkv1.DoneEvent{},
 		},
 	})
 }
@@ -95,7 +95,7 @@ func TestNewDaemonClient(t *testing.T) {
 			// Create mock server
 			lis := bufconn.Listen(1024 * 1024)
 			s := grpc.NewServer()
-			goosev1.RegisterDaemonServiceServer(s, &mockDaemonServer{})
+			minkv1.RegisterDaemonServiceServer(s, &mockDaemonServer{})
 			go func() { _ = s.Serve(lis) }()
 			defer s.Stop()
 
@@ -115,7 +115,7 @@ func TestNewDaemonClient(t *testing.T) {
 			// are properly populated when constructed via mock connection injection.
 			client := &DaemonClient{
 				conn:   conn,
-				client: goosev1.NewDaemonServiceClient(conn),
+				client: minkv1.NewDaemonServiceClient(conn),
 			}
 
 			if client.conn == nil || client.client == nil {
@@ -128,14 +128,14 @@ func TestNewDaemonClient(t *testing.T) {
 func TestDaemonClient_Ping(t *testing.T) {
 	tests := []struct {
 		name    string
-		mock    func(context.Context, *goosev1.PingRequest) (*goosev1.PingResponse, error)
+		mock    func(context.Context, *minkv1.PingRequest) (*minkv1.PingResponse, error)
 		wantErr bool
 		errCode codes.Code
 	}{
 		{
 			name: "successful ping",
-			mock: func(ctx context.Context, req *goosev1.PingRequest) (*goosev1.PingResponse, error) {
-				return &goosev1.PingResponse{
+			mock: func(ctx context.Context, req *minkv1.PingRequest) (*minkv1.PingResponse, error) {
+				return &minkv1.PingResponse{
 					Version:  "v1.0.0",
 					UptimeMs: 5000,
 					State:    "serving",
@@ -145,7 +145,7 @@ func TestDaemonClient_Ping(t *testing.T) {
 		},
 		{
 			name: "server error",
-			mock: func(ctx context.Context, req *goosev1.PingRequest) (*goosev1.PingResponse, error) {
+			mock: func(ctx context.Context, req *minkv1.PingRequest) (*minkv1.PingResponse, error) {
 				return nil, status.Error(codes.Unavailable, "server not ready")
 			},
 			wantErr: true,
@@ -158,7 +158,7 @@ func TestDaemonClient_Ping(t *testing.T) {
 			lis := bufconn.Listen(1024 * 1024)
 			s := grpc.NewServer()
 			mockServer := &mockDaemonServer{pingFunc: tt.mock}
-			goosev1.RegisterDaemonServiceServer(s, mockServer)
+			minkv1.RegisterDaemonServiceServer(s, mockServer)
 			go func() { _ = s.Serve(lis) }()
 			defer s.Stop()
 
@@ -176,7 +176,7 @@ func TestDaemonClient_Ping(t *testing.T) {
 
 			client := &DaemonClient{
 				conn:   conn,
-				client: goosev1.NewDaemonServiceClient(conn),
+				client: minkv1.NewDaemonServiceClient(conn),
 			}
 
 			// Test Ping
@@ -227,7 +227,7 @@ func TestDaemonClient_ChatStream(t *testing.T) {
 			// Create mock server
 			lis := bufconn.Listen(1024 * 1024)
 			s := grpc.NewServer()
-			goosev1.RegisterDaemonServiceServer(s, &mockDaemonServer{})
+			minkv1.RegisterDaemonServiceServer(s, &mockDaemonServer{})
 			go func() { _ = s.Serve(lis) }()
 			defer s.Stop()
 
@@ -245,7 +245,7 @@ func TestDaemonClient_ChatStream(t *testing.T) {
 
 			client := &DaemonClient{
 				conn:   conn,
-				client: goosev1.NewDaemonServiceClient(conn),
+				client: minkv1.NewDaemonServiceClient(conn),
 			}
 
 			// Test ChatStream
@@ -313,7 +313,7 @@ func TestDaemonClient_Close(t *testing.T) {
 	// Create mock server
 	lis := bufconn.Listen(1024 * 1024)
 	s := grpc.NewServer()
-	goosev1.RegisterDaemonServiceServer(s, &mockDaemonServer{})
+	minkv1.RegisterDaemonServiceServer(s, &mockDaemonServer{})
 	go func() { _ = s.Serve(lis) }()
 	defer s.Stop()
 
@@ -330,7 +330,7 @@ func TestDaemonClient_Close(t *testing.T) {
 
 	client := &DaemonClient{
 		conn:   conn,
-		client: goosev1.NewDaemonServiceClient(conn),
+		client: minkv1.NewDaemonServiceClient(conn),
 	}
 
 	// Test Close

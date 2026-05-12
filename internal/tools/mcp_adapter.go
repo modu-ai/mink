@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/modu-ai/goose/internal/tools/mcp"
+	"github.com/modu-ai/mink/internal/tools/mcp"
 )
 
 // mcpFetchTimeout은 MCP manifest fetch 최대 대기 시간이다.

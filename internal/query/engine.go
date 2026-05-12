@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/modu-ai/goose/internal/message"
-	"github.com/modu-ai/goose/internal/query/loop"
+	"github.com/modu-ai/mink/internal/message"
+	"github.com/modu-ai/mink/internal/query/loop"
 	"go.uber.org/zap"
 )
 

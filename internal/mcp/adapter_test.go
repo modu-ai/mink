@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/mcp/transport"
+	"github.com/modu-ai/mink/internal/mcp/transport"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

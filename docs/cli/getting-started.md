@@ -87,7 +87,7 @@ echo "다음 텍스트를 한 줄로 요약해줘: ..." | ./goose ask --stdin
 
 ## 7. 자격증명 추가(선택)
 
-AI.GOOSE 저장소 루트에서 다음을 실행하면 환경 변수에서 키를 읽어 안전하게 보관합니다.
+MINK 저장소 루트에서 다음을 실행하면 환경 변수에서 키를 읽어 안전하게 보관합니다.
 
 ```bash
 ./goose credential add anthropic --from-env ANTHROPIC_API_KEY

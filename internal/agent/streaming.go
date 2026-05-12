@@ -5,8 +5,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/modu-ai/goose/internal/message"
-	"github.com/modu-ai/goose/internal/query"
+	"github.com/modu-ai/mink/internal/message"
+	"github.com/modu-ai/mink/internal/query"
 )
 
 // ChatChunk represents a single streaming output chunk from the agent.
@@ -29,7 +29,7 @@ type ChatChunk struct {
 // @MX:REASON: SPEC-GOOSE-MSG-TELEGRAM-001 P4 REQ-MTGM-E02; fan_in via
 // AgentStreamAdapter, streaming handler, and unit tests (>= 3 callers).
 type StreamingChatService interface {
-	// ChatStream opens a streaming query against the Goose agent and returns a
+	// ChatStream opens a streaming query against the Mink agent and returns a
 	// channel of ChatChunk values. The channel is closed when the stream ends.
 	// The caller must drain the channel fully or cancel ctx to avoid goroutine leaks.
 	ChatStream(ctx context.Context, req ChatRequest) (<-chan ChatChunk, error)

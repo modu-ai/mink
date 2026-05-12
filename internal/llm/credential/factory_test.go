@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/config"
-	"github.com/modu-ai/goose/internal/llm/credential"
+	"github.com/modu-ai/mink/internal/config"
+	"github.com/modu-ai/mink/internal/llm/credential"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"

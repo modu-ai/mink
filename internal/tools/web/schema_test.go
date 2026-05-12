@@ -5,8 +5,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/tools/web"
-	"github.com/modu-ai/goose/internal/tools/web/common"
+	"github.com/modu-ai/mink/internal/tools/web"
+	"github.com/modu-ai/mink/internal/tools/web/common"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

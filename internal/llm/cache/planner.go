@@ -6,7 +6,7 @@ import (
 	"errors"
 	"sort"
 
-	"github.com/modu-ai/goose/internal/message"
+	"github.com/modu-ai/mink/internal/message"
 )
 
 // CacheStrategy는 캐시 적용 전략이다.

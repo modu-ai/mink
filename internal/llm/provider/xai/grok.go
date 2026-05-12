@@ -6,10 +6,10 @@ package xai
 import (
 	"net/http"
 
-	"github.com/modu-ai/goose/internal/llm/credential"
-	"github.com/modu-ai/goose/internal/llm/provider"
-	"github.com/modu-ai/goose/internal/llm/provider/openai"
-	"github.com/modu-ai/goose/internal/llm/ratelimit"
+	"github.com/modu-ai/mink/internal/llm/credential"
+	"github.com/modu-ai/mink/internal/llm/provider"
+	"github.com/modu-ai/mink/internal/llm/provider/openai"
+	"github.com/modu-ai/mink/internal/llm/ratelimit"
 	"go.uber.org/zap"
 )
 

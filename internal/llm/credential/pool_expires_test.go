@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/llm/credential"
+	"github.com/modu-ai/mink/internal/llm/credential"
 )
 
 // TestAvailable_FiltersExpiredOAuthTokens는 만료된 OAuth 토큰이 선택 후보에서 제외되는지 검증한다.

@@ -3,11 +3,11 @@ package compressor
 import (
 	"testing"
 
-	goosecontext "github.com/modu-ai/goose/internal/context"
-	"github.com/modu-ai/goose/internal/learning/trajectory"
-	"github.com/modu-ai/goose/internal/message"
-	"github.com/modu-ai/goose/internal/query"
-	"github.com/modu-ai/goose/internal/query/loop"
+	goosecontext "github.com/modu-ai/mink/internal/context"
+	"github.com/modu-ai/mink/internal/learning/trajectory"
+	"github.com/modu-ai/mink/internal/message"
+	"github.com/modu-ai/mink/internal/query"
+	"github.com/modu-ai/mink/internal/query/loop"
 	"go.uber.org/zap"
 )
 

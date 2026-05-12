@@ -96,7 +96,7 @@ Defects from iteration 2 (6 MINOR traceability gaps):
 - [PASS] MP-1 REQ number consistency: All 6 SPECs have sequential REQ numbering with no gaps or duplicates. GEMMA4-001: REQ-G4-001 to REQ-G4-015. TRAIN-001: REQ-TR-001 to REQ-TR-023. CROSSPLAT-001: REQ-CP-001 to REQ-CP-026. LLM-001 v0.2: REQ-LLM-020 to REQ-LLM-026 (continuation). ROUTER-001 v1.1: REQ-RT-017 to REQ-RT-025 (continuation). ONBOARDING-001 v0.3: REQ-OB-021 to REQ-OB-027 (continuation).
 - [PASS] MP-2 EARS format compliance: All REQs across all 6 SPECs use one of the five EARS patterns (Ubiquitous, Event-Driven, State-Driven, Unwanted, Optional). No informal language ("should", "may") in normative text. AC format is consistently Given/When/Then test scenarios.
 - [PASS] MP-3 YAML frontmatter validity: All 6 SPECs have required fields (id, version, status, created_at, priority, labels) with correct types. Amendments use appropriate metadata format (base_spec_version, amendment_of where applicable).
-- [N/A] MP-4 Section 22 language neutrality: All 6 SPECs are single-purpose (`AI.GOOSE` codebase, Go-based), not multi-language tooling SPECs. Auto-passes.
+- [N/A] MP-4 Section 22 language neutrality: All 6 SPECs are single-purpose (`MINK` codebase, Go-based), not multi-language tooling SPECs. Auto-passes.
 
 ---
 

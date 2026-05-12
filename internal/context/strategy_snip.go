@@ -4,7 +4,7 @@ package context
 import (
 	"fmt"
 
-	"github.com/modu-ai/goose/internal/message"
+	"github.com/modu-ai/mink/internal/message"
 )
 
 // snipResult는 Snip 전략의 결과이다.

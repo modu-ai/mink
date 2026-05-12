@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
-	"github.com/modu-ai/goose/internal/hook"
+	"github.com/modu-ai/mink/internal/hook"
 )
 
 // TestPermissionBehavior_String 커버리지용

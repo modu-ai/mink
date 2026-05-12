@@ -1,14 +1,14 @@
 version: v2
 plugins:
   - local: protoc-gen-go
-    out: internal/transport/grpc/gen/goosev1
+    out: internal/transport/grpc/gen/minkv1
     opt:
-      - module=github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1
+      - module=github.com/modu-ai/mink/internal/transport/grpc/gen/minkv1
   - local: protoc-gen-go-grpc
-    out: internal/transport/grpc/gen/goosev1
+    out: internal/transport/grpc/gen/minkv1
     opt:
-      - module=github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1
+      - module=github.com/modu-ai/mink/internal/transport/grpc/gen/minkv1
   - local: protoc-gen-connect-go
-    out: internal/transport/grpc/gen/goosev1
+    out: internal/transport/grpc/gen/minkv1
     opt:
-      - module=github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1
+      - module=github.com/modu-ai/mink/internal/transport/grpc/gen/minkv1

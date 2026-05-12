@@ -3,7 +3,7 @@ package web
 import (
 	"time"
 
-	"github.com/modu-ai/goose/internal/llm/ratelimit"
+	"github.com/modu-ai/mink/internal/llm/ratelimit"
 )
 
 // weatherParser parses OpenWeatherMap rate-limit response headers into a

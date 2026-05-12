@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/core"
+	"github.com/modu-ai/mink/internal/core"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

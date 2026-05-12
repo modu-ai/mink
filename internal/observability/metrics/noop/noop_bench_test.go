@@ -5,7 +5,7 @@ package noop_test
 import (
 	"testing"
 
-	"github.com/modu-ai/goose/internal/observability/metrics/noop"
+	"github.com/modu-ai/mink/internal/observability/metrics/noop"
 )
 
 // BenchmarkNoopSink_CounterInc measures the overhead of noop.Counter.Inc().

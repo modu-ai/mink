@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/modu-ai/goose/internal/memory"
+	"github.com/modu-ai/mink/internal/memory"
 )
 
 // FactoryFunc is a factory function that creates a MemoryProvider instance.

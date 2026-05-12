@@ -1,4 +1,4 @@
-# AI.GOOSE 코드맵 (Codemaps) — v0.1.0
+# MINK 코드맵 (Codemaps) — v0.1.0
 
 완벽한 코드 수준의 아키텍처 문서. 미래의 MoAI 에이전트와 개발자를 위한 파일 레벨 인식.
 

@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/llm/credential"
+	"github.com/modu-ai/mink/internal/llm/credential"
 )
 
 // TestStorage_SaveAndLoad는 Storage가 메타데이터를 저장하고 재로드할 수 있는지 검증한다.

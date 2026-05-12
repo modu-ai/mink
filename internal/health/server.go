@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/modu-ai/goose/internal/core"
+	"github.com/modu-ai/mink/internal/core"
 	"go.uber.org/zap"
 )
 

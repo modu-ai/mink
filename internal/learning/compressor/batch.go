@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/modu-ai/goose/internal/learning/trajectory"
+	"github.com/modu-ai/mink/internal/learning/trajectory"
 )
 
 // CompressBatch compresses a slice of trajectories in parallel, bounded by

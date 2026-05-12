@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/modu-ai/goose/internal/llm/credential"
-	"github.com/modu-ai/goose/internal/llm/provider"
+	"github.com/modu-ai/mink/internal/llm/credential"
+	"github.com/modu-ai/mink/internal/llm/provider"
 	"go.uber.org/zap"
 )
 

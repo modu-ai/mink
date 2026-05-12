@@ -5,7 +5,7 @@ package glm
 import (
 	"fmt"
 
-	"github.com/modu-ai/goose/internal/llm/provider"
+	"github.com/modu-ai/mink/internal/llm/provider"
 )
 
 // ThinkingCapableModels는 thinking:{enabled} 파라미터를 지원하는 GLM 모델 목록이다.

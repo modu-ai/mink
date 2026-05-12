@@ -10,8 +10,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/modu-ai/goose/internal/tools"
-	"github.com/modu-ai/goose/internal/tools/builtin"
+	"github.com/modu-ai/mink/internal/tools"
+	"github.com/modu-ai/mink/internal/tools/builtin"
 )
 
 func init() {

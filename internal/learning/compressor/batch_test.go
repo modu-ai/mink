@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/learning/trajectory"
+	"github.com/modu-ai/mink/internal/learning/trajectory"
 	"go.uber.org/zap"
 )
 

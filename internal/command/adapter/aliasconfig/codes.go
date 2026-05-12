@@ -5,7 +5,7 @@ package aliasconfig
 import (
 	"errors"
 
-	"github.com/modu-ai/goose/internal/command"
+	"github.com/modu-ai/mink/internal/command"
 )
 
 // ErrorCategory enumerates the high-level classification of aliasconfig errors.

@@ -8,18 +8,18 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1"
-	"github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1/goosev1connect"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/minkv1"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/minkv1/minkv1connect"
 )
 
 // ConnectClient wraps Connect-gRPC clients for all four services.
 // @MX:ANCHOR ConnectClient is the primary Connect-protocol interface used by Phase B/C commands.
 // @MX:REASON: SPEC-GOOSE-CLI-001 Phase A AC-002; fan_in >= 3 expected from commands/tui/tests.
 type ConnectClient struct {
-	daemon goosev1connect.DaemonServiceClient
-	agent  goosev1connect.AgentServiceClient
-	tool   goosev1connect.ToolServiceClient
-	cfg    goosev1connect.ConfigServiceClient
+	daemon minkv1connect.DaemonServiceClient
+	agent  minkv1connect.AgentServiceClient
+	tool   minkv1connect.ToolServiceClient
+	cfg    minkv1connect.ConfigServiceClient
 	http   *http.Client
 	addr   string
 }
@@ -49,7 +49,7 @@ type ChatOption func(*chatOptions)
 
 type chatOptions struct {
 	sessionID       string
-	initialMessages []*goosev1.AgentMessage
+	initialMessages []*minkv1.AgentMessage
 }
 
 // WithSessionID sets the session identifier for conversation continuity.
@@ -110,10 +110,10 @@ func NewConnectClient(daemonAddr string, opts ...ConnectOption) (*ConnectClient,
 	}
 
 	return &ConnectClient{
-		daemon: goosev1connect.NewDaemonServiceClient(o.httpClient, daemonAddr, clientOpts...),
-		agent:  goosev1connect.NewAgentServiceClient(o.httpClient, daemonAddr, clientOpts...),
-		tool:   goosev1connect.NewToolServiceClient(o.httpClient, daemonAddr, clientOpts...),
-		cfg:    goosev1connect.NewConfigServiceClient(o.httpClient, daemonAddr, clientOpts...),
+		daemon: minkv1connect.NewDaemonServiceClient(o.httpClient, daemonAddr, clientOpts...),
+		agent:  minkv1connect.NewAgentServiceClient(o.httpClient, daemonAddr, clientOpts...),
+		tool:   minkv1connect.NewToolServiceClient(o.httpClient, daemonAddr, clientOpts...),
+		cfg:    minkv1connect.NewConfigServiceClient(o.httpClient, daemonAddr, clientOpts...),
 		http:   o.httpClient,
 		addr:   daemonAddr,
 	}, nil
@@ -123,7 +123,7 @@ func NewConnectClient(daemonAddr string, opts ...ConnectOption) (*ConnectClient,
 // @MX:ANCHOR Ping is called by CLI ping command, health checks, and integration tests.
 // @MX:REASON: SPEC-GOOSE-CLI-001 Phase A AC-002; fan_in >= 3.
 func (c *ConnectClient) Ping(ctx context.Context) (*PingResponse, error) {
-	resp, err := c.daemon.Ping(ctx, connect.NewRequest(&goosev1.PingRequest{}))
+	resp, err := c.daemon.Ping(ctx, connect.NewRequest(&minkv1.PingRequest{}))
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +141,7 @@ func (c *ConnectClient) Chat(ctx context.Context, agent, message string, opts ..
 		opt(o)
 	}
 
-	resp, err := c.agent.Chat(ctx, connect.NewRequest(&goosev1.AgentChatRequest{
+	resp, err := c.agent.Chat(ctx, connect.NewRequest(&minkv1.AgentChatRequest{
 		Agent:           agent,
 		Message:         message,
 		InitialMessages: o.initialMessages,
@@ -185,7 +185,7 @@ func (c *ConnectClient) ChatStream(ctx context.Context, agent, message string, o
 		defer close(eventCh)
 		defer close(errCh)
 
-		stream, err := c.agent.ChatStream(ctx, connect.NewRequest(&goosev1.AgentChatStreamRequest{
+		stream, err := c.agent.ChatStream(ctx, connect.NewRequest(&minkv1.AgentChatStreamRequest{
 			Agent:           agent,
 			Message:         message,
 			InitialMessages: o.initialMessages,
@@ -220,7 +220,7 @@ func (c *ConnectClient) ChatStream(ctx context.Context, agent, message string, o
 
 // ListTools retrieves all available tool descriptors from the daemon.
 func (c *ConnectClient) ListTools(ctx context.Context) ([]ToolDescriptor, error) {
-	resp, err := c.tool.List(ctx, connect.NewRequest(&goosev1.ListToolsRequest{}))
+	resp, err := c.tool.List(ctx, connect.NewRequest(&minkv1.ListToolsRequest{}))
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +240,7 @@ func (c *ConnectClient) ListTools(ctx context.Context) ([]ToolDescriptor, error)
 // GetConfig retrieves a single configuration value by key.
 // Returns (value, exists, error). exists=false when the key is not present.
 func (c *ConnectClient) GetConfig(ctx context.Context, key string) (string, bool, error) {
-	resp, err := c.cfg.Get(ctx, connect.NewRequest(&goosev1.GetConfigRequest{Key: key}))
+	resp, err := c.cfg.Get(ctx, connect.NewRequest(&minkv1.GetConfigRequest{Key: key}))
 	if err != nil {
 		return "", false, err
 	}
@@ -252,7 +252,7 @@ func (c *ConnectClient) GetConfig(ctx context.Context, key string) (string, bool
 
 // SetConfig stores a configuration value for the given key.
 func (c *ConnectClient) SetConfig(ctx context.Context, key, value string) error {
-	_, err := c.cfg.Set(ctx, connect.NewRequest(&goosev1.SetConfigRequest{
+	_, err := c.cfg.Set(ctx, connect.NewRequest(&minkv1.SetConfigRequest{
 		Key:   key,
 		Value: value,
 	}))
@@ -281,7 +281,7 @@ func (c *ConnectClient) ResolvePermission(ctx context.Context, toolUseID, toolNa
 // ListConfig returns all configuration entries matching the given key prefix.
 // Pass an empty prefix to return all entries.
 func (c *ConnectClient) ListConfig(ctx context.Context, prefix string) (map[string]string, error) {
-	resp, err := c.cfg.List(ctx, connect.NewRequest(&goosev1.ListConfigRequest{Prefix: prefix}))
+	resp, err := c.cfg.List(ctx, connect.NewRequest(&minkv1.ListConfigRequest{Prefix: prefix}))
 	if err != nil {
 		return nil, err
 	}

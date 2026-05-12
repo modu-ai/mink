@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/modu-ai/goose/internal/observability/metrics"
+	"github.com/modu-ai/mink/internal/observability/metrics"
 )
 
 // seriesKey builds a stable string key from a metric name and label map.

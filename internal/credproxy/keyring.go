@@ -1,4 +1,4 @@
-// Package credproxy provides zero-knowledge credential proxy for the Goose agent runtime.
+// Package credproxy provides zero-knowledge credential proxy for the Mink agent runtime.
 // SPEC-GOOSE-CREDENTIAL-PROXY-001
 //
 // The credential proxy ensures that secret values never enter agent process memory

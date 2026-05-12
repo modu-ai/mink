@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/cli"
+	"github.com/modu-ai/mink/internal/cli"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

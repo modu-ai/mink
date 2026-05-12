@@ -23,7 +23,7 @@ type Deps struct {
 	Store Store
 	// Audit records inbound/outbound messaging events (P2+).
 	Audit *AuditWrapper
-	// Agent forwards user messages to the Goose AI backend (P2+).
+	// Agent forwards user messages to the Mink AI backend (P2+).
 	Agent AgentQuery
 	// Stream enables editMessageText-based streaming responses (P4+, optional).
 	// When nil, streaming is disabled and all responses use the non-streaming path.

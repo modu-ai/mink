@@ -3,11 +3,11 @@ package provider
 import (
 	"context"
 
-	"github.com/modu-ai/goose/internal/llm/cache"
-	"github.com/modu-ai/goose/internal/llm/credential"
-	"github.com/modu-ai/goose/internal/llm/ratelimit"
-	"github.com/modu-ai/goose/internal/message"
-	"github.com/modu-ai/goose/internal/query"
+	"github.com/modu-ai/mink/internal/llm/cache"
+	"github.com/modu-ai/mink/internal/llm/credential"
+	"github.com/modu-ai/mink/internal/llm/ratelimit"
+	"github.com/modu-ai/mink/internal/message"
+	"github.com/modu-ai/mink/internal/query"
 	"go.uber.org/zap"
 )
 

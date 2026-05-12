@@ -159,9 +159,9 @@ type LoadOptions struct {
 	// Logger는 로드 과정의 로그를 기록할 zap 로거다.
 	// nil이면 zap.NewNop()을 사용한다.
 	Logger *zap.Logger
-	// GooseHome은 테스트에서 GOOSE_HOME을 강제 지정할 때 사용한다.
+	// MinkHome은 테스트에서 GOOSE_HOME을 강제 지정할 때 사용한다.
 	// 빈 문자열이면 환경변수에서 읽는다.
-	GooseHome string
+	MinkHome string
 	// WorkDir은 프로젝트 설정 파일 탐색 기준 디렉토리다.
 	// 빈 문자열이면 os.Getwd()를 사용한다.
 	WorkDir string
@@ -204,7 +204,7 @@ func Load(opts LoadOptions) (*Config, error) {
 		// 표준 파일 체인: user → project (낮음에서 높음 순)
 
 		// REQ-CFG-011: GOOSE_HOME 미설정 시 $HOME/.goose fallback
-		gooseHome := opts.GooseHome
+		gooseHome := opts.MinkHome
 		if gooseHome == "" {
 			gooseHome = resolveGooseHome()
 		}
@@ -257,7 +257,7 @@ func Load(opts LoadOptions) (*Config, error) {
 	// yaml 또는 env에서 명시적으로 지정되지 않은 경우에만 적용.
 	// SPEC-GOOSE-DAEMON-WIRE-001 REQ-WIRE-002 step 7
 	if cfg.SkillsRoot == "" {
-		gh := opts.GooseHome
+		gh := opts.MinkHome
 		if gh == "" {
 			gh = resolveGooseHome()
 		}

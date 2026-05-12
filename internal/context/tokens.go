@@ -5,7 +5,7 @@ package context
 import (
 	"unicode/utf8"
 
-	"github.com/modu-ai/goose/internal/message"
+	"github.com/modu-ai/mink/internal/message"
 )
 
 // WarningLevel은 token 사용률 경고 단계이다.

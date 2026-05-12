@@ -6,7 +6,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/modu-ai/goose/internal/cli/transport"
+	"github.com/modu-ai/mink/internal/cli/transport"
 	"github.com/spf13/cobra"
 )
 

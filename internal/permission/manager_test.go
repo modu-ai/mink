@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
-	"github.com/modu-ai/goose/internal/permission"
-	"github.com/modu-ai/goose/internal/permission/store"
+	"github.com/modu-ai/mink/internal/permission"
+	"github.com/modu-ai/mink/internal/permission/store"
 )
 
 func TestMain(m *testing.M) {

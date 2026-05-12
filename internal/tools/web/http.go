@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/modu-ai/goose/internal/audit"
-	"github.com/modu-ai/goose/internal/permission"
-	"github.com/modu-ai/goose/internal/tools"
-	"github.com/modu-ai/goose/internal/tools/web/common"
+	"github.com/modu-ai/mink/internal/audit"
+	"github.com/modu-ai/mink/internal/permission"
+	"github.com/modu-ai/mink/internal/tools"
+	"github.com/modu-ai/mink/internal/tools/web/common"
 )
 
 // httpFetchSchema is the JSON Schema for the http_fetch tool input.

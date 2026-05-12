@@ -4,8 +4,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/modu-ai/goose/internal/command"
-	"github.com/modu-ai/goose/internal/llm/router"
+	"github.com/modu-ai/mink/internal/command"
+	"github.com/modu-ai/mink/internal/llm/router"
 )
 
 // resolveAlias implements the alias resolution algorithm described in SPEC §6.4.

@@ -3,8 +3,8 @@
 package aliasconfig
 
 import (
-	"github.com/modu-ai/goose/internal/command"
-	"github.com/modu-ai/goose/internal/llm/router"
+	"github.com/modu-ai/mink/internal/command"
+	"github.com/modu-ai/mink/internal/llm/router"
 )
 
 // MergePolicy controls how user-file and project-file entries are combined

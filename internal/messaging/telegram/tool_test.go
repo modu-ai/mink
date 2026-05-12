@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/tools"
+	"github.com/modu-ai/mink/internal/tools"
 	"go.uber.org/zap"
 )
 

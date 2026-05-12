@@ -10,7 +10,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/modu-ai/goose/internal/llm/router"
+	"github.com/modu-ai/mink/internal/llm/router"
 )
 
 // newTestConfig는 테스트용 기본 RoutingConfig를 생성한다.

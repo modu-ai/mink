@@ -11,7 +11,7 @@ package v2
 import (
 	"testing"
 
-	"github.com/modu-ai/goose/internal/evolve/errorclass"
+	"github.com/modu-ai/mink/internal/evolve/errorclass"
 	"github.com/stretchr/testify/assert"
 )
 

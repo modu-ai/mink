@@ -1,6 +1,6 @@
 package anthropic
 
-import "github.com/modu-ai/goose/internal/tool"
+import "github.com/modu-ai/mink/internal/tool"
 
 // AnthropicTool은 Anthropic API의 tool 스키마이다.
 type AnthropicTool struct {

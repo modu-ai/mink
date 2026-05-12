@@ -1,4 +1,4 @@
-// Package trajectory implements Layer 1 of the Goose self-evolution pipeline.
+// Package trajectory implements Layer 1 of the Mink self-evolution pipeline.
 // It collects conversation turns from QueryEngine, redacts PII, and persists
 // trajectories as ShareGPT-compatible JSON-L files for downstream consumers
 // (COMPRESSOR-001, INSIGHTS-001).
@@ -82,8 +82,8 @@ type TelemetryConfig struct {
 	// Default 1000 per REQ-TRAJECTORY-012.
 	InMemoryTurnCap int `yaml:"in_memory_turn_cap" json:"in_memory_turn_cap"`
 
-	// GooseHome overrides the base directory (default: $HOME/.goose).
-	GooseHome string `yaml:"goose_home" json:"goose_home"`
+	// MinkHome overrides the base directory (default: $HOME/.goose).
+	MinkHome string `yaml:"goose_home" json:"goose_home"`
 }
 
 // DefaultTelemetryConfig returns production defaults.

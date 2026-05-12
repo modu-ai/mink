@@ -1,5 +1,5 @@
 // Package hook implements the lifecycle hook event dispatcher and the
-// useCanUseTool permission decision flow for AI.GOOSE.
+// useCanUseTool permission decision flow for MINK.
 // SPEC-GOOSE-HOOK-001
 package hook
 

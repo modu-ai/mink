@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/llm/credential"
+	"github.com/modu-ai/mink/internal/llm/credential"
 )
 
 // TestPool_Reset_ClearsExhaustedState는 Reset이 Exhausted 상태를 해제하는지 검증한다.

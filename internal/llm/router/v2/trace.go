@@ -11,7 +11,7 @@ package v2
 import (
 	"fmt"
 
-	"github.com/modu-ai/goose/internal/evolve/errorclass"
+	"github.com/modu-ai/mink/internal/evolve/errorclass"
 )
 
 // TraceV1Simple 은 v2 정책 비활성 + v1 simple 판정 시 사용한다.

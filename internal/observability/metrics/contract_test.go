@@ -10,9 +10,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/observability/metrics"
-	metricsexpvar "github.com/modu-ai/goose/internal/observability/metrics/expvar"
-	"github.com/modu-ai/goose/internal/observability/metrics/noop"
+	"github.com/modu-ai/mink/internal/observability/metrics"
+	metricsexpvar "github.com/modu-ai/mink/internal/observability/metrics/expvar"
+	"github.com/modu-ai/mink/internal/observability/metrics/noop"
 	"go.uber.org/zap"
 )
 

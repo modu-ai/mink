@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
-	"github.com/modu-ai/goose/internal/permission"
+	"github.com/modu-ai/mink/internal/permission"
 )
 
 func TestMain(m *testing.M) {

@@ -3,7 +3,7 @@ package compressor
 import (
 	"strings"
 
-	"github.com/modu-ai/goose/internal/learning/trajectory"
+	"github.com/modu-ai/mink/internal/learning/trajectory"
 )
 
 // Tokenizer is the sole source of token counts within the compressor.

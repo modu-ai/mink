@@ -11,7 +11,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/llm/router"
+	"github.com/modu-ai/mink/internal/llm/router"
 )
 
 // BenchmarkRouterV2_Route_ZeroPolicy 는 zero policy 통과 경로의 핫패스 측정.

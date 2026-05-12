@@ -4,7 +4,7 @@
 
 ## 개요
 
-본 패키지는 AI.GOOSE의 **Plugin 시스템**을 구현합니다. 외부 플러그인을 안전하게 로드하고, manifest 검증, 의존성 해석, 생애주기 관리(init → activate → deactivate → unload)를 수행합니다.
+본 패키지는 MINK의 **Plugin 시스템**을 구현합니다. 외부 플러그인을 안전하게 로드하고, manifest 검증, 의존성 해석, 생애주기 관리(init → activate → deactivate → unload)를 수행합니다.
 
 ## 핵심 기능
 

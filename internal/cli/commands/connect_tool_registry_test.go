@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/cli/transport"
+	"github.com/modu-ai/mink/internal/cli/transport"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -5,10 +5,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/command"
-	"github.com/modu-ai/goose/internal/llm/router"
-	"github.com/modu-ai/goose/internal/observability/metrics"
-	"github.com/modu-ai/goose/internal/subagent"
+	"github.com/modu-ai/mink/internal/command"
+	"github.com/modu-ai/mink/internal/llm/router"
+	"github.com/modu-ai/mink/internal/observability/metrics"
+	"github.com/modu-ai/mink/internal/subagent"
 	"github.com/stretchr/testify/assert"
 )
 

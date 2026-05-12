@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/llm/credential"
+	"github.com/modu-ai/mink/internal/llm/credential"
 )
 
 // TestPool_MarkExhaustedAndRotate_Success는 MarkExhaustedAndRotate가

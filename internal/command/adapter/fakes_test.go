@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/modu-ai/goose/internal/command"
+	"github.com/modu-ai/mink/internal/command"
 )
 
 // fakeLoopController is a test double for LoopController.

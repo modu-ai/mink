@@ -1,8 +1,8 @@
 package adapter_test
 
 import (
-	"github.com/modu-ai/goose/internal/command"
-	"github.com/modu-ai/goose/internal/command/adapter"
+	"github.com/modu-ai/mink/internal/command"
+	"github.com/modu-ai/mink/internal/command/adapter"
 )
 
 // Compile-time assertion: *ContextAdapter satisfies command.PlanModeSetter.

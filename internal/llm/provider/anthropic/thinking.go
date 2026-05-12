@@ -1,6 +1,6 @@
 package anthropic
 
-import "github.com/modu-ai/goose/internal/llm/provider"
+import "github.com/modu-ai/mink/internal/llm/provider"
 
 // AnthropicThinkingParam은 Anthropic API 요청의 thinking 파라미터이다.
 // Adaptive Thinking 모델(Opus 4.7+)은 Effort를, 이전 모델은 BudgetTokens를 사용한다.

@@ -8,9 +8,9 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/modu-ai/goose/internal/hook"
-	"github.com/modu-ai/goose/internal/skill"
-	"github.com/modu-ai/goose/internal/subagent"
+	"github.com/modu-ai/mink/internal/hook"
+	"github.com/modu-ai/mink/internal/skill"
+	"github.com/modu-ai/mink/internal/subagent"
 )
 
 // Loader는 플러그인 로드를 오케스트레이트하는 구조체이다.

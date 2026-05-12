@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/llm"
+	"github.com/modu-ai/mink/internal/llm"
 )
 
 // TestOllama_Complete_ReturnsText validates AC-LLM-001: Ollama unary completion.

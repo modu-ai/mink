@@ -1,4 +1,4 @@
-// Package insights implements Layer 3 of the Goose self-evolution pipeline.
+// Package insights implements Layer 3 of the Mink self-evolution pipeline.
 // It aggregates trajectory data into quantitative dimensions (Overview, Models,
 // Tools, Activity) and qualitative categories (Pattern, Preference, Error,
 // Opportunity) with confidence scoring.

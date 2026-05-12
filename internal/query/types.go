@@ -6,9 +6,9 @@ package query
 import (
 	"context"
 
-	"github.com/modu-ai/goose/internal/llm/router"
-	"github.com/modu-ai/goose/internal/message"
-	"github.com/modu-ai/goose/internal/tool"
+	"github.com/modu-ai/mink/internal/llm/router"
+	"github.com/modu-ai/mink/internal/message"
+	"github.com/modu-ai/mink/internal/tool"
 )
 
 // ThinkingConfig는 LLM thinking 모드 설정이다.

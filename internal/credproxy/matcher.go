@@ -3,7 +3,7 @@ package credproxy
 import (
 	"strings"
 
-	"github.com/modu-ai/goose/internal/fsaccess"
+	"github.com/modu-ai/mink/internal/fsaccess"
 )
 
 // matchHostPattern tests whether a host matches a host pattern.

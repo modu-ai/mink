@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/modu-ai/goose/internal/tools"
-	"github.com/modu-ai/goose/internal/tools/mcp"
+	"github.com/modu-ai/mink/internal/tools"
+	"github.com/modu-ai/mink/internal/tools/mcp"
 )
 
 const fetchTimeout = 5 * time.Second

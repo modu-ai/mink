@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/fsaccess"
+	"github.com/modu-ai/mink/internal/fsaccess"
 	"go.uber.org/zap/zaptest"
 )
 

@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/tools"
-	"github.com/modu-ai/goose/internal/tools/builtin/file"
+	"github.com/modu-ai/mink/internal/tools"
+	"github.com/modu-ai/mink/internal/tools/builtin/file"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

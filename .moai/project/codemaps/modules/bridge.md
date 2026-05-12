@@ -9,7 +9,7 @@
 
 ## 목적
 
-Claude Code와 AI.GOOSE 간 이벤트 기반 통신 (WebSocket/SSE + ndjson). 세션 재연결 시 메시지 재전송 (LogicalID 기반, 24시간 TTL).
+Claude Code와 MINK 간 이벤트 기반 통신 (WebSocket/SSE + ndjson). 세션 재연결 시 메시지 재전송 (LogicalID 기반, 24시간 TTL).
 
 ---
 

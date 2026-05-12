@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/modu-ai/goose/internal/agent"
+	"github.com/modu-ai/mink/internal/agent"
 )
 
 // StreamChunk is the telegram-package counterpart of agent.ChatChunk. The

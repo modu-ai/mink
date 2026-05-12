@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/modu-ai/goose/internal/hook"
+	"github.com/modu-ai/mink/internal/hook"
 )
 
 // --- errors.go 커버리지 ---

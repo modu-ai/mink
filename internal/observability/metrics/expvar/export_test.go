@@ -10,7 +10,7 @@
 // out of production source files.
 package expvar
 
-import "github.com/modu-ai/goose/internal/observability/metrics"
+import "github.com/modu-ai/mink/internal/observability/metrics"
 
 // CounterValue returns the current float64 value of a Counter handle.
 // Panics if c is not an *expvarCounter (intentional — test helper, not for

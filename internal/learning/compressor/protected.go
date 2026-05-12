@@ -1,7 +1,7 @@
 package compressor
 
 import (
-	"github.com/modu-ai/goose/internal/learning/trajectory"
+	"github.com/modu-ai/mink/internal/learning/trajectory"
 )
 
 // findProtectedIndices returns the set of conversation indices that must not be

@@ -12,10 +12,10 @@ import (
 	"github.com/mmcdole/gofeed"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/modu-ai/goose/internal/audit"
-	"github.com/modu-ai/goose/internal/permission"
-	"github.com/modu-ai/goose/internal/tools"
-	"github.com/modu-ai/goose/internal/tools/web/common"
+	"github.com/modu-ai/mink/internal/audit"
+	"github.com/modu-ai/mink/internal/permission"
+	"github.com/modu-ai/mink/internal/tools"
+	"github.com/modu-ai/mink/internal/tools/web/common"
 )
 
 // rssSchema is the JSON Schema for the web_rss tool input.

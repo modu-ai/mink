@@ -3,7 +3,7 @@ package compressor
 import (
 	"testing"
 
-	"github.com/modu-ai/goose/internal/learning/trajectory"
+	"github.com/modu-ai/mink/internal/learning/trajectory"
 )
 
 // makeTrajectory is a test helper.

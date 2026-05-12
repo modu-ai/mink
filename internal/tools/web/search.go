@@ -16,11 +16,11 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/modu-ai/goose/internal/audit"
-	"github.com/modu-ai/goose/internal/llm/ratelimit"
-	"github.com/modu-ai/goose/internal/permission"
-	"github.com/modu-ai/goose/internal/tools"
-	"github.com/modu-ai/goose/internal/tools/web/common"
+	"github.com/modu-ai/mink/internal/audit"
+	"github.com/modu-ai/mink/internal/llm/ratelimit"
+	"github.com/modu-ai/mink/internal/permission"
+	"github.com/modu-ai/mink/internal/tools"
+	"github.com/modu-ai/mink/internal/tools/web/common"
 )
 
 // webSearchSchema is the JSON Schema for the web_search tool input.

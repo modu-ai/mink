@@ -11,7 +11,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/modu-ai/goose/internal/permission"
+	"github.com/modu-ai/mink/internal/permission"
 )
 
 // grantsFile은 grants.json의 직렬화 스키마다.

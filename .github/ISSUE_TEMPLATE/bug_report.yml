@@ -9,8 +9,8 @@ body:
         Thanks for taking the time to file a defect report. Clear reproduction steps make the difference between a fast fix and a long back-and-forth.
 
         Before submitting, please:
-        - Search [existing issues](https://github.com/modu-ai/goose/issues?q=is%3Aissue) — your finding may already be tracked.
-        - For security-sensitive issues, please use the [private advisory channel](https://github.com/modu-ai/goose/security/advisories/new) instead.
+        - Search [existing issues](https://github.com/modu-ai/mink/issues?q=is%3Aissue) — your finding may already be tracked.
+        - For security-sensitive issues, please use the [private advisory channel](https://github.com/modu-ai/mink/security/advisories/new) instead.
 
   - type: input
     id: version

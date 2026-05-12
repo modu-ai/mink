@@ -3,7 +3,7 @@ package commands
 
 import (
 	"fmt"
-	"github.com/modu-ai/goose/internal/cli/session"
+	"github.com/modu-ai/mink/internal/cli/session"
 	"github.com/spf13/cobra"
 )
 

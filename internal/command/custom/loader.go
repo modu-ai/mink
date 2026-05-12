@@ -12,8 +12,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/modu-ai/goose/internal/command"
-	"github.com/modu-ai/goose/internal/command/substitute"
+	"github.com/modu-ai/mink/internal/command"
+	"github.com/modu-ai/mink/internal/command/substitute"
 	"go.uber.org/zap"
 )
 

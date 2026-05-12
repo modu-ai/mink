@@ -5,7 +5,7 @@ package agent
 import (
 	"time"
 
-	"github.com/modu-ai/goose/internal/message"
+	"github.com/modu-ai/mink/internal/message"
 )
 
 // Message represents a single message in the agent's conversation history.

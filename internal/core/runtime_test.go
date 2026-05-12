@@ -28,9 +28,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/config"
-	"github.com/modu-ai/goose/internal/core"
-	"github.com/modu-ai/goose/internal/health"
+	"github.com/modu-ai/mink/internal/config"
+	"github.com/modu-ai/mink/internal/core"
+	"github.com/modu-ai/mink/internal/health"
 )
 
 // goosedBinPath는 TestMain에서 1회 빌드된 goosed 바이너리 경로를 공유한다.
@@ -49,7 +49,7 @@ func TestMain(m *testing.M) {
 	defer os.RemoveAll(dir)
 
 	bin := filepath.Join(dir, "goosed")
-	cmd := exec.Command("go", "build", "-o", bin, "github.com/modu-ai/goose/cmd/goosed")
+	cmd := exec.Command("go", "build", "-o", bin, "github.com/modu-ai/mink/cmd/minkd")
 	cmd.Env = os.Environ()
 	if out, buildErr := cmd.CombinedOutput(); buildErr != nil {
 		panic("goosed 사전 빌드 실패: " + buildErr.Error() + "\n" + string(out))
@@ -71,8 +71,8 @@ func TestBootstrap_SucceedsWithEmptyConfig(t *testing.T) {
 	// 빈 config 파일 없음 → 기본값 fallback
 	// SPEC-GOOSE-CONFIG-001: config.Load() 계층형 로더로 마이그레이션
 	cfg, err := config.Load(config.LoadOptions{
-		GooseHome: gooseHome,
-		WorkDir:   t.TempDir(),
+		MinkHome: gooseHome,
+		WorkDir:  t.TempDir(),
 	})
 	if err != nil {
 		t.Fatalf("설정 로드 실패: %v", err)
@@ -506,7 +506,7 @@ func buildGoosed(t *testing.T) string {
 	}
 	// TestMain을 거치지 않은 경우 (예: go test -run TestXxx ./...) fallback 빌드
 	binPath := filepath.Join(t.TempDir(), "goosed")
-	cmd := exec.Command("go", "build", "-o", binPath, "github.com/modu-ai/goose/cmd/goosed")
+	cmd := exec.Command("go", "build", "-o", binPath, "github.com/modu-ai/mink/cmd/minkd")
 	cmd.Env = os.Environ()
 	out, err := cmd.CombinedOutput()
 	if err != nil {

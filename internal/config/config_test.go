@@ -11,7 +11,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/modu-ai/goose/internal/config"
+	"github.com/modu-ai/mink/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,9 +24,9 @@ func TestLoad_DefaultsOnly_NoFiles_NoEnv(t *testing.T) {
 	t.Parallel()
 
 	cfg, err := config.Load(config.LoadOptions{
-		FS:        fstest.MapFS{},
-		GooseHome: t.TempDir(),
-		WorkDir:   t.TempDir(),
+		FS:       fstest.MapFS{},
+		MinkHome: t.TempDir(),
+		WorkDir:  t.TempDir(),
 		// 환경변수 오버라이드 없음 — 기본값만
 		EnvOverrides: map[string]string{},
 	})
@@ -62,9 +62,9 @@ func TestLoad_LayerMerge_DefaultUserEnv(t *testing.T) {
 	}
 
 	cfg, err := config.Load(config.LoadOptions{
-		FS:        memFS,
-		GooseHome: gooseHome,
-		WorkDir:   t.TempDir(),
+		FS:       memFS,
+		MinkHome: gooseHome,
+		WorkDir:  t.TempDir(),
 		EnvOverrides: map[string]string{
 			"GOOSE_GRPC_PORT": "9999",
 		},
@@ -101,7 +101,7 @@ func TestLoad_MalformedYAML_ReturnsSyntaxError(t *testing.T) {
 
 	_, err := config.Load(config.LoadOptions{
 		FS:           memFS,
-		GooseHome:    gooseHome,
+		MinkHome:     gooseHome,
 		WorkDir:      t.TempDir(),
 		EnvOverrides: map[string]string{},
 	})
@@ -135,7 +135,7 @@ func TestValidate_GRPCPort_Zero_ReturnsInvalidField(t *testing.T) {
 
 	cfg, err := config.Load(config.LoadOptions{
 		FS:           memFS,
-		GooseHome:    gooseHome,
+		MinkHome:     gooseHome,
 		WorkDir:      t.TempDir(),
 		EnvOverrides: map[string]string{},
 	})
@@ -182,7 +182,7 @@ func TestLoad_ProjectOverridesUser(t *testing.T) {
 
 	cfg, err := config.Load(config.LoadOptions{
 		FS:           memFS,
-		GooseHome:    gooseHome,
+		MinkHome:     gooseHome,
 		WorkDir:      workDir,
 		EnvOverrides: map[string]string{},
 	})
@@ -210,9 +210,9 @@ func TestLoad_UnknownKey_Preserved_NonStrict(t *testing.T) {
 	}
 
 	cfg, err := config.Load(config.LoadOptions{
-		FS:        memFS,
-		GooseHome: gooseHome,
-		WorkDir:   t.TempDir(),
+		FS:       memFS,
+		MinkHome: gooseHome,
+		WorkDir:  t.TempDir(),
 		// GOOSE_CONFIG_STRICT 미설정
 		EnvOverrides: map[string]string{},
 	})
@@ -239,9 +239,9 @@ func TestLoad_UnknownKey_StrictMode_ReturnsError(t *testing.T) {
 	}
 
 	_, err := config.Load(config.LoadOptions{
-		FS:        memFS,
-		GooseHome: gooseHome,
-		WorkDir:   t.TempDir(),
+		FS:       memFS,
+		MinkHome: gooseHome,
+		WorkDir:  t.TempDir(),
 		EnvOverrides: map[string]string{
 			"GOOSE_CONFIG_STRICT": "true",
 		},
@@ -262,9 +262,9 @@ func TestLoad_EnvOverlay_StringAndBool(t *testing.T) {
 	t.Parallel()
 
 	cfg, err := config.Load(config.LoadOptions{
-		FS:        fstest.MapFS{},
-		GooseHome: t.TempDir(),
-		WorkDir:   t.TempDir(),
+		FS:       fstest.MapFS{},
+		MinkHome: t.TempDir(),
+		WorkDir:  t.TempDir(),
 		EnvOverrides: map[string]string{
 			"GOOSE_LOG_LEVEL":        "error",
 			"GOOSE_LEARNING_ENABLED": "false",
@@ -295,7 +295,7 @@ func TestLoad_ZeroValue_BoolFalse_Overrides_Default(t *testing.T) {
 
 	cfg, err := config.Load(config.LoadOptions{
 		FS:           memFS,
-		GooseHome:    gooseHome,
+		MinkHome:     gooseHome,
 		WorkDir:      t.TempDir(),
 		EnvOverrides: map[string]string{},
 	})
@@ -323,7 +323,7 @@ func TestLoad_AbsentKey_PreservesDefault(t *testing.T) {
 
 	cfg, err := config.Load(config.LoadOptions{
 		FS:           memFS,
-		GooseHome:    gooseHome,
+		MinkHome:     gooseHome,
 		WorkDir:      t.TempDir(),
 		EnvOverrides: map[string]string{},
 	})
@@ -351,9 +351,9 @@ func TestLoad_EnvOverlay_GRPCPort_Int_HappyPath(t *testing.T) {
 	}
 
 	cfg, err := config.Load(config.LoadOptions{
-		FS:        memFS,
-		GooseHome: gooseHome,
-		WorkDir:   t.TempDir(),
+		FS:       memFS,
+		MinkHome: gooseHome,
+		WorkDir:  t.TempDir(),
 		EnvOverrides: map[string]string{
 			"GOOSE_GRPC_PORT": "9999",
 		},
@@ -381,9 +381,9 @@ func TestLoad_EnvOverlay_GRPCPort_ParseFail_Fallback(t *testing.T) {
 	}
 
 	cfg, err := config.Load(config.LoadOptions{
-		FS:        memFS,
-		GooseHome: gooseHome,
-		WorkDir:   t.TempDir(),
+		FS:       memFS,
+		MinkHome: gooseHome,
+		WorkDir:  t.TempDir(),
 		EnvOverrides: map[string]string{
 			"GOOSE_GRPC_PORT": "abc",
 		},
@@ -402,9 +402,9 @@ func TestLoad_EnvOverlay_OllamaHost_URL(t *testing.T) {
 	t.Parallel()
 
 	cfg, err := config.Load(config.LoadOptions{
-		FS:        fstest.MapFS{},
-		GooseHome: t.TempDir(),
-		WorkDir:   t.TempDir(),
+		FS:       fstest.MapFS{},
+		MinkHome: t.TempDir(),
+		WorkDir:  t.TempDir(),
 		EnvOverrides: map[string]string{
 			"OLLAMA_HOST": "http://10.0.0.5:11434",
 		},
@@ -422,9 +422,9 @@ func TestLoad_EnvOverlay_Secret_Redacted(t *testing.T) {
 	t.Parallel()
 
 	cfg, err := config.Load(config.LoadOptions{
-		FS:        fstest.MapFS{},
-		GooseHome: t.TempDir(),
-		WorkDir:   t.TempDir(),
+		FS:       fstest.MapFS{},
+		MinkHome: t.TempDir(),
+		WorkDir:  t.TempDir(),
 		EnvOverrides: map[string]string{
 			"OPENAI_API_KEY": "sk-test-123",
 		},
@@ -449,7 +449,7 @@ func TestRedacted_EmptySecret_NoPanic(t *testing.T) {
 
 	cfg, err := config.Load(config.LoadOptions{
 		FS:           fstest.MapFS{},
-		GooseHome:    t.TempDir(),
+		MinkHome:     t.TempDir(),
 		WorkDir:      t.TempDir(),
 		EnvOverrides: map[string]string{},
 	})
@@ -479,7 +479,7 @@ transport:
 	require.NoError(t, os.WriteFile(filepath.Join(gooseHomeA, "config.yaml"), []byte(yamlContent), 0600))
 
 	cfgA, err := config.Load(config.LoadOptions{
-		GooseHome:    gooseHomeA,
+		MinkHome:     gooseHomeA,
 		WorkDir:      t.TempDir(),
 		EnvOverrides: map[string]string{},
 	})
@@ -495,7 +495,7 @@ transport:
 
 	cfgB, err := config.Load(config.LoadOptions{
 		FS:           memFS,
-		GooseHome:    gooseHomeB,
+		MinkHome:     gooseHomeB,
 		WorkDir:      t.TempDir(),
 		EnvOverrides: map[string]string{},
 	})
@@ -517,7 +517,7 @@ func TestLoad_ConcurrentReads_RaceSafe(t *testing.T) {
 
 	cfg, err := config.Load(config.LoadOptions{
 		FS:           fstest.MapFS{},
-		GooseHome:    t.TempDir(),
+		MinkHome:     t.TempDir(),
 		WorkDir:      t.TempDir(),
 		EnvOverrides: map[string]string{},
 	})
@@ -548,7 +548,7 @@ func TestIsValid_BeforeValidate_ReturnsFalse(t *testing.T) {
 
 	cfg, err := config.Load(config.LoadOptions{
 		FS:           fstest.MapFS{},
-		GooseHome:    t.TempDir(),
+		MinkHome:     t.TempDir(),
 		WorkDir:      t.TempDir(),
 		EnvOverrides: map[string]string{},
 	})
@@ -580,7 +580,7 @@ func TestIsValid_AfterFailedValidate_RemainsFalse(t *testing.T) {
 
 	cfg, err := config.Load(config.LoadOptions{
 		FS:           memFS,
-		GooseHome:    gooseHome,
+		MinkHome:     gooseHome,
 		WorkDir:      t.TempDir(),
 		EnvOverrides: map[string]string{},
 	})
@@ -610,7 +610,7 @@ func TestLoad_TypeMismatch_GRPCPort_String(t *testing.T) {
 
 	_, err := config.Load(config.LoadOptions{
 		FS:           memFS,
-		GooseHome:    gooseHome,
+		MinkHome:     gooseHome,
 		WorkDir:      t.TempDir(),
 		EnvOverrides: map[string]string{},
 	})
@@ -624,9 +624,9 @@ func TestLoad_TypeMismatch_GRPCPort_String(t *testing.T) {
 
 // ---- AC-CFG-017: $GOOSE_HOME 미설정 시 $HOME/.goose fallback ----
 
-// TestLoad_GooseHome_Unset_UsesHomeDotGoose는 AC-CFG-017을 검증한다.
+// TestLoad_MinkHome_Unset_UsesHomeDotGoose는 AC-CFG-017을 검증한다.
 // 이 테스트는 실제 HOME env를 변경하므로 serial로 실행 (t.Parallel() 없음)
-func TestLoad_GooseHome_Unset_UsesHomeDotGoose(t *testing.T) {
+func TestLoad_MinkHome_Unset_UsesHomeDotGoose(t *testing.T) {
 	// env 변경 필요 — 격리를 위해 serial 실행
 	fakeHome := t.TempDir()
 	gooseDir := filepath.Join(fakeHome, ".goose")
@@ -642,7 +642,7 @@ func TestLoad_GooseHome_Unset_UsesHomeDotGoose(t *testing.T) {
 	t.Setenv("HOME", fakeHome)
 	t.Setenv("GOOSE_HOME", "")
 
-	// 실제 디스크 접근 (os.DirFS 사용, GooseHome 미지정)
+	// 실제 디스크 접근 (os.DirFS 사용, MinkHome 미지정)
 	cfg, err := config.Load(config.LoadOptions{
 		WorkDir: t.TempDir(),
 	})
@@ -669,9 +669,9 @@ func TestLoad_ShellVarSyntax_NotExpanded(t *testing.T) {
 	}
 
 	cfg, err := config.Load(config.LoadOptions{
-		FS:        memFS,
-		GooseHome: gooseHome,
-		WorkDir:   t.TempDir(),
+		FS:       memFS,
+		MinkHome: gooseHome,
+		WorkDir:  t.TempDir(),
 		EnvOverrides: map[string]string{
 			"FOO": "info", // 설정돼 있어도 yaml 값은 literal 보존
 		},
@@ -698,7 +698,7 @@ func TestLoad_ShellVarSyntax_UnsetVar_Literal(t *testing.T) {
 
 	cfg, err := config.Load(config.LoadOptions{
 		FS:           memFS,
-		GooseHome:    gooseHome,
+		MinkHome:     gooseHome,
 		WorkDir:      t.TempDir(),
 		EnvOverrides: map[string]string{}, // BAR 미설정
 	})
@@ -725,7 +725,7 @@ func TestLoad_OverrideFiles_BypassesDefaultChain(t *testing.T) {
 	require.NoError(t, os.WriteFile(overrideFile, []byte("log:\n  level: error\n"), 0600))
 
 	cfg, err := config.Load(config.LoadOptions{
-		GooseHome:     gooseHome,
+		MinkHome:      gooseHome,
 		WorkDir:       t.TempDir(),
 		OverrideFiles: []string{overrideFile},
 		EnvOverrides:  map[string]string{},
@@ -776,9 +776,9 @@ transport:
 		filepath.Join(gooseHomeB[1:], "config.yaml"): &fstest.MapFile{Data: []byte(yamlContent)},
 	}
 
-	cfgA, err := config.Load(config.LoadOptions{FS: memFSA, GooseHome: gooseHomeA, WorkDir: t.TempDir(), EnvOverrides: map[string]string{}})
+	cfgA, err := config.Load(config.LoadOptions{FS: memFSA, MinkHome: gooseHomeA, WorkDir: t.TempDir(), EnvOverrides: map[string]string{}})
 	require.NoError(t, err)
-	cfgB, err := config.Load(config.LoadOptions{FS: memFSB, GooseHome: gooseHomeB, WorkDir: t.TempDir(), EnvOverrides: map[string]string{}})
+	cfgB, err := config.Load(config.LoadOptions{FS: memFSB, MinkHome: gooseHomeB, WorkDir: t.TempDir(), EnvOverrides: map[string]string{}})
 	require.NoError(t, err)
 
 	// 핵심 필드 동등성
@@ -811,7 +811,7 @@ func TestLoad_Providers_YAML(t *testing.T) {
 
 	cfg, err := config.Load(config.LoadOptions{
 		FS:           memFS,
-		GooseHome:    gooseHome,
+		MinkHome:     gooseHome,
 		WorkDir:      t.TempDir(),
 		EnvOverrides: map[string]string{},
 	})
@@ -837,7 +837,7 @@ func TestLoad_UILocale_YAML(t *testing.T) {
 
 	cfg, err := config.Load(config.LoadOptions{
 		FS:           memFS,
-		GooseHome:    gooseHome,
+		MinkHome:     gooseHome,
 		WorkDir:      t.TempDir(),
 		EnvOverrides: map[string]string{},
 	})
@@ -862,7 +862,7 @@ func TestLoad_HealthPort_YAML(t *testing.T) {
 
 	cfg, err := config.Load(config.LoadOptions{
 		FS:           memFS,
-		GooseHome:    gooseHome,
+		MinkHome:     gooseHome,
 		WorkDir:      t.TempDir(),
 		EnvOverrides: map[string]string{},
 	})
@@ -887,7 +887,7 @@ func TestLoad_HealthPort_TypeMismatch(t *testing.T) {
 
 	_, err := config.Load(config.LoadOptions{
 		FS:           memFS,
-		GooseHome:    gooseHome,
+		MinkHome:     gooseHome,
 		WorkDir:      t.TempDir(),
 		EnvOverrides: map[string]string{},
 	})
@@ -947,9 +947,9 @@ func TestLoad_EnvOverride_ANTHROPIC_KEY(t *testing.T) {
 	t.Parallel()
 
 	cfg, err := config.Load(config.LoadOptions{
-		FS:        fstest.MapFS{},
-		GooseHome: t.TempDir(),
-		WorkDir:   t.TempDir(),
+		FS:       fstest.MapFS{},
+		MinkHome: t.TempDir(),
+		WorkDir:  t.TempDir(),
 		EnvOverrides: map[string]string{
 			"ANTHROPIC_API_KEY": "anth-test-key",
 		},
@@ -989,7 +989,7 @@ func TestLoad_Validate_BadLocale(t *testing.T) {
 
 	cfg, err := config.Load(config.LoadOptions{
 		FS:           memFS,
-		GooseHome:    gooseHome,
+		MinkHome:     gooseHome,
 		WorkDir:      t.TempDir(),
 		EnvOverrides: map[string]string{},
 	})
@@ -1018,7 +1018,7 @@ func TestLoad_Validate_BadLogLevel(t *testing.T) {
 
 	cfg, err := config.Load(config.LoadOptions{
 		FS:           memFS,
-		GooseHome:    gooseHome,
+		MinkHome:     gooseHome,
 		WorkDir:      t.TempDir(),
 		EnvOverrides: map[string]string{},
 	})
@@ -1036,9 +1036,9 @@ func TestLoad_GooseEnvLocale(t *testing.T) {
 	t.Parallel()
 
 	cfg, err := config.Load(config.LoadOptions{
-		FS:        fstest.MapFS{},
-		GooseHome: t.TempDir(),
-		WorkDir:   t.TempDir(),
+		FS:       fstest.MapFS{},
+		MinkHome: t.TempDir(),
+		WorkDir:  t.TempDir(),
 		EnvOverrides: map[string]string{
 			"GOOSE_LOCALE": "ko",
 		},
@@ -1053,9 +1053,9 @@ func TestLoad_EnvOverlay_HealthPort_ParseFail(t *testing.T) {
 	t.Parallel()
 
 	cfg, err := config.Load(config.LoadOptions{
-		FS:        fstest.MapFS{},
-		GooseHome: t.TempDir(),
-		WorkDir:   t.TempDir(),
+		FS:       fstest.MapFS{},
+		MinkHome: t.TempDir(),
+		WorkDir:  t.TempDir(),
 		EnvOverrides: map[string]string{
 			"GOOSE_HEALTH_PORT": "not-a-port",
 		},
@@ -1071,7 +1071,7 @@ func TestSource_NilSources(t *testing.T) {
 
 	cfg, err := config.Load(config.LoadOptions{
 		FS:           fstest.MapFS{},
-		GooseHome:    t.TempDir(),
+		MinkHome:     t.TempDir(),
 		WorkDir:      t.TempDir(),
 		EnvOverrides: map[string]string{},
 	})
@@ -1100,7 +1100,7 @@ func TestLoad_ProviderCredentials_Empty_BackwardsCompat(t *testing.T) {
 
 	cfg, err := config.Load(config.LoadOptions{
 		FS:           memFS,
-		GooseHome:    gooseHome,
+		MinkHome:     gooseHome,
 		WorkDir:      t.TempDir(),
 		EnvOverrides: map[string]string{},
 	})
@@ -1129,7 +1129,7 @@ func TestLoad_ProviderCredentials_Single_Parses(t *testing.T) {
 
 	cfg, err := config.Load(config.LoadOptions{
 		FS:           memFS,
-		GooseHome:    gooseHome,
+		MinkHome:     gooseHome,
 		WorkDir:      t.TempDir(),
 		EnvOverrides: map[string]string{},
 	})
@@ -1168,7 +1168,7 @@ func TestLoad_ProviderCredentials_Multiple_PreservesOrder(t *testing.T) {
 
 	cfg, err := config.Load(config.LoadOptions{
 		FS:           memFS,
-		GooseHome:    gooseHome,
+		MinkHome:     gooseHome,
 		WorkDir:      t.TempDir(),
 		EnvOverrides: map[string]string{},
 	})
@@ -1201,7 +1201,7 @@ func TestValidate_ProviderCredentials_UnknownType_Rejected(t *testing.T) {
 
 	cfg, err := config.Load(config.LoadOptions{
 		FS:           memFS,
-		GooseHome:    gooseHome,
+		MinkHome:     gooseHome,
 		WorkDir:      t.TempDir(),
 		EnvOverrides: map[string]string{},
 	})
@@ -1245,7 +1245,7 @@ func TestValidate_ProviderCredentials_KnownTypes_Accepted(t *testing.T) {
 
 	cfg, err := config.Load(config.LoadOptions{
 		FS:           memFS,
-		GooseHome:    gooseHome,
+		MinkHome:     gooseHome,
 		WorkDir:      t.TempDir(),
 		EnvOverrides: map[string]string{},
 	})
@@ -1274,7 +1274,7 @@ func TestRedacted_CredentialFields_NotMasked(t *testing.T) {
 
 	cfg, err := config.Load(config.LoadOptions{
 		FS:           memFS,
-		GooseHome:    gooseHome,
+		MinkHome:     gooseHome,
 		WorkDir:      t.TempDir(),
 		EnvOverrides: map[string]string{},
 	})

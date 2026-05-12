@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/observability/metrics"
+	"github.com/modu-ai/mink/internal/observability/metrics"
 )
 
 // TestSink_InterfaceMethodSet asserts that Sink exposes exactly the three

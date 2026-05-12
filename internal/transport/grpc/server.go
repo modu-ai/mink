@@ -17,8 +17,8 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 
-	"github.com/modu-ai/goose/internal/core"
-	"github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1"
+	"github.com/modu-ai/mink/internal/core"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/minkv1"
 )
 
 // Config는 gRPC 서버 설정이다.
@@ -158,7 +158,7 @@ func newServerInternal(cfg Config, logger *zap.Logger, state *core.StateHolder, 
 
 	// DaemonService 등록
 	svc := newDaemonService(s.startTime, state, shutdownToken, cancel, logger)
-	goosev1.RegisterDaemonServiceServer(s.grpcSrv, svc)
+	minkv1.RegisterDaemonServiceServer(s.grpcSrv, svc)
 
 	// Health service 등록 (REQ-TR-015)
 	s.healthSrv = health.NewServer()
@@ -207,9 +207,9 @@ func (s *Server) watchState(ctx context.Context) {
 // REQ-TR-015: serving → SERVING, draining/stopped → NOT_SERVING
 func (s *Server) updateHealthState() {
 	if s.state.Load() == core.StateServing {
-		s.healthSrv.SetServingStatus("goose.v1.DaemonService", grpc_health_v1.HealthCheckResponse_SERVING)
+		s.healthSrv.SetServingStatus("mink.v1.DaemonService", grpc_health_v1.HealthCheckResponse_SERVING)
 	} else {
-		s.healthSrv.SetServingStatus("goose.v1.DaemonService", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+		s.healthSrv.SetServingStatus("mink.v1.DaemonService", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
 	}
 }
 

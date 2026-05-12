@@ -1,11 +1,11 @@
-// Package builtin provides the built-in slash commands for AI.GOOSE.
+// Package builtin provides the built-in slash commands for MINK.
 // SPEC: SPEC-GOOSE-COMMAND-001
 package builtin
 
 import (
 	"context"
 
-	"github.com/modu-ai/goose/internal/command"
+	"github.com/modu-ai/mink/internal/command"
 )
 
 // exitCommand implements /exit.

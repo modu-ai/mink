@@ -8,7 +8,7 @@ body:
       value: |
         Thank you for proposing a new capability. GOOSE follows a SPEC-First methodology — substantial features eventually become a `SPEC-GOOSE-XXX-NNN` document with EARS requirements, but a feature request like this is a great starting point for the conversation.
 
-        For open-ended ideas or design discussion, consider [GitHub Discussions](https://github.com/modu-ai/goose/discussions) instead.
+        For open-ended ideas or design discussion, consider [GitHub Discussions](https://github.com/modu-ai/mink/discussions) instead.
 
   - type: textarea
     id: problem
@@ -54,7 +54,7 @@ body:
     id: milestone
     attributes:
       label: Suggested milestone
-      description: Roughly when do you think this should land? See [ROADMAP](https://github.com/modu-ai/goose/blob/main/.moai/specs/ROADMAP.md).
+      description: Roughly when do you think this should land? See [ROADMAP](https://github.com/modu-ai/mink/blob/main/.moai/specs/ROADMAP.md).
       options:
         - M1 Multi-LLM
         - M2 Primitives

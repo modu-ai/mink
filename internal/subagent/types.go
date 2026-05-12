@@ -1,4 +1,4 @@
-// Package subagent는 AI.GOOSE의 Sub-agent 런타임을 구현한다.
+// Package subagent는 MINK의 Sub-agent 런타임을 구현한다.
 // 3종 isolation(fork / worktree / background) + 3-scope memory(user / project / local)
 // + role profile override를 제공한다.
 //
@@ -11,8 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/modu-ai/goose/internal/message"
-	"github.com/modu-ai/goose/internal/query"
+	"github.com/modu-ai/mink/internal/message"
+	"github.com/modu-ai/mink/internal/query"
 )
 
 // IsolationMode는 sub-agent 격리 모드를 나타낸다.

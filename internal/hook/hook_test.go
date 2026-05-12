@@ -18,7 +18,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
 
-	"github.com/modu-ai/goose/internal/hook"
+	"github.com/modu-ai/mink/internal/hook"
 )
 
 // ---- 테스트 헬퍼 ----

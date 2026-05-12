@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/modu-ai/goose/internal/tools"
+	"github.com/modu-ai/mink/internal/tools"
 )
 
 // toolSender is the narrow interface that telegramSendMessageTool depends on.
@@ -227,7 +227,7 @@ func decodeChatID(raw json.RawMessage) (int64, error) {
 // the Sender is fully initialised (strategy-p3.md §B.2 option i).
 //
 // @MX:ANCHOR: [AUTO] WithMessaging is the runtime entry point for telegram tool registration.
-// @MX:REASON: SPEC-GOOSE-MSG-TELEGRAM-001; fan_in via cmd/goosed/main.go, bootstrap, and tests (>= 3 callers).
+// @MX:REASON: SPEC-GOOSE-MSG-TELEGRAM-001; fan_in via cmd/minkd/main.go, bootstrap, and tests (>= 3 callers).
 func WithMessaging(sender *Sender) tools.Option {
 	return func(r *tools.Registry) {
 		tool := &telegramSendMessageTool{sender: sender}

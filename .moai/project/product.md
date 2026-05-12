@@ -182,7 +182,7 @@ OpenClaw는 tool-use agent framework + developer toolkit. MINK는 end-user produ
 
 | 속성 | v6.0 (Daily Companion Edition) | v7.0 (MINK Personal Ritual Companion) |
 |------|--------|--------|
-| 브랜드 | AI.GOOSE (거위) | MINK (Made IN Korea, 4글자) |
+| 브랜드 | MINK (거위) | MINK (Made IN Korea, 4글자) |
 | 목표 시장 | 글로벌 1M users | 본인 매일 + 본인 외 1명 |
 | 구조 | Multi-tenant SaaS + Marketplace | Personal tool, local-first |
 | 핵심 use case | 아침/점심/저녁 ritual | Morning brief + Journal + Long-term memory |

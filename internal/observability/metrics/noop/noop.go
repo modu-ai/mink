@@ -3,7 +3,7 @@
 // SPEC-GOOSE-OBS-METRICS-001.
 package noop
 
-import "github.com/modu-ai/goose/internal/observability/metrics"
+import "github.com/modu-ai/mink/internal/observability/metrics"
 
 // New returns a no-op metrics.Sink. All methods return shared no-op handles.
 // Use as the default fallback when GOOSE_METRICS_ENABLED is unset or false.

@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/modu-ai/goose/internal/llm"
+	"github.com/modu-ai/mink/internal/llm"
 )
 
 // Provider implements LLMProvider for Ollama.

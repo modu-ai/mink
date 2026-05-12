@@ -4,7 +4,7 @@
 
 ## 개요
 
-본 패키지는 AI.GOOSE의 **Tool 시스템**을 구현합니다. LLM이 생성한 `tool_use` 요청을 수신하여 해당 tool을 실행하고 결과를 LLM에게 반환합니다. Built-in tool, MCP tool, 검색 tool을 통합 관리하며 실행 예산(budget) 및 권한 검증을 수행합니다.
+본 패키지는 MINK의 **Tool 시스템**을 구현합니다. LLM이 생성한 `tool_use` 요청을 수신하여 해당 tool을 실행하고 결과를 LLM에게 반환합니다. Built-in tool, MCP tool, 검색 tool을 통합 관리하며 실행 예산(budget) 및 권한 검증을 수행합니다.
 
 ## 핵심 구성 요소
 

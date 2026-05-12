@@ -14,8 +14,8 @@ import (
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
 
-	"github.com/modu-ai/goose/internal/tools/web"
-	"github.com/modu-ai/goose/internal/tools/web/common"
+	"github.com/modu-ai/mink/internal/tools/web"
+	"github.com/modu-ai/mink/internal/tools/web/common"
 )
 
 // airkoreaSeoulResponse is a minimal AirKorea CTPRVN real-time response

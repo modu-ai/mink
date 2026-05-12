@@ -4,7 +4,7 @@ import (
 	"sort"
 	"testing"
 
-	v2 "github.com/modu-ai/goose/internal/llm/router/v2"
+	v2 "github.com/modu-ai/mink/internal/llm/router/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

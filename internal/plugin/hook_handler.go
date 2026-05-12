@@ -3,7 +3,7 @@ package plugin
 import (
 	"context"
 
-	"github.com/modu-ai/goose/internal/hook"
+	"github.com/modu-ai/mink/internal/hook"
 )
 
 // pluginHookHandler는 manifest 선언 hook 명령어를 HOOK-001 HookHandler 인터페이스로 래핑한다.

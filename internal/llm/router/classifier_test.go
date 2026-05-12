@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/llm/router"
+	"github.com/modu-ai/mink/internal/llm/router"
 )
 
 // newDefaultClassifier는 기본 설정의 SimpleClassifier를 생성한다.

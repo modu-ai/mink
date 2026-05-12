@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/memory"
+	"github.com/modu-ai/mink/internal/memory"
 )
 
 // TestBuiltin_GetToolSchemas_ReturnsExpectedTools verifies that GetToolSchemas

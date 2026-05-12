@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/modu-ai/goose/internal/cli/transport"
-	"github.com/modu-ai/goose/internal/cli/tui"
-	"github.com/modu-ai/goose/internal/command"
-	"github.com/modu-ai/goose/internal/command/adapter"
-	"github.com/modu-ai/goose/internal/command/adapter/aliasconfig"
-	"github.com/modu-ai/goose/internal/command/builtin"
-	"github.com/modu-ai/goose/internal/llm/router"
+	"github.com/modu-ai/mink/internal/cli/transport"
+	"github.com/modu-ai/mink/internal/cli/tui"
+	"github.com/modu-ai/mink/internal/command"
+	"github.com/modu-ai/mink/internal/command/adapter"
+	"github.com/modu-ai/mink/internal/command/adapter/aliasconfig"
+	"github.com/modu-ai/mink/internal/command/builtin"
+	"github.com/modu-ai/mink/internal/llm/router"
 	"go.uber.org/zap"
 )
 

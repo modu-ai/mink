@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/modu-ai/goose/internal/evolve/errorclass"
+	"github.com/modu-ai/mink/internal/evolve/errorclass"
 )
 
 // ─── AC-ERRCLASS-001: 14 FailoverReason 열거형 완전성 ───────────────────

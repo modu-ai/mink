@@ -1,4 +1,4 @@
-// Package command implements the slash command system for AI.GOOSE.
+// Package command implements the slash command system for MINK.
 // SPEC: SPEC-GOOSE-COMMAND-001
 package command_test
 
@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/command"
+	"github.com/modu-ai/mink/internal/command"
 	// Import custom to trigger init() which wires SetCustomLoader.
-	_ "github.com/modu-ai/goose/internal/command/custom"
+	_ "github.com/modu-ai/mink/internal/command/custom"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"

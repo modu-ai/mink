@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/modu-ai/goose/internal/message"
-	"github.com/modu-ai/goose/internal/permissions"
-	"github.com/modu-ai/goose/internal/query"
+	"github.com/modu-ai/mink/internal/message"
+	"github.com/modu-ai/mink/internal/permissions"
+	"github.com/modu-ai/mink/internal/query"
 	"go.uber.org/zap"
 )
 

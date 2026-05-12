@@ -6,8 +6,8 @@ import (
 	"expvar"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/observability/metrics"
-	"github.com/modu-ai/goose/internal/observability/metrics/noop"
+	"github.com/modu-ai/mink/internal/observability/metrics"
+	"github.com/modu-ai/mink/internal/observability/metrics/noop"
 )
 
 // TestNoopSink_AllOps_NoSideEffect verifies that all noop operations:

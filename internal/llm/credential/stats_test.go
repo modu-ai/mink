@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/llm/credential"
+	"github.com/modu-ai/mink/internal/llm/credential"
 )
 
 // TestPoolStats_InitialState는 초기 풀 상태가 PoolStats에 올바르게 반영되는지 검증한다.

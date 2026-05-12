@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/permission"
+	"github.com/modu-ai/mink/internal/permission"
 	"github.com/stretchr/testify/assert"
 )
 

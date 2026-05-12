@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/modu-ai/goose/internal/audit"
+	"github.com/modu-ai/mink/internal/audit"
 	"github.com/spf13/cobra"
 )
 

@@ -1,6 +1,6 @@
 package openai
 
-import "github.com/modu-ai/goose/internal/tool"
+import "github.com/modu-ai/mink/internal/tool"
 
 // OpenAIToolDef는 OpenAI API의 tool 정의이다.
 type OpenAIToolDef struct {

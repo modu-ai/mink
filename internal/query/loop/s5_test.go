@@ -14,9 +14,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/message"
-	"github.com/modu-ai/goose/internal/query"
-	"github.com/modu-ai/goose/internal/query/testsupport"
+	"github.com/modu-ai/mink/internal/message"
+	"github.com/modu-ai/mink/internal/query"
+	"github.com/modu-ai/mink/internal/query/testsupport"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"

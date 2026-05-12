@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/tools/permission"
+	"github.com/modu-ai/mink/internal/tools/permission"
 	"github.com/stretchr/testify/assert"
 )
 

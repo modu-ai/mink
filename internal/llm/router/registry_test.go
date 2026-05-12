@@ -5,7 +5,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/llm/router"
+	"github.com/modu-ai/mink/internal/llm/router"
 )
 
 // TestRegistry_DefaultRegistry_HasAtLeastFifteenProviders는 DefaultRegistry가

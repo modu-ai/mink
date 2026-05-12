@@ -1,4 +1,4 @@
-# AI.GOOSE - Token Economy Document v4.0 GLOBAL EDITION
+# MINK - Token Economy Document v4.0 GLOBAL EDITION
 
 > **비전:** 오픈소스 프로젝트의 지속 가능성을 위한 글로벌 토큰 경제
 

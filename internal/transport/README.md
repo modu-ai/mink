@@ -4,7 +4,7 @@
 
 ## 개요
 
-본 패키지는 AI.GOOSE의 **통신 계층**을 구현합니다. gRPC 기반의 클라이언트-서버 통신과 HTTP transport를 추상화하여, `internal/query`와 `internal/mcp`가 프로토콜에 종속되지 않도록 합니다.
+본 패키지는 MINK의 **통신 계층**을 구현합니다. gRPC 기반의 클라이언트-서버 통신과 HTTP transport를 추상화하여, `internal/query`와 `internal/mcp`가 프로토콜에 종속되지 않도록 합니다.
 
 ## 핵심 구성 요소
 

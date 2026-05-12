@@ -7,8 +7,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/modu-ai/goose/internal/message"
-	"github.com/modu-ai/goose/internal/query"
+	"github.com/modu-ai/mink/internal/message"
+	"github.com/modu-ai/mink/internal/query"
 	"go.uber.org/zap"
 )
 
@@ -26,7 +26,7 @@ type Attachment struct {
 }
 
 // ChatRequest represents a single-turn chat request forwarded from a messaging
-// channel to the Goose agent.
+// channel to the Mink agent.
 type ChatRequest struct {
 	// Text is the user message body.
 	Text string
@@ -40,7 +40,7 @@ type ChatResponse struct {
 	Content string
 }
 
-// ChatService is the domain interface for single-turn chat with the Goose agent.
+// ChatService is the domain interface for single-turn chat with the Mink agent.
 // It is consumed by the telegram messaging channel (via AgentAdapter) and
 // may be exposed over gRPC in a future phase.
 //
@@ -48,7 +48,7 @@ type ChatResponse struct {
 // @MX:REASON: SPEC-GOOSE-MSG-TELEGRAM-001 §A; fan_in via AgentAdapter, gRPC server
 // (future), and unit tests (>= 3 callers).
 type ChatService interface {
-	// Chat executes a single-turn query against the Goose agent and returns
+	// Chat executes a single-turn query against the Mink agent and returns
 	// the full response text.
 	Chat(ctx context.Context, req ChatRequest) (ChatResponse, error)
 }
@@ -76,7 +76,7 @@ type QueryEngineChatServiceConfig struct {
 // NewQueryEngineChatService constructs a ChatService backed by QueryEngine.
 //
 // @MX:ANCHOR: [AUTO] NewQueryEngineChatService is the constructor for the production ChatService.
-// @MX:REASON: SPEC-GOOSE-MSG-TELEGRAM-001; fan_in via cmd/goosed/main.go, telegram adapter, and tests (>= 3 callers).
+// @MX:REASON: SPEC-GOOSE-MSG-TELEGRAM-001; fan_in via cmd/minkd/main.go, telegram adapter, and tests (>= 3 callers).
 func NewQueryEngineChatService(cfg QueryEngineChatServiceConfig) (*QueryEngineChatService, error) {
 	if cfg.Factory == nil {
 		return nil, fmt.Errorf("agent.NewQueryEngineChatService: Factory is required")

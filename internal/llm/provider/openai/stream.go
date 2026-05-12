@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/modu-ai/goose/internal/message"
+	"github.com/modu-ai/mink/internal/message"
 )
 
 // openAIChunk는 OpenAI chat completions 스트림 청크이다.

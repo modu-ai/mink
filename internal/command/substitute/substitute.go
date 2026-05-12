@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/modu-ai/goose/internal/command"
+	"github.com/modu-ai/mink/internal/command"
 )
 
 // Context carries the values used during template expansion.

@@ -1,4 +1,4 @@
-// Package skill은 AI.GOOSE의 Skill 시스템을 구현한다.
+// Package skill은 MINK의 Skill 시스템을 구현한다.
 // YAML frontmatter 파싱, 4-trigger 활성화, Progressive Disclosure L0~L3,
 // 변수 치환, gitignore 기반 조건부 매칭, allowlist-default-deny 보안 게이트를 제공한다.
 //

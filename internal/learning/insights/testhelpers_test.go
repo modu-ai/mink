@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/learning/trajectory"
+	"github.com/modu-ai/mink/internal/learning/trajectory"
 )
 
 // writeTestJSONLFile creates a .jsonl file in baseDir/bucket/ with n trajectories.
-// When baseDir is an engine's GooseHome, callers must use the GooseHome value;
-// the engine internally appends "trajectories/" to GooseHome.
+// When baseDir is an engine's MinkHome, callers must use the MinkHome value;
+// the engine internally appends "trajectories/" to MinkHome.
 // Scanner tests that call NewTrajectoryReader directly pass baseDir = t.TempDir()
 // so files are written to dir/bucket/.
 func writeTestJSONLFile(t *testing.T, baseDir, bucket, filename string, n int) {

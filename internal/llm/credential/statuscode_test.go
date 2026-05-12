@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/llm/credential"
+	"github.com/modu-ai/mink/internal/llm/credential"
 )
 
 // TestMarkExhaustedAndRotate_429_Cooldown은 HTTP 429 시 쿨다운이 설정되는지 검증한다.

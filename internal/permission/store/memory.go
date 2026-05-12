@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/modu-ai/goose/internal/permission"
+	"github.com/modu-ai/mink/internal/permission"
 )
 
 // MemoryStore는 테스트용 인메모리 Store 구현이다.

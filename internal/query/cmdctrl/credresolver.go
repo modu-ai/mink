@@ -8,7 +8,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/modu-ai/goose/internal/llm/credential"
+	"github.com/modu-ai/mink/internal/llm/credential"
 )
 
 // Sentinel errors

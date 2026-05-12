@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/modu-ai/goose/internal/audit"
+	"github.com/modu-ai/mink/internal/audit"
 )
 
 // journalAuditWriter wraps the shared audit.FileWriter and emits journal-specific events.

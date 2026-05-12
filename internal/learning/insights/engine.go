@@ -4,15 +4,15 @@ import (
 	"context"
 	"time"
 
-	"github.com/modu-ai/goose/internal/learning/compressor"
-	"github.com/modu-ai/goose/internal/learning/trajectory"
+	"github.com/modu-ai/mink/internal/learning/compressor"
+	"github.com/modu-ai/mink/internal/learning/trajectory"
 	"go.uber.org/zap"
 )
 
 // InsightsConfig configures the InsightsEngine.
 type InsightsConfig struct {
-	// GooseHome is the base directory for trajectory files (e.g. $HOME/.goose).
-	GooseHome string
+	// MinkHome is the base directory for trajectory files (e.g. $HOME/.goose).
+	MinkHome string
 
 	// TelemetryEnabled mirrors config.telemetry.trajectory.enabled.
 	// When false, Extract returns an empty Report without error.
@@ -83,10 +83,10 @@ func New(cfg InsightsConfig, logger *zap.Logger) *InsightsEngine {
 		logger = zap.NewNop()
 	}
 
-	// GooseHome is used directly as the trajectory base directory.
+	// MinkHome is used directly as the trajectory base directory.
 	// The caller is responsible for providing the correct path
 	// (e.g. $HOME/.goose/trajectories or a test temp dir).
-	trajDir := cfg.GooseHome
+	trajDir := cfg.MinkHome
 	if trajDir == "" {
 		trajDir = "trajectories"
 	}

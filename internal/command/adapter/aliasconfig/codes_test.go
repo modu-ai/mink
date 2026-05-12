@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/command"
+	"github.com/modu-ai/mink/internal/command"
 )
 
 // TestErrorCodeOf_KnownSentinels verifies that ErrorCodeOf returns the stable

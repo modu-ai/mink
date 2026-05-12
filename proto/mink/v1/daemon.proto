@@ -1,10 +1,10 @@
-// Package goose.v1은 goosed 데몬의 메타-RPC unary 3종 계약을 정의한다.
+// Package mink.v1은 goosed 데몬의 메타-RPC unary 3종 계약을 정의한다.
 // SPEC-GOOSE-TRANSPORT-001 REQ-TR-003
 syntax = "proto3";
 
-package goose.v1;
+package mink.v1;
 
-option go_package = "github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1;goosev1";
+option go_package = "github.com/modu-ai/mink/internal/transport/grpc/gen/minkv1;minkv1";
 
 // DaemonService는 goosed 데몬 lifecycle 및 메타데이터 RPC를 제공한다.
 // When a client invokes Ping, shall respond with version/uptime/state.

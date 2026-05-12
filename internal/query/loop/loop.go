@@ -30,8 +30,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/modu-ai/goose/internal/message"
-	"github.com/modu-ai/goose/internal/permissions"
+	"github.com/modu-ai/mink/internal/message"
+	"github.com/modu-ai/mink/internal/permissions"
 )
 
 // LLMStreamFunc는 queryLoop이 LLM API를 호출하는 함수 타입이다.

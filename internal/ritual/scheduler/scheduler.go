@@ -13,7 +13,7 @@ import (
 	cron "github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 
-	"github.com/modu-ai/goose/internal/hook"
+	"github.com/modu-ai/mink/internal/hook"
 )
 
 // dispatcherI is the minimal interface used by Scheduler to dispatch hook events.

@@ -3,7 +3,7 @@ package provider_test
 import (
 	"testing"
 
-	"github.com/modu-ai/goose/internal/llm/provider"
+	"github.com/modu-ai/mink/internal/llm/provider"
 	"github.com/stretchr/testify/assert"
 )
 

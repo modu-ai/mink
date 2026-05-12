@@ -1,4 +1,4 @@
-// Package main은 goosed daemon wire-up 통합 테스트를 포함한다.
+// Package main은 minkd daemon wire-up 통합 테스트를 포함한다.
 // SPEC-GOOSE-DAEMON-WIRE-001 — AC-WIRE-001 ~ AC-WIRE-008
 package main
 
@@ -15,9 +15,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/core"
-	"github.com/modu-ai/goose/internal/hook"
-	"github.com/modu-ai/goose/internal/tools"
+	"github.com/modu-ai/mink/internal/core"
+	"github.com/modu-ai/mink/internal/hook"
+	"github.com/modu-ai/mink/internal/tools"
 	"go.uber.org/zap"
 )
 

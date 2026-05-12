@@ -7,7 +7,7 @@ import (
 
 	_ "modernc.org/sqlite" // SQLite driver
 
-	"github.com/modu-ai/goose/internal/memory"
+	"github.com/modu-ai/mink/internal/memory"
 	"go.uber.org/zap"
 )
 

@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/tools"
-	_ "github.com/modu-ai/goose/internal/tools/builtin/file"
-	_ "github.com/modu-ai/goose/internal/tools/builtin/terminal"
-	"github.com/modu-ai/goose/internal/tools/mcp"
+	"github.com/modu-ai/mink/internal/tools"
+	_ "github.com/modu-ai/mink/internal/tools/builtin/file"
+	_ "github.com/modu-ai/mink/internal/tools/builtin/terminal"
+	"github.com/modu-ai/mink/internal/tools/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

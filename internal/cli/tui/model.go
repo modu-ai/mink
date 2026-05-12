@@ -10,10 +10,10 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/modu-ai/goose/internal/cli/tui/editor"
-	"github.com/modu-ai/goose/internal/cli/tui/i18n"
-	"github.com/modu-ai/goose/internal/cli/tui/permission"
-	"github.com/modu-ai/goose/internal/cli/tui/sessionmenu"
+	"github.com/modu-ai/mink/internal/cli/tui/editor"
+	"github.com/modu-ai/mink/internal/cli/tui/i18n"
+	"github.com/modu-ai/mink/internal/cli/tui/permission"
+	"github.com/modu-ai/mink/internal/cli/tui/sessionmenu"
 )
 
 // ChatMessage represents a chat message with role and content.

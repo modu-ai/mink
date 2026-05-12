@@ -3,7 +3,7 @@ package tool_test
 import (
 	"testing"
 
-	"github.com/modu-ai/goose/internal/tool"
+	"github.com/modu-ai/mink/internal/tool"
 	"go.uber.org/goleak"
 )
 

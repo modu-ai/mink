@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/modu-ai/goose/internal/learning/trajectory"
+	"github.com/modu-ai/mink/internal/learning/trajectory"
 )
 
 // aggregateTools computes per-tool usage statistics from a set of trajectories.

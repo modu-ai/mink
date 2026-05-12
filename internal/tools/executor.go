@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/modu-ai/goose/internal/permissions"
-	"github.com/modu-ai/goose/internal/tools/permission"
+	"github.com/modu-ai/mink/internal/permissions"
+	"github.com/modu-ai/mink/internal/tools/permission"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 	"go.uber.org/zap"
 )

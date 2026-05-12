@@ -3,7 +3,7 @@ package cli_test
 import (
 	"testing"
 
-	"github.com/modu-ai/goose/internal/cli"
+	"github.com/modu-ai/mink/internal/cli"
 	"github.com/stretchr/testify/assert"
 )
 

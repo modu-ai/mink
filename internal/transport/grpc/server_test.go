@@ -28,9 +28,9 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	"github.com/modu-ai/goose/internal/core"
-	grpcserver "github.com/modu-ai/goose/internal/transport/grpc"
-	"github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1"
+	"github.com/modu-ai/mink/internal/core"
+	grpcserver "github.com/modu-ai/mink/internal/transport/grpc"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/minkv1"
 )
 
 func TestMain(m *testing.M) {
@@ -47,7 +47,7 @@ func TestMain(m *testing.M) {
 type serverHarness struct {
 	srv    *grpcserver.Server
 	conn   *grpc.ClientConn
-	client goosev1.DaemonServiceClient
+	client minkv1.DaemonServiceClient
 	health grpc_health_v1.HealthClient
 	state  *core.StateHolder
 	cancel context.CancelFunc
@@ -84,7 +84,7 @@ func newHarness(t *testing.T, cfg grpcserver.Config) *serverHarness {
 	return &serverHarness{
 		srv:    srv,
 		conn:   conn,
-		client: goosev1.NewDaemonServiceClient(conn),
+		client: minkv1.NewDaemonServiceClient(conn),
 		health: grpc_health_v1.NewHealthClient(conn),
 		state:  state,
 		cancel: cancel,
@@ -122,7 +122,7 @@ func newHarnessWithLogger(t *testing.T, cfg grpcserver.Config, logger *zap.Logge
 	return &serverHarness{
 		srv:    srv,
 		conn:   conn,
-		client: goosev1.NewDaemonServiceClient(conn),
+		client: minkv1.NewDaemonServiceClient(conn),
 		health: grpc_health_v1.NewHealthClient(conn),
 		state:  state,
 		cancel: cancel,
@@ -134,7 +134,7 @@ func TestPingRPC_ReturnsVersionAndState(t *testing.T) {
 	t.Parallel()
 	h := newHarness(t, grpcserver.Config{})
 
-	resp, err := h.client.Ping(context.Background(), &goosev1.PingRequest{})
+	resp, err := h.client.Ping(context.Background(), &minkv1.PingRequest{})
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, resp.Version, "version이 비어있으면 안 됨")
@@ -149,7 +149,7 @@ func TestHealthCheck_ServiceServing(t *testing.T) {
 
 	// serving 상태에서 SERVING 반환
 	resp, err := h.health.Check(context.Background(), &grpc_health_v1.HealthCheckRequest{
-		Service: "goose.v1.DaemonService",
+		Service: "mink.v1.DaemonService",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, grpc_health_v1.HealthCheckResponse_SERVING, resp.Status)
@@ -158,7 +158,7 @@ func TestHealthCheck_ServiceServing(t *testing.T) {
 	h.state.Store(core.StateDraining)
 	h.srv.ForceHealthUpdate() // 즉시 health 상태 동기화
 	resp, err = h.health.Check(context.Background(), &grpc_health_v1.HealthCheckRequest{
-		Service: "goose.v1.DaemonService",
+		Service: "mink.v1.DaemonService",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, grpc_health_v1.HealthCheckResponse_NOT_SERVING, resp.Status)
@@ -171,7 +171,7 @@ func TestShutdownWithoutToken_Unauthenticated(t *testing.T) {
 		ShutdownToken: "secret",
 	})
 
-	_, err := h.client.Shutdown(context.Background(), &goosev1.ShutdownRequest{})
+	_, err := h.client.Shutdown(context.Background(), &minkv1.ShutdownRequest{})
 	require.Error(t, err)
 	assert.Equal(t, codes.Unauthenticated, status.Code(err))
 	// 데몬이 계속 serving 상태여야 함
@@ -208,11 +208,11 @@ func TestShutdownWithToken_Accepted(t *testing.T) {
 		srv.Stop()
 	})
 
-	client := goosev1.NewDaemonServiceClient(conn)
+	client := minkv1.NewDaemonServiceClient(conn)
 	md := metadata.Pairs("auth_token", "secret")
 	ctx := metadata.NewOutgoingContext(context.Background(), md)
 
-	resp, err := client.Shutdown(ctx, &goosev1.ShutdownRequest{Reason: "test"})
+	resp, err := client.Shutdown(ctx, &minkv1.ShutdownRequest{Reason: "test"})
 	require.NoError(t, err)
 	assert.True(t, resp.Accepted)
 
@@ -247,8 +247,8 @@ func TestGetInfo_DrainingState_Unavailable(t *testing.T) {
 		srv.Stop()
 	})
 
-	client := goosev1.NewDaemonServiceClient(conn)
-	_, err = client.GetInfo(context.Background(), &goosev1.GetInfoRequest{})
+	client := minkv1.NewDaemonServiceClient(conn)
+	_, err = client.GetInfo(context.Background(), &minkv1.GetInfoRequest{})
 	require.Error(t, err)
 	assert.Equal(t, codes.Unavailable, status.Code(err))
 	assert.Contains(t, status.Convert(err).Message(), "daemon draining")
@@ -286,13 +286,13 @@ func TestPanicHandler_Recovered(t *testing.T) {
 
 	// PanicTest 클라이언트 호출 → codes.Internal 기대
 	panicClient := grpcserver.NewPanicTestClient(conn)
-	_, err = panicClient.TriggerPanic(context.Background(), &goosev1.PingRequest{})
+	_, err = panicClient.TriggerPanic(context.Background(), &minkv1.PingRequest{})
 	require.Error(t, err)
 	assert.Equal(t, codes.Internal, status.Code(err))
 
 	// 프로세스가 계속 서빙 중인지 확인 (프로세스 생존)
-	pingClient := goosev1.NewDaemonServiceClient(conn)
-	_, pingErr := pingClient.Ping(context.Background(), &goosev1.PingRequest{})
+	pingClient := minkv1.NewDaemonServiceClient(conn)
+	_, pingErr := pingClient.Ping(context.Background(), &minkv1.PingRequest{})
 	assert.NoError(t, pingErr, "panic 이후에도 서버가 계속 동작해야 함")
 
 	// zap logger에 panic 로그가 ERROR 레벨로 기록됐는지 확인
@@ -338,11 +338,11 @@ func TestLoggingInterceptor_RecordsFields(t *testing.T) {
 	client := h.client
 
 	// (a) Ping 정상 호출
-	_, err := client.Ping(context.Background(), &goosev1.PingRequest{})
+	_, err := client.Ping(context.Background(), &minkv1.PingRequest{})
 	require.NoError(t, err)
 
 	// (b) Shutdown 토큰 누락으로 실패
-	_, err = client.Shutdown(context.Background(), &goosev1.ShutdownRequest{})
+	_, err = client.Shutdown(context.Background(), &minkv1.ShutdownRequest{})
 	require.Error(t, err)
 
 	// 로그 엔트리 확인 (최소 2개)
@@ -379,10 +379,10 @@ func TestLoggingInterceptor_RecordsFields(t *testing.T) {
 func TestProtoPackage_GoVetClean(t *testing.T) {
 	// go vet ./internal/transport/grpc/gen/... 은 CI에서 별도 실행
 	// 여기서는 import path가 올바른지 컴파일 타임에 검증
-	var _ goosev1.DaemonServiceServer
-	var _ goosev1.PingRequest
-	var _ goosev1.GetInfoRequest
-	var _ goosev1.ShutdownRequest
+	var _ minkv1.DaemonServiceServer
+	var _ minkv1.PingRequest
+	var _ minkv1.GetInfoRequest
+	var _ minkv1.ShutdownRequest
 }
 
 // AC-TR-011: GracefulStop 10s 준수 및 fallback
@@ -484,7 +484,7 @@ func TestShutdownTokenUnset_Unimplemented(t *testing.T) {
 	md := metadata.Pairs("auth_token", "anything")
 	ctx := metadata.NewOutgoingContext(context.Background(), md)
 
-	_, err := h.client.Shutdown(ctx, &goosev1.ShutdownRequest{})
+	_, err := h.client.Shutdown(ctx, &minkv1.ShutdownRequest{})
 	require.Error(t, err)
 	assert.Equal(t, codes.Unimplemented, status.Code(err),
 		"GOOSE_SHUTDOWN_TOKEN 미설정 시 반드시 Unimplemented 반환")
@@ -516,7 +516,7 @@ func TestMaxRecvMsgSize_Override(t *testing.T) {
 
 	// 2048 byte 페이로드: reason 필드를 패딩
 	bigReason := string(make([]byte, 2048))
-	_, err := h.client.Shutdown(context.Background(), &goosev1.ShutdownRequest{Reason: bigReason})
+	_, err := h.client.Shutdown(context.Background(), &minkv1.ShutdownRequest{Reason: bigReason})
 	require.Error(t, err)
 	assert.Equal(t, codes.ResourceExhausted, status.Code(err))
 	assert.Contains(t, err.Error(), "received message larger than max")
@@ -556,9 +556,9 @@ func TestMaxRecvMsgSize_EnvOverride(t *testing.T) {
 		srv.Stop()
 	})
 
-	client := goosev1.NewDaemonServiceClient(conn)
+	client := minkv1.NewDaemonServiceClient(conn)
 	bigReason := string(make([]byte, 2048))
-	_, err = client.Shutdown(context.Background(), &goosev1.ShutdownRequest{Reason: bigReason})
+	_, err = client.Shutdown(context.Background(), &minkv1.ShutdownRequest{Reason: bigReason})
 	require.Error(t, err)
 	assert.Equal(t, codes.ResourceExhausted, status.Code(err))
 }

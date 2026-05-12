@@ -7,7 +7,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/modu-ai/goose/internal/transport/grpc/gen/goosev1"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/minkv1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -31,8 +31,8 @@ type StreamEvent struct {
 }
 
 // toProto converts Message to proto Message.
-func (m *Message) toProto() *goosev1.Message {
-	return &goosev1.Message{
+func (m *Message) toProto() *minkv1.Message {
+	return &minkv1.Message{
 		Role:    m.Role,
 		Content: m.Content,
 	}
@@ -42,7 +42,7 @@ func (m *Message) toProto() *goosev1.Message {
 // @MX:ANCHOR Ping and ChatStream have high fan-in (called by commands, tests, future services).
 type DaemonClient struct {
 	conn   *grpc.ClientConn
-	client goosev1.DaemonServiceClient
+	client minkv1.DaemonServiceClient
 }
 
 // NewDaemonClient creates a new gRPC client connection to the daemon.
@@ -69,7 +69,7 @@ func NewDaemonClient(addr string, timeout time.Duration) (*DaemonClient, error) 
 	}
 
 	// Verify daemon is reachable within timeout
-	_, err = goosev1.NewDaemonServiceClient(conn).Ping(ctx, &goosev1.PingRequest{})
+	_, err = minkv1.NewDaemonServiceClient(conn).Ping(ctx, &minkv1.PingRequest{})
 	if err != nil {
 		// Best-effort cleanup; the meaningful error is the Ping failure below.
 		_ = conn.Close()
@@ -78,14 +78,14 @@ func NewDaemonClient(addr string, timeout time.Duration) (*DaemonClient, error) 
 
 	return &DaemonClient{
 		conn:   conn,
-		client: goosev1.NewDaemonServiceClient(conn),
+		client: minkv1.NewDaemonServiceClient(conn),
 	}, nil
 }
 
 // Ping sends a ping request to the daemon and returns the response.
 // @MX:ANCHOR Ping is called by CLI command, health checks, and tests.
 func (c *DaemonClient) Ping(ctx context.Context) (*PingResponse, error) {
-	resp, err := c.client.Ping(ctx, &goosev1.PingRequest{})
+	resp, err := c.client.Ping(ctx, &minkv1.PingRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func (c *DaemonClient) ChatStream(ctx context.Context, messages []Message) (<-ch
 	}
 
 	// Send first message
-	if err := stream.Send(&goosev1.ChatStreamRequest{
+	if err := stream.Send(&minkv1.ChatStreamRequest{
 		Message: messages[0].toProto(),
 	}); err != nil {
 		return nil, fmt.Errorf("failed to send message: %w", err)
@@ -144,11 +144,11 @@ func (c *DaemonClient) ChatStream(ctx context.Context, messages []Message) (<-ch
 
 			// Process response based on event type
 			switch ev := resp.Event.(type) {
-			case *goosev1.ChatStreamResponse_Text:
+			case *minkv1.ChatStreamResponse_Text:
 				eventCh <- StreamEvent{Type: "text", Content: ev.Text.Content}
-			case *goosev1.ChatStreamResponse_Error:
+			case *minkv1.ChatStreamResponse_Error:
 				eventCh <- StreamEvent{Type: "error", Content: ev.Error.Message}
-			case *goosev1.ChatStreamResponse_Done:
+			case *minkv1.ChatStreamResponse_Done:
 				eventCh <- StreamEvent{Type: "done", Content: ""}
 				return
 			default:

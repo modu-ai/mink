@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/modu-ai/goose/internal/llm/credential"
+	"github.com/modu-ai/mink/internal/llm/credential"
 )
 
 // refresherSpy는 테스트용 Refresher 스파이 구현체이다.

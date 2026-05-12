@@ -1,11 +1,11 @@
-// Package main provides the thin entry point for the goose CLI.
+// Package main provides the thin entry point for the mink CLI.
 // It delegates all logic to internal/cli.
 package main
 
 import (
 	"os"
 
-	"github.com/modu-ai/goose/internal/cli"
+	"github.com/modu-ai/mink/internal/cli"
 )
 
 // @MX:NOTE Version information is injected via ldflags at build time.

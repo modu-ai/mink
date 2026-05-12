@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/message"
+	"github.com/modu-ai/mink/internal/message"
 )
 
 // TestLLMProvider_InterfaceContracts validates that LLMProvider implementations

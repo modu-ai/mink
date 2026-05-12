@@ -22,7 +22,7 @@ func TestPeriod_BoundsHonored(t *testing.T) {
 
 	cfg := InsightsConfig{
 		TelemetryEnabled: true,
-		GooseHome:        dir,
+		MinkHome:         dir,
 	}
 	engine := New(cfg, nil)
 

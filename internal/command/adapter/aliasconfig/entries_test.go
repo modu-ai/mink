@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/modu-ai/goose/internal/command"
+	"github.com/modu-ai/mink/internal/command"
 )
 
 // writeAliasFile writes the given yaml content under a temp dir and returns
