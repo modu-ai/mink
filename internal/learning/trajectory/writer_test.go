@@ -53,7 +53,7 @@ func newTestCollector(t *testing.T, cfg trajectory.TelemetryConfig, w *trajector
 
 func defaultCfg(home string) trajectory.TelemetryConfig {
 	cfg := trajectory.DefaultTelemetryConfig()
-	cfg.GooseHome = home
+	cfg.MinkHome = home
 	return cfg
 }
 

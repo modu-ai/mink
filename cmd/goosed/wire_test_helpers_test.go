@@ -30,7 +30,7 @@ type wireCapture struct {
 // captureFn을 통해 wire-up된 레지스트리를 테스트에 노출한다.
 func runWithHooks(gooseHome string, readyCh chan<- struct{}, cancelCh <-chan struct{}, captureFn func(*wireCapture)) int {
 	// 1. 설정 로드
-	cfg, err := config.Load(config.LoadOptions{GooseHome: gooseHome})
+	cfg, err := config.Load(config.LoadOptions{MinkHome: gooseHome})
 	if err != nil {
 		return core.ExitConfig
 	}
@@ -111,7 +111,7 @@ func runWithHooks(gooseHome string, readyCh chan<- struct{}, cancelCh <-chan str
 // runWithNilConsumerPath는 nil consumer wire-up 시 exit code를 반환한다.
 // AC-WIRE-006 전용: nil consumer → ErrInvalidConsumer → ExitConfig 경로를 검증한다.
 func runWithNilConsumerPath(gooseHome string) int {
-	_, err := config.Load(config.LoadOptions{GooseHome: gooseHome})
+	_, err := config.Load(config.LoadOptions{MinkHome: gooseHome})
 	if err != nil {
 		return core.ExitConfig
 	}

@@ -95,7 +95,7 @@ func TestRedactChain_SystemRoleSkippedByDefault(t *testing.T) {
 	// System entry with an email — should NOT be redacted (AppliesToSystem defaults to false).
 	entry := &redact.Entry{
 		From:  "system",
-		Value: "You are Goose. Email support@goose.ai for help.",
+		Value: "You are Mink. Email support@goose.ai for help.",
 	}
 	chain.Apply(entry)
 	// Email must survive intact.

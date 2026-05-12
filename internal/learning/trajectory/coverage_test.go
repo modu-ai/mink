@@ -208,7 +208,7 @@ func TestCollector_SystemRoleNotRedacted(t *testing.T) {
 
 	sid := "system-role-test"
 	c.OnTurn(sid, []trajectory.TrajectoryEntry{
-		{From: trajectory.RoleSystem, Value: "You are Goose. Email support@goose.ai for help."},
+		{From: trajectory.RoleSystem, Value: "You are Mink. Email support@goose.ai for help."},
 		{From: trajectory.RoleHuman, Value: "My email is user@example.com"},
 	})
 	c.OnTerminal(sid, true, trajectory.TrajectoryMetadata{})

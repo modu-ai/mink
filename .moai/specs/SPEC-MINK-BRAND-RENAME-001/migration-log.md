@@ -93,12 +93,47 @@ Phase 1 진입 직전 worktree 에 BRAND-RENAME 무관한 322개 변경 (114 M +
 
 ---
 
-## Phase 2 Baseline — pending
+## Phase 2 (2026-05-12)
 
-(Phase 2 진입 직전 캡처)
+### 산출물
+- Commit: `ee26004` on `feature/SPEC-MINK-BRAND-RENAME-001` (461 files changed, +995/-988)
+- Delegated to: `expert-refactoring` subagent
+
+### 검증 (6개 중 5 PASS + 1 expected drift)
+| # | 명령 | 기대 | 실제 | 상태 |
+|---|------|------|------|------|
+| 1 | `head -1 go.mod` | `module github.com/modu-ai/mink` | 일치 | ✅ |
+| 2 | `grep goose imports .go` | 0 | 4 (pb.go raw descriptor) | ⚠️ → Phase 4 자동 해소 |
+| 3 | `grep mink imports .go` | 456 | 451 (pb.go 4 제외) | ⚠️ → Phase 4 자동 해소 |
+| 4 | `go build ./...` | exit 0 | exit 0 | ✅ |
+| 5 | `go vet ./...` | exit 0 | exit 0 | ✅ |
+| 6 | `gofmt -l .` | empty | empty | ✅ |
+
+### 특이사항
+- pb.go 4 raw descriptor binary string 의 `github.com/modu-ai/goose` 잔존: proto wire-format 인코딩 특성 — Phase 4 (`buf generate` 재생성) 시 자동 교체. Phase 2 에서 sed 직접 치환 시 wire-format 정합성 깨짐.
+- `useragent.go` 주석 `// Override via ldflags: -X github.com/modu-ai/goose/...` 도 함께 수정 (ldflags 경로 정확성).
+- `go mod tidy` 부산물: `github.com/sergi/go-diff v1.4.0` 신규 indirect dep 추가 (self-module 무관, transitive 풀이).
 
 ---
 
-## Phase 2 Baseline — pending
+## Phase 3 (2026-05-12)
 
-(Phase 2 진입 직전 캡처)
+### 산출물
+- Delegated to: `expert-refactoring` subagent
+- 변경 파일: 22개 (21 .go + 1 migration-log.md)
+
+### 검증 (4개 모두 PASS)
+| # | 명령 | 기대 | 실제 | 상태 |
+|---|------|------|------|------|
+| 1 | `grep GooseHome \*.go \| wc -l` | 0 | 0 | ✅ |
+| 2 | `grep MinkHome \*.go \| wc -l` | ≥64 | 64 | ✅ |
+| 3 | `grep "You are Goose" \*.go \| wc -l` | 0 | 0 | ✅ |
+| 4 | `go build/vet/test` | exit 0 | exit 0 | ✅ |
+
+### 특이사항
+- gofmt -r 'GooseHome -> MinkHome' 로 57건 처리 (struct field + 호출부)
+- 나머지 7건: comments 내 GooseHome 언급 → 수동 Edit (MinkHome 로 정정)
+- resolveGooseHome() 함수명, TestExpand_GooseHome 함수명은 Phase 5 대상 — Phase 3 에서 미수정
+- doc-comment Goose brand-position 14건 정정 (internal/agent, internal/learning/*, internal/credproxy, internal/messaging/telegram, internal/command/adapter/aliasconfig)
+- test fixture "You are Goose..." → "You are Mink..." 2건 (coverage_test.go, redact/rules_test.go)
+- config_test.go의 TestLoad_GooseHome_Unset → TestLoad_MinkHome_Unset 함수명 정정 (struct field 참조 comment → MinkHome)

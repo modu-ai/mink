@@ -34,7 +34,7 @@ func TestOverview_DeterministicAggregate(t *testing.T) {
 
 	cfg := InsightsConfig{
 		TelemetryEnabled: true,
-		GooseHome:        dir,
+		MinkHome:         dir,
 	}
 	engine := New(cfg, nil)
 	period := Last(30)
@@ -100,7 +100,7 @@ func TestModels_TokenDescSort(t *testing.T) {
 	}
 	writeTestJSONLFileWithTrajectories(t, dir, "success", "2026-04-15.jsonl", trajectories)
 
-	cfg := InsightsConfig{TelemetryEnabled: true, GooseHome: dir}
+	cfg := InsightsConfig{TelemetryEnabled: true, MinkHome: dir}
 	engine := New(cfg, nil)
 
 	report, err := engine.Extract(t.Context(), Last(30))
@@ -301,7 +301,7 @@ func TestExtract_EmptyDir_NoError(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	cfg := InsightsConfig{TelemetryEnabled: true, GooseHome: dir}
+	cfg := InsightsConfig{TelemetryEnabled: true, MinkHome: dir}
 	engine := New(cfg, nil)
 
 	report, err := engine.Extract(t.Context(), Last(7))
@@ -318,7 +318,7 @@ func TestExtract_LLMSummaryOffByDefault(t *testing.T) {
 	dir := t.TempDir()
 	writeTestJSONLFile(t, dir, "success", "2026-04-15.jsonl", 2)
 
-	cfg := InsightsConfig{TelemetryEnabled: true, GooseHome: dir}
+	cfg := InsightsConfig{TelemetryEnabled: true, MinkHome: dir}
 	engine := New(cfg, nil)
 
 	mock := &mockSummarizer{}
@@ -340,7 +340,7 @@ func TestRenderTable_FiveSections(t *testing.T) {
 	dir := t.TempDir()
 	writeTestJSONLFile(t, dir, "success", "2026-04-15.jsonl", 3)
 
-	cfg := InsightsConfig{TelemetryEnabled: true, GooseHome: dir}
+	cfg := InsightsConfig{TelemetryEnabled: true, MinkHome: dir}
 	engine := New(cfg, nil)
 
 	report, err := engine.Extract(t.Context(), Last(30))
@@ -368,7 +368,7 @@ func TestJSONExport_TopLevelFields(t *testing.T) {
 	dir := t.TempDir()
 	writeTestJSONLFile(t, dir, "success", "2026-04-15.jsonl", 2)
 
-	cfg := InsightsConfig{TelemetryEnabled: true, GooseHome: dir}
+	cfg := InsightsConfig{TelemetryEnabled: true, MinkHome: dir}
 	engine := New(cfg, nil)
 
 	report, err := engine.Extract(t.Context(), Last(30))

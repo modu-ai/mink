@@ -28,7 +28,7 @@ var (
 // defaultConfigPath is the default config file path relative to the home directory.
 const defaultConfigPath = ".goose/aliases.yaml"
 
-// homeEnv is the environment variable key for the Goose home directory.
+// homeEnv is the environment variable key for the Mink home directory.
 const homeEnv = "GOOSE_HOME"
 
 // Logger is the logging interface used by Loader.

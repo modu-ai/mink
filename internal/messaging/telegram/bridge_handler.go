@@ -51,7 +51,7 @@ func startTypingIndicator(ctx context.Context, client Client, chatID int64, logg
 }
 
 // AgentQuery is the narrow interface for sending a text message (and optional
-// attachment paths) to the Goose agent and receiving a text response.
+// attachment paths) to the Mink agent and receiving a text response.
 //
 // The concrete implementation (AgentQueryAdapter) wraps the in-process ChatService.
 // The narrow interface keeps BridgeQueryHandler independent of the gRPC
@@ -162,7 +162,7 @@ func (h *BridgeQueryHandler) handleCallback(ctx context.Context, update Update) 
 // Messages starting with "/stream " will use editMessageText-based streaming.
 const streamPrefix = "/stream "
 
-// BridgeQueryHandler dispatches inbound Telegram messages to the Goose agent,
+// BridgeQueryHandler dispatches inbound Telegram messages to the Mink agent,
 // enforces the first-message access gate, records audit events, and persists
 // the chat_id mapping and polling offset.
 //

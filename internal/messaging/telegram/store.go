@@ -10,12 +10,12 @@ import (
 	_ "modernc.org/sqlite" // SQLite driver (CGo-free)
 )
 
-// UserMapping records the association between a Telegram chat_id and a Goose
+// UserMapping records the association between a Telegram chat_id and a Mink
 // user profile, plus the user's current allow/block status.
 type UserMapping struct {
 	// ChatID is the Telegram chat identifier (unique per user in private chats).
 	ChatID int64
-	// UserProfileID is the Goose-side identifier for this user.
+	// UserProfileID is the Mink-side identifier for this user.
 	UserProfileID string
 	// Allowed indicates whether the user may interact with the bot.
 	Allowed bool

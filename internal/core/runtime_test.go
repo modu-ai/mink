@@ -71,8 +71,8 @@ func TestBootstrap_SucceedsWithEmptyConfig(t *testing.T) {
 	// 빈 config 파일 없음 → 기본값 fallback
 	// SPEC-GOOSE-CONFIG-001: config.Load() 계층형 로더로 마이그레이션
 	cfg, err := config.Load(config.LoadOptions{
-		GooseHome: gooseHome,
-		WorkDir:   t.TempDir(),
+		MinkHome: gooseHome,
+		WorkDir:  t.TempDir(),
 	})
 	if err != nil {
 		t.Fatalf("설정 로드 실패: %v", err)

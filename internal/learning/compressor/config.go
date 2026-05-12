@@ -1,4 +1,4 @@
-// Package compressor implements trajectory compression for the Goose self-evolution pipeline.
+// Package compressor implements trajectory compression for the Mink self-evolution pipeline.
 // SPEC-GOOSE-COMPRESSOR-001 v0.2.1
 package compressor
 
