@@ -134,7 +134,7 @@ func (h *InlineCommandHandler) Handle(ctx context.Context, input HookInput) (Hoo
 	cmd.Stdout = &stdoutBuf
 	cmd.Stderr = limitWriter(&stderrBuf, 4096)
 
-	// GOOSE_HOOK_TRACE 활성화 시 DEBUG 로그 (REQ-HK-019)
+	// MINK_HOOK_TRACE (legacy: GOOSE_HOOK_TRACE) 활성화 시 DEBUG 로그 (REQ-HK-019)
 	traceEnabled := isTraceEnabled()
 
 	if err := startSubprocess(cmd, logger); err != nil {

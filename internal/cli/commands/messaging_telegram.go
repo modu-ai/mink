@@ -65,7 +65,7 @@ func newTelegramSetupCommand(client telegramClientIface, kr keyringIface, cfgDir
 			token, _ := cmd.Flags().GetString("token")
 			token = strings.TrimSpace(token)
 			if token == "" {
-				return fmt.Errorf("--token is required (or set GOOSE_TELEGRAM_BOT_TOKEN env var)")
+				return fmt.Errorf("--token is required (or set MINK_TELEGRAM_BOT_TOKEN; legacy GOOSE_TELEGRAM_BOT_TOKEN also accepted)")
 			}
 
 			dir, err := resolveConfigDir(cfgDir)
@@ -135,7 +135,7 @@ func newTelegramSetupCommand(client telegramClientIface, kr keyringIface, cfgDir
 		},
 	}
 
-	cmd.Flags().String("token", "", "Telegram bot token (or set GOOSE_TELEGRAM_BOT_TOKEN)")
+	cmd.Flags().String("token", "", "Telegram bot token (or set MINK_TELEGRAM_BOT_TOKEN; legacy GOOSE_TELEGRAM_BOT_TOKEN also accepted)")
 	return cmd
 }
 

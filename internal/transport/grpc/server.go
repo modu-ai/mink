@@ -29,23 +29,23 @@ type Config struct {
 	BindAddr string
 
 	// ShutdownToken은 Shutdown RPC 인증 토큰이다.
-	// 빈 문자열이면 환경변수 GOOSE_SHUTDOWN_TOKEN에서 읽는다.
+	// 빈 문자열이면 환경변수 MINK_SHUTDOWN_TOKEN (legacy: GOOSE_SHUTDOWN_TOKEN)에서 읽는다.
 	// REQ-TR-011: 최종적으로 빈 문자열이면 Shutdown RPC는 Unimplemented를 반환한다.
 	// 테스트에서 환경변수 격리가 필요하면 ShutdownTokenOverride=true + ShutdownToken="" 조합 사용.
 	ShutdownToken string
 
 	// ShutdownTokenOverride가 true이면 ShutdownToken 값을 그대로 사용하고
-	// 환경변수 GOOSE_SHUTDOWN_TOKEN을 완전히 무시한다.
+	// 환경변수 MINK_SHUTDOWN_TOKEN (legacy: GOOSE_SHUTDOWN_TOKEN)을 완전히 무시한다.
 	// 테스트 환경에서 환경변수 오염을 방지하기 위한 필드.
 	ShutdownTokenOverride bool
 
 	// MaxRecvMsgBytes는 gRPC 최대 수신 메시지 크기다.
-	// 0이면 환경변수 GOOSE_GRPC_MAX_RECV_MSG_BYTES에서 읽고, 그것도 없으면 4MiB.
+	// 0이면 환경변수 MINK_GRPC_MAX_RECV_MSG_BYTES (legacy: GOOSE_GRPC_MAX_RECV_MSG_BYTES)에서 읽고, 그것도 없으면 4MiB.
 	// REQ-TR-014
 	MaxRecvMsgBytes int
 
 	// EnableReflection은 gRPC reflection 서비스 활성화 여부다.
-	// false이면 환경변수 GOOSE_GRPC_REFLECTION=true 시 활성화.
+	// false이면 환경변수 MINK_GRPC_REFLECTION=true (legacy: GOOSE_GRPC_REFLECTION) 시 활성화.
 	// REQ-TR-009
 	EnableReflection bool
 

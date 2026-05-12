@@ -131,7 +131,7 @@ func New(opts Options) *Loader {
 }
 
 // ConfigPath returns the effective config path resolved at New(...) time,
-// including any fallback chain result (project-local / GOOSE_HOME / HOME).
+// including any fallback chain result (project-local / MINK_HOME / GOOSE_HOME / HOME).
 //
 // SPEC-GOOSE-ALIAS-CONFIG-001-AMEND-001 REQ-AMEND-001
 func (l *Loader) ConfigPath() string {
