@@ -1,17 +1,19 @@
 ---
 id: SPEC-GOOSE-BRAND-RENAME-001
-version: 0.1.1
-status: completed
+version: 0.1.2
+status: superseded
+superseded_by: SPEC-MINK-BRAND-RENAME-001
+superseded_on: 2026-05-12
 completed: 2026-04-27
 created_at: 2026-04-26
-updated_at: 2026-04-27
+updated_at: 2026-05-12
 author: manager-spec
 priority: P1
 issue_number: null
 phase: meta
 size: 중(M)
 lifecycle: spec-anchored
-labels: [brand, meta, cross-cutting]
+labels: [brand, meta, cross-cutting, superseded]
 ---
 
 # SPEC-GOOSE-BRAND-RENAME-001 — AI.GOOSE 브랜드 통일
@@ -22,6 +24,7 @@ labels: [brand, meta, cross-cutting]
 |---------|------|--------|--------|
 | 0.1.0 | 2026-04-26 | manager-spec | 초안 작성. 사용자 합의 결정사항(Brand Style Guide, Scope IN/OUT, 6 phase 구현 계획) 반영. 12개 AC + 18 EARS 요구사항 정의. |
 | 0.1.1 | 2026-04-26 | claude(orchestrator) | plan-auditor v1 결과 반영: CRITICAL 2건(D4-1 SPEC 수 모순, D2-1 orphan REQ 3건) + HIGH 6건(D1-1/2, D2-2, D3-1, D5-1, D6-1, D6-2, D7-1) + MEDIUM 8건 + LOW 4건 일괄 정정. REQ-BR-019 신설(brand-lint CI gate 강제화). AC-BR-001/008/010 매핑 + Then 절 보강. §3.2 item 7 / REQ-BR-009 / AC-BR-011 / Phase 4 정책을 "모든 SPEC HISTORY 행 status 무관 보존"으로 broaden. §7.5 brand-lint 알고리즘 명시 추가. R8 신설 + R3/R4 보강. |
+| 0.1.2 | 2026-05-12 | claude(orchestrator) | **Superseded by SPEC-MINK-BRAND-RENAME-001** (IDEA-002 결정: GOOSE → MINK 전역 rename). frontmatter `status: completed` → `superseded`, `superseded_by` / `superseded_on` 필드 추가, labels 에 `superseded` 추가. 본 SPEC 의 body (§1–§11) 및 본 행 이전 HISTORY 행 (0.1.0, 0.1.1) 은 **immutable** 로 byte-level 보존 — 본 행은 append-only 추가 (SPEC-MINK-BRAND-RENAME-001 §7.5 step 5 의 append-only 예외에 부합). 본 SPEC 이 도입한 brand 자산 (.moai/project/brand/style-guide.md, scripts/check-brand.sh, .github/workflows/brand-lint.yml) 은 SPEC-MINK-BRAND-RENAME-001 Phase 1 에서 MINK 규범으로 재타겟됨 (재사용). |
 
 ---
 
