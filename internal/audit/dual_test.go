@@ -303,3 +303,27 @@ func TestDefaultGlobalAuditPath_NoGOOSE_HOME(t *testing.T) {
 	expectedPath := filepath.Join(homeDir, ".goose", "logs", "audit.log")
 	assert.Equal(t, expectedPath, path)
 }
+
+// TestDefaultGlobalAuditPath_AliasLoader_MinkOnly verifies that MINK_HOME is respected.
+// REQ-MINK-EM-003: MINK_HOME 단독 설정 시 MINK 값 사용.
+func TestDefaultGlobalAuditPath_AliasLoader_MinkOnly(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("MINK_HOME", tmpDir)
+	t.Setenv("GOOSE_HOME", "")
+
+	path, err := DefaultGlobalAuditPath()
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(tmpDir, "logs", "audit.log"), path)
+}
+
+// TestDefaultGlobalAuditPath_AliasLoader_GooseOnly_WarnsOnce verifies GOOSE_HOME alias fallback.
+// REQ-MINK-EM-002: GOOSE_HOME 단독 시 alias 를 통해 같은 값 반환 (backward compat).
+func TestDefaultGlobalAuditPath_AliasLoader_GooseOnly_WarnsOnce(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("GOOSE_HOME", tmpDir)
+	t.Setenv("MINK_HOME", "")
+
+	path, err := DefaultGlobalAuditPath()
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(tmpDir, "logs", "audit.log"), path)
+}

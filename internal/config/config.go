@@ -20,6 +20,8 @@ import (
 
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
+
+	"github.com/modu-ai/mink/internal/envalias"
 )
 
 // Config는 goosed 전체 설정 구조체다.
@@ -268,10 +270,12 @@ func Load(opts LoadOptions) (*Config, error) {
 	return cfg, nil
 }
 
-// resolveGooseHome은 GOOSE_HOME 환경변수를 읽고, 비어있으면 $HOME/.goose를 반환한다.
+// resolveGooseHome은 MINK_HOME (또는 legacy GOOSE_HOME) 환경변수를 읽고,
+// 비어있으면 $HOME/.goose를 반환한다.
 // REQ-CFG-011: 단 1회만 $HOME을 참조한다.
+// SPEC-MINK-ENV-MIGRATE-001: envalias.DefaultGet("HOME") 경유.
 func resolveGooseHome() string {
-	if home := os.Getenv("GOOSE_HOME"); home != "" {
+	if home, _, ok := envalias.DefaultGet("HOME"); ok {
 		return home
 	}
 	home, err := os.UserHomeDir()

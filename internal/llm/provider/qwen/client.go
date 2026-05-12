@@ -6,13 +6,14 @@ package qwen
 import (
 	"errors"
 	"net/http"
-	"os"
 
+	"go.uber.org/zap"
+
+	"github.com/modu-ai/mink/internal/envalias"
 	"github.com/modu-ai/mink/internal/llm/credential"
 	"github.com/modu-ai/mink/internal/llm/provider"
 	"github.com/modu-ai/mink/internal/llm/provider/openai"
 	"github.com/modu-ai/mink/internal/llm/ratelimit"
-	"go.uber.org/zap"
 )
 
 // ErrInvalidRegion은 지원하지 않는 region 값이 설정되었을 때 반환된다.
@@ -34,8 +35,10 @@ const (
 	dashscopeIntlURL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
 	// 중국판 DashScope 엔드포인트.
 	dashscopeCNURL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-	// GOOSE_QWEN_REGION 환경변수 키.
-	envQwenRegion = "GOOSE_QWEN_REGION"
+	// envQwenRegion은 alias loader short key 이다 (SPEC-MINK-ENV-MIGRATE-001 §4.5 OQ-PL-2).
+	// 값이 short key "QWEN_REGION" 으로 변경됨: DefaultGet("QWEN_REGION") →
+	// MINK_QWEN_REGION (primary) / GOOSE_QWEN_REGION (legacy alias).
+	envQwenRegion = "QWEN_REGION"
 )
 
 // Options는 Qwen 어댑터 생성 옵션이다.
@@ -96,7 +99,7 @@ func New(opts Options) (*openai.OpenAIAdapter, error) {
 // "intl"과 "cn" 외의 값은 ErrInvalidRegion을 반환한다 (REQ-ADP2-018).
 func resolveBaseURL(region string) (string, error) {
 	if region == "" {
-		region = os.Getenv(envQwenRegion)
+		region, _, _ = envalias.DefaultGet(envQwenRegion)
 	}
 	if region == "" {
 		region = string(RegionIntl)

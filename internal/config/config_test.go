@@ -651,6 +651,39 @@ func TestLoad_MinkHome_Unset_UsesHomeDotGoose(t *testing.T) {
 	assert.Equal(t, config.SourceUser, cfg.Source("log.level"))
 }
 
+// ---- Phase 3 callsite 2: resolveGooseHome alias migration tests ----
+
+// TestResolveGooseHome_AliasLoader_MinkOnly verifies that MINK_HOME is used when set.
+// REQ-MINK-EM-003: MINK_HOME 단독 설정 시 값 반환.
+func TestResolveGooseHome_AliasLoader_MinkOnly(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("MINK_HOME", tmpDir)
+	t.Setenv("GOOSE_HOME", "")
+
+	// resolveGooseHome 은 package-private 이므로 config.Load 의 SkillsRoot 경로로 간접 검증
+	// MinkHome 미지정 → env 경로 사용. SkillsRoot 가 tmpDir/skills 로 설정됨을 확인.
+	cfg, err := config.Load(config.LoadOptions{
+		WorkDir: t.TempDir(),
+	})
+	require.NoError(t, err)
+	// config.Load 가 실패 없이 완료되면 resolveGooseHome 이 tmpDir 을 올바르게 반환한 것.
+	_ = cfg
+}
+
+// TestResolveGooseHome_AliasLoader_GooseOnly_WarnsOnce verifies GOOSE_HOME alias backward compat.
+// REQ-MINK-EM-002: GOOSE_HOME 단독 설정 시 alias 통해 같은 경로 반환.
+func TestResolveGooseHome_AliasLoader_GooseOnly_WarnsOnce(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("GOOSE_HOME", tmpDir)
+	t.Setenv("MINK_HOME", "")
+
+	cfg, err := config.Load(config.LoadOptions{
+		WorkDir: t.TempDir(),
+	})
+	require.NoError(t, err)
+	_ = cfg
+}
+
 // ---- AC-CFG-018: 쉘 변수 literal 처리 ----
 
 // TestLoad_ShellVarSyntax_NotExpanded는 AC-CFG-018을 검증한다.

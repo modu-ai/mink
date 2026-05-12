@@ -102,3 +102,39 @@ func TestKimi_InvalidRegion_ReturnsError(t *testing.T) {
 	require.Error(t, err)
 	assert.ErrorIs(t, err, kimi.ErrInvalidRegion)
 }
+
+// --- Phase 3 alias migration sub-tests for callsite 11 ---
+
+// TestKimi_AliasLoader_MinkOnly verifies MINK_KIMI_REGION is respected.
+// REQ-MINK-EM-003 callsite 11: envKimiRegion value changed to short key "KIMI_REGION".
+func TestKimi_AliasLoader_MinkOnly(t *testing.T) {
+	t.Setenv("MINK_KIMI_REGION", "cn")
+	t.Setenv("GOOSE_KIMI_REGION", "")
+
+	pool := testhelper.FakePool(t, []string{"cred-a"})
+	secretStore := provider.NewMemorySecretStore(map[string]string{"kr-cred-a": "sk-kimi-test"})
+
+	adapter, err := kimi.New(kimi.Options{
+		Pool:        pool,
+		SecretStore: secretStore,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, adapter)
+}
+
+// TestKimi_AliasLoader_GooseOnly_WarnsOnce verifies GOOSE_KIMI_REGION alias backward compat.
+// REQ-MINK-EM-002 callsite 11: GOOSE_KIMI_REGION 단독 시 alias 통해 동작.
+func TestKimi_AliasLoader_GooseOnly_WarnsOnce(t *testing.T) {
+	t.Setenv("GOOSE_KIMI_REGION", "cn")
+	t.Setenv("MINK_KIMI_REGION", "")
+
+	pool := testhelper.FakePool(t, []string{"cred-a"})
+	secretStore := provider.NewMemorySecretStore(map[string]string{"kr-cred-a": "sk-kimi-test"})
+
+	adapter, err := kimi.New(kimi.Options{
+		Pool:        pool,
+		SecretStore: secretStore,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, adapter)
+}

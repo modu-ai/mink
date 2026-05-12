@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+
+	"github.com/modu-ai/mink/internal/envalias"
 )
 
 // InlineCommandHandler는 shell command를 실행하는 HookHandler 구현체이다.
@@ -264,9 +266,11 @@ func (l *limitedWriter) Write(p []byte) (int, error) {
 	return n, err
 }
 
-// isTraceEnabled는 GOOSE_HOOK_TRACE 환경변수 활성화 여부를 반환한다.
+// isTraceEnabled는 MINK_HOOK_TRACE (legacy: GOOSE_HOOK_TRACE) 환경변수 활성화 여부를 반환한다.
 // REQ-HK-019 / §6.11.5: "1", "true", "on" (case-insensitive).
+// SPEC-MINK-ENV-MIGRATE-001: envalias.DefaultGet("HOOK_TRACE") 경유.
 func isTraceEnabled() bool {
-	v := strings.ToLower(strings.TrimSpace(os.Getenv("GOOSE_HOOK_TRACE")))
+	raw, _, _ := envalias.DefaultGet("HOOK_TRACE")
+	v := strings.ToLower(strings.TrimSpace(raw))
 	return v == "1" || v == "true" || v == "on"
 }

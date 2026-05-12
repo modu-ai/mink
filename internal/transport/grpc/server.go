@@ -18,6 +18,7 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	"github.com/modu-ai/mink/internal/core"
+	"github.com/modu-ai/mink/internal/envalias"
 	"github.com/modu-ai/mink/internal/transport/grpc/gen/minkv1"
 )
 
@@ -166,7 +167,9 @@ func newServerInternal(cfg Config, logger *zap.Logger, state *core.StateHolder, 
 	grpc_health_v1.RegisterHealthServer(s.grpcSrv, s.healthSrv)
 
 	// Reflection (REQ-TR-009: 기본 off, Config.EnableReflection 또는 환경변수 true 시 on)
-	if cfg.EnableReflection || os.Getenv("GOOSE_GRPC_REFLECTION") == "true" {
+	// SPEC-MINK-ENV-MIGRATE-001: MINK_GRPC_REFLECTION (legacy: GOOSE_GRPC_REFLECTION)
+	reflectionVal, _, _ := envalias.DefaultGet("GRPC_REFLECTION")
+	if cfg.EnableReflection || reflectionVal == "true" {
 		reflection.Register(s.grpcSrv)
 	}
 
@@ -268,13 +271,14 @@ func (s *Server) ForceHealthUpdate() {
 }
 
 // resolveMaxRecvBytes는 gRPC 최대 수신 메시지 크기를 결정한다.
-// configured > 0이면 그 값을 사용, 아니면 GOOSE_GRPC_MAX_RECV_MSG_BYTES 환경변수,
+// configured > 0이면 그 값을 사용, 아니면 MINK_GRPC_MAX_RECV_MSG_BYTES (legacy: GOOSE_GRPC_MAX_RECV_MSG_BYTES),
 // 그것도 없으면 기본값 4MiB를 반환한다. (REQ-TR-014)
+// SPEC-MINK-ENV-MIGRATE-001: envalias.DefaultGet("GRPC_MAX_RECV_MSG_BYTES") 경유.
 func resolveMaxRecvBytes(configured int) int {
 	if configured > 0 {
 		return configured
 	}
-	if v := os.Getenv("GOOSE_GRPC_MAX_RECV_MSG_BYTES"); v != "" {
+	if v, _, ok := envalias.DefaultGet("GRPC_MAX_RECV_MSG_BYTES"); ok {
 		n, err := strconv.Atoi(v)
 		if err == nil && n > 0 {
 			return n
@@ -285,8 +289,9 @@ func resolveMaxRecvBytes(configured int) int {
 
 // resolveShutdownToken은 Shutdown RPC 인증 토큰을 결정한다.
 // override=true이면 configured 값을 그대로 사용 (빈 문자열도 허용).
-// override=false이면 configured가 빈 문자열일 때 GOOSE_SHUTDOWN_TOKEN 환경변수를 읽는다.
+// override=false이면 configured가 빈 문자열일 때 MINK_SHUTDOWN_TOKEN (legacy: GOOSE_SHUTDOWN_TOKEN) 환경변수를 읽는다.
 // (REQ-TR-011, ShutdownTokenOverride 테스트 격리 패턴)
+// SPEC-MINK-ENV-MIGRATE-001: envalias.DefaultGet("SHUTDOWN_TOKEN") 경유.
 func resolveShutdownToken(configured string, override bool) string {
 	if override {
 		return configured
@@ -294,5 +299,6 @@ func resolveShutdownToken(configured string, override bool) string {
 	if configured != "" {
 		return configured
 	}
-	return os.Getenv("GOOSE_SHUTDOWN_TOKEN")
+	token, _, _ := envalias.DefaultGet("SHUTDOWN_TOKEN")
+	return token
 }

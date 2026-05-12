@@ -8,14 +8,15 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"os"
 
+	"go.uber.org/zap"
+
+	"github.com/modu-ai/mink/internal/envalias"
 	"github.com/modu-ai/mink/internal/llm/credential"
 	"github.com/modu-ai/mink/internal/llm/provider"
 	"github.com/modu-ai/mink/internal/llm/provider/openai"
 	"github.com/modu-ai/mink/internal/llm/ratelimit"
 	"github.com/modu-ai/mink/internal/message"
-	"go.uber.org/zap"
 )
 
 // ErrInvalidRegion은 지원하지 않는 region 값이 설정되었을 때 반환된다.
@@ -36,8 +37,10 @@ const (
 	kimiIntlURL = "https://api.moonshot.ai/v1"
 	// 중국판 Moonshot AI 엔드포인트.
 	kimiCNURL = "https://api.moonshot.cn/v1"
-	// GOOSE_KIMI_REGION 환경변수 키.
-	envKimiRegion = "GOOSE_KIMI_REGION"
+	// envKimiRegion은 alias loader short key 이다 (SPEC-MINK-ENV-MIGRATE-001 §4.5 OQ-PL-2).
+	// 값이 short key "KIMI_REGION" 으로 변경됨: DefaultGet("KIMI_REGION") →
+	// MINK_KIMI_REGION (primary) / GOOSE_KIMI_REGION (legacy alias).
+	envKimiRegion = "KIMI_REGION"
 )
 
 // Options는 Kimi 어댑터 생성 옵션이다.
@@ -132,7 +135,7 @@ var _ provider.Provider = (*Adapter)(nil)
 // "intl"과 "cn" 외의 값은 ErrInvalidRegion을 반환한다.
 func resolveBaseURL(region string) (string, error) {
 	if region == "" {
-		region = os.Getenv(envKimiRegion)
+		region, _, _ = envalias.DefaultGet(envKimiRegion)
 	}
 	if region == "" {
 		region = string(RegionIntl)

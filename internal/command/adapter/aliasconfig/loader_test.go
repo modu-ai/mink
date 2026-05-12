@@ -52,6 +52,40 @@ func TestNew_Loader_GOOSE_HOME(t *testing.T) {
 	}
 }
 
+// --- Phase 3 alias migration sub-tests for callsite 9: homeEnv ---
+
+// TestNew_Loader_AliasLoader_MinkOnly verifies MINK_HOME is respected.
+// REQ-MINK-EM-003 callsite 9: homeEnv value changed to short key "HOME".
+func TestNew_Loader_AliasLoader_MinkOnly(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("MINK_HOME", tmpDir)
+	t.Setenv("GOOSE_HOME", "")
+
+	opts := Options{Logger: zap.NewNop()}
+	loader := New(opts)
+
+	expectedPath := filepath.Join(tmpDir, "aliases.yaml")
+	if loader.configPath != expectedPath {
+		t.Errorf("configPath (MINK_HOME) = %s, want %s", loader.configPath, expectedPath)
+	}
+}
+
+// TestNew_Loader_AliasLoader_GooseOnly_WarnsOnce verifies GOOSE_HOME alias backward compat.
+// REQ-MINK-EM-002 callsite 9: GOOSE_HOME 단독 설정 시 alias 통해 동작.
+func TestNew_Loader_AliasLoader_GooseOnly_WarnsOnce(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("GOOSE_HOME", tmpDir)
+	t.Setenv("MINK_HOME", "")
+
+	opts := Options{Logger: zap.NewNop()}
+	loader := New(opts)
+
+	expectedPath := filepath.Join(tmpDir, "aliases.yaml")
+	if loader.configPath != expectedPath {
+		t.Errorf("configPath (GOOSE_HOME alias) = %s, want %s", loader.configPath, expectedPath)
+	}
+}
+
 // TestLoad_FileNotFound 파일 없으면 nil 반환 테스트
 func TestLoad_FileNotFound(t *testing.T) {
 	tmpDir := t.TempDir()

@@ -2,10 +2,11 @@ package hook
 
 import (
 	"context"
-	"os"
 	"sync"
 
 	"go.uber.org/zap"
+
+	"github.com/modu-ai/mink/internal/envalias"
 )
 
 // DefaultPermissionQueue is the in-memory PermissionQueueOps implementation.
@@ -245,10 +246,11 @@ func (d *Dispatcher) UseCanUseTool(
 }
 
 // isTTY는 stdout이 TTY인지 반환한다.
-// REQ-HK-017 / §6.11.6: GOOSE_HOOK_NON_INTERACTIVE=1이면 false 반환.
+// REQ-HK-017 / §6.11.6: MINK_HOOK_NON_INTERACTIVE=1 (legacy: GOOSE_HOOK_NON_INTERACTIVE=1) 이면 false 반환.
+// SPEC-MINK-ENV-MIGRATE-001: envalias.DefaultGet("HOOK_NON_INTERACTIVE") 경유.
 func (d *Dispatcher) isTTY() bool {
-	// §6.11.6: GOOSE_HOOK_NON_INTERACTIVE=1이면 non-TTY 강제
-	if os.Getenv("GOOSE_HOOK_NON_INTERACTIVE") == "1" {
+	// §6.11.6: NON_INTERACTIVE=1이면 non-TTY 강제
+	if v, _, ok := envalias.DefaultGet("HOOK_NON_INTERACTIVE"); ok && v == "1" {
 		return false
 	}
 	if d.IsTTY != nil {

@@ -225,6 +225,91 @@ func TestAllKeysRegistered(t *testing.T) {
 	}
 }
 
+// --- Phase 3 Part A: Init / Default / DefaultGet ---
+
+// resetDefault 은 각 테스트 전에 패키지 싱글톤을 초기화한다.
+func resetDefault(t *testing.T) {
+	t.Helper()
+	envalias.ResetForTesting()
+}
+
+// TestInit_Idempotent confirms that calling Init twice returns the same *Loader
+// (sync.Once semantics) and Default is non-nil after the first call.
+func TestInit_Idempotent(t *testing.T) {
+	resetDefault(t)
+	defer envalias.ResetForTesting()
+
+	logger1, _ := makeObserverLogger()
+	logger2, _ := makeObserverLogger()
+
+	l1 := envalias.Init(logger1)
+	l2 := envalias.Init(logger2) // second call must be no-op
+
+	require.NotNil(t, l1)
+	assert.Same(t, l1, l2, "Init must be idempotent: same pointer on repeated calls")
+}
+
+// TestDefaultGet_FallbackBeforeInit confirms that DefaultGet works safely before Init
+// is called, falling back to os.Getenv(MINK_X) then os.Getenv(GOOSE_X).
+func TestDefaultGet_FallbackBeforeInit(t *testing.T) {
+	resetDefault(t)
+	defer envalias.ResetForTesting()
+
+	t.Run("MINK only", func(t *testing.T) {
+		t.Setenv("MINK_ALIAS_STRICT", "1")
+		// make sure GOOSE_ is absent
+		t.Setenv("GOOSE_ALIAS_STRICT", "")
+		v, src, ok := envalias.DefaultGet("ALIAS_STRICT")
+		require.True(t, ok)
+		assert.Equal(t, "1", v)
+		assert.Equal(t, envalias.SourceMink, src)
+	})
+
+	t.Run("GOOSE only fallback", func(t *testing.T) {
+		t.Setenv("MINK_ALIAS_STRICT", "")
+		t.Setenv("GOOSE_ALIAS_STRICT", "legacy")
+		v, src, ok := envalias.DefaultGet("ALIAS_STRICT")
+		require.True(t, ok)
+		assert.Equal(t, "legacy", v)
+		assert.Equal(t, envalias.SourceGoose, src)
+	})
+
+	t.Run("neither set", func(t *testing.T) {
+		t.Setenv("MINK_ALIAS_STRICT", "")
+		t.Setenv("GOOSE_ALIAS_STRICT", "")
+		_, src, ok := envalias.DefaultGet("ALIAS_STRICT")
+		assert.False(t, ok)
+		assert.Equal(t, envalias.SourceDefault, src)
+	})
+}
+
+// TestDefaultGet_ConcurrentRace fires many goroutines calling Init and DefaultGet
+// simultaneously to verify there is no data race. Run with -race.
+func TestDefaultGet_ConcurrentRace(t *testing.T) {
+	resetDefault(t)
+	defer envalias.ResetForTesting()
+
+	t.Setenv("MINK_ALIAS_STRICT", "1")
+
+	const goroutines = 64
+	ready := make(chan struct{})
+	done := make(chan struct{})
+
+	for i := 0; i < goroutines; i++ {
+		go func() {
+			<-ready
+			logger, _ := makeObserverLogger()
+			envalias.Init(logger)
+			_, _, _ = envalias.DefaultGet("ALIAS_STRICT")
+			done <- struct{}{}
+		}()
+	}
+	close(ready)
+	for i := 0; i < goroutines; i++ {
+		<-done
+	}
+}
+
 // TestMinkPrefixes confirms that MinkPrefixes returns the known prefix strings used by
 // the deny-list helper for internal/hook consumption (Phase 4 preparation).
 func TestMinkPrefixes(t *testing.T) {

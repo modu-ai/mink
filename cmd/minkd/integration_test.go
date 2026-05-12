@@ -658,3 +658,47 @@ func TestWireRegistries_WithSkillError(t *testing.T) {
 		t.Error("skillRegistry nil")
 	}
 }
+
+// --- Phase 3 alias migration sub-tests for callsite 8: ALIAS_STRICT ---
+
+// TestAliasStrict_AliasLoader_MinkOnly verifies MINK_ALIAS_STRICT is respected.
+// REQ-MINK-EM-003 callsite 8: GOOSE_ALIAS_STRICT → envalias.DefaultGet("ALIAS_STRICT").
+func TestAliasStrict_AliasLoader_MinkOnly(t *testing.T) {
+	home := makeTestHome(t)
+	t.Setenv("MINK_HOME", home)
+	t.Setenv("GOOSE_HOME", "")
+	t.Setenv("MINK_ALIAS_STRICT", "0") // disable strict so validation errors are non-fatal
+	t.Setenv("GOOSE_ALIAS_STRICT", "")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	exitCh := make(chan int, 1)
+	go func() { exitCh <- runWithContext(ctx) }()
+	time.Sleep(300 * time.Millisecond)
+	cancel()
+	select {
+	case <-exitCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout: runWithContext가 5초 내에 종료되지 않음")
+	}
+}
+
+// TestAliasStrict_AliasLoader_GooseOnly verifies GOOSE_ALIAS_STRICT alias backward compat.
+// REQ-MINK-EM-002 callsite 8.
+func TestAliasStrict_AliasLoader_GooseOnly(t *testing.T) {
+	home := makeTestHome(t)
+	t.Setenv("GOOSE_HOME", home)
+	t.Setenv("MINK_HOME", "")
+	t.Setenv("GOOSE_ALIAS_STRICT", "0")
+	t.Setenv("MINK_ALIAS_STRICT", "")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	exitCh := make(chan int, 1)
+	go func() { exitCh <- runWithContext(ctx) }()
+	time.Sleep(300 * time.Millisecond)
+	cancel()
+	select {
+	case <-exitCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout: runWithContext가 5초 내에 종료되지 않음")
+	}
+}

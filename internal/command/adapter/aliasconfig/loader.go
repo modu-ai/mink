@@ -12,11 +12,12 @@ import (
 	"slices"
 	"time"
 
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 
 	"github.com/modu-ai/mink/internal/command"
+	"github.com/modu-ai/mink/internal/envalias"
 	"github.com/modu-ai/mink/internal/llm/router"
-	"go.uber.org/zap"
 )
 
 // Sentinel errors
@@ -28,8 +29,10 @@ var (
 // defaultConfigPath is the default config file path relative to the home directory.
 const defaultConfigPath = ".goose/aliases.yaml"
 
-// homeEnv is the environment variable key for the Mink home directory.
-const homeEnv = "GOOSE_HOME"
+// homeEnv is the short alias key for the Mink home directory (SPEC-MINK-ENV-MIGRATE-001 §4.5 OQ-PL-2).
+// The const name is preserved for git blame continuity; its value is now the short canonical key
+// used by envalias.DefaultGet (resolves MINK_HOME with fallback to GOOSE_HOME).
+const homeEnv = "HOME"
 
 // Logger is the logging interface used by Loader.
 type Logger interface {
@@ -89,7 +92,7 @@ func New(opts Options) *Loader {
 		// P3: Check project-local overlay first
 		if projectLocalPath := detectProjectLocalAliasFile(); projectLocalPath != "" {
 			configPath = projectLocalPath
-		} else if home := os.Getenv(homeEnv); home != "" {
+		} else if home, _, ok := envalias.DefaultGet(homeEnv); ok {
 			configPath = filepath.Join(home, "aliases.yaml")
 		} else {
 			homeDir, err := os.UserHomeDir()
