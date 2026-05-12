@@ -15,7 +15,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/modu-ai/mink/internal/transport/grpc/gen/goosev1"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/minkv1"
 )
 
 // connectClientFactory builds a *ConnectClient for the given daemon URL.
@@ -226,7 +226,7 @@ func WithInitialMessages(messages []ChatMessageView) ChatOption {
 		if len(messages) == 0 {
 			return
 		}
-		converted := make([]*goosev1.AgentMessage, 0, len(messages))
+		converted := make([]*minkv1.AgentMessage, 0, len(messages))
 		for _, m := range messages {
 			payload, err := json.Marshal(map[string]string{"text": m.Content})
 			if err != nil {
@@ -235,9 +235,9 @@ func WithInitialMessages(messages []ChatMessageView) ChatOption {
 				// content on the wire even in pathological cases.
 				payload = []byte(`{"text":""}`)
 			}
-			converted = append(converted, &goosev1.AgentMessage{
+			converted = append(converted, &minkv1.AgentMessage{
 				Role: m.Role,
-				Content: []*goosev1.AgentContentBlock{{
+				Content: []*minkv1.AgentContentBlock{{
 					Kind:     "text",
 					DataJson: payload,
 				}},

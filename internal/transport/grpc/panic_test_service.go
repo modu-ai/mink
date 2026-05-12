@@ -10,7 +10,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/modu-ai/mink/internal/transport/grpc/gen/goosev1"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/minkv1"
 )
 
 // PanicTestClient는 테스트 전용 PanicTest RPC 클라이언트다.
@@ -24,8 +24,8 @@ func NewPanicTestClient(cc grpc.ClientConnInterface) *PanicTestClient {
 }
 
 // TriggerPanic은 서버에서 panic을 유발하는 RPC를 호출한다.
-func (c *PanicTestClient) TriggerPanic(ctx context.Context, in *goosev1.PingRequest, opts ...grpc.CallOption) (*goosev1.PingResponse, error) {
-	out := new(goosev1.PingResponse)
+func (c *PanicTestClient) TriggerPanic(ctx context.Context, in *minkv1.PingRequest, opts ...grpc.CallOption) (*minkv1.PingResponse, error) {
+	out := new(minkv1.PingResponse)
 	err := c.cc.Invoke(ctx, "/goose.internal.PanicTestService/TriggerPanic", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -35,13 +35,13 @@ func (c *PanicTestClient) TriggerPanic(ctx context.Context, in *goosev1.PingRequ
 
 // iPanicTestServer는 PanicTestService 서버 인터페이스다.
 type iPanicTestServer interface {
-	TriggerPanic(context.Context, *goosev1.PingRequest) (*goosev1.PingResponse, error)
+	TriggerPanic(context.Context, *minkv1.PingRequest) (*minkv1.PingResponse, error)
 }
 
 // panicTestServerImpl은 panic을 유발하는 핸들러 구현이다.
 type panicTestServerImpl struct{}
 
-func (s *panicTestServerImpl) TriggerPanic(_ context.Context, _ *goosev1.PingRequest) (*goosev1.PingResponse, error) {
+func (s *panicTestServerImpl) TriggerPanic(_ context.Context, _ *minkv1.PingRequest) (*minkv1.PingResponse, error) {
 	panic("boom — intentional test panic")
 }
 
@@ -59,12 +59,12 @@ var panicTestServiceDesc = grpc.ServiceDesc{
 }
 
 func panicTestHandler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(goosev1.PingRequest)
+	in := new(minkv1.PingRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(iPanicTestServer).TriggerPanic(ctx, req.(*goosev1.PingRequest))
+		return srv.(iPanicTestServer).TriggerPanic(ctx, req.(*minkv1.PingRequest))
 	}
 	if interceptor == nil {
 		return handler(ctx, in)

@@ -11,36 +11,40 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/modu-ai/mink/internal/cli/transport"
-	"github.com/modu-ai/mink/internal/transport/grpc/gen/goosev1"
-	"github.com/modu-ai/mink/internal/transport/grpc/gen/goosev1/goosev1connect"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/minkv1"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/minkv1/minkv1connect"
 )
 
 // mockAgentForTUI is a minimal AgentService stub serving a scripted stream.
 type mockAgentForTUI struct {
-	chatFn       func(context.Context, *connect.Request[goosev1.AgentChatRequest]) (*connect.Response[goosev1.AgentChatResponse], error)
-	chatStreamFn func(context.Context, *connect.Request[goosev1.AgentChatStreamRequest], *connect.ServerStream[goosev1.AgentChatStreamEvent]) error
+	chatFn       func(context.Context, *connect.Request[minkv1.AgentChatRequest]) (*connect.Response[minkv1.AgentChatResponse], error)
+	chatStreamFn func(context.Context, *connect.Request[minkv1.AgentChatStreamRequest], *connect.ServerStream[minkv1.AgentChatStreamEvent]) error
 }
 
-func (m *mockAgentForTUI) Chat(ctx context.Context, req *connect.Request[goosev1.AgentChatRequest]) (*connect.Response[goosev1.AgentChatResponse], error) {
+func (m *mockAgentForTUI) Chat(ctx context.Context, req *connect.Request[minkv1.AgentChatRequest]) (*connect.Response[minkv1.AgentChatResponse], error) {
 	if m.chatFn != nil {
 		return m.chatFn(ctx, req)
 	}
-	return connect.NewResponse(&goosev1.AgentChatResponse{}), nil
+	return connect.NewResponse(&minkv1.AgentChatResponse{}), nil
 }
 
-func (m *mockAgentForTUI) ChatStream(ctx context.Context, req *connect.Request[goosev1.AgentChatStreamRequest], stream *connect.ServerStream[goosev1.AgentChatStreamEvent]) error {
+func (m *mockAgentForTUI) ChatStream(ctx context.Context, req *connect.Request[minkv1.AgentChatStreamRequest], stream *connect.ServerStream[minkv1.AgentChatStreamEvent]) error {
 	if m.chatStreamFn != nil {
 		return m.chatStreamFn(ctx, req, stream)
 	}
 	return nil
 }
 
+func (m *mockAgentForTUI) ResolvePermission(_ context.Context, _ *connect.Request[minkv1.ResolvePermissionRequest]) (*connect.Response[minkv1.ResolvePermissionResponse], error) {
+	return connect.NewResponse(&minkv1.ResolvePermissionResponse{Accepted: true}), nil
+}
+
 // startAgentServer spins up an httptest server hosting only the AgentService
 // handler — sufficient for connectClientFactory exercising ChatStream.
-func startAgentServer(t *testing.T, agent goosev1connect.AgentServiceHandler) *httptest.Server {
+func startAgentServer(t *testing.T, agent minkv1connect.AgentServiceHandler) *httptest.Server {
 	t.Helper()
 	mux := http.NewServeMux()
-	path, h := goosev1connect.NewAgentServiceHandler(agent)
+	path, h := minkv1connect.NewAgentServiceHandler(agent)
 	mux.Handle(path, h)
 	return httptest.NewServer(mux)
 }
@@ -51,17 +55,17 @@ func TestConnectClientFactory_ChatStream_StreamingEvents(t *testing.T) {
 	t.Parallel()
 
 	srv := startAgentServer(t, &mockAgentForTUI{
-		chatStreamFn: func(_ context.Context, req *connect.Request[goosev1.AgentChatStreamRequest], stream *connect.ServerStream[goosev1.AgentChatStreamEvent]) error {
+		chatStreamFn: func(_ context.Context, req *connect.Request[minkv1.AgentChatStreamRequest], stream *connect.ServerStream[minkv1.AgentChatStreamEvent]) error {
 			if req.Msg.Message == "" {
 				t.Errorf("AgentChatStreamRequest.Message must not be empty")
 			}
-			if err := stream.Send(&goosev1.AgentChatStreamEvent{Type: "text", PayloadJson: []byte(`{"text":"hello"}`)}); err != nil {
+			if err := stream.Send(&minkv1.AgentChatStreamEvent{Type: "text", PayloadJson: []byte(`{"text":"hello"}`)}); err != nil {
 				return err
 			}
-			if err := stream.Send(&goosev1.AgentChatStreamEvent{Type: "text", PayloadJson: []byte(`{"text":" world"}`)}); err != nil {
+			if err := stream.Send(&minkv1.AgentChatStreamEvent{Type: "text", PayloadJson: []byte(`{"text":" world"}`)}); err != nil {
 				return err
 			}
-			return stream.Send(&goosev1.AgentChatStreamEvent{Type: "done", PayloadJson: []byte(`{}`)})
+			return stream.Send(&minkv1.AgentChatStreamEvent{Type: "done", PayloadJson: []byte(`{}`)})
 		},
 	})
 	defer srv.Close()
@@ -110,8 +114,8 @@ func TestConnectClientFactory_ChatStream_ErrorEvent(t *testing.T) {
 	t.Parallel()
 
 	srv := startAgentServer(t, &mockAgentForTUI{
-		chatStreamFn: func(_ context.Context, _ *connect.Request[goosev1.AgentChatStreamRequest], stream *connect.ServerStream[goosev1.AgentChatStreamEvent]) error {
-			return stream.Send(&goosev1.AgentChatStreamEvent{Type: "error", PayloadJson: []byte(`{"message":"upstream timeout"}`)})
+		chatStreamFn: func(_ context.Context, _ *connect.Request[minkv1.AgentChatStreamRequest], stream *connect.ServerStream[minkv1.AgentChatStreamEvent]) error {
+			return stream.Send(&minkv1.AgentChatStreamEvent{Type: "error", PayloadJson: []byte(`{"message":"upstream timeout"}`)})
 		},
 	})
 	defer srv.Close()

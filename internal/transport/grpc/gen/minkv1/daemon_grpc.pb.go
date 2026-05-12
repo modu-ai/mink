@@ -5,9 +5,9 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.1
 // - protoc             (unknown)
-// source: goose/v1/daemon.proto
+// source: mink/v1/daemon.proto
 
-package goosev1
+package minkv1
 
 import (
 	context "context"
@@ -22,10 +22,10 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	DaemonService_Ping_FullMethodName       = "/goose.v1.DaemonService/Ping"
-	DaemonService_GetInfo_FullMethodName    = "/goose.v1.DaemonService/GetInfo"
-	DaemonService_Shutdown_FullMethodName   = "/goose.v1.DaemonService/Shutdown"
-	DaemonService_ChatStream_FullMethodName = "/goose.v1.DaemonService/ChatStream"
+	DaemonService_Ping_FullMethodName       = "/mink.v1.DaemonService/Ping"
+	DaemonService_GetInfo_FullMethodName    = "/mink.v1.DaemonService/GetInfo"
+	DaemonService_Shutdown_FullMethodName   = "/mink.v1.DaemonService/Shutdown"
+	DaemonService_ChatStream_FullMethodName = "/mink.v1.DaemonService/ChatStream"
 )
 
 // DaemonServiceClient is the client API for DaemonService service.
@@ -233,7 +233,7 @@ type DaemonService_ChatStreamServer = grpc.BidiStreamingServer[ChatStreamRequest
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var DaemonService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "goose.v1.DaemonService",
+	ServiceName: "mink.v1.DaemonService",
 	HandlerType: (*DaemonServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -257,5 +257,5 @@ var DaemonService_ServiceDesc = grpc.ServiceDesc{
 			ClientStreams: true,
 		},
 	},
-	Metadata: "goose/v1/daemon.proto",
+	Metadata: "mink/v1/daemon.proto",
 }

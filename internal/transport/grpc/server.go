@@ -18,7 +18,7 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	"github.com/modu-ai/mink/internal/core"
-	"github.com/modu-ai/mink/internal/transport/grpc/gen/goosev1"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/minkv1"
 )
 
 // Config는 gRPC 서버 설정이다.
@@ -158,7 +158,7 @@ func newServerInternal(cfg Config, logger *zap.Logger, state *core.StateHolder, 
 
 	// DaemonService 등록
 	svc := newDaemonService(s.startTime, state, shutdownToken, cancel, logger)
-	goosev1.RegisterDaemonServiceServer(s.grpcSrv, svc)
+	minkv1.RegisterDaemonServiceServer(s.grpcSrv, svc)
 
 	// Health service 등록 (REQ-TR-015)
 	s.healthSrv = health.NewServer()

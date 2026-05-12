@@ -14,122 +14,126 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/modu-ai/mink/internal/transport/grpc/gen/goosev1"
-	"github.com/modu-ai/mink/internal/transport/grpc/gen/goosev1/goosev1connect"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/minkv1"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/minkv1/minkv1connect"
 )
 
 // RED #1: Verify generated code constants exist (compile-time proof)
 func TestProto_GeneratedCode_Constants(t *testing.T) {
 	// AgentService constants
-	if goosev1connect.AgentServiceName != "goose.v1.AgentService" {
-		t.Errorf("AgentServiceName = %q, want %q", goosev1connect.AgentServiceName, "goose.v1.AgentService")
+	if minkv1connect.AgentServiceName != "goose.v1.AgentService" {
+		t.Errorf("AgentServiceName = %q, want %q", minkv1connect.AgentServiceName, "goose.v1.AgentService")
 	}
-	if goosev1connect.AgentServiceChatProcedure != "/goose.v1.AgentService/Chat" {
-		t.Errorf("AgentServiceChatProcedure = %q", goosev1connect.AgentServiceChatProcedure)
+	if minkv1connect.AgentServiceChatProcedure != "/goose.v1.AgentService/Chat" {
+		t.Errorf("AgentServiceChatProcedure = %q", minkv1connect.AgentServiceChatProcedure)
 	}
 
 	// ToolService constants
-	if goosev1connect.ToolServiceName != "goose.v1.ToolService" {
-		t.Errorf("ToolServiceName = %q, want %q", goosev1connect.ToolServiceName, "goose.v1.ToolService")
+	if minkv1connect.ToolServiceName != "goose.v1.ToolService" {
+		t.Errorf("ToolServiceName = %q, want %q", minkv1connect.ToolServiceName, "goose.v1.ToolService")
 	}
 
 	// ConfigService constants
-	if goosev1connect.ConfigServiceName != "goose.v1.ConfigService" {
-		t.Errorf("ConfigServiceName = %q, want %q", goosev1connect.ConfigServiceName, "goose.v1.ConfigService")
+	if minkv1connect.ConfigServiceName != "goose.v1.ConfigService" {
+		t.Errorf("ConfigServiceName = %q, want %q", minkv1connect.ConfigServiceName, "goose.v1.ConfigService")
 	}
 
 	// Verify proto message types compile correctly
-	_ = &goosev1.AgentChatRequest{}
-	_ = &goosev1.AgentChatResponse{}
-	_ = &goosev1.AgentChatStreamRequest{}
-	_ = &goosev1.AgentChatStreamEvent{}
-	_ = &goosev1.AgentMessage{}
-	_ = &goosev1.AgentContentBlock{}
-	_ = &goosev1.ToolDescriptor{}
-	_ = &goosev1.ListToolsRequest{}
-	_ = &goosev1.ListToolsResponse{}
-	_ = &goosev1.GetConfigRequest{}
-	_ = &goosev1.GetConfigResponse{}
-	_ = &goosev1.SetConfigRequest{}
-	_ = &goosev1.SetConfigResponse{}
-	_ = &goosev1.ListConfigRequest{}
-	_ = &goosev1.ListConfigResponse{}
-	_ = &goosev1.ConfigEntry{}
+	_ = &minkv1.AgentChatRequest{}
+	_ = &minkv1.AgentChatResponse{}
+	_ = &minkv1.AgentChatStreamRequest{}
+	_ = &minkv1.AgentChatStreamEvent{}
+	_ = &minkv1.AgentMessage{}
+	_ = &minkv1.AgentContentBlock{}
+	_ = &minkv1.ToolDescriptor{}
+	_ = &minkv1.ListToolsRequest{}
+	_ = &minkv1.ListToolsResponse{}
+	_ = &minkv1.GetConfigRequest{}
+	_ = &minkv1.GetConfigResponse{}
+	_ = &minkv1.SetConfigRequest{}
+	_ = &minkv1.SetConfigResponse{}
+	_ = &minkv1.ListConfigRequest{}
+	_ = &minkv1.ListConfigResponse{}
+	_ = &minkv1.ConfigEntry{}
 }
 
 // mockDaemonConnectServer implements DaemonService via Connect protocol for Ping testing.
 type mockDaemonConnectServer struct {
-	pingFunc func(context.Context, *connect.Request[goosev1.PingRequest]) (*connect.Response[goosev1.PingResponse], error)
+	pingFunc func(context.Context, *connect.Request[minkv1.PingRequest]) (*connect.Response[minkv1.PingResponse], error)
 }
 
-func (m *mockDaemonConnectServer) Ping(ctx context.Context, req *connect.Request[goosev1.PingRequest]) (*connect.Response[goosev1.PingResponse], error) {
+func (m *mockDaemonConnectServer) Ping(ctx context.Context, req *connect.Request[minkv1.PingRequest]) (*connect.Response[minkv1.PingResponse], error) {
 	if m.pingFunc != nil {
 		return m.pingFunc(ctx, req)
 	}
-	return connect.NewResponse(&goosev1.PingResponse{
+	return connect.NewResponse(&minkv1.PingResponse{
 		Version:  "test-v1.0.0",
 		UptimeMs: 1000,
 		State:    "serving",
 	}), nil
 }
 
-func (m *mockDaemonConnectServer) GetInfo(ctx context.Context, req *connect.Request[goosev1.GetInfoRequest]) (*connect.Response[goosev1.GetInfoResponse], error) {
-	return connect.NewResponse(&goosev1.GetInfoResponse{Version: "test"}), nil
+func (m *mockDaemonConnectServer) GetInfo(ctx context.Context, req *connect.Request[minkv1.GetInfoRequest]) (*connect.Response[minkv1.GetInfoResponse], error) {
+	return connect.NewResponse(&minkv1.GetInfoResponse{Version: "test"}), nil
 }
 
-func (m *mockDaemonConnectServer) Shutdown(ctx context.Context, req *connect.Request[goosev1.ShutdownRequest]) (*connect.Response[goosev1.ShutdownResponse], error) {
-	return connect.NewResponse(&goosev1.ShutdownResponse{Accepted: true}), nil
+func (m *mockDaemonConnectServer) Shutdown(ctx context.Context, req *connect.Request[minkv1.ShutdownRequest]) (*connect.Response[minkv1.ShutdownResponse], error) {
+	return connect.NewResponse(&minkv1.ShutdownResponse{Accepted: true}), nil
 }
 
-func (m *mockDaemonConnectServer) ChatStream(ctx context.Context, stream *connect.BidiStream[goosev1.ChatStreamRequest, goosev1.ChatStreamResponse]) error {
+func (m *mockDaemonConnectServer) ChatStream(ctx context.Context, stream *connect.BidiStream[minkv1.ChatStreamRequest, minkv1.ChatStreamResponse]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("not implemented in mock"))
 }
 
 // mockAgentConnectServer implements AgentService via Connect protocol.
 type mockAgentConnectServer struct {
-	chatFunc       func(context.Context, *connect.Request[goosev1.AgentChatRequest]) (*connect.Response[goosev1.AgentChatResponse], error)
-	chatStreamFunc func(context.Context, *connect.Request[goosev1.AgentChatStreamRequest], *connect.ServerStream[goosev1.AgentChatStreamEvent]) error
+	chatFunc       func(context.Context, *connect.Request[minkv1.AgentChatRequest]) (*connect.Response[minkv1.AgentChatResponse], error)
+	chatStreamFunc func(context.Context, *connect.Request[minkv1.AgentChatStreamRequest], *connect.ServerStream[minkv1.AgentChatStreamEvent]) error
 }
 
-func (m *mockAgentConnectServer) Chat(ctx context.Context, req *connect.Request[goosev1.AgentChatRequest]) (*connect.Response[goosev1.AgentChatResponse], error) {
+func (m *mockAgentConnectServer) Chat(ctx context.Context, req *connect.Request[minkv1.AgentChatRequest]) (*connect.Response[minkv1.AgentChatResponse], error) {
 	if m.chatFunc != nil {
 		return m.chatFunc(ctx, req)
 	}
-	return connect.NewResponse(&goosev1.AgentChatResponse{
+	return connect.NewResponse(&minkv1.AgentChatResponse{
 		Content:   "Hello from agent!",
 		TokensIn:  10,
 		TokensOut: 5,
 	}), nil
 }
 
-func (m *mockAgentConnectServer) ChatStream(ctx context.Context, req *connect.Request[goosev1.AgentChatStreamRequest], stream *connect.ServerStream[goosev1.AgentChatStreamEvent]) error {
+func (m *mockAgentConnectServer) ChatStream(ctx context.Context, req *connect.Request[minkv1.AgentChatStreamRequest], stream *connect.ServerStream[minkv1.AgentChatStreamEvent]) error {
 	if m.chatStreamFunc != nil {
 		return m.chatStreamFunc(ctx, req, stream)
 	}
 	// Default: send two events then finish
-	if err := stream.Send(&goosev1.AgentChatStreamEvent{
+	if err := stream.Send(&minkv1.AgentChatStreamEvent{
 		Type:        "text",
 		PayloadJson: []byte(`{"text":"Hello"}`),
 	}); err != nil {
 		return err
 	}
-	return stream.Send(&goosev1.AgentChatStreamEvent{
+	return stream.Send(&minkv1.AgentChatStreamEvent{
 		Type:        "done",
 		PayloadJson: []byte(`{}`),
 	})
 }
 
-// mockToolConnectServer implements ToolService via Connect protocol.
-type mockToolConnectServer struct {
-	listFunc func(context.Context, *connect.Request[goosev1.ListToolsRequest]) (*connect.Response[goosev1.ListToolsResponse], error)
+func (m *mockAgentConnectServer) ResolvePermission(_ context.Context, _ *connect.Request[minkv1.ResolvePermissionRequest]) (*connect.Response[minkv1.ResolvePermissionResponse], error) {
+	return connect.NewResponse(&minkv1.ResolvePermissionResponse{Accepted: true}), nil
 }
 
-func (m *mockToolConnectServer) List(ctx context.Context, req *connect.Request[goosev1.ListToolsRequest]) (*connect.Response[goosev1.ListToolsResponse], error) {
+// mockToolConnectServer implements ToolService via Connect protocol.
+type mockToolConnectServer struct {
+	listFunc func(context.Context, *connect.Request[minkv1.ListToolsRequest]) (*connect.Response[minkv1.ListToolsResponse], error)
+}
+
+func (m *mockToolConnectServer) List(ctx context.Context, req *connect.Request[minkv1.ListToolsRequest]) (*connect.Response[minkv1.ListToolsResponse], error) {
 	if m.listFunc != nil {
 		return m.listFunc(ctx, req)
 	}
-	return connect.NewResponse(&goosev1.ListToolsResponse{
-		Tools: []*goosev1.ToolDescriptor{
+	return connect.NewResponse(&minkv1.ListToolsResponse{
+		Tools: []*minkv1.ToolDescriptor{
 			{Name: "bash", Description: "Run bash commands", Source: "builtin", ServerId: ""},
 			{Name: "read_file", Description: "Read a file", Source: "builtin", ServerId: ""},
 		},
@@ -138,33 +142,33 @@ func (m *mockToolConnectServer) List(ctx context.Context, req *connect.Request[g
 
 // mockConfigConnectServer implements ConfigService via Connect protocol.
 type mockConfigConnectServer struct {
-	getFunc  func(context.Context, *connect.Request[goosev1.GetConfigRequest]) (*connect.Response[goosev1.GetConfigResponse], error)
-	setFunc  func(context.Context, *connect.Request[goosev1.SetConfigRequest]) (*connect.Response[goosev1.SetConfigResponse], error)
-	listFunc func(context.Context, *connect.Request[goosev1.ListConfigRequest]) (*connect.Response[goosev1.ListConfigResponse], error)
+	getFunc  func(context.Context, *connect.Request[minkv1.GetConfigRequest]) (*connect.Response[minkv1.GetConfigResponse], error)
+	setFunc  func(context.Context, *connect.Request[minkv1.SetConfigRequest]) (*connect.Response[minkv1.SetConfigResponse], error)
+	listFunc func(context.Context, *connect.Request[minkv1.ListConfigRequest]) (*connect.Response[minkv1.ListConfigResponse], error)
 }
 
-func (m *mockConfigConnectServer) Get(ctx context.Context, req *connect.Request[goosev1.GetConfigRequest]) (*connect.Response[goosev1.GetConfigResponse], error) {
+func (m *mockConfigConnectServer) Get(ctx context.Context, req *connect.Request[minkv1.GetConfigRequest]) (*connect.Response[minkv1.GetConfigResponse], error) {
 	if m.getFunc != nil {
 		return m.getFunc(ctx, req)
 	}
-	return connect.NewResponse(&goosev1.GetConfigResponse{
-		Value: &goosev1.ConfigValue{Value: "default-value", Exists: true},
+	return connect.NewResponse(&minkv1.GetConfigResponse{
+		Value: &minkv1.ConfigValue{Value: "default-value", Exists: true},
 	}), nil
 }
 
-func (m *mockConfigConnectServer) Set(ctx context.Context, req *connect.Request[goosev1.SetConfigRequest]) (*connect.Response[goosev1.SetConfigResponse], error) {
+func (m *mockConfigConnectServer) Set(ctx context.Context, req *connect.Request[minkv1.SetConfigRequest]) (*connect.Response[minkv1.SetConfigResponse], error) {
 	if m.setFunc != nil {
 		return m.setFunc(ctx, req)
 	}
-	return connect.NewResponse(&goosev1.SetConfigResponse{Success: true}), nil
+	return connect.NewResponse(&minkv1.SetConfigResponse{Success: true}), nil
 }
 
-func (m *mockConfigConnectServer) List(ctx context.Context, req *connect.Request[goosev1.ListConfigRequest]) (*connect.Response[goosev1.ListConfigResponse], error) {
+func (m *mockConfigConnectServer) List(ctx context.Context, req *connect.Request[minkv1.ListConfigRequest]) (*connect.Response[minkv1.ListConfigResponse], error) {
 	if m.listFunc != nil {
 		return m.listFunc(ctx, req)
 	}
-	return connect.NewResponse(&goosev1.ListConfigResponse{
-		Entries: []*goosev1.ConfigEntry{
+	return connect.NewResponse(&minkv1.ListConfigResponse{
+		Entries: []*minkv1.ConfigEntry{
 			{Key: "log.level", Value: "info"},
 			{Key: "log.format", Value: "json"},
 		},
@@ -173,26 +177,26 @@ func (m *mockConfigConnectServer) List(ctx context.Context, req *connect.Request
 
 // newTestServer builds a single httptest.Server that routes all four services.
 func newTestServer(
-	daemonSvc goosev1connect.DaemonServiceHandler,
-	agentSvc goosev1connect.AgentServiceHandler,
-	toolSvc goosev1connect.ToolServiceHandler,
-	configSvc goosev1connect.ConfigServiceHandler,
+	daemonSvc minkv1connect.DaemonServiceHandler,
+	agentSvc minkv1connect.AgentServiceHandler,
+	toolSvc minkv1connect.ToolServiceHandler,
+	configSvc minkv1connect.ConfigServiceHandler,
 ) *httptest.Server {
 	mux := http.NewServeMux()
 	if daemonSvc != nil {
-		path, handler := goosev1connect.NewDaemonServiceHandler(daemonSvc)
+		path, handler := minkv1connect.NewDaemonServiceHandler(daemonSvc)
 		mux.Handle(path, handler)
 	}
 	if agentSvc != nil {
-		path, handler := goosev1connect.NewAgentServiceHandler(agentSvc)
+		path, handler := minkv1connect.NewAgentServiceHandler(agentSvc)
 		mux.Handle(path, handler)
 	}
 	if toolSvc != nil {
-		path, handler := goosev1connect.NewToolServiceHandler(toolSvc)
+		path, handler := minkv1connect.NewToolServiceHandler(toolSvc)
 		mux.Handle(path, handler)
 	}
 	if configSvc != nil {
-		path, handler := goosev1connect.NewConfigServiceHandler(configSvc)
+		path, handler := minkv1connect.NewConfigServiceHandler(configSvc)
 		mux.Handle(path, handler)
 	}
 	return httptest.NewServer(mux)
@@ -227,7 +231,7 @@ func TestConnectClient_Ping_Success(t *testing.T) {
 // RED #2: TestConnectClient_Ping_Timeout
 func TestConnectClient_Ping_Timeout(t *testing.T) {
 	srv := newTestServer(&mockDaemonConnectServer{
-		pingFunc: func(ctx context.Context, req *connect.Request[goosev1.PingRequest]) (*connect.Response[goosev1.PingResponse], error) {
+		pingFunc: func(ctx context.Context, req *connect.Request[minkv1.PingRequest]) (*connect.Response[minkv1.PingResponse], error) {
 			// Delay longer than the client timeout
 			select {
 			case <-ctx.Done():
@@ -279,7 +283,7 @@ func TestConnectClient_Chat_Unary_Success(t *testing.T) {
 // RED #3: TestConnectClient_Chat_Error
 func TestConnectClient_Chat_Error(t *testing.T) {
 	srv := newTestServer(nil, &mockAgentConnectServer{
-		chatFunc: func(ctx context.Context, req *connect.Request[goosev1.AgentChatRequest]) (*connect.Response[goosev1.AgentChatResponse], error) {
+		chatFunc: func(ctx context.Context, req *connect.Request[minkv1.AgentChatRequest]) (*connect.Response[minkv1.AgentChatResponse], error) {
 			return nil, connect.NewError(connect.CodeInternal, errors.New("agent unavailable"))
 		},
 	}, nil, nil)
@@ -335,9 +339,9 @@ func TestConnectClient_ChatStream_ReceivesEvents(t *testing.T) {
 // RED #4: TestConnectClient_ChatStream_CtxCancel
 func TestConnectClient_ChatStream_CtxCancel(t *testing.T) {
 	srv := newTestServer(nil, &mockAgentConnectServer{
-		chatStreamFunc: func(ctx context.Context, req *connect.Request[goosev1.AgentChatStreamRequest], stream *connect.ServerStream[goosev1.AgentChatStreamEvent]) error {
+		chatStreamFunc: func(ctx context.Context, req *connect.Request[minkv1.AgentChatStreamRequest], stream *connect.ServerStream[minkv1.AgentChatStreamEvent]) error {
 			// Send one event then block waiting for cancellation
-			if err := stream.Send(&goosev1.AgentChatStreamEvent{Type: "text", PayloadJson: []byte(`{"text":"hi"}`)}); err != nil {
+			if err := stream.Send(&minkv1.AgentChatStreamEvent{Type: "text", PayloadJson: []byte(`{"text":"hi"}`)}); err != nil {
 				return err
 			}
 			<-ctx.Done()
@@ -409,8 +413,8 @@ func TestConnectClient_ListTools_Success(t *testing.T) {
 // RED #5: TestConnectClient_ListTools_Empty
 func TestConnectClient_ListTools_Empty(t *testing.T) {
 	srv := newTestServer(nil, nil, &mockToolConnectServer{
-		listFunc: func(ctx context.Context, req *connect.Request[goosev1.ListToolsRequest]) (*connect.Response[goosev1.ListToolsResponse], error) {
-			return connect.NewResponse(&goosev1.ListToolsResponse{}), nil
+		listFunc: func(ctx context.Context, req *connect.Request[minkv1.ListToolsRequest]) (*connect.Response[minkv1.ListToolsResponse], error) {
+			return connect.NewResponse(&minkv1.ListToolsResponse{}), nil
 		},
 	}, nil)
 	defer srv.Close()
@@ -433,12 +437,12 @@ func TestConnectClient_ListTools_Empty(t *testing.T) {
 // RED #6: TestConnectClient_GetConfig_Found
 func TestConnectClient_GetConfig_Found(t *testing.T) {
 	srv := newTestServer(nil, nil, nil, &mockConfigConnectServer{
-		getFunc: func(ctx context.Context, req *connect.Request[goosev1.GetConfigRequest]) (*connect.Response[goosev1.GetConfigResponse], error) {
+		getFunc: func(ctx context.Context, req *connect.Request[minkv1.GetConfigRequest]) (*connect.Response[minkv1.GetConfigResponse], error) {
 			if req.Msg.Key != "log.level" {
 				return nil, connect.NewError(connect.CodeNotFound, errors.New("key not found"))
 			}
-			return connect.NewResponse(&goosev1.GetConfigResponse{
-				Value: &goosev1.ConfigValue{Value: "debug", Exists: true},
+			return connect.NewResponse(&minkv1.GetConfigResponse{
+				Value: &minkv1.ConfigValue{Value: "debug", Exists: true},
 			}), nil
 		},
 	})
@@ -464,9 +468,9 @@ func TestConnectClient_GetConfig_Found(t *testing.T) {
 // RED #6: TestConnectClient_GetConfig_NotFound
 func TestConnectClient_GetConfig_NotFound(t *testing.T) {
 	srv := newTestServer(nil, nil, nil, &mockConfigConnectServer{
-		getFunc: func(ctx context.Context, req *connect.Request[goosev1.GetConfigRequest]) (*connect.Response[goosev1.GetConfigResponse], error) {
-			return connect.NewResponse(&goosev1.GetConfigResponse{
-				Value: &goosev1.ConfigValue{Value: "", Exists: false},
+		getFunc: func(ctx context.Context, req *connect.Request[minkv1.GetConfigRequest]) (*connect.Response[minkv1.GetConfigResponse], error) {
+			return connect.NewResponse(&minkv1.GetConfigResponse{
+				Value: &minkv1.ConfigValue{Value: "", Exists: false},
 			}), nil
 		},
 	})
@@ -490,10 +494,10 @@ func TestConnectClient_GetConfig_NotFound(t *testing.T) {
 func TestConnectClient_SetConfig(t *testing.T) {
 	var capturedKey, capturedVal string
 	srv := newTestServer(nil, nil, nil, &mockConfigConnectServer{
-		setFunc: func(ctx context.Context, req *connect.Request[goosev1.SetConfigRequest]) (*connect.Response[goosev1.SetConfigResponse], error) {
+		setFunc: func(ctx context.Context, req *connect.Request[minkv1.SetConfigRequest]) (*connect.Response[minkv1.SetConfigResponse], error) {
 			capturedKey = req.Msg.Key
 			capturedVal = req.Msg.Value
-			return connect.NewResponse(&goosev1.SetConfigResponse{Success: true}), nil
+			return connect.NewResponse(&minkv1.SetConfigResponse{Success: true}), nil
 		},
 	})
 	defer srv.Close()
@@ -518,20 +522,20 @@ func TestConnectClient_SetConfig(t *testing.T) {
 // RED #6: TestConnectClient_ListConfig_Prefix
 func TestConnectClient_ListConfig_Prefix(t *testing.T) {
 	srv := newTestServer(nil, nil, nil, &mockConfigConnectServer{
-		listFunc: func(ctx context.Context, req *connect.Request[goosev1.ListConfigRequest]) (*connect.Response[goosev1.ListConfigResponse], error) {
+		listFunc: func(ctx context.Context, req *connect.Request[minkv1.ListConfigRequest]) (*connect.Response[minkv1.ListConfigResponse], error) {
 			// Filter by prefix
-			allEntries := []*goosev1.ConfigEntry{
+			allEntries := []*minkv1.ConfigEntry{
 				{Key: "log.level", Value: "info"},
 				{Key: "log.format", Value: "json"},
 				{Key: "server.port", Value: "9005"},
 			}
-			var filtered []*goosev1.ConfigEntry
+			var filtered []*minkv1.ConfigEntry
 			for _, e := range allEntries {
 				if req.Msg.Prefix == "" || strings.HasPrefix(e.Key, req.Msg.Prefix) {
 					filtered = append(filtered, e)
 				}
 			}
-			return connect.NewResponse(&goosev1.ListConfigResponse{Entries: filtered}), nil
+			return connect.NewResponse(&minkv1.ListConfigResponse{Entries: filtered}), nil
 		},
 	})
 	defer srv.Close()
@@ -563,14 +567,14 @@ func TestConnectClient_ListConfig_Prefix(t *testing.T) {
 func TestConnectClient_ChatStream_BlockedSend(t *testing.T) {
 	// Server sends many events rapidly
 	srv := newTestServer(nil, &mockAgentConnectServer{
-		chatStreamFunc: func(ctx context.Context, req *connect.Request[goosev1.AgentChatStreamRequest], stream *connect.ServerStream[goosev1.AgentChatStreamEvent]) error {
+		chatStreamFunc: func(ctx context.Context, req *connect.Request[minkv1.AgentChatStreamRequest], stream *connect.ServerStream[minkv1.AgentChatStreamEvent]) error {
 			for i := 0; i < 5; i++ {
 				select {
 				case <-ctx.Done():
 					return ctx.Err()
 				default:
 				}
-				if err := stream.Send(&goosev1.AgentChatStreamEvent{
+				if err := stream.Send(&minkv1.AgentChatStreamEvent{
 					Type:        "text",
 					PayloadJson: []byte(`{"text":"chunk"}`),
 				}); err != nil {
@@ -715,9 +719,9 @@ func TestConnectClient_Options(t *testing.T) {
 	// WithSessionID: session ID should be forwarded in Chat request
 	var capturedSessionID string
 	srvWithSession := newTestServer(nil, &mockAgentConnectServer{
-		chatFunc: func(ctx context.Context, req *connect.Request[goosev1.AgentChatRequest]) (*connect.Response[goosev1.AgentChatResponse], error) {
+		chatFunc: func(ctx context.Context, req *connect.Request[minkv1.AgentChatRequest]) (*connect.Response[minkv1.AgentChatResponse], error) {
 			capturedSessionID = req.Msg.SessionId
-			return connect.NewResponse(&goosev1.AgentChatResponse{Content: "ok"}), nil
+			return connect.NewResponse(&minkv1.AgentChatResponse{Content: "ok"}), nil
 		},
 	}, nil, nil)
 	defer srvWithSession.Close()
@@ -738,9 +742,9 @@ func TestConnectClient_Options(t *testing.T) {
 // TestConnectClient_GetConfig_NilValue verifies graceful handling of nil ConfigValue.
 func TestConnectClient_GetConfig_NilValue(t *testing.T) {
 	srv := newTestServer(nil, nil, nil, &mockConfigConnectServer{
-		getFunc: func(ctx context.Context, req *connect.Request[goosev1.GetConfigRequest]) (*connect.Response[goosev1.GetConfigResponse], error) {
+		getFunc: func(ctx context.Context, req *connect.Request[minkv1.GetConfigRequest]) (*connect.Response[minkv1.GetConfigResponse], error) {
 			// Return response with nil Value field
-			return connect.NewResponse(&goosev1.GetConfigResponse{}), nil
+			return connect.NewResponse(&minkv1.GetConfigResponse{}), nil
 		},
 	})
 	defer srv.Close()
@@ -765,7 +769,7 @@ func TestConnectClient_GetConfig_NilValue(t *testing.T) {
 // TestConnectClient_ChatStream_ServerError verifies error propagation from server.
 func TestConnectClient_ChatStream_ServerError(t *testing.T) {
 	srv := newTestServer(nil, &mockAgentConnectServer{
-		chatStreamFunc: func(ctx context.Context, req *connect.Request[goosev1.AgentChatStreamRequest], stream *connect.ServerStream[goosev1.AgentChatStreamEvent]) error {
+		chatStreamFunc: func(ctx context.Context, req *connect.Request[minkv1.AgentChatStreamRequest], stream *connect.ServerStream[minkv1.AgentChatStreamEvent]) error {
 			return connect.NewError(connect.CodeInternal, errors.New("stream failed"))
 		},
 	}, nil, nil)
@@ -791,7 +795,7 @@ func TestConnectClient_ChatStream_ServerError(t *testing.T) {
 // TestConnectClient_ListTools_Error verifies error propagation in ListTools.
 func TestConnectClient_ListTools_Error(t *testing.T) {
 	srv := newTestServer(nil, nil, &mockToolConnectServer{
-		listFunc: func(ctx context.Context, req *connect.Request[goosev1.ListToolsRequest]) (*connect.Response[goosev1.ListToolsResponse], error) {
+		listFunc: func(ctx context.Context, req *connect.Request[minkv1.ListToolsRequest]) (*connect.Response[minkv1.ListToolsResponse], error) {
 			return nil, connect.NewError(connect.CodeUnavailable, errors.New("tool server down"))
 		},
 	}, nil)
@@ -811,7 +815,7 @@ func TestConnectClient_ListTools_Error(t *testing.T) {
 // TestConnectClient_SetConfig_Error verifies error propagation in SetConfig.
 func TestConnectClient_SetConfig_Error(t *testing.T) {
 	srv := newTestServer(nil, nil, nil, &mockConfigConnectServer{
-		setFunc: func(ctx context.Context, req *connect.Request[goosev1.SetConfigRequest]) (*connect.Response[goosev1.SetConfigResponse], error) {
+		setFunc: func(ctx context.Context, req *connect.Request[minkv1.SetConfigRequest]) (*connect.Response[minkv1.SetConfigResponse], error) {
 			return nil, connect.NewError(connect.CodePermissionDenied, errors.New("read-only config"))
 		},
 	})
@@ -851,7 +855,7 @@ func TestConnectClient_ListConfig_AllEntries(t *testing.T) {
 // TestConnectClient_ListConfig_Error verifies error propagation in ListConfig.
 func TestConnectClient_ListConfig_Error(t *testing.T) {
 	srv := newTestServer(nil, nil, nil, &mockConfigConnectServer{
-		listFunc: func(ctx context.Context, req *connect.Request[goosev1.ListConfigRequest]) (*connect.Response[goosev1.ListConfigResponse], error) {
+		listFunc: func(ctx context.Context, req *connect.Request[minkv1.ListConfigRequest]) (*connect.Response[minkv1.ListConfigResponse], error) {
 			return nil, connect.NewError(connect.CodeInternal, errors.New("config DB unavailable"))
 		},
 	})
@@ -872,9 +876,9 @@ func TestConnectClient_ListConfig_Error(t *testing.T) {
 func TestConnectClient_ChatStream_WithSessionID(t *testing.T) {
 	var capturedSessionID string
 	srv := newTestServer(nil, &mockAgentConnectServer{
-		chatStreamFunc: func(ctx context.Context, req *connect.Request[goosev1.AgentChatStreamRequest], stream *connect.ServerStream[goosev1.AgentChatStreamEvent]) error {
+		chatStreamFunc: func(ctx context.Context, req *connect.Request[minkv1.AgentChatStreamRequest], stream *connect.ServerStream[minkv1.AgentChatStreamEvent]) error {
 			capturedSessionID = req.Msg.SessionId
-			return stream.Send(&goosev1.AgentChatStreamEvent{Type: "done", PayloadJson: []byte(`{}`)})
+			return stream.Send(&minkv1.AgentChatStreamEvent{Type: "done", PayloadJson: []byte(`{}`)})
 		},
 	}, nil, nil)
 	defer srv.Close()

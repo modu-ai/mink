@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/modu-ai/mink/internal/transport/grpc/gen/goosev1"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/minkv1"
 )
 
 // RED #1: PingClientAdapter writes a byte-identical status line for a
@@ -20,8 +20,8 @@ func TestPingClientAdapter_Ping_Success(t *testing.T) {
 	t.Parallel()
 
 	srv := newTestServer(&mockDaemonConnectServer{
-		pingFunc: func(_ context.Context, _ *connect.Request[goosev1.PingRequest]) (*connect.Response[goosev1.PingResponse], error) {
-			return connect.NewResponse(&goosev1.PingResponse{
+		pingFunc: func(_ context.Context, _ *connect.Request[minkv1.PingRequest]) (*connect.Response[minkv1.PingResponse], error) {
+			return connect.NewResponse(&minkv1.PingResponse{
 				Version:  "v0.2.0",
 				UptimeMs: 12345,
 				State:    "serving",
@@ -53,7 +53,7 @@ func TestPingClientAdapter_Ping_Timeout(t *testing.T) {
 	t.Parallel()
 
 	srv := newTestServer(&mockDaemonConnectServer{
-		pingFunc: func(ctx context.Context, _ *connect.Request[goosev1.PingRequest]) (*connect.Response[goosev1.PingResponse], error) {
+		pingFunc: func(ctx context.Context, _ *connect.Request[minkv1.PingRequest]) (*connect.Response[minkv1.PingResponse], error) {
 			<-ctx.Done()
 			return nil, ctx.Err()
 		},
@@ -85,7 +85,7 @@ func TestPingClientAdapter_Ping_RPCError(t *testing.T) {
 	t.Parallel()
 
 	srv := newTestServer(&mockDaemonConnectServer{
-		pingFunc: func(_ context.Context, _ *connect.Request[goosev1.PingRequest]) (*connect.Response[goosev1.PingResponse], error) {
+		pingFunc: func(_ context.Context, _ *connect.Request[minkv1.PingRequest]) (*connect.Response[minkv1.PingResponse], error) {
 			return nil, connect.NewError(connect.CodeInternal, errors.New("boom"))
 		},
 	}, nil, nil, nil)
@@ -475,12 +475,12 @@ func TestConnectClient_Chat_UsesInitialMessages(t *testing.T) {
 	t.Parallel()
 
 	var capturedMessage string
-	var capturedInitial []*goosev1.AgentMessage
+	var capturedInitial []*minkv1.AgentMessage
 	srv := newTestServer(nil, &mockAgentConnectServer{
-		chatFunc: func(_ context.Context, req *connect.Request[goosev1.AgentChatRequest]) (*connect.Response[goosev1.AgentChatResponse], error) {
+		chatFunc: func(_ context.Context, req *connect.Request[minkv1.AgentChatRequest]) (*connect.Response[minkv1.AgentChatResponse], error) {
 			capturedMessage = req.Msg.Message
 			capturedInitial = req.Msg.InitialMessages
-			return connect.NewResponse(&goosev1.AgentChatResponse{Content: "ok"}), nil
+			return connect.NewResponse(&minkv1.AgentChatResponse{Content: "ok"}), nil
 		},
 	}, nil, nil)
 	defer srv.Close()

@@ -10,7 +10,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/modu-ai/mink/internal/core"
-	"github.com/modu-ai/mink/internal/transport/grpc/gen/goosev1"
+	"github.com/modu-ai/mink/internal/transport/grpc/gen/minkv1"
 )
 
 // 빌드 메타데이터 변수 (ldflags로 주입 가능)
@@ -29,7 +29,7 @@ var (
 // @MX:ANCHOR: [AUTO] DaemonService RPC 핸들러 집합
 // @MX:REASON: Ping/GetInfo/Shutdown 세 핸들러가 공통 state/cancel 의존
 type daemonService struct {
-	goosev1.UnimplementedDaemonServiceServer
+	minkv1.UnimplementedDaemonServiceServer
 	startTime     time.Time
 	state         *core.StateHolder
 	shutdownToken string
@@ -56,9 +56,9 @@ func newDaemonService(
 // Ping은 데몬 상태를 반환한다.
 // REQ-TR-005: version, uptime_ms, state 반환
 // draining 중에도 Ping은 응답한다 (REQ-TR-008 예외).
-func (s *daemonService) Ping(_ context.Context, _ *goosev1.PingRequest) (*goosev1.PingResponse, error) {
+func (s *daemonService) Ping(_ context.Context, _ *minkv1.PingRequest) (*minkv1.PingResponse, error) {
 	uptime := time.Since(s.startTime).Milliseconds()
-	return &goosev1.PingResponse{
+	return &minkv1.PingResponse{
 		Version:  BuildVersion,
 		UptimeMs: uptime,
 		State:    s.state.Load().String(),
@@ -67,11 +67,11 @@ func (s *daemonService) Ping(_ context.Context, _ *goosev1.PingRequest) (*goosev
 
 // GetInfo는 빌드 메타데이터를 반환한다.
 // REQ-TR-008: draining 중 Unavailable 반환 (Ping 제외 모든 RPC)
-func (s *daemonService) GetInfo(ctx context.Context, _ *goosev1.GetInfoRequest) (*goosev1.GetInfoResponse, error) {
+func (s *daemonService) GetInfo(ctx context.Context, _ *minkv1.GetInfoRequest) (*minkv1.GetInfoResponse, error) {
 	if err := checkDrainingState(s.state); err != nil {
 		return nil, err
 	}
-	return &goosev1.GetInfoResponse{
+	return &minkv1.GetInfoResponse{
 		Version:   BuildVersion,
 		GitCommit: BuildGitCommit,
 		GoVersion: BuildGoVersion,
@@ -86,7 +86,7 @@ func (s *daemonService) GetInfo(ctx context.Context, _ *goosev1.GetInfoRequest) 
 // REQ-TR-010: token mismatch → Unauthenticated
 // REQ-TR-011: token unset → Unimplemented
 // REQ-TR-008: draining 중 Unavailable (Shutdown은 draining 예외 대상이 아님)
-func (s *daemonService) Shutdown(ctx context.Context, req *goosev1.ShutdownRequest) (*goosev1.ShutdownResponse, error) {
+func (s *daemonService) Shutdown(ctx context.Context, req *minkv1.ShutdownRequest) (*minkv1.ShutdownResponse, error) {
 	if err := checkDrainingState(s.state); err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func (s *daemonService) Shutdown(ctx context.Context, req *goosev1.ShutdownReque
 		s.rootCancel()
 	}()
 
-	return &goosev1.ShutdownResponse{
+	return &minkv1.ShutdownResponse{
 		Accepted: true,
 		Message:  "shutdown initiated",
 	}, nil
