@@ -1,4 +1,4 @@
-// Package main은 goosed daemon wire-up 통합 테스트를 포함한다.
+// Package main은 minkd daemon wire-up 통합 테스트를 포함한다.
 // SPEC-GOOSE-DAEMON-WIRE-001 — AC-WIRE-001 ~ AC-WIRE-008
 package main
 

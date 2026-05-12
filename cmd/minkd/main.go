@@ -1,4 +1,4 @@
-// goosed는 AI.GOOSE의 핵심 데몬 프로세스다.
+// minkd는 AI.MINK의 핵심 데몬 프로세스다.
 // SPEC-GOOSE-CORE-001 — 부트스트랩 및 Graceful Shutdown
 // SPEC-GOOSE-CONFIG-001 — 계층형 설정 로더 적용
 // SPEC-GOOSE-DAEMON-WIRE-001 — 7개 cross-package SPEC wire-up
@@ -41,7 +41,7 @@ func run() int {
 // init → bootstrap → wire-up → serve → drain → shutdown (13-step)
 // ctx가 cancel되면 shutdown 시퀀스가 시작된다.
 //
-// @MX:ANCHOR: [AUTO] goosed 13-step 생애주기 진입점 — 모든 wire-up 경로가 여기를 통과
+// @MX:ANCHOR: [AUTO] minkd 13-step 생애주기 진입점 — 모든 wire-up 경로가 여기를 통과
 // @MX:REASON: SPEC-GOOSE-DAEMON-WIRE-001 REQ-WIRE-002 — main, run, runWithHooks(test) 3곳에서 호출
 func runWithContext(ctx context.Context) int {
 	// 1. 설정 로드 (SPEC-GOOSE-CONFIG-001 계층형 로더)
@@ -53,7 +53,7 @@ func runWithContext(ctx context.Context) int {
 	}
 
 	// 2. 로거 초기화 — cfg.Log.Level 사용 (SPEC-GOOSE-CONFIG-001 §6.2)
-	logger, err := core.NewLogger(cfg.Log.Level, "goosed", version)
+	logger, err := core.NewLogger(cfg.Log.Level, "minkd", version)
 	if err != nil {
 		fallbackLog("ERROR", "logger init failed", err.Error())
 		return core.ExitConfig
@@ -136,7 +136,7 @@ func runWithContext(ctx context.Context) int {
 
 	// 12. serving 상태 전환
 	rt.State.Store(core.StateServing)
-	logger.Info("goosed started", zap.Int("health_port", cfg.Transport.HealthPort))
+	logger.Info("minkd started", zap.Int("health_port", cfg.Transport.HealthPort))
 
 	// 13. 시그널 대기 (REQ-CORE-004)
 	<-rootCtx.Done()
@@ -158,7 +158,7 @@ func runWithContext(ctx context.Context) int {
 	panicOccurred := rt.Shutdown.RunAllHooks(shutdownCtx)
 
 	rt.State.Store(core.StateStopped)
-	logger.Info("goosed stopped")
+	logger.Info("minkd stopped")
 
 	if panicOccurred {
 		return core.ExitHookPanic

@@ -1,4 +1,4 @@
-// wire.go는 goosed daemon wire-up 헬퍼와 adapter를 제공한다.
+// wire.go는 minkd daemon wire-up 헬퍼와 adapter를 제공한다.
 // SPEC-GOOSE-DAEMON-WIRE-001
 package main
 

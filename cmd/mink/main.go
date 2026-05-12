@@ -1,4 +1,4 @@
-// Package main provides the thin entry point for the goose CLI.
+// Package main provides the thin entry point for the mink CLI.
 // It delegates all logic to internal/cli.
 package main
 
