@@ -1,18 +1,29 @@
 #!/usr/bin/env bash
-# check-brand.sh — AI.GOOSE brand-lint 검증 스크립트
+# check-brand.sh — MINK brand-lint 검증 스크립트
 #
-# SPEC: SPEC-GOOSE-BRAND-RENAME-001
-# REQ:  REQ-BR-006, REQ-BR-008, REQ-BR-012, REQ-BR-019
-# AC:   AC-BR-003, AC-BR-004, AC-BR-010
+# SPEC: SPEC-MINK-BRAND-RENAME-001 (supersedes SPEC-GOOSE-BRAND-RENAME-001)
+# REQ:  REQ-MINK-BR-006, REQ-MINK-BR-013, REQ-MINK-BR-016, REQ-MINK-BR-020
+# AC:   AC-MINK-BR-001, AC-MINK-BR-007, AC-MINK-BR-014
 #
-# 알고리즘 (§7.5 brand-lint 검증 알고리즘):
-# 1. 검사 대상 .md 파일 목록 수집
-# 2. 코드 영역(백틱 인용, fenced code block) 제거
+# 알고리즘 (style-guide §5):
+# 1. 검사 대상 .md 파일 목록 수집 (exemption zone 제외)
+# 2. 코드 영역 (백틱 인용, fenced code block) 제거
 # 3. ## HISTORY 섹션 제거 (immutable history 보존)
-# 4. 위반 패턴 검출: goose 프로젝트, Goose 프로젝트, GOOSE-AGENT(brand 위치), goose project 등
-# 5. SPEC ID 형태(SPEC-GOOSE-*)는 위반에서 제외
+# 4. 위반 패턴 검출:
+#    - goose 프로젝트 / Goose 프로젝트 / GOOSE 프로젝트 (한국어)
+#    - goose project / Goose project (영문)
+#    - GOOSE-AGENT (옛 brand 약칭, 백틱 외부)
+#    - AI.GOOSE (선행 SPEC 결과의 brand 표기 잔존)
+# 5. SPEC ID 형태 (SPEC-GOOSE-*) 는 위반에서 제외 (immutable archive 참조)
 # 6. .go / .proto / .sum / .mod 등 코드 파일은 검사 제외
 # 7. exit 0 (위반 없음) 또는 exit 1 (위반 있음, 파일:라인:패턴 출력)
+#
+# Exemption zones (검사 skip):
+#   - .moai/specs/SPEC-GOOSE-*/      (immutable archive — 88 directories)
+#   - .moai/specs/SPEC-MINK-BRAND-RENAME-001/  (본 SPEC — 규범 설명 시 옛 표기 인용)
+#   - .moai/brain/IDEA-*/            (ideation history)
+#   - .claude/agent-memory/          (subagent persistent memory)
+#   - .git/, vendor/                 (시스템 / 외부 의존)
 #
 # 사용법:
 #   bash scripts/check-brand.sh
@@ -33,10 +44,12 @@ if [ "$#" -gt 0 ]; then
     FILES+=("$arg")
   done
 else
-  # 기본 검사 대상 (spec §7.5 §1)
-  # SPEC-GOOSE-BRAND-RENAME-001 자기 SPEC은 제외:
-  #   - spec.md / research.md가 brand-lint 위반 패턴 자체를 설명(인용)하므로
-  #     false positive가 발생함. 이 SPEC의 내용은 brand 규범의 원본 정의이므로 제외.
+  # 기본 검사 대상 (style-guide §5 §1)
+  # Exemption zones:
+  #   - SPEC-GOOSE-*: 88 immutable archive directories (preserve as-is)
+  #   - SPEC-MINK-BRAND-RENAME-001: 본 SPEC 자체 (규범 설명 시 옛 표기 인용 필요)
+  #   - .moai/brain/IDEA-*: ideation history
+  #   - .claude/agent-memory: subagent persistent memory
   while IFS= read -r f; do
     FILES+=("$f")
   done < <(
@@ -44,7 +57,10 @@ else
       -name "*.md" \
       ! -path "./.git/*" \
       ! -path "./vendor/*" \
-      ! -path "./.moai/specs/SPEC-GOOSE-BRAND-RENAME-001/*" \
+      ! -path "./.moai/specs/SPEC-GOOSE-*/*" \
+      ! -path "./.moai/specs/SPEC-MINK-BRAND-RENAME-001/*" \
+      ! -path "./.moai/brain/IDEA-*/*" \
+      ! -path "./.claude/agent-memory/*" \
       ! -name "*.sum" \
       | sort
   )
@@ -108,18 +124,20 @@ for lineno, line in enumerate(lines, 1):
     # inline code span을 임시 플레이스홀더로 치환하여 패턴 검사에서 제외
     line_without_code = re.sub(r'`[^`]*`', 'CODE_SPAN', line)
 
-    # ── SPEC ID 형태 제거 (SPEC-GOOSE-* 는 SPEC ID이므로 보존) ─────────────
+    # ── SPEC ID 형태 제거 (SPEC-GOOSE-* 는 SPEC ID 이므로 보존) ─────────────
     line_cleaned = re.sub(r'SPEC-GOOSE-[A-Z0-9_-]+', 'SPEC_ID_REF', line_without_code)
 
-    # ── 위반 패턴 검출 ────────────────────────────────────────────────────────
-    # 검출 대상 (spec §7.5 §3):
-    #   - goose 프로젝트 (대소문자 무관)
+    # ── 위반 패턴 검출 (style-guide §5 §3) ──────────────────────────────────
+    # 검출 대상:
+    #   - goose 프로젝트 (대소문자 무관, 한국어)
     #   - goose project / Goose project (영문)
-    #   - GOOSE-AGENT (백틱 외부, brand 위치) — SPEC ID 형태 제외 후 검사
+    #   - GOOSE-AGENT (옛 brand 약칭, 백틱 외부) — SPEC ID 형태 제외 후 검사
+    #   - AI.GOOSE (선행 SPEC 결과의 brand 표기 잔존)
     patterns = [
         (r'(?i)goose\s+프로젝트',    'goose 프로젝트 (brand 위치)'),
         (r'(?i)goose\s+project\b',   'goose project (brand 위치)'),
-        (r'\bGOOSE-AGENT\b',         'GOOSE-AGENT (brand 위치, 백틱 외부)'),
+        (r'\bGOOSE-AGENT\b',         'GOOSE-AGENT (옛 brand 약칭, 백틱 외부)'),
+        (r'\bAI\.GOOSE\b',           'AI.GOOSE (선행 SPEC brand 표기 잔존)'),
     ]
 
     for pattern, label in patterns:
@@ -149,10 +167,10 @@ if [ "${VIOLATIONS}" -gt 0 ]; then
     echo "  ${vline}" >&2
   done
   echo "" >&2
-  echo "Fix: Replace brand violations with 'AI.GOOSE'." >&2
-  echo "  OK: AI.GOOSE는 Daily Companion AI입니다." >&2
-  echo "  OK: AI.GOOSE runs the \`goose CLI\`." >&2
-  echo "  NG: GOOSE 프로젝트, GOOSE-AGENT, Goose project" >&2
+  echo "Fix: Replace brand violations with 'MINK'." >&2
+  echo "  OK: MINK는 너의 매일을 기억하는 AI다." >&2
+  echo "  OK: MINK runs the \`mink CLI\`." >&2
+  echo "  NG: GOOSE 프로젝트, GOOSE-AGENT, Goose project, AI.GOOSE" >&2
   echo "" >&2
   echo "See .moai/project/brand/style-guide.md for brand notation rules." >&2
   exit 1
