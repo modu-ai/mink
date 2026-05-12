@@ -76,7 +76,7 @@ type QueryEngineChatServiceConfig struct {
 // NewQueryEngineChatService constructs a ChatService backed by QueryEngine.
 //
 // @MX:ANCHOR: [AUTO] NewQueryEngineChatService is the constructor for the production ChatService.
-// @MX:REASON: SPEC-GOOSE-MSG-TELEGRAM-001; fan_in via cmd/goosed/main.go, telegram adapter, and tests (>= 3 callers).
+// @MX:REASON: SPEC-GOOSE-MSG-TELEGRAM-001; fan_in via cmd/minkd/main.go, telegram adapter, and tests (>= 3 callers).
 func NewQueryEngineChatService(cfg QueryEngineChatServiceConfig) (*QueryEngineChatService, error) {
 	if cfg.Factory == nil {
 		return nil, fmt.Errorf("agent.NewQueryEngineChatService: Factory is required")

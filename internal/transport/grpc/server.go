@@ -207,9 +207,9 @@ func (s *Server) watchState(ctx context.Context) {
 // REQ-TR-015: serving → SERVING, draining/stopped → NOT_SERVING
 func (s *Server) updateHealthState() {
 	if s.state.Load() == core.StateServing {
-		s.healthSrv.SetServingStatus("goose.v1.DaemonService", grpc_health_v1.HealthCheckResponse_SERVING)
+		s.healthSrv.SetServingStatus("mink.v1.DaemonService", grpc_health_v1.HealthCheckResponse_SERVING)
 	} else {
-		s.healthSrv.SetServingStatus("goose.v1.DaemonService", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+		s.healthSrv.SetServingStatus("mink.v1.DaemonService", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
 	}
 }
 

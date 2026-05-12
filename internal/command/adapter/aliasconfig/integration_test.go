@@ -201,5 +201,5 @@ func TestIntegration_HookRegistrySetAliasMap(t *testing.T) {
 	// HookRegistry는 internal/hook 패키지에 있으므로
 	// 이 테스트는 loader 패키지에서는 skip하고
 	// 실제 통합 테스트에서 검증됨
-	t.Skip("HookRegistry integration is tested in cmd/goosed package")
+	t.Skip("HookRegistry integration is tested in cmd/minkd package")
 }

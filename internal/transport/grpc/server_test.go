@@ -149,7 +149,7 @@ func TestHealthCheck_ServiceServing(t *testing.T) {
 
 	// serving 상태에서 SERVING 반환
 	resp, err := h.health.Check(context.Background(), &grpc_health_v1.HealthCheckRequest{
-		Service: "goose.v1.DaemonService",
+		Service: "mink.v1.DaemonService",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, grpc_health_v1.HealthCheckResponse_SERVING, resp.Status)
@@ -158,7 +158,7 @@ func TestHealthCheck_ServiceServing(t *testing.T) {
 	h.state.Store(core.StateDraining)
 	h.srv.ForceHealthUpdate() // 즉시 health 상태 동기화
 	resp, err = h.health.Check(context.Background(), &grpc_health_v1.HealthCheckRequest{
-		Service: "goose.v1.DaemonService",
+		Service: "mink.v1.DaemonService",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, grpc_health_v1.HealthCheckResponse_NOT_SERVING, resp.Status)

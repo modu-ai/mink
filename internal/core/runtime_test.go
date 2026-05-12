@@ -49,7 +49,7 @@ func TestMain(m *testing.M) {
 	defer os.RemoveAll(dir)
 
 	bin := filepath.Join(dir, "goosed")
-	cmd := exec.Command("go", "build", "-o", bin, "github.com/modu-ai/mink/cmd/goosed")
+	cmd := exec.Command("go", "build", "-o", bin, "github.com/modu-ai/mink/cmd/minkd")
 	cmd.Env = os.Environ()
 	if out, buildErr := cmd.CombinedOutput(); buildErr != nil {
 		panic("goosed 사전 빌드 실패: " + buildErr.Error() + "\n" + string(out))
@@ -506,7 +506,7 @@ func buildGoosed(t *testing.T) string {
 	}
 	// TestMain을 거치지 않은 경우 (예: go test -run TestXxx ./...) fallback 빌드
 	binPath := filepath.Join(t.TempDir(), "goosed")
-	cmd := exec.Command("go", "build", "-o", binPath, "github.com/modu-ai/mink/cmd/goosed")
+	cmd := exec.Command("go", "build", "-o", binPath, "github.com/modu-ai/mink/cmd/minkd")
 	cmd.Env = os.Environ()
 	out, err := cmd.CombinedOutput()
 	if err != nil {

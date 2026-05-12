@@ -21,21 +21,21 @@ import (
 // RED #1: Verify generated code constants exist (compile-time proof)
 func TestProto_GeneratedCode_Constants(t *testing.T) {
 	// AgentService constants
-	if minkv1connect.AgentServiceName != "goose.v1.AgentService" {
-		t.Errorf("AgentServiceName = %q, want %q", minkv1connect.AgentServiceName, "goose.v1.AgentService")
+	if minkv1connect.AgentServiceName != "mink.v1.AgentService" {
+		t.Errorf("AgentServiceName = %q, want %q", minkv1connect.AgentServiceName, "mink.v1.AgentService")
 	}
-	if minkv1connect.AgentServiceChatProcedure != "/goose.v1.AgentService/Chat" {
+	if minkv1connect.AgentServiceChatProcedure != "/mink.v1.AgentService/Chat" {
 		t.Errorf("AgentServiceChatProcedure = %q", minkv1connect.AgentServiceChatProcedure)
 	}
 
 	// ToolService constants
-	if minkv1connect.ToolServiceName != "goose.v1.ToolService" {
-		t.Errorf("ToolServiceName = %q, want %q", minkv1connect.ToolServiceName, "goose.v1.ToolService")
+	if minkv1connect.ToolServiceName != "mink.v1.ToolService" {
+		t.Errorf("ToolServiceName = %q, want %q", minkv1connect.ToolServiceName, "mink.v1.ToolService")
 	}
 
 	// ConfigService constants
-	if minkv1connect.ConfigServiceName != "goose.v1.ConfigService" {
-		t.Errorf("ConfigServiceName = %q, want %q", minkv1connect.ConfigServiceName, "goose.v1.ConfigService")
+	if minkv1connect.ConfigServiceName != "mink.v1.ConfigService" {
+		t.Errorf("ConfigServiceName = %q, want %q", minkv1connect.ConfigServiceName, "mink.v1.ConfigService")
 	}
 
 	// Verify proto message types compile correctly
