@@ -59,7 +59,8 @@ func isDenyListed(key string) bool {
 	if upper == "ANTHROPIC_API_KEY" || upper == "OPENAI_API_KEY" {
 		return true
 	}
-	if strings.HasPrefix(upper, "GOOSE_AUTH_") {
+	// MINK_AUTH_* / GOOSE_AUTH_* prefix glob (SPEC-MINK-ENV-MIGRATE-001 §5)
+	if strings.HasPrefix(upper, "MINK_AUTH_") || strings.HasPrefix(upper, "GOOSE_AUTH_") {
 		return true
 	}
 	lowerKey := strings.ToLower(key)

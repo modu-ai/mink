@@ -22,7 +22,7 @@ import (
 func TestOptions_ZeroValueMergePolicyPreservesParentBehavior(t *testing.T) {
 	// Cannot use t.Parallel() with t.Setenv.
 	tmpDir := t.TempDir()
-	t.Setenv("GOOSE_HOME", tmpDir)
+	t.Setenv("MINK_HOME", tmpDir)
 
 	configPath := filepath.Join(tmpDir, "aliases.yaml")
 	if err := os.WriteFile(configPath, []byte("aliases:\n  opus: anthropic/claude-opus-4-7\n"), 0o644); err != nil {
@@ -44,7 +44,7 @@ func TestOptions_ZeroValueMergePolicyPreservesParentBehavior(t *testing.T) {
 func TestOptions_NilMetricsUsesNoop(t *testing.T) {
 	// Cannot use t.Parallel() with t.Setenv.
 	tmpDir := t.TempDir()
-	t.Setenv("GOOSE_HOME", tmpDir)
+	t.Setenv("MINK_HOME", tmpDir)
 
 	configPath := filepath.Join(tmpDir, "aliases.yaml")
 	if err := os.WriteFile(configPath, []byte("aliases:\n  test: openai/gpt-4o\n"), 0o644); err != nil {
@@ -88,7 +88,7 @@ func TestLoader_ConfigPath_AbsoluteAndMatchesInternal(t *testing.T) {
 func TestLoader_ConfigPath_FallbackResolved(t *testing.T) {
 	// Cannot use t.Parallel() with t.Setenv.
 	tmpDir := t.TempDir()
-	t.Setenv("GOOSE_HOME", tmpDir)
+	t.Setenv("MINK_HOME", tmpDir)
 
 	loader := New(Options{Logger: zap.NewNop()})
 	got := loader.ConfigPath()

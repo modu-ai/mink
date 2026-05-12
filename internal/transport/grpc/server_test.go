@@ -526,15 +526,15 @@ func TestMaxRecvMsgSize_Override(t *testing.T) {
 // AC-TR-014 추가 검증
 func TestMaxRecvMsgSize_EnvOverride(t *testing.T) {
 	// 이 테스트는 환경변수를 사용하므로 병렬 실행 불가
-	old, exists := os.LookupEnv("GOOSE_GRPC_MAX_RECV_MSG_BYTES")
+	old, exists := os.LookupEnv("MINK_GRPC_MAX_RECV_MSG_BYTES")
 	t.Cleanup(func() {
 		if exists {
-			os.Setenv("GOOSE_GRPC_MAX_RECV_MSG_BYTES", old)
+			os.Setenv("MINK_GRPC_MAX_RECV_MSG_BYTES", old)
 		} else {
-			os.Unsetenv("GOOSE_GRPC_MAX_RECV_MSG_BYTES")
+			os.Unsetenv("MINK_GRPC_MAX_RECV_MSG_BYTES")
 		}
 	})
-	os.Setenv("GOOSE_GRPC_MAX_RECV_MSG_BYTES", "1024")
+	os.Setenv("MINK_GRPC_MAX_RECV_MSG_BYTES", "1024")
 
 	state := &core.StateHolder{}
 	state.Store(core.StateServing)

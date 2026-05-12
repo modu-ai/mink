@@ -51,8 +51,8 @@ func isDenyListed(key string) bool {
 	if upper == "ANTHROPIC_API_KEY" || upper == "OPENAI_API_KEY" {
 		return true
 	}
-	// GOOSE_AUTH_* glob
-	if strings.HasPrefix(upper, "GOOSE_AUTH_") {
+	// MINK_AUTH_* / GOOSE_AUTH_* prefix glob (SPEC-MINK-ENV-MIGRATE-001 §5)
+	if strings.HasPrefix(upper, "MINK_AUTH_") || strings.HasPrefix(upper, "GOOSE_AUTH_") {
 		return true
 	}
 	// case-insensitive 패턴: token, secret, password, apikey, api_key

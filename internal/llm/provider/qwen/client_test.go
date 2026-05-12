@@ -74,9 +74,9 @@ func TestQwen_RegionCN_UsesChineseBaseURL(t *testing.T) {
 }
 
 // TestQwen_EnvVarFallback는 AC-ADP2-011을 검증한다.
-// GOOSE_QWEN_REGION=cn 환경변수가 Region 기본값보다 우선됨.
+// MINK_QWEN_REGION=cn (legacy: GOOSE_QWEN_REGION) 환경변수가 Region 기본값보다 우선됨.
 func TestQwen_EnvVarFallback(t *testing.T) {
-	t.Setenv("GOOSE_QWEN_REGION", "cn")
+	t.Setenv("MINK_QWEN_REGION", "cn")
 
 	pool := testhelper.FakePool(t, []string{"cred-a"})
 	secretStore := provider.NewMemorySecretStore(map[string]string{"kr-cred-a": "sk-qwen-test"})
@@ -94,7 +94,7 @@ func TestQwen_EnvVarFallback(t *testing.T) {
 // TestQwen_InvalidRegion_ReturnsError는 AC-ADP2-012를 검증한다.
 // 잘못된 region → ErrInvalidRegion 반환 (REQ-ADP2-018).
 func TestQwen_InvalidRegion_ReturnsError(t *testing.T) {
-	t.Setenv("GOOSE_QWEN_REGION", "foo")
+	t.Setenv("MINK_QWEN_REGION", "foo")
 
 	pool := testhelper.FakePool(t, []string{"cred-a"})
 	secretStore := provider.NewMemorySecretStore(map[string]string{"kr-cred-a": "sk-qwen-test"})

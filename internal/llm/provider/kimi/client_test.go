@@ -72,9 +72,9 @@ func TestKimi_RegionCN(t *testing.T) {
 	assert.Equal(t, "/chat/completions", requestPath)
 }
 
-// TestKimi_EnvVarFallback는 GOOSE_KIMI_REGION 환경변수 우선순위를 검증한다.
+// TestKimi_EnvVarFallback는 MINK_KIMI_REGION (legacy: GOOSE_KIMI_REGION) 환경변수 우선순위를 검증한다.
 func TestKimi_EnvVarFallback(t *testing.T) {
-	t.Setenv("GOOSE_KIMI_REGION", "cn")
+	t.Setenv("MINK_KIMI_REGION", "cn")
 
 	pool := testhelper.FakePool(t, []string{"cred-a"})
 	secretStore := provider.NewMemorySecretStore(map[string]string{"kr-cred-a": "sk-kimi-test"})
@@ -90,7 +90,7 @@ func TestKimi_EnvVarFallback(t *testing.T) {
 
 // TestKimi_InvalidRegion_ReturnsError는 잘못된 region에서 에러를 반환하는지 검증한다.
 func TestKimi_InvalidRegion_ReturnsError(t *testing.T) {
-	t.Setenv("GOOSE_KIMI_REGION", "invalid")
+	t.Setenv("MINK_KIMI_REGION", "invalid")
 
 	pool := testhelper.FakePool(t, []string{"cred-a"})
 	secretStore := provider.NewMemorySecretStore(map[string]string{"kr-cred-a": "sk-kimi-test"})

@@ -637,10 +637,11 @@ func TestLoad_MinkHome_Unset_UsesHomeDotGoose(t *testing.T) {
 		0600,
 	))
 
-	// GOOSE_HOME 미설정, HOME을 fakeHome으로 설정
+	// MINK_HOME 미설정, HOME을 fakeHome으로 설정 (legacy GOOSE_HOME alias 도 함께 클리어)
 	// t.Setenv는 t.Parallel()과 공존 불가이므로 non-parallel 테스트에서만 사용
 	t.Setenv("HOME", fakeHome)
-	t.Setenv("GOOSE_HOME", "")
+	t.Setenv("MINK_HOME", "")
+	t.Setenv("GOOSE_HOME", "") // SPEC-MINK-ENV-MIGRATE-001: alias loader fallback 차단 (test isolation)
 
 	// 실제 디스크 접근 (os.DirFS 사용, MinkHome 미지정)
 	cfg, err := config.Load(config.LoadOptions{

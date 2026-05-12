@@ -38,10 +38,12 @@ func TestNew_Loader_CustomPath(t *testing.T) {
 	}
 }
 
-// TestNew_Loader_GOOSE_HOME 환경변수 우선 테스트
-func TestNew_Loader_GOOSE_HOME(t *testing.T) {
+// TestNew_Loader_MinkHome MINK_HOME 환경변수 우선 테스트.
+// SPEC-MINK-ENV-MIGRATE-001 Phase 4: GOOSE_HOME → MINK_HOME 마이그레이션.
+// GOOSE_HOME backward compat 는 TestNew_Loader_AliasLoader_GooseOnly_WarnsOnce 가 별도 검증.
+func TestNew_Loader_MinkHome(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("GOOSE_HOME", tmpDir)
+	t.Setenv("MINK_HOME", tmpDir)
 
 	opts := Options{Logger: zap.NewNop()}
 	loader := New(opts)
@@ -192,7 +194,7 @@ aliases:
 // TestLoadDefault 기본 경로 로드 테스트
 func TestLoadDefault(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("GOOSE_HOME", tmpDir)
+	t.Setenv("MINK_HOME", tmpDir)
 
 	configPath := filepath.Join(tmpDir, "aliases.yaml")
 	yamlContent := `aliases:

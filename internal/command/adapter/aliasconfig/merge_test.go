@@ -52,7 +52,7 @@ func setupUserAndProjectFiles(t *testing.T, userAliases, projAliases map[string]
 	}
 
 	// Set GOOSE_HOME to user dir so New() picks up userPath.
-	t.Setenv("GOOSE_HOME", userDir)
+	t.Setenv("MINK_HOME", userDir)
 
 	// Change CWD to projCWD so detectProjectLocalAliasFile picks up projPath.
 	originalWd, err := os.Getwd()

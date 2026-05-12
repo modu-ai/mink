@@ -706,7 +706,7 @@ func TestDispatch_TraceEnv_DEBUG(t *testing.T) {
 		t.Skip("sh not available")
 	}
 
-	t.Setenv("GOOSE_HOOK_TRACE", "1")
+	t.Setenv("MINK_HOOK_TRACE", "1")
 
 	logger, logs := newObservedLogger()
 	reg := hook.NewHookRegistry(hook.WithLogger(logger))
@@ -835,6 +835,9 @@ func TestScrubEnv_DenyList(t *testing.T) {
 		"OPENAI_API_KEY=abc",
 		"GOOSE_AUTH_TOKEN=zzz",
 		"GOOSE_AUTH_REFRESH=refresh",
+		// SPEC-MINK-ENV-MIGRATE-001 §5.2: MINK_AUTH_* deny-list 확장 검증
+		"MINK_AUTH_TOKEN=new-zzz",
+		"MINK_AUTH_REFRESH=new-refresh",
 		"MY_TOKEN=t",
 		"MY_SECRET=s",
 		"PASSWORD=p",
@@ -853,8 +856,10 @@ func TestScrubEnv_DenyList(t *testing.T) {
 
 	// deny-listed 변수들이 없어야 한다
 	denyListed := []string{
-		"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GOOSE_AUTH_TOKEN",
-		"GOOSE_AUTH_REFRESH", "MY_TOKEN", "MY_SECRET", "PASSWORD",
+		"ANTHROPIC_API_KEY", "OPENAI_API_KEY",
+		"GOOSE_AUTH_TOKEN", "GOOSE_AUTH_REFRESH",
+		"MINK_AUTH_TOKEN", "MINK_AUTH_REFRESH",
+		"MY_TOKEN", "MY_SECRET", "PASSWORD",
 	}
 	for _, k := range denyListed {
 		assert.NotContains(t, resultMap, k, "%s should be scrubbed", k)

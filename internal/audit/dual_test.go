@@ -123,11 +123,11 @@ func TestDualWriter_Close(t *testing.T) {
 }
 
 func TestDefaultGlobalAuditPath(t *testing.T) {
-	// Set GOOSE_HOME for test
-	oldHome := os.Getenv("GOOSE_HOME")
-	defer func() { _ = os.Setenv("GOOSE_HOME", oldHome) }()
+	// Set MINK_HOME for test (legacy: GOOSE_HOME)
+	oldHome := os.Getenv("MINK_HOME")
+	defer func() { _ = os.Setenv("MINK_HOME", oldHome) }()
 
-	_ = os.Setenv("GOOSE_HOME", "/test/goose")
+	_ = os.Setenv("MINK_HOME", "/test/goose")
 
 	path, err := DefaultGlobalAuditPath()
 
@@ -288,11 +288,16 @@ func TestDualWriter_Close_ErrorPaths(t *testing.T) {
 }
 
 func TestDefaultGlobalAuditPath_NoGOOSE_HOME(t *testing.T) {
-	// Arrange: Unset GOOSE_HOME
-	oldHome := os.Getenv("GOOSE_HOME")
-	defer func() { _ = os.Setenv("GOOSE_HOME", oldHome) }()
+	// Arrange: Unset MINK_HOME (legacy: GOOSE_HOME). 함수명은 backward compat 의미 보존.
+	oldMink := os.Getenv("MINK_HOME")
+	oldGoose := os.Getenv("GOOSE_HOME")
+	defer func() {
+		_ = os.Setenv("MINK_HOME", oldMink)
+		_ = os.Setenv("GOOSE_HOME", oldGoose)
+	}()
 
-	_ = os.Unsetenv("GOOSE_HOME")
+	_ = os.Unsetenv("MINK_HOME")
+	_ = os.Unsetenv("GOOSE_HOME") // SPEC-MINK-ENV-MIGRATE-001: alias loader fallback 차단
 
 	// Act: Get default path
 	path, err := DefaultGlobalAuditPath()
