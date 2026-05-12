@@ -137,3 +137,66 @@ Phase 1 진입 직전 worktree 에 BRAND-RENAME 무관한 322개 변경 (114 M +
 - doc-comment Goose brand-position 14건 정정 (internal/agent, internal/learning/*, internal/credproxy, internal/messaging/telegram, internal/command/adapter/aliasconfig)
 - test fixture "You are Goose..." → "You are Mink..." 2건 (coverage_test.go, redact/rules_test.go)
 - config_test.go의 TestLoad_GooseHome_Unset → TestLoad_MinkHome_Unset 함수명 정정 (struct field 참조 comment → MinkHome)
+- Phase 3 commit hash: `b196dd3`
+
+---
+
+## Phase 4-8 + Hotfix (2026-05-12) — All Complete
+
+| Phase | Commit | 요약 | 검증 |
+|-------|--------|------|------|
+| 4 | `bd47817` | proto package goose.v1 → mink.v1 atomic (proto/mink/v1/ + buf regen + 옛 goosev1/ 삭제 + .go import 일괄 치환). expert-refactoring 위임. | proto/=mink, gen/=minkv1, build/vet/gofmt 통과 |
+| 5 | `a69830d` | CLI binary cmd/goose→mink, cmd/goosed→minkd, doc-comment 6건. expert-refactoring 위임. | mink+minkd 바이너리 빌드 성공 (36.8MB + 11.4MB) |
+| 5-fix | `b5efaa5` | hotfix: cmd/minkd/main.go:1 의 invented `AI.MINK` → `MINK` (style-guide §1 위반 정정, main session 즉시 catch) | grep AI.MINK = 0 |
+| 6 | `e39670b` | .github/{PULL_REQUEST_TEMPLATE.md, ISSUE_TEMPLATE/*.yml, dependabot.yml} modu-ai/mink + MINK 정정 (5 files). main session 직접 처리. | grep modu-ai/goose .github/ = 0 |
+| 8 | `8ab36fe` | 27 .go 파일 user-facing string AI.GOOSE → MINK (batch sed). main session 직접 처리. | grep AI.GOOSE .go = 0, build/vet/gofmt 통과 |
+| 7 | `261e605` | 36 .md 파일 docs sweep AI.GOOSE → MINK + check-brand.sh exemption 확장 (SPEC-MINK-* 모두) + branding.md 의미 정정 3 line. | brand-lint OK 0 violations |
+
+### 진행 중 발견 / 정정
+
+- **Phase 5 (a69830d) 직후**: expert-refactoring 이 cmd/minkd/main.go 의 brand-position 산문을 `AI.MINK` 로 잘못 변환. main session 의 즉시 grep 으로 catch, hotfix `b5efaa5` 적용. (lesson_subagent_analysis_verification 패턴 재확인 — subagent claims about broader-codebase need verification)
+- **Phase 7 진행 중**: sibling SPEC-MINK-PRODUCT-V7-001 + DISTANCING-STATEMENT-001 의 `AI.GOOSE → MINK` 컨텍스트 산문이 sed 로 `MINK → MINK` 로 깨짐. `git checkout HEAD --` 으로 복구 + check-brand.sh exemption 확장 (SPEC-MINK-*) 적용. 두 SPEC 은 PR #166/#167 머지 완료된 immutable archive 로 처리.
+- **LSP stale**: Phase 3 / Phase 4 직후 LSP 가 GooseHome BrokenImport / DuplicateDecl 가짜 에러 보고. main session 의 `go build ./...` 직접 verify 로 실제 정상 확인. lesson_lsp_stale_after_codegen 12회 재확인.
+
+## 최종 검증 (HEAD = 261e605, 2026-05-12)
+
+| 항목 | 기대 | 실제 | 상태 |
+|------|------|------|------|
+| `head -1 go.mod` | `module github.com/modu-ai/mink` | 일치 | ✅ |
+| `ls cmd/` | `mink`, `minkd` | 일치 | ✅ |
+| `ls proto/` | `mink` | 일치 | ✅ |
+| `ls internal/transport/grpc/gen/` | `minkv1` | 일치 | ✅ |
+| `go build ./...` | exit 0 | exit 0 | ✅ |
+| `go vet ./...` | exit 0 | exit 0 | ✅ |
+| `gofmt -l .` | empty | empty | ✅ |
+| `bash scripts/check-brand.sh` | OK 0 violations | OK 0 violations | ✅ |
+| `grep github.com/modu-ai/goose` (.go, vendor 제외) | 0 | 0 | ✅ |
+| `grep GooseHome` (.go) | 0 | 0 | ✅ |
+| `grep AI.GOOSE` (excl exemption) | 0 | 0 | ✅ |
+
+## Branch state
+
+`feature/SPEC-MINK-BRAND-RENAME-001` (9 commits ahead of `main` 0ae0094):
+
+```
+261e605 Phase 7 docs sweep
+8ab36fe Phase 8 .go user-facing
+e39670b Phase 6 CI templates
+b5efaa5 Phase 5 hotfix AI.MINK→MINK
+a69830d Phase 5 cmd/{mink,minkd}
+bd47817 Phase 4 proto mink.v1
+b196dd3 Phase 3 GooseHome→MinkHome
+ee26004 Phase 2 Go module path
+bba61a8 Phase 1 style-guide + brand-lint
+```
+
+## Post-merge 작업 (PR squash merge 후 별도 단독 작업)
+
+1. `gh repo rename mink --repo modu-ai/goose` — GitHub repo rename (1회)
+2. 로컬 clone remote URL 갱신: `git remote set-url origin https://github.com/modu-ai/mink.git`
+3. 선행 SPEC supersede commit (orchestrator 단독, 별도 commit):
+   - `.moai/specs/SPEC-GOOSE-BRAND-RENAME-001/spec.md` frontmatter `status: completed → superseded`
+   - `## HISTORY` 표 1 row append (v0.1.2)
+4. `/moai sync SPEC-MINK-BRAND-RENAME-001`
+5. 322 stash 복구 검토 (main session, stash@{0})
+6. 후속 SPEC plan 작성 권장: `SPEC-MINK-ENV-MIGRATE-001`, `SPEC-MINK-USERDATA-MIGRATE-001`
