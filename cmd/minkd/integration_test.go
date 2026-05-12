@@ -702,3 +702,66 @@ func TestAliasStrict_AliasLoader_GooseOnly(t *testing.T) {
 		t.Fatal("timeout: runWithContext가 5초 내에 종료되지 않음")
 	}
 }
+
+// ---- SPEC-MINK-ENV-MIGRATE-001 §7.1 — main wire-up env alias 통합 테스트 ----
+
+// TestMain_EnvAlias_MinkHomeOnly는 MINK_HOME 단독 설정 시 daemon 정상 부팅을 검증한다.
+// AC-MINK-EM-003: MINK_HOME 우선 사용.
+func TestMain_EnvAlias_MinkHomeOnly(t *testing.T) {
+	home := makeTestHome(t)
+	t.Setenv("MINK_HOME", home)
+	t.Setenv("GOOSE_HOME", "")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	exitCh := make(chan int, 1)
+	go func() { exitCh <- runWithContext(ctx) }()
+	time.Sleep(300 * time.Millisecond)
+	cancel()
+	select {
+	case <-exitCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout: runWithContext가 5초 내에 종료되지 않음 (MINK_HOME 단독)")
+	}
+}
+
+// TestMain_EnvAlias_GooseHomeOnly는 GOOSE_HOME 단독 (legacy alias) 설정 시 daemon 정상 부팅을 검증한다.
+// AC-MINK-EM-002: backward compat 보장.
+func TestMain_EnvAlias_GooseHomeOnly(t *testing.T) {
+	home := makeTestHome(t)
+	t.Setenv("MINK_HOME", "")
+	t.Setenv("GOOSE_HOME", home)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	exitCh := make(chan int, 1)
+	go func() { exitCh <- runWithContext(ctx) }()
+	time.Sleep(300 * time.Millisecond)
+	cancel()
+	select {
+	case <-exitCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout: runWithContext가 5초 내에 종료되지 않음 (GOOSE_HOME alias)")
+	}
+}
+
+// TestMain_EnvAlias_BothSet_PrefersMink는 MINK_HOME + GOOSE_HOME 동시 설정 시
+// MINK_HOME 우선 사용을 검증한다.
+// AC-MINK-EM-004: 충돌 시 MINK_X 우선, GOOSE_X 무시 (warning emit는 envalias unit test 가 검증).
+func TestMain_EnvAlias_BothSet_PrefersMink(t *testing.T) {
+	minkHome := makeTestHome(t)
+	gooseHome := makeTestHome(t) // 다른 디렉토리 — MINK 우선 검증 위해
+	t.Setenv("MINK_HOME", minkHome)
+	t.Setenv("GOOSE_HOME", gooseHome)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	exitCh := make(chan int, 1)
+	go func() { exitCh <- runWithContext(ctx) }()
+	time.Sleep(300 * time.Millisecond)
+	cancel()
+	select {
+	case <-exitCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout: runWithContext가 5초 내에 종료되지 않음 (MINK+GOOSE 동시)")
+	}
+	// MINK_HOME 의 config.yaml 이 사용되었는지는 daemon 종료 후 검증 어려움 — Phase 2 unit test
+	// (TestEnvOverlay_BothSet_PrefersMink in internal/config/env_test.go) 가 동일 로직을 직접 검증.
+}
