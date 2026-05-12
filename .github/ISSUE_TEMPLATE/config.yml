@@ -1,11 +1,11 @@
 blank_issues_enabled: false
 contact_links:
   - name: Question or Idea
-    url: https://github.com/modu-ai/goose/discussions
+    url: https://github.com/modu-ai/mink/discussions
     about: Use GitHub Discussions for questions, ideas, and design conversations.
   - name: Security Vulnerability
-    url: https://github.com/modu-ai/goose/security/advisories/new
+    url: https://github.com/modu-ai/mink/security/advisories/new
     about: Please report security issues privately, not as public issues.
   - name: Code of Conduct
-    url: https://github.com/modu-ai/goose/blob/main/CODE_OF_CONDUCT.md
+    url: https://github.com/modu-ai/mink/blob/main/CODE_OF_CONDUCT.md
     about: Read the community standards before participating.
