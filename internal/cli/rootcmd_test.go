@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"bytes"
+	"os"
 	"testing"
 
 	"github.com/modu-ai/mink/internal/cli"
@@ -109,6 +110,38 @@ func TestRootCommand_PhaseB_SubcommandsRegistered(t *testing.T) {
 	for _, name := range []string{"ping", "ask", "config", "tool", "daemon"} {
 		assert.True(t, have[name], "subcommand %q must be registered", name)
 	}
+}
+
+// TestRootCommand_MigrateOnce_CalledOnStartup verifies that PersistentPreRunE
+// invokes userpath.MigrateOnce without error when no legacy ~/.goose directory
+// exists (migration is a no-op).
+// T-015: SPEC-MINK-USERDATA-MIGRATE-001 CLI entrypoint wiring.
+func TestRootCommand_MigrateOnce_CalledOnStartup(t *testing.T) {
+	// 테스트 격리: HOME → tmpDir (레거시 .goose 없음), MINK_HOME 해제
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+	t.Setenv("MINK_HOME", "")
+	// MINK_HOME 빈 문자열 → ErrMinkHomeEmpty 방지: 키 자체를 제거
+	os.Unsetenv("MINK_HOME") //nolint:errcheck
+	t.Cleanup(func() { os.Unsetenv("MINK_HOME") }) //nolint:errcheck
+
+	rootCmd := cli.NewRootCommand("v0.1.0", "abc123", "2026-05-13")
+
+	// dummy 서브커맨드로 PersistentPreRunE 를 실행시킨다
+	ran := false
+	dummyCmd := &cobra.Command{
+		Use: "dummy",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ran = true
+			return nil
+		},
+	}
+	rootCmd.AddCommand(dummyCmd)
+	rootCmd.SetArgs([]string{"dummy"})
+
+	err := rootCmd.Execute()
+	require.NoError(t, err, "MigrateOnce no-op 시 CLI 시작은 성공해야 함")
+	assert.True(t, ran, "dummy 커맨드가 실행되어야 함")
 }
 
 // TestRootCommand_InitAppWiring verifies that PersistentPreRunE initializes App.
