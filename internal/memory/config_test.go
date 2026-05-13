@@ -11,14 +11,17 @@ import (
 )
 
 // TestMemoryConfig_Defaults verifies that zero-value produces correct defaults.
+// REQ-MINK-UDM-002. AC-005.
 func TestMemoryConfig_Defaults(t *testing.T) {
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+	os.Unsetenv("MINK_HOME")
+	t.Cleanup(func() { os.Unsetenv("MINK_HOME") })
+
 	var cfg MemoryConfig
 	cfg.ApplyDefaults()
 
-	homeDir, err := os.UserHomeDir()
-	require.NoError(t, err)
-
-	expectedPath := filepath.Join(homeDir, ".goose", "memory", "memory.db")
+	expectedPath := filepath.Join(fakeHome, ".mink", "memory", "memory.db")
 	assert.Equal(t, expectedPath, cfg.Builtin.DBPath)
 	assert.Equal(t, 10000, cfg.Builtin.MaxRows)
 }
@@ -68,14 +71,17 @@ func TestMemoryConfig_EmptyPluginName(t *testing.T) {
 }
 
 // TestMemoryConfig_BuiltinDefaults verifies db_path and max_rows defaults.
+// REQ-MINK-UDM-002. AC-005.
 func TestMemoryConfig_BuiltinDefaults(t *testing.T) {
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+	os.Unsetenv("MINK_HOME")
+	t.Cleanup(func() { os.Unsetenv("MINK_HOME") })
+
 	cfg := MemoryConfig{}
 	cfg.ApplyDefaults()
 
-	homeDir, err := os.UserHomeDir()
-	require.NoError(t, err)
-
-	expectedPath := filepath.Join(homeDir, ".goose", "memory", "memory.db")
+	expectedPath := filepath.Join(fakeHome, ".mink", "memory", "memory.db")
 	assert.Equal(t, expectedPath, cfg.Builtin.DBPath)
 	assert.Equal(t, 10000, cfg.Builtin.MaxRows)
 }

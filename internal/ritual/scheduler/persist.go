@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/modu-ai/mink/internal/userpath"
 )
 
 // SchedulePersister is the persistence interface for SchedulerConfig.
@@ -27,18 +29,21 @@ type FilePersister struct {
 }
 
 // NewFilePersister constructs a FilePersister rooted at homeDir.
-// When homeDir is empty the user's home directory is derived from os.UserHomeDir().
-// The default file path is <homeDir>/.goose/ritual/schedule.json.
+// When homeDir is empty the user's home directory is derived from userpath.UserHomeE()
+// which returns ~/.mink. The default file path is ~/.mink/ritual/schedule.json.
+// When homeDir is non-empty, it is used as-is (for testing with tmpDir).
+// REQ-MINK-UDM-002: userpath.UserHomeE() 경유.
 func NewFilePersister(homeDir string) *FilePersister {
 	if homeDir == "" {
 		var err error
-		homeDir, err = os.UserHomeDir()
+		homeDir, err = userpath.UserHomeE()
 		if err != nil {
-			homeDir = "."
+			// fallback: $HOME/.mink
+			homeDir = filepath.Join(os.Getenv("HOME"), ".mink")
 		}
 	}
 	return &FilePersister{
-		Path: filepath.Join(homeDir, ".goose", "ritual", "schedule.json"),
+		Path: filepath.Join(homeDir, "ritual", "schedule.json"),
 	}
 }
 

@@ -34,13 +34,13 @@ type MemoryScope string
 
 const (
 	// ScopeUser는 사용자 홈 디렉토리 기반 메모리 스코프이다.
-	// $HOME/.goose/agent-memory/{agentType}/
+	// ~/.mink/agent-memory/{agentType}/
 	ScopeUser MemoryScope = "user"
 	// ScopeProject는 프로젝트 루트 기반 메모리 스코프이다.
-	// {projectRoot}/.goose/agent-memory/{agentType}/
+	// {projectRoot}/.mink/agent-memory/{agentType}/
 	ScopeProject MemoryScope = "project"
 	// ScopeLocal는 git-ignored 로컬 메모리 스코프이다.
-	// {projectRoot}/.goose/agent-memory-local/{agentType}/
+	// {projectRoot}/.mink/agent-memory-local/{agentType}/
 	ScopeLocal MemoryScope = "local"
 )
 
