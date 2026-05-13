@@ -21,6 +21,7 @@ import (
 	"github.com/modu-ai/mink/internal/permission"
 	"github.com/modu-ai/mink/internal/tools"
 	"github.com/modu-ai/mink/internal/tools/web/common"
+	"github.com/modu-ai/mink/internal/userpath"
 )
 
 // webSearchSchema is the JSON Schema for the web_search tool input.
@@ -67,7 +68,7 @@ type webSearchData struct {
 	Results []searchResult `json:"results"`
 }
 
-// WebConfig holds settings loaded from ~/.goose/config/web.yaml.
+// WebConfig holds settings loaded from ~/.mink/config/web.yaml.
 type WebConfig struct {
 	// DefaultSearchProvider is the fallback provider when none is specified.
 	// Defaults to "brave" when absent.
@@ -425,8 +426,13 @@ func resolveProvider(explicit, cwd string) string {
 		return explicit
 	}
 	// Try loading web.yaml for default_search_provider.
+	// REQ-MINK-UDM-002: userpath.UserHomeE() 경유 → .mink/config/web.yaml.
+	minkHome, _ := userpath.UserHomeE()
+	if minkHome == "" {
+		minkHome = filepath.Join(os.Getenv("HOME"), ".mink")
+	}
 	paths := []string{
-		filepath.Join(os.Getenv("HOME"), ".goose", "config", "web.yaml"),
+		filepath.Join(minkHome, "config", "web.yaml"),
 	}
 	if cwd != "" {
 		paths = append([]string{filepath.Join(cwd, "web.yaml")}, paths...)

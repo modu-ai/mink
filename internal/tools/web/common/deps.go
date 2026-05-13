@@ -45,7 +45,7 @@ type Deps struct {
 	Clock func() time.Time
 
 	// Cwd is the working directory used to derive the bbolt cache path.
-	// Typically ~/.goose/cache/web/.
+	// Typically ~/.mink/cache/web/.
 	Cwd string
 
 	// SubjectIDProvider returns the permission subject ID for the calling context.

@@ -100,7 +100,7 @@ func productionOfflineFactory(deps *common.Deps) OfflineStore {
 }
 
 // offlineBaseDir derives the directory for offline fallback files.
-// Production: ~/.goose/cache/weather/
+// Production: ~/.mink/cache/weather/
 // Test: <deps.Cwd>/weather/
 func offlineBaseDir(cwd string) string {
 	if cwd == "" {

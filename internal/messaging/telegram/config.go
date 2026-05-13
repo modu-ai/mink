@@ -6,6 +6,8 @@ import (
 	"os"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/modu-ai/mink/internal/userpath"
 )
 
 // ErrPlainTokenRejected is returned when a YAML config file contains a bot_token
@@ -34,7 +36,7 @@ type WebhookConfig struct {
 }
 
 // Config holds the Telegram channel configuration loaded from
-// ~/.goose/messaging/telegram.yaml (or a custom path).
+// ~/.mink/messaging/telegram.yaml (or a custom path).
 type Config struct {
 	// BotUsername is the bot's @username (without @), populated during setup.
 	BotUsername string `yaml:"bot_username"`
@@ -159,10 +161,12 @@ func LoadConfig(path string) (*Config, error) {
 }
 
 // DefaultConfigPath returns the default path for the Telegram config file.
+// REQ-MINK-UDM-002: userpath.UserHomeE() 경유 → ~/.mink/messaging/telegram.yaml.
 func DefaultConfigPath() (string, error) {
-	home, err := os.UserHomeDir()
+	home, err := userpath.UserHomeE()
 	if err != nil {
-		return "", fmt.Errorf("telegram: determine home dir: %w", err)
+		// fallback: $HOME/.mink/messaging/telegram.yaml
+		home = os.Getenv("HOME") + "/.mink"
 	}
-	return home + "/.goose/messaging/telegram.yaml", nil
+	return home + "/messaging/telegram.yaml", nil
 }
