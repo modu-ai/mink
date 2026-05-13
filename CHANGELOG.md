@@ -5,6 +5,32 @@
 
 ## [Unreleased]
 
+### Changed — SPEC-MINK-USERDATA-MIGRATE-001 v0.1.3 (`~/.goose/` → `~/.mink/` user-data path 1회 자동 마이그레이션)
+
+19-task P1+P2 atomic 구현 (impl/SPEC-MINK-USERDATA-MIGRATE-001 branch):
+
+- **신규 패키지** `internal/userpath`: `UserHomeE()` (`$MINK_HOME` 또는 `$HOME/.mink`) + `ProjectLocal(cwd)` (`cwd/.mink`) + `TempPrefix()` (`.mink-`) + `LegacyHome()` (`$HOME/.goose`) + `MigrateOnce()` (1회 자동 마이그레이션, sync.Once) + migration lock + EXDEV copy fallback
+- **T-001~T-007 (P1)**: userpath 패키지 TDD RED→GREEN→REFACTOR (UserHomeE, ProjectLocal, TempPrefix, LegacyHome, MigrateOnce rename+lock, EXDEV copy, brand-verify)
+- **T-008~T-014 (P2 callsite 마이그레이션)**: 12 production callsite 를 userpath 패키지 경유로 변환
+  - `internal/permission/store/file.go`: `.goose/permissions/` → `userpath.UserHomeE()+"/permissions/"`
+  - `internal/mcp/credentials.go`: `credentialsDir` const → `credentialsDirName` + `userpath.UserHomeE()+"/mcp-credentials/"`
+  - `internal/cli/tui/model.go`: `defaultPermStorePath()` → `userpath.UserHomeE()+"/permissions.json"`
+  - `internal/memory/config.go`: `ApplyDefaults()` → `userpath.UserHomeE()+"/memory/memory.db"`
+  - `internal/ritual/scheduler/persist.go`: `NewFilePersister("")` → `userpath.UserHomeE()+"/ritual/schedule.json"`
+  - `internal/subagent/memory.go` + `run.go`: ScopeProject/Local → `userpath.ProjectLocal()`, transcriptDir → `homeDir/agent-memory/`
+  - `internal/messaging/telegram/config.go` + `store.go`: `userpath.UserHomeE()+"/messaging/..."`
+  - `internal/tools/builtin/file/write.go`: `os.CreateTemp(dir, ".goose-write-*")` → `userpath.TempPrefix()+"write-*"` (AC-006)
+  - `internal/tools/web/search.go`: `userpath.UserHomeE()+"/config/web.yaml"`
+  - `internal/command/adapter/aliasconfig/loader.go` + `merge.go`: `.goose/aliases.yaml` → `.mink/aliases.yaml`
+  - `internal/cli/commands/messaging_telegram.go`: `userpath.UserHomeE()+"/messaging"`
+  - `internal/qmd/config.go`: `./IndexPath` + 5 IndexRoots `.goose/` → `.mink/`
+- **T-015**: CLI 진입점 (`internal/cli/rootcmd.go` `PersistentPreRunE`) 에서 `userpath.MigrateOnce()` 호출 (비치명적)
+- **T-016**: Daemon 진입점 (`cmd/minkd/main.go` step 2b) 에서 `userpath.MigrateOnce()` 호출 (비치명적)
+- **T-017**: 테스트 파일 subprocess env `GOOSE_HOME`/`GOOSE_HEALTH_PORT`/`GOOSE_LOG_LEVEL` → `MINK_*` 마이그레이션
+- **AC-005 gate**: production `.goose` path literal = 0 (`internal/userpath/legacy.go` 제외)
+- **AC-006 gate**: 모든 tmp 파일 prefix `.mink-` 사용
+- **REQ-MINK-UDM-002**: 모든 callsite userpath 패키지 경유
+
 ### Changed — SPEC-MINK-ENV-MIGRATE-001 v0.2.0 (env vars `GOOSE_*` → `MINK_*` deprecation alias loader)
 
 6-phase atomic 구현 (PR #171, 6 commits squash merge):
