@@ -2,11 +2,15 @@ package userpath
 
 import (
 	"context"
+	"crypto/sha256"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 )
 
@@ -32,21 +36,26 @@ type MigrationResult struct {
 }
 
 // 마이그레이션 process-level 캐시.
-// sync.Once 는 doMigrate 의 첫 실행을 보장한다.
-// migrateCallCount 는 호출 횟수를 추적하여 두 번째 이후 Migrated=false 를 반환하는 데 사용된다.
 var (
 	migrateOnce        sync.Once
 	migrateFirstResult MigrationResult
 	migrateFirstErr    error
-	migrateCallCount   atomic.Int64 // 첫 번째(1) 이후에는 Migrated=false
+	migrateCallCount   atomic.Int64
 )
 
 // renameFunc는 os.Rename 의 테스트 seam 이다.
-// T-005 에서 EXDEV 시뮬레이션에 사용된다.
 //
 // @MX:WARN: [AUTO] 패키지 레벨 가변 함수 포인터 — 테스트 전용 seam, 프로덕션에서 재할당 금지
 // @MX:REASON: T-005 EXDEV 테스트 격리에 필요; ResetMigrateForTesting() 이 항상 복원
 var renameFunc = os.Rename
+
+// copyFileFunc는 단일 파일 복사의 테스트 seam 이다.
+// T-005 mid-copy 실패 시뮬레이션에 사용한다.
+var copyFileFunc = defaultCopyFile
+
+// verifyHashFunc는 src↔dst SHA-256 비교의 테스트 seam 이다.
+// T-005 checksum mismatch 시뮬레이션에 사용한다.
+var verifyHashFunc = defaultVerifyHash
 
 // migrationNotice는 AC-001 #6 gate 를 만족하는 마이그레이션 완료 메시지이다.
 // - 'goose' 단어 0건
@@ -54,12 +63,6 @@ var renameFunc = os.Rename
 const migrationNotice = "INFO: 사용자 데이터가 이전 디렉토리에서 새 mink 디렉토리(밍크)로 마이그레이션되었습니다."
 
 // MigrateOnce는 ~/.goose/ → ~/.mink/ 의 최초 1회 자동 마이그레이션을 수행한다.
-// process-level 멱등성은 sync.Once 로 보장한다.
-// 두 번째 이후 호출은 항상 Migrated=false 를 반환한다.
-// cross-process 안전성은 T-006 에서 파일 락으로 추가 구현된다.
-//
-// REQ-MINK-UDM-007: 첫 실행 시 MigrateOnce 호출.
-// REQ-MINK-UDM-013: typed error 계약 (caller 가 fail-fast vs graceful 결정).
 //
 // @MX:ANCHOR: [AUTO] process-lifetime 마이그레이션 invariant — CLI + daemon 진입점에서 1회 호출
 // @MX:REASON: fan_in expected 2 (cmd/mink T-015, cmd/minkd T-016); 중요 사용자 데이터 이동 경로
@@ -69,7 +72,6 @@ func MigrateOnce(ctx context.Context) (MigrationResult, error) {
 		migrateFirstResult, migrateFirstErr = doMigrate(ctx)
 	})
 	if callNum > 1 {
-		// 두 번째 이후 호출: Migrated=false (process-level 멱등)
 		return MigrationResult{
 			Migrated:   false,
 			SourcePath: migrateFirstResult.SourcePath,
@@ -80,8 +82,6 @@ func MigrateOnce(ctx context.Context) (MigrationResult, error) {
 }
 
 // resolveUserHomePath는 MkdirAll 없이 MINK 홈 경로만 계산한다.
-// doMigrate 에서 rename 대상 경로 계산 시 사용한다
-// (UserHomeE 는 MkdirAll 을 호출하여 rename 을 방해할 수 있기 때문).
 func resolveUserHomePath() (string, error) {
 	if value, ok := os.LookupEnv("MINK_HOME"); ok {
 		if value == "" {
@@ -100,9 +100,8 @@ func resolveUserHomePath() (string, error) {
 }
 
 // doMigrate는 실제 마이그레이션 로직을 수행한다.
-// MigrateOnce 의 sync.Once 안에서 정확히 한 번 실행된다.
 func doMigrate(ctx context.Context) (MigrationResult, error) {
-	_ = ctx // 향후 context 취소 지원을 위해 예약
+	_ = ctx
 
 	legacyHome := LegacyHome()
 	userHome, err := resolveUserHomePath()
@@ -110,7 +109,7 @@ func doMigrate(ctx context.Context) (MigrationResult, error) {
 		return MigrationResult{Err: err}, err
 	}
 
-	// 1. T-007: symlink 감지 (lstat — 심볼릭 링크를 따라가지 않음)
+	// 1. T-007: symlink 감지
 	lstatInfo, lstatErr := os.Lstat(legacyHome)
 	if lstatErr == nil && lstatInfo.Mode()&os.ModeSymlink != 0 {
 		return MigrationResult{Err: ErrSymlinkPath, SourcePath: legacyHome}, ErrSymlinkPath
@@ -118,41 +117,159 @@ func doMigrate(ctx context.Context) (MigrationResult, error) {
 
 	// 2. 레거시 디렉토리 존재 확인
 	if os.IsNotExist(lstatErr) {
-		// .goose 없음 — no-op
 		return MigrationResult{Migrated: false}, nil
 	}
 	if lstatErr != nil {
 		return MigrationResult{Err: lstatErr}, lstatErr
 	}
 
-	// 3. 이미 마이그레이션됐는지 확인 (marker 파일 + .mink 디렉토리 존재)
+	// 3. 이미 마이그레이션됐는지 확인
 	markerPath := filepath.Join(userHome, ".migrated-from-goose")
 	if _, markerErr := os.Stat(markerPath); markerErr == nil {
-		// marker 있음 → 이미 마이그레이션 완료 (T-007 dual-existence)
 		return MigrationResult{Migrated: false, SourcePath: legacyHome, DestPath: userHome}, nil
 	}
 
 	// 4. atomic rename 시도
-	if renameErr := renameFunc(legacyHome, userHome); renameErr != nil {
-		// T-005: EXDEV 감지 → copy fallback (T-005 에서 구현)
-		// T-004 scope: placeholder — no-op 반환 (T-005 가 EXDEV 분기를 채움)
-		return MigrationResult{Migrated: false, SourcePath: legacyHome, DestPath: userHome}, nil
+	renameErr := renameFunc(legacyHome, userHome)
+	if renameErr == nil {
+		// rename 성공
+		_ = writeMigrationMarker(markerPath, true)
+		return MigrationResult{
+			Migrated:   true,
+			Notice:     migrationNotice,
+			SourcePath: legacyHome,
+			DestPath:   userHome,
+			Method:     "rename",
+		}, nil
 	}
 
-	// 5. 성공: marker 파일 작성
-	_ = writeMigrationMarker(markerPath, true) // marker 실패는 non-fatal
+	// 5. EXDEV 감지 → copy fallback
+	if isEXDEV(renameErr) {
+		return doCopyFallback(legacyHome, userHome, markerPath)
+	}
+
+	// 기타 rename 실패: no-op (에러 미전파, T-004 범위)
+	return MigrationResult{Migrated: false, SourcePath: legacyHome, DestPath: userHome}, nil
+}
+
+// isEXDEV는 에러가 cross-device rename (syscall.EXDEV) 인지 판별한다.
+func isEXDEV(err error) bool {
+	var linkErr *os.LinkError
+	if errors.As(err, &linkErr) {
+		return errors.Is(linkErr.Err, syscall.EXDEV)
+	}
+	return false
+}
+
+// doCopyFallback는 EXDEV 오류 시 io.Copy + SHA-256 verify + cleanup 을 수행한다.
+//
+// @MX:WARN: [AUTO] 데이터 손실 위험 구간 — verify-before-remove 필수 (R2, REQ-015)
+// @MX:REASON: SHA-256 hash 불일치 시 source 보존 필수; 실패 시 partial dst 즉시 제거 (cleanup-on-failure)
+func doCopyFallback(src, dst, markerPath string) (MigrationResult, error) {
+	// Walk 후 각 파일 복사 + hash 검증
+	if err := filepath.Walk(src, func(srcPath string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, relErr := filepath.Rel(src, srcPath)
+		if relErr != nil {
+			return relErr
+		}
+		dstPath := filepath.Join(dst, rel)
+
+		if info.IsDir() {
+			return os.MkdirAll(dstPath, 0o700)
+		}
+
+		mode := info.Mode().Perm()
+		if copyErr := copyFileFunc(srcPath, dstPath, mode); copyErr != nil {
+			return copyErr
+		}
+		// SHA-256 검증
+		if hashErr := verifyHashFunc(srcPath, dstPath); hashErr != nil {
+			return hashErr
+		}
+		return nil
+	}); err != nil {
+		// 실패: partial dst 정리 (source 보존)
+		_ = os.RemoveAll(dst)
+		if errors.Is(err, ErrChecksumMismatch) {
+			return MigrationResult{Err: ErrChecksumMismatch, SourcePath: src, DestPath: dst}, ErrChecksumMismatch
+		}
+		return MigrationResult{Err: err, SourcePath: src, DestPath: dst}, err
+	}
+
+	// 모든 파일 복사 + 검증 성공 → source 제거 (verify-before-remove)
+	if removeErr := os.RemoveAll(src); removeErr != nil {
+		return MigrationResult{Err: removeErr, SourcePath: src, DestPath: dst}, removeErr
+	}
+
+	_ = writeMigrationMarker(markerPath, true)
 
 	return MigrationResult{
 		Migrated:   true,
 		Notice:     migrationNotice,
-		SourcePath: legacyHome,
-		DestPath:   userHome,
-		Method:     "rename",
+		SourcePath: src,
+		DestPath:   dst,
+		Method:     "copy",
 	}, nil
 }
 
+// defaultCopyFile는 단일 파일을 src → dst 로 복사하고 mode bits 를 적용한다.
+// REQ-MINK-UDM-019: mode bits 보존. R13.
+func defaultCopyFile(src, dst string, mode os.FileMode) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	if _, err = io.Copy(out, in); err != nil {
+		return err
+	}
+	// umask 간섭 방지를 위해 Chmod 를 명시적으로 호출
+	return os.Chmod(dst, mode)
+}
+
+// defaultVerifyHash는 src 와 dst 파일의 SHA-256 해시를 비교한다.
+// 불일치 시 ErrChecksumMismatch 를 반환한다.
+func defaultVerifyHash(src, dst string) error {
+	srcHash, err := sha256File(src)
+	if err != nil {
+		return err
+	}
+	dstHash, err := sha256File(dst)
+	if err != nil {
+		return err
+	}
+	if srcHash != dstHash {
+		return ErrChecksumMismatch
+	}
+	return nil
+}
+
+// sha256File는 파일의 SHA-256 hex digest 를 반환한다.
+func sha256File(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err = io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", h.Sum(nil)), nil
+}
+
 // writeMigrationMarker는 마이그레이션 marker 파일을 작성한다.
-// 포맷: migrated_at=<RFC3339> binary=<binary basename> brand_verified=<bool>
 func writeMigrationMarker(path string, brandVerified bool) error {
 	binaryName := filepath.Base(os.Args[0])
 	content := fmt.Sprintf("migrated_at=%s binary=%s brand_verified=%v\n",

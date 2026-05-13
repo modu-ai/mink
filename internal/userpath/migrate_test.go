@@ -4,7 +4,9 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -210,4 +212,138 @@ func TestMigrateOnce_Notice_GateCompliance(t *testing.T) {
 	minkCount := strings.Count(notice, "mink") + strings.Count(notice, "밍크")
 	assert.GreaterOrEqual(t, minkCount, 1,
 		"Notice must contain 'mink' or '밍크' (AC-001 #6 gate 2)")
+}
+
+// ── T-005: cross-filesystem copy fallback + mode bits + SHA-256 verify ──────
+
+// makeEXDEVError는 syscall.EXDEV 를 wrap 한 *os.LinkError 를 반환한다.
+func makeEXDEVError(src, dst string) error {
+	return &os.LinkError{Op: "rename", Old: src, New: dst, Err: syscall.EXDEV}
+}
+
+// TestMigrateOnce_CopyFallback_EXDEV는 EXDEV 오류 시 copy fallback 이 동작함을 검증한다.
+// REQ-MINK-UDM-009: copy fallback + SHA-256 verify. EC-5.
+func TestMigrateOnce_CopyFallback_EXDEV(t *testing.T) {
+	homeDir := setupMigrationEnv(t)
+	createLegacyDir(t, homeDir)
+
+	userpath.SetRenameFunc(func(src, dst string) error {
+		return makeEXDEVError(src, dst)
+	})
+
+	ctx := context.Background()
+	result, err := userpath.MigrateOnce(ctx)
+
+	require.NoError(t, err)
+	assert.True(t, result.Migrated, "EXDEV copy fallback must succeed and set Migrated=true")
+	assert.Equal(t, "copy", result.Method, "EXDEV fallback must set Method='copy'")
+
+	minkDir := filepath.Join(homeDir, ".mink")
+	// 3개 파일 모두 복사됐는지 확인
+	assert.FileExists(t, filepath.Join(minkDir, "memory", "memory.db"))
+	assert.FileExists(t, filepath.Join(minkDir, "permissions", "grants.json"))
+	assert.FileExists(t, filepath.Join(minkDir, "config.yaml"))
+
+	// 소스 디렉토리 제거됐는지 확인 (verify-before-remove)
+	_, statErr := os.Stat(filepath.Join(homeDir, ".goose"))
+	assert.True(t, os.IsNotExist(statErr), ".goose must be removed after successful copy fallback")
+
+	// marker 파일 존재
+	assert.FileExists(t, filepath.Join(minkDir, ".migrated-from-goose"))
+}
+
+// TestMigrateOnce_CopyFallback_ModeBits는 copy fallback 이 파일 mode bits 를 보존함을 검증한다.
+// REQ-MINK-UDM-019: mode bits 보존. AC-009.
+func TestMigrateOnce_CopyFallback_ModeBits(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("mode bits test is Linux/macOS only")
+	}
+	homeDir := setupMigrationEnv(t)
+
+	// 0600 mode 파일이 있는 .goose 디렉토리 생성
+	legacyDir := filepath.Join(homeDir, ".goose")
+	require.NoError(t, os.MkdirAll(legacyDir, 0o700))
+	sensitiveFile := filepath.Join(legacyDir, "secret.json")
+	require.NoError(t, os.WriteFile(sensitiveFile, []byte(`{"key":"val"}`), 0o600))
+
+	userpath.SetRenameFunc(func(src, dst string) error {
+		return makeEXDEVError(src, dst)
+	})
+
+	ctx := context.Background()
+	result, err := userpath.MigrateOnce(ctx)
+	require.NoError(t, err)
+	require.True(t, result.Migrated)
+
+	// 대상 파일의 mode bits 확인
+	destFile := filepath.Join(homeDir, ".mink", "secret.json")
+	info, err2 := os.Stat(destFile)
+	require.NoError(t, err2)
+	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm(),
+		"copied file must preserve source mode bits (0600 → 0600)")
+}
+
+// TestMigrateOnce_CopyFallback_MidCopyFailure는 copy 중 실패 시 source 보존 + dst 정리를 검증한다.
+// REQ-MINK-UDM-015: partial cleanup. AC-004a.
+func TestMigrateOnce_CopyFallback_MidCopyFailure(t *testing.T) {
+	homeDir := setupMigrationEnv(t)
+
+	// 2개 파일 생성 (두 번째 파일 복사 시 실패 유도)
+	legacyDir := filepath.Join(homeDir, ".goose")
+	require.NoError(t, os.MkdirAll(legacyDir, 0o700))
+	writeFile(t, filepath.Join(legacyDir, "file1.txt"), "content1")
+	writeFile(t, filepath.Join(legacyDir, "file2.txt"), "content2")
+
+	callCount := 0
+	userpath.SetCopyFileFunc(func(src, dst string, mode os.FileMode) error {
+		callCount++
+		if callCount == 2 {
+			// 두 번째 파일 복사 시 실패
+			return os.ErrInvalid
+		}
+		return nil
+	})
+	userpath.SetRenameFunc(func(src, dst string) error {
+		return makeEXDEVError(src, dst)
+	})
+
+	ctx := context.Background()
+	result, err := userpath.MigrateOnce(ctx)
+
+	// 에러 반환 (mid-copy failure)
+	assert.Error(t, err, "mid-copy failure must return an error")
+	assert.False(t, result.Migrated)
+
+	// 소스 보존됨
+	assert.FileExists(t, filepath.Join(legacyDir, "file1.txt"), "source must be preserved on failure")
+	assert.FileExists(t, filepath.Join(legacyDir, "file2.txt"), "source must be preserved on failure")
+
+	// 대상 정리됨 (partial dst removed)
+	_, statErr := os.Stat(filepath.Join(homeDir, ".mink"))
+	assert.True(t, os.IsNotExist(statErr), "partial .mink must be cleaned up on failure")
+}
+
+// TestMigrateOnce_CopyFallback_ChecksumMismatch는 hash 불일치 시 ErrChecksumMismatch 를 반환함을 검증한다.
+// REQ-MINK-UDM-009. R2.
+func TestMigrateOnce_CopyFallback_ChecksumMismatch(t *testing.T) {
+	homeDir := setupMigrationEnv(t)
+	createLegacyDir(t, homeDir)
+
+	userpath.SetRenameFunc(func(src, dst string) error {
+		return makeEXDEVError(src, dst)
+	})
+	// corrupt hasher: dst hash 를 항상 다르게 반환
+	userpath.SetVerifyHashFunc(func(src, dst string) error {
+		return userpath.ErrChecksumMismatch
+	})
+
+	ctx := context.Background()
+	result, err := userpath.MigrateOnce(ctx)
+
+	assert.ErrorIs(t, err, userpath.ErrChecksumMismatch,
+		"hash mismatch must return ErrChecksumMismatch")
+	assert.False(t, result.Migrated)
+
+	// 소스 보존됨
+	assert.DirExists(t, filepath.Join(homeDir, ".goose"), "source must be preserved on checksum mismatch")
 }
