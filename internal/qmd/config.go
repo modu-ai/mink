@@ -48,12 +48,13 @@ type Config struct {
 }
 
 // DefaultConfig returns a configuration with sensible defaults.
+// REQ-MINK-UDM-001: 프로젝트 로컬 경로 .goose → .mink.
 // @MX:ANCHOR: Default configuration factory (expected fan_in >= 3)
 func DefaultConfig() *Config {
 	return &Config{
 		Enabled:         true,
-		IndexPath:       "./.goose/data/qmd-index/",
-		ModelsPath:      "./.goose/data/models/",
+		IndexPath:       "./.mink/data/qmd-index/",
+		ModelsPath:      "./.mink/data/models/",
 		EmbedderModel:   "bge-small-en-v1.5.gguf",
 		RerankerModel:   "bge-reranker-base.gguf",
 		MaxResults:      10,
@@ -62,11 +63,11 @@ func DefaultConfig() *Config {
 		WatchDebounceMs: 500,
 		MCPEnabled:      false,
 		IndexRoots: []string{
-			"./.goose/memory",
-			"./.goose/context",
-			"./.goose/skills",
-			"./.goose/tasks",
-			"./.goose/rituals",
+			"./.mink/memory",
+			"./.mink/context",
+			"./.mink/skills",
+			"./.mink/tasks",
+			"./.mink/rituals",
 		},
 		ModelMirrorEnv: "QMD_MODEL_MIRROR",
 	}
