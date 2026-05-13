@@ -224,3 +224,51 @@ func TestLoadNonExistentReturnsError(t *testing.T) {
 		t.Error("Expected error loading non-existent session, got nil")
 	}
 }
+
+// ── T-010: session 패키지 userpath 마이그레이션 ────────────────────────────
+
+// TestDir_DefaultUsesMinkPath는 Dir() 기본값이 .mink/sessions 경로임을 검증한다.
+// REQ-MINK-UDM-002. AC-005.
+func TestDir_DefaultUsesMinkPath(t *testing.T) {
+	// testDir 을 비워서 기본 Dir() 동작 테스트
+	oldTestDir := testDir
+	testDir = ""
+	defer func() { testDir = oldTestDir }()
+
+	// HOME 을 임시 디렉토리로 설정 (os.UserHomeDir 와 $HOME 모두 격리)
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+	os.Unsetenv("MINK_HOME")
+	t.Cleanup(func() { os.Unsetenv("MINK_HOME") })
+
+	dir := Dir()
+	if contains := filepath.Base(filepath.Dir(dir)); contains != ".mink" {
+		// .mink 경로 검증: dir == fakeHome/.mink/sessions
+		expected := filepath.Join(fakeHome, ".mink", "sessions")
+		if dir != expected {
+			t.Errorf("Dir() = %q, want %q (must use .mink, REQ-MINK-UDM-002)", dir, expected)
+		}
+	}
+}
+
+// TestSave_TmpPrefix_UsesMinkPrefix는 Save 가 .mink-session-* tmp 파일 prefix 를 사용함을 검증한다.
+// REQ-MINK-UDM-004. AC-006.
+func TestSave_TmpPrefix_UsesMinkPrefix(t *testing.T) {
+	tmpDir := t.TempDir()
+	testDir = tmpDir
+	defer func() { testDir = "" }()
+
+	err := Save("test-prefix", []Message{{Role: "user", Content: "hi", Timestamp: 1}})
+	if err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
+
+	// 완료 후 tmp 파일은 삭제됨 — 세션 파일 존재 확인
+	files, _ := os.ReadDir(tmpDir)
+	for _, f := range files {
+		name := f.Name()
+		if len(name) > 4 && name[:4] == ".goo" {
+			t.Errorf("tmp file must not use .goose prefix, got: %s", name)
+		}
+	}
+}

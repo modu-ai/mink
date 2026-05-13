@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/modu-ai/mink/internal/userpath"
 )
 
 // maxEntries is the maximum number of sessions shown in the overlay.
@@ -51,11 +53,13 @@ func Load() []Entry {
 	return result
 }
 
-// sessionsDir returns the path to ~/.goose/sessions/.
+// sessionsDir returns the path to ~/.mink/sessions/.
+// REQ-MINK-UDM-002: userpath.UserHomeE() 경유.
 func sessionsDir() string {
-	home := os.Getenv("HOME")
-	if home == "" {
-		home, _ = os.UserHomeDir()
+	home, err := userpath.UserHomeE()
+	if err != nil {
+		// fallback: $HOME/.mink/sessions
+		return filepath.Join(os.Getenv("HOME"), ".mink", "sessions")
 	}
-	return filepath.Join(home, ".goose", "sessions")
+	return filepath.Join(home, "sessions")
 }
