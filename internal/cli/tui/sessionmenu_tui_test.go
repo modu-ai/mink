@@ -14,14 +14,19 @@ import (
 	"github.com/modu-ai/mink/internal/cli/tui/sessionmenu"
 )
 
-// setupSessionMenuHome creates a temp HOME with .goose/sessions/ and returns cleanup.
+// setupSessionMenuHome creates a temp HOME with .mink/sessions/ and returns cleanup.
+// REQ-MINK-UDM-002: sessionmenu.Load() 가 userpath.UserHomeE() 경유 .mink/sessions 사용.
 func setupSessionMenuHome(t *testing.T) (sessDir string, cleanup func()) {
 	t.Helper()
 	tmpDir := t.TempDir()
 	oldHome := os.Getenv("HOME")
 	os.Setenv("HOME", tmpDir)
-	sessDir = filepath.Join(tmpDir, ".goose", "sessions")
-	cleanup = func() { os.Setenv("HOME", oldHome) }
+	os.Unsetenv("MINK_HOME")
+	sessDir = filepath.Join(tmpDir, ".mink", "sessions")
+	cleanup = func() {
+		os.Setenv("HOME", oldHome)
+		os.Unsetenv("MINK_HOME")
+	}
 	return sessDir, cleanup
 }
 

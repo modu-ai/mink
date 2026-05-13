@@ -13,14 +13,16 @@ import (
 )
 
 // setupSessionTestHome overrides HOME to redirect session.Dir() to a tmpdir.
-// session.Dir() calls os.UserHomeDir() which reads the HOME env variable on Unix.
+// REQ-MINK-UDM-002: session.Dir() 가 userpath.UserHomeE() 경유 .mink/sessions 반환.
 func setupSessionTestHome(t *testing.T) (string, func()) {
 	t.Helper()
 	tmpDir := t.TempDir()
 	oldHome := os.Getenv("HOME")
 	os.Setenv("HOME", tmpDir)
-	return filepath.Join(tmpDir, ".goose", "sessions"), func() {
+	os.Unsetenv("MINK_HOME")
+	return filepath.Join(tmpDir, ".mink", "sessions"), func() {
 		os.Setenv("HOME", oldHome)
+		os.Unsetenv("MINK_HOME")
 	}
 }
 

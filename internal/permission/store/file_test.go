@@ -15,6 +15,29 @@ import (
 	"github.com/modu-ai/mink/internal/permission"
 )
 
+// ── T-011: permission store userpath 마이그레이션 ─────────────────────────────
+
+// TestNewFileStore_DefaultPath_UsesMinkDir는 NewFileStore 기본 경로가
+// ~/.mink/permissions/grants.json 임을 검증한다.
+// REQ-MINK-UDM-002. AC-005.
+func TestNewFileStore_DefaultPath_UsesMinkDir(t *testing.T) {
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+	os.Unsetenv("MINK_HOME")
+	t.Cleanup(func() { os.Unsetenv("MINK_HOME") })
+
+	f, err := NewFileStore("", nil)
+	require.NoError(t, err)
+	require.NoError(t, f.Open())
+	defer f.Close()
+
+	// 기본 경로 = fakeHome/.mink/permissions/grants.json
+	expected := filepath.Join(fakeHome, ".mink", "permissions", "grants.json")
+	if _, statErr := os.Stat(expected); statErr != nil {
+		t.Errorf("expected grants.json at %q, got stat error: %v", expected, statErr)
+	}
+}
+
 func TestMain(m *testing.M) {
 	goleak.VerifyTestMain(m)
 }

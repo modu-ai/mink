@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/modu-ai/mink/internal/permission"
+	"github.com/modu-ai/mink/internal/userpath"
 )
 
 // grantsFile은 grants.json의 직렬화 스키마다.
@@ -85,17 +86,19 @@ type FileStore struct {
 }
 
 // NewFileStore는 지정 경로의 FileStore를 생성한다.
-// path가 빈 문자열이면 기본 경로(~/.goose/permissions/grants.json)를 사용한다.
+// path가 빈 문자열이면 기본 경로(~/.mink/permissions/grants.json)를 사용한다.
+// REQ-MINK-UDM-002: userpath.UserHomeE() 경유.
 func NewFileStore(path string, logger *zap.Logger) (*FileStore, error) {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
 	if path == "" {
-		home, err := os.UserHomeDir()
+		home, err := userpath.UserHomeE()
 		if err != nil {
-			return nil, fmt.Errorf("resolve home dir: %w", err)
+			// fallback: $HOME/.mink/permissions/grants.json
+			home = filepath.Join(os.Getenv("HOME"), ".mink")
 		}
-		path = filepath.Join(home, ".goose", "permissions", "grants.json")
+		path = filepath.Join(home, "permissions", "grants.json")
 	}
 	return &FileStore{
 		path:   path,

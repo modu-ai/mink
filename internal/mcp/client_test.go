@@ -1094,11 +1094,15 @@ func TestMCP_PromptToSkill_Registered(t *testing.T) {
 
 // --- 추가 검증: SaveCredential / LoadCredential 기본 동작 ---
 func TestSaveAndLoadCredential(t *testing.T) {
-	// 임시 HOME 설정
+	// 임시 HOME 설정 (REQ-MINK-UDM-002: .mink 격리)
 	oldHome := os.Getenv("HOME")
 	tmpHome := t.TempDir()
 	os.Setenv("HOME", tmpHome)
-	defer os.Setenv("HOME", oldHome)
+	os.Unsetenv("MINK_HOME")
+	defer func() {
+		os.Setenv("HOME", oldHome)
+		os.Unsetenv("MINK_HOME")
+	}()
 
 	ts := &TokenSet{
 		AccessToken:  "access123",
@@ -1109,8 +1113,8 @@ func TestSaveAndLoadCredential(t *testing.T) {
 	err := SaveCredential("test-server", ts)
 	require.NoError(t, err)
 
-	// credential 파일 mode 확인
-	path := filepath.Join(tmpHome, credentialsDir, "test-server.json")
+	// credential 파일 mode 확인 (.mink/mcp-credentials/, REQ-MINK-UDM-002)
+	path := filepath.Join(tmpHome, ".mink", credentialsDirName, "test-server.json")
 	fi, err := os.Stat(path)
 	require.NoError(t, err)
 	assert.Equal(t, os.FileMode(0600), fi.Mode()&0777)
@@ -1128,7 +1132,11 @@ func TestLoadCredential_FileMode(t *testing.T) {
 	oldHome := os.Getenv("HOME")
 	tmpHome := t.TempDir()
 	os.Setenv("HOME", tmpHome)
-	defer os.Setenv("HOME", oldHome)
+	os.Unsetenv("MINK_HOME")
+	defer func() {
+		os.Setenv("HOME", oldHome)
+		os.Unsetenv("MINK_HOME")
+	}()
 
 	// 먼저 정상 credential 저장
 	ts := &TokenSet{AccessToken: "tok"}
@@ -1136,7 +1144,7 @@ func TestLoadCredential_FileMode(t *testing.T) {
 	require.NoError(t, err)
 
 	// 파일 mode를 0644로 변경 (0600 초과)
-	path := filepath.Join(tmpHome, credentialsDir, "fx.json")
+	path := filepath.Join(tmpHome, ".mink", credentialsDirName, "fx.json")
 	err = os.Chmod(path, 0644)
 	require.NoError(t, err)
 
