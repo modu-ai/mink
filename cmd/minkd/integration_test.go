@@ -765,3 +765,37 @@ func TestMain_EnvAlias_BothSet_PrefersMink(t *testing.T) {
 	// MINK_HOME 의 config.yaml 이 사용되었는지는 daemon 종료 후 검증 어려움 — Phase 2 unit test
 	// (TestEnvOverlay_BothSet_PrefersMink in internal/config/env_test.go) 가 동일 로직을 직접 검증.
 }
+
+// ---- T-016: SPEC-MINK-USERDATA-MIGRATE-001 — daemon 진입점 MigrateOnce 연동 ----
+
+// TestRunWithContext_MigrateOnce_NoopWhenNoLegacyDir는 레거시 ~/.goose 디렉토리가
+// 없을 때 MigrateOnce가 no-op으로 처리되고 데몬이 정상 부팅하는지 검증한다.
+// T-016: SPEC-MINK-USERDATA-MIGRATE-001 daemon 진입점 wiring.
+func TestRunWithContext_MigrateOnce_NoopWhenNoLegacyDir(t *testing.T) {
+	// HOME 격리: 레거시 .goose 없음 → 마이그레이션 no-op
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+	t.Setenv("MINK_HOME", "")
+	os.Unsetenv("MINK_HOME") //nolint:errcheck
+	t.Cleanup(func() { os.Unsetenv("MINK_HOME") }) //nolint:errcheck
+
+	// MINK_HOME 미설정 → config.Load는 HOME 기반 경로를 찾음 → makeTestHome 패턴 사용
+	minkHome := makeTestHome(t)
+	t.Setenv("MINK_HOME", minkHome)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	exitCh := make(chan int, 1)
+	go func() { exitCh <- runWithContext(ctx) }()
+
+	time.Sleep(300 * time.Millisecond)
+	cancel()
+
+	select {
+	case code := <-exitCh:
+		if code != core.ExitOK {
+			t.Errorf("MigrateOnce no-op + 정상 종료 시 기대 ExitOK(%d), 실제 %d", core.ExitOK, code)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout: runWithContext가 5초 내에 종료되지 않음 (T-016)")
+	}
+}

@@ -20,6 +20,7 @@ import (
 	"github.com/modu-ai/mink/internal/health"
 	"github.com/modu-ai/mink/internal/hook"
 	"github.com/modu-ai/mink/internal/llm/router"
+	"github.com/modu-ai/mink/internal/userpath"
 )
 
 // version은 빌드 시 ldflags로 주입된다.
@@ -64,6 +65,18 @@ func runWithContext(ctx context.Context) int {
 
 	// 2a. alias loader 초기화 — logger 준비 직후, env 읽기 이전에 호출 (SPEC-MINK-ENV-MIGRATE-001 §4.4 OQ-PL-4)
 	envalias.Init(logger)
+
+	// 2b. T-016: ~/.goose/ → ~/.mink/ 최초 1회 자동 마이그레이션.
+	// 데몬은 장기 실행 프로세스이므로 비치명적으로 처리 (Graceful degrade).
+	if migrateResult, migrateErr := userpath.MigrateOnce(ctx); migrateErr != nil {
+		logger.Warn("userdata migration failed (non-fatal)", zap.Error(migrateErr))
+	} else if migrateResult.Migrated {
+		logger.Info(migrateResult.Notice,
+			zap.String("from", migrateResult.SourcePath),
+			zap.String("to", migrateResult.DestPath),
+			zap.String("method", migrateResult.Method),
+		)
+	}
 
 	// 3. Root context — 호출자가 제공한 ctx 사용 (REQ-CORE-004(b))
 	rootCtx := ctx
