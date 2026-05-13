@@ -1,7 +1,7 @@
 ---
 id: SPEC-MINK-DISTANCING-STATEMENT-001
 version: "0.1.0"
-status: draft
+status: completed
 created_at: 2026-05-12
 updated_at: 2026-05-12
 author: manager-spec
@@ -22,6 +22,7 @@ related_specs: [SPEC-MINK-PRODUCT-V7-001, SPEC-MINK-BRAND-RENAME-001]
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
 | 0.1.0 | 2026-05-12 | manager-spec | Initial draft. PRODUCT-V7-001 §6 detail document. parent=SPEC-MINK-PRODUCT-V7-001 (vision anchor) / sibling=SPEC-MINK-BRAND-RENAME-001 (cross-cutting rename, body disjoint). 5-product distancing statement (block/goose, Hermes, Replika, Routinery, OpenClaw) — vision-level 1 단락 starting point 를 detail 4-단락 표준 (Identity / MINK is NOT / How MINK differs / 선택 Note on coexistence) 으로 확장. 단일 markdown 산출물 `.moai/project/distancing.md` 신설. 15 EARS 요구사항 + 11 binary-verifiable AC + 7 명시 제외 항목. 코드 변경 0건. plan-auditor 불필요 (markdown-only, low-risk vision-supporting doc). |
+| 0.1.1 | 2026-05-14 | MoAI orchestrator | Drift correction: status draft → completed. `.moai/project/distancing.md` v1.0.0 배포 완료 (PR #167 merged 0ae0094). |
 
 ---
 

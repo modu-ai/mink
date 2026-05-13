@@ -1,7 +1,7 @@
 ---
 id: SPEC-MINK-PRODUCT-V7-001
 version: "0.1.0"
-status: draft
+status: completed
 created_at: 2026-05-12
 updated_at: 2026-05-12
 author: manager-spec
@@ -21,6 +21,7 @@ related_specs: [SPEC-MINK-BRAND-RENAME-001]
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
 | 0.1.0 | 2026-05-12 | manager-spec | Initial draft. IDEA-002 brain decision Wave 3 §4.1 item 2 구현. product.md v7.0 신설 (1인 dev personal ritual companion 비전) + 기존 v6.0 (38665 bytes, "Daily Companion Edition", multi-tenant agent platform 야망) 를 `.moai/project/product-archive/product-v6.0-2026-04-27.md` 로 archive. 코드 변경 없음, 문서만. SPEC-MINK-BRAND-RENAME-001 (downstream child) 의 constitutional parent / vision anchor 역할. 19 EARS 요구사항 + 12 binary-verifiable AC + 7 명시 제외 항목. |
+| 0.1.1 | 2026-05-14 | MoAI orchestrator | Drift correction: status draft → completed. `.moai/project/product.md` v7.0 배포 완료. |
 
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: SPEC-MINK-ENV-MIGRATE-001
 version: "0.2.0"
-status: implemented
+status: completed
 created_at: 2026-05-13
 updated_at: 2026-05-13
 author: manager-spec (delegated by orchestrator)
@@ -24,6 +24,7 @@ lifecycle: spec-anchored
 |---------|------|--------|-------------|
 | 0.1.0 | 2026-05-13 | manager-spec | 초기 plan 작성 — research.md 22-key 인벤토리 + 8 확정 정책 + EARS 9 REQ + AC 10 시나리오 + 6 phase atomic 분할 |
 | 0.1.1 | 2026-05-13 | manager-spec | plan-auditor finding 12건 정정 (CONDITIONAL_GO → GO). D1: 3 sibling 파일 frontmatter 추가. D2: 10 → 11 read site (const-based 1개 누락 발견). D3: 50+ → 28 t.Setenv + 6 os.Setenv (grep -c 결과 기반 재작성). D4: REQ-MINK-EM-009 EARS Optional 패턴 재작성. D5: line drift anchor (as of f0f02e4). D6: REQ-EM-{004,005,006} ↔ REQ-MINK-BR-027 매핑 표. D7: R11/R12/R13 risks 추가. D8: Exclusion #8 (시간 추정) 삭제. D9: Phase 5 산출물 list runtime read OUT scope 명시. D10: AC-007 phase Phase 3,4 + Phase 1 strict mode test 보강. D11: OQ-PL-2 RESOLVED. D12: AC-008 "22-key" → "21-key + 1 prefix glob". |
+| 0.2.1 | 2026-05-14 | MoAI orchestrator | Sync: status implemented → completed. PR #170 (plan, merged 0e70060) + PR #171 (impl, merged 0c24237) + sync commit 23e7a66. MINK 리브랜드 시리즈 3-step 완료 (BRAND-RENAME → ENV-MIGRATE → USERDATA-MIGRATE). |
 
 ---
 

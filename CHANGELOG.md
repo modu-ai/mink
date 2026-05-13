@@ -5,9 +5,16 @@
 
 ## [Unreleased]
 
+### Changed — MINK 리브랜드 시리즈 4 SPEC status sync + drift correction
+
+- **SPEC-MINK-ENV-MIGRATE-001**: status `implemented` → `completed` (sync). PR #170 plan + PR #171 impl merged.
+- **SPEC-MINK-BRAND-RENAME-001**: drift `planned` → `completed` (8-phase atomic rename, commit f0f02e4).
+- **SPEC-MINK-DISTANCING-STATEMENT-001**: drift `draft` → `completed` (`.moai/project/distancing.md` v1.0.0, PR #167).
+- **SPEC-MINK-PRODUCT-V7-001**: drift `draft` → `completed` (`.moai/project/product.md` v7.0).
+
 ### Changed — SPEC-MINK-USERDATA-MIGRATE-001 v0.2.0 implemented (`~/.goose/` → `~/.mink/` user-data path 1회 자동 마이그레이션)
 
-**Status**: implemented (PR #173 plan merged 2297124, PR #174 impl merged 9c5c4173, squash). 19/19 tasks DONE, 16/16 AC PASS, 19/19 REQ 매핑 cover. `internal/userpath` coverage = **90.5%** (strict ≥ 90% 임계 통과, +0.5%p buffer).
+**Status**: completed (PR #173 plan merged 2297124, PR #174 impl merged 9c5c4173, PR #175 sync merged 61e3e2e). 19/19 tasks DONE, 16/16 AC PASS, 19/19 REQ 매핑 cover. `internal/userpath` coverage = **90.5%** (strict ≥ 90% 임계 통과, +0.5%p buffer).
 
 19-task P1+P2 atomic 구현 (impl/SPEC-MINK-USERDATA-MIGRATE-001 branch, post-merge fix-up 7c04832 추가 38 sub-tests):
 
