@@ -1,7 +1,7 @@
 ---
 id: SPEC-MINK-USERDATA-MIGRATE-001
-version: "0.1.3"
-status: draft
+version: "0.2.0"
+status: completed
 created_at: 2026-05-13
 updated_at: 2026-05-13
 author: manager-spec
@@ -18,6 +18,7 @@ related_specs: [SPEC-MINK-PRODUCT-V7-001, SPEC-MINK-DISTANCING-STATEMENT-001]
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.2.0 | 2026-05-13 | MoAI orchestrator | implementation 완료 (status: draft → completed). PR #173 (plan v0.1.3, merged 2297124) + PR #174 (impl 19 tasks + 1 coverage fix-up 7c04832, merged 9c5c4173, squash). 16/16 AC PASS, 19/19 REQ 매핑 cover. `internal/userpath` coverage = **90.5%** (strict ≥ 90% 임계 통과, contract.md 충족). production callsite 18개 마이그레이션 완료 (config / audit / session / permissions / MCP / TUI / memory / ritual / subagent / messaging / tools / qmd). cmd/mink + cmd/minkd 진입점에서 `userpath.MigrateOnce()` 호출 wiring 완료. 본 SPEC 종결로 MINK 리브랜드 시리즈 3-step (BRAND-RENAME → ENV-MIGRATE → USERDATA-MIGRATE) 완료. |
 | 0.1.0 | 2026-05-13 | manager-spec | 초안 작성. MINK 리브랜드 시리즈의 **3번째 SPEC** (BRAND-RENAME-001 v0.2.0 completed → ENV-MIGRATE-001 v0.2.0 completed → 본 SPEC). 자연스러운 진행 순서: brand identity → env vars → on-disk paths. 사용자 1라운드 인터뷰로 확정한 3개 결정사항 반영 — (A) `~/.goose/` 와 `./.goose/` 양쪽 모두 마이그레이션 in-scope, (B) 첫 실행 시 자동 마이그레이션 + 일회성 알림, (C) 중앙 path resolver 패키지 (`internal/userpath`) 신규 도입. ENV-MIGRATE-001 의 `internal/envalias` alias loader 패턴을 reference 로 채택 (alias map + central resolver). 30+ callsites across 18 distinct files 확인 + brownfield delta marker 적용. 18 EARS 요구사항 + 5 AC + 6-phase 구현 계획. |
 | 0.1.1 | 2026-05-13 | manager-spec | plan-auditor iter 1 fix — 13 defects addressed (D1-D13). 보안 관련 REQ-019 신설 (mode bits 보존), AC-001/004 분리 (AC-004a CLI fail-fast / AC-004b daemon graceful degrade), MINK_HOME 경계 검증 보강 (AC-008a happy path + AC-008b non-writable / existing .goose / path traversal / empty string). REQ-008 단일 source 정정 (Korean with optional English subtext), AC-001 #6 weasel 워드 제거. AC-005 의 `grep --exclude=<path>` 형식 오류 fix (basename glob only — post-filter pipeline 으로 전환). AC-003 stat 명령 macOS/Linux dual notation. spec.md L52/L178/L292 backtick imbalance 정정. "30+ 콜사이트" → "30+ callsites across 18 distinct files" 일관 표기. AC count 5 main + 4 edge → 12 main + 4 edge 로 확장 (AC-004 split 포함, REQ-004/016/018/019 + brand marker). |
 | 0.1.3 | 2026-05-13 | MoAI orchestrator | plan-auditor iter 3 fast-track fix — 2 residual defects (ND3-1, ND3-2). ND3-1 (blocking): AC-001 #6 예시 메시지에 한국어 토큰 `밍크` + 소문자 `mink` 포함하도록 정정하여 gate `grep -Ec 'mink|밍크' ≥ 1` 와 정합 (case-sensitivity mole-whack). ND3-2 (minor): spec.md §7.1 self-reference "5 scenarios" → "12 main + 4 edge scenarios" 동기화. plan-auditor 자체 권고에 따른 fast-track (1-line edit ×2). |

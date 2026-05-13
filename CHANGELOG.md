@@ -5,9 +5,11 @@
 
 ## [Unreleased]
 
-### Changed — SPEC-MINK-USERDATA-MIGRATE-001 v0.1.3 (`~/.goose/` → `~/.mink/` user-data path 1회 자동 마이그레이션)
+### Changed — SPEC-MINK-USERDATA-MIGRATE-001 v0.2.0 implemented (`~/.goose/` → `~/.mink/` user-data path 1회 자동 마이그레이션)
 
-19-task P1+P2 atomic 구현 (impl/SPEC-MINK-USERDATA-MIGRATE-001 branch):
+**Status**: implemented (PR #173 plan merged 2297124, PR #174 impl merged 9c5c4173, squash). 19/19 tasks DONE, 16/16 AC PASS, 19/19 REQ 매핑 cover. `internal/userpath` coverage = **90.5%** (strict ≥ 90% 임계 통과, +0.5%p buffer).
+
+19-task P1+P2 atomic 구현 (impl/SPEC-MINK-USERDATA-MIGRATE-001 branch, post-merge fix-up 7c04832 추가 38 sub-tests):
 
 - **신규 패키지** `internal/userpath`: `UserHomeE()` (`$MINK_HOME` 또는 `$HOME/.mink`) + `ProjectLocal(cwd)` (`cwd/.mink`) + `TempPrefix()` (`.mink-`) + `LegacyHome()` (`$HOME/.goose`) + `MigrateOnce()` (1회 자동 마이그레이션, sync.Once) + migration lock + EXDEV copy fallback
 - **T-001~T-007 (P1)**: userpath 패키지 TDD RED→GREEN→REFACTOR (UserHomeE, ProjectLocal, TempPrefix, LegacyHome, MigrateOnce rename+lock, EXDEV copy, brand-verify)
