@@ -12,9 +12,9 @@ import (
 )
 
 // setupUserAndProjectFiles creates user and project alias files under tmpDir
-// and sets GOOSE_HOME to the user dir so New(opts) resolves the user file.
+// and sets MINK_HOME to the user dir so New(opts) resolves the user file.
 //
-// userAliases: map written to GOOSE_HOME/aliases.yaml
+// userAliases: map written to MINK_HOME/aliases.yaml
 // projAliases: map written to CWD/.mink/aliases.yaml (via tmpDir/cwd subdir)
 //
 // Returns a cleanup func to restore CWD. Callers MUST defer the cleanup.
@@ -23,7 +23,7 @@ func setupUserAndProjectFiles(t *testing.T, userAliases, projAliases map[string]
 
 	tmpDir := t.TempDir()
 
-	// User file: GOOSE_HOME/aliases.yaml
+	// User file: MINK_HOME/aliases.yaml
 	userDir := filepath.Join(tmpDir, "user")
 	if err := os.MkdirAll(userDir, 0o755); err != nil {
 		t.Fatalf("mkdir user: %v", err)
@@ -51,7 +51,7 @@ func setupUserAndProjectFiles(t *testing.T, userAliases, projAliases map[string]
 		t.Fatalf("write proj file: %v", err)
 	}
 
-	// Set GOOSE_HOME to user dir so New() picks up userPath.
+	// Set MINK_HOME to user dir so New() picks up userPath.
 	t.Setenv("MINK_HOME", userDir)
 
 	// Change CWD to projCWD so detectProjectLocalAliasFile picks up projPath.

@@ -76,10 +76,10 @@ func TestProjectLocalAliasFile(t *testing.T) {
 			t.Fatalf("chdir: %v", err)
 		}
 
-		// Set GOOSE_HOME to temp dir
+		// Set MINK_HOME to temp dir
 		t.Setenv("MINK_HOME", tmpDir)
 
-		// Create global config in GOOSE_HOME
+		// Create global config in MINK_HOME
 		globalConfigPath := filepath.Join(tmpDir, "aliases.yaml")
 		yamlContent := `aliases:
   claude: anthropic/claude-sonnet-4-6

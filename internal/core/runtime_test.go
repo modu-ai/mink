@@ -60,12 +60,12 @@ func TestMain(m *testing.M) {
 }
 
 // TestBootstrap_SucceedsWithEmptyConfig는 AC-CORE-001을 검증한다.
-// GOOSE_HOME이 비어있는 디렉토리로 설정될 때 goosed가 serving 상태로 뜨고
+// MINK_HOME이 비어있는 디렉토리로 설정될 때 goosed가 serving 상태로 뜨고
 // /healthz가 200 OK + {"status":"ok","state":"serving",...}를 반환해야 한다.
 func TestBootstrap_SucceedsWithEmptyConfig(t *testing.T) {
 	t.Parallel()
 
-	// Arrange: 빈 GOOSE_HOME 디렉토리 생성
+	// Arrange: 빈 MINK_HOME 디렉토리 생성
 	gooseHome := t.TempDir()
 
 	// 빈 config 파일 없음 → 기본값 fallback
@@ -151,9 +151,9 @@ func TestSIGTERM_InvokesHooks_ExitZero(t *testing.T) {
 
 	cmd := exec.Command(binPath)
 	cmd.Env = append(os.Environ(),
-		"GOOSE_HOME="+gooseHome,
-		fmt.Sprintf("GOOSE_HEALTH_PORT=%d", port),
-		"GOOSE_LOG_LEVEL=info",
+		"MINK_HOME="+gooseHome,
+		fmt.Sprintf("MINK_HEALTH_PORT=%d", port),
+		"MINK_LOG_LEVEL=info",
 	)
 	cmd.Stderr = os.Stderr
 
@@ -207,7 +207,7 @@ func TestInvalidYAML_ExitsWithCode78(t *testing.T) {
 
 	cmd := exec.Command(binPath)
 	cmd.Env = append(os.Environ(),
-		"GOOSE_HOME="+gooseHome,
+		"MINK_HOME="+gooseHome,
 	)
 	cmd.Stderr = &stderrBuf
 
@@ -251,8 +251,8 @@ func TestPortConflict_ExitsWithCode78(t *testing.T) {
 
 	cmd := exec.Command(binPath)
 	cmd.Env = append(os.Environ(),
-		"GOOSE_HOME="+gooseHome,
-		fmt.Sprintf("GOOSE_HEALTH_PORT=%d", occupiedPort),
+		"MINK_HOME="+gooseHome,
+		fmt.Sprintf("MINK_HEALTH_PORT=%d", occupiedPort),
 	)
 	cmd.Stderr = &stderrBuf
 
@@ -401,9 +401,9 @@ func TestGoosedMain_SIGTERM_CancelsRootContext(t *testing.T) {
 
 	cmd := exec.Command(binPath)
 	cmd.Env = append(os.Environ(),
-		"GOOSE_HOME="+gooseHome,
-		fmt.Sprintf("GOOSE_HEALTH_PORT=%d", port),
-		"GOOSE_LOG_LEVEL=info",
+		"MINK_HOME="+gooseHome,
+		fmt.Sprintf("MINK_HEALTH_PORT=%d", port),
+		"MINK_LOG_LEVEL=info",
 	)
 	cmd.Stderr = os.Stderr
 
