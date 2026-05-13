@@ -7,7 +7,7 @@ updated_at: 2026-05-13
 author: manager-spec
 priority: High
 labels: [brand, userdata, migration, brownfield, cross-cutting, path-resolver]
-issue_number: null
+issue_number: 172
 depends_on: [SPEC-MINK-BRAND-RENAME-001, SPEC-MINK-ENV-MIGRATE-001]
 related_specs: [SPEC-MINK-PRODUCT-V7-001, SPEC-MINK-DISTANCING-STATEMENT-001]
 ---
