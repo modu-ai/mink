@@ -1,7 +1,7 @@
 ---
 id: SPEC-MINK-BRAND-RENAME-001
 version: 0.1.1
-status: planned
+status: completed
 supersedes: SPEC-GOOSE-BRAND-RENAME-001
 created_at: 2026-05-12
 updated_at: 2026-05-12
@@ -22,6 +22,7 @@ issue_number: null
 |---------|------|--------|--------|
 | 0.1.0 | 2026-05-12 | manager-spec | 초안 작성. IDEA-002 결정 (브랜드 MINK / Made IN Korea, 단타 LLM-bot GooseBot 분리) + 사용자 8개 확정사항 (scope = MINK-001만, supersede policy, plan/SPEC-MINK-BRAND-RENAME-001 단일 branch + squash PR, --solo mode, SPEC-MINK-* prefix 신규 / SPEC-GOOSE-* 88개 보존, immutable HISTORY/CHANGELOG/git history 보존, Go module/repo/binary/proto 일괄 rename, brand 자산 재사용 retarget) 반영. SPEC-GOOSE-BRAND-RENAME-001 supersede 명시 (immutable body 정책 + frontmatter status 전환은 별도 후속 commit). 12 IN-scope items + 10 OUT-scope items + 27 EARS 요구사항 + 17 AC + 8 phase 구현 계획. |
 | 0.1.1 | 2026-05-12 | claude(orchestrator) | plan-auditor v1 결과 반영 (.moai/reports/plan-audit/SPEC-MINK-BRAND-RENAME-001-2026-05-12.md). 6 line-level corrections 적용: (C-1) REQ-MINK-BR-020 + §7.5 step 5 에 append-only HISTORY 행 추가 허용 명시 (예비 SPEC supersede 행 추가 시 self-block 회피); (C-2) AC-MINK-BR-015 step 1 을 vacuously true 로 재정의 (downstream `SPEC-MINK-USERDATA-MIGRATE-001` scope 명시); (H-1) §1.3 에 brand-runtime split window NOTE 추가 (`GOOSE_*` env + `./.goose/` path deferral 명시 문서화); (H-2) AC-MINK-BR-013 step 4 README badge URL `${{ github.repository }}` parameterization 권장; (H-3) AC-MINK-BR-002 step 6 escape hatch 제거 (`-tags integration` + `-short` 만 허용); (H-5) AC-MINK-BR-018 신설 (CHANGELOG entry 무변경 + 신규 entry brand 통일 — REQ-MINK-BR-023 orphan 해소). 총 17 AC → 18 AC, 27 EARS 그대로. |
+| 0.1.2 | 2026-05-14 | MoAI orchestrator | Drift correction: status planned → completed. 8-phase atomic rename 완료 (commit f0f02e4). Go module / GitHub repo / CLI binary / proto package 전역 rename + brand 자산 retarget 완료. 선행 SPEC-GOOSE-BRAND-RENAME-001 body immutable 유지. |
 
 ---
 
