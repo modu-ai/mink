@@ -194,3 +194,9 @@ require (
 	mvdan.cc/xurls/v2 v2.6.0 // indirect
 	pluginrpc.com/pluginrpc v0.5.0 // indirect
 )
+
+// CVE-2026-34986: github.com/go-jose/go-jose/v4 < 4.1.4 (JWE decryption panic)
+// grpc v1.80.0 가 v4.1.3 를 transitive 로 끌어오지만 본 모듈은 v4 를 직접 사용하지 않음.
+// 그러나 dependency graph 에 4.1.3 가 표시되어 dependabot alert trigger 됨.
+// exclude 로 4.1.3 차단 → MVS 가 다음 사용 가능한 4.1.4 로 자동 resolve.
+exclude github.com/go-jose/go-jose/v4 v4.1.3
