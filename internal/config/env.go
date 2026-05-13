@@ -1,34 +1,48 @@
 // Package config의 환경변수 오버레이 컴포넌트.
 // SPEC-GOOSE-CONFIG-001 §6.2 환경변수 매핑 표
+// SPEC-MINK-ENV-MIGRATE-001 Phase 2: envalias.Loader 통합
 package config
 
 import (
 	"strconv"
 
 	"go.uber.org/zap"
+
+	"github.com/modu-ai/mink/internal/envalias"
 )
 
 // envOverlay는 환경변수를 읽어 cfg 필드를 오버라이드한다.
 // REQ-CFG-006: env vars > all file-based sources
+// REQ-MINK-EM-004: MINK_X 우선, GOOSE_X fallback + deprecation warning 1회
+// REQ-MINK-EM-005: GOOSE_X backward compat 보장
 //
 // envLookup은 환경변수 조회 함수다. 테스트에서는 맵 기반 함수를 주입하여
 // process-wide 환경변수 오염 없이 병렬 테스트를 수행할 수 있다.
 //
-// @MX:NOTE: [AUTO] 환경변수 오버레이 — 10개 ENV 매핑 처리
-// @MX:SPEC: SPEC-GOOSE-CONFIG-001 §6.2
+// 5개 alias 키(LOG_LEVEL, HEALTH_PORT, GRPC_PORT, LOCALE, LEARNING_ENABLED)는
+// envalias.Loader 를 통해 조회한다. 나머지 키는 직접 envLookup 을 사용한다.
+//
+// @MX:NOTE: [AUTO] 환경변수 오버레이 — 10개 ENV 매핑 처리 (5개는 envalias.Loader 경유)
+// @MX:SPEC: SPEC-GOOSE-CONFIG-001 §6.2, SPEC-MINK-ENV-MIGRATE-001 Phase 2
 func envOverlay(cfg *Config, sources sourceMap, logger *zap.Logger, envLookup func(string) string) error {
-	// GOOSE_LOG_LEVEL → log.level
-	if v := envLookup("GOOSE_LOG_LEVEL"); v != "" {
+	// alias 키 5개는 envalias.Loader 를 통해 MINK_X 우선 / GOOSE_X fallback 처리
+	loader := envalias.New(envalias.Options{
+		Logger:    logger,
+		EnvLookup: envLookup,
+	})
+
+	// LOG_LEVEL (MINK_LOG_LEVEL / GOOSE_LOG_LEVEL) → log.level
+	if v, _, ok := loader.Get("LOG_LEVEL"); ok {
 		cfg.Log.Level = v
 		sources.set("log.level", SourceEnv)
 	}
 
-	// GOOSE_HEALTH_PORT → transport.health_port
-	if v := envLookup("GOOSE_HEALTH_PORT"); v != "" {
+	// HEALTH_PORT (MINK_HEALTH_PORT / GOOSE_HEALTH_PORT) → transport.health_port
+	if v, _, ok := loader.Get("HEALTH_PORT"); ok {
 		port, err := strconv.Atoi(v)
 		if err != nil {
 			// AC-CFG-010b: 파싱 실패 시 WARN 로그 + 기존 값 유지
-			logger.Warn("GOOSE_HEALTH_PORT 정수 파싱 실패, 기존 값 유지",
+			logger.Warn("HEALTH_PORT 정수 파싱 실패, 기존 값 유지",
 				zap.String("value", v),
 				zap.Error(err),
 			)
@@ -38,12 +52,12 @@ func envOverlay(cfg *Config, sources sourceMap, logger *zap.Logger, envLookup fu
 		}
 	}
 
-	// GOOSE_GRPC_PORT → transport.grpc_port
-	if v := envLookup("GOOSE_GRPC_PORT"); v != "" {
+	// GRPC_PORT (MINK_GRPC_PORT / GOOSE_GRPC_PORT) → transport.grpc_port
+	if v, _, ok := loader.Get("GRPC_PORT"); ok {
 		port, err := strconv.Atoi(v)
 		if err != nil {
 			// AC-CFG-010b: 파싱 실패 시 WARN 로그 + 기존 값 유지
-			logger.Warn("GOOSE_GRPC_PORT 정수 파싱 실패, 기존 값 유지",
+			logger.Warn("GRPC_PORT 정수 파싱 실패, 기존 값 유지",
 				zap.String("value", v),
 				zap.Error(err),
 			)
@@ -53,11 +67,27 @@ func envOverlay(cfg *Config, sources sourceMap, logger *zap.Logger, envLookup fu
 		}
 	}
 
-	// GOOSE_LOCALE → ui.locale
-	if v := envLookup("GOOSE_LOCALE"); v != "" {
+	// LOCALE (MINK_LOCALE / GOOSE_LOCALE) → ui.locale
+	if v, _, ok := loader.Get("LOCALE"); ok {
 		cfg.UI.Locale = v
 		sources.set("ui.locale", SourceEnv)
 	}
+
+	// LEARNING_ENABLED (MINK_LEARNING_ENABLED / GOOSE_LEARNING_ENABLED) → learning.enabled
+	if v, _, ok := loader.Get("LEARNING_ENABLED"); ok {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			logger.Warn("LEARNING_ENABLED bool 파싱 실패, 기존 값 유지",
+				zap.String("value", v),
+				zap.Error(err),
+			)
+		} else {
+			cfg.Learning.Enabled = b
+			sources.set("learning.enabled", SourceEnv)
+		}
+	}
+
+	// 나머지 키는 alias 테이블에 없으므로 직접 envLookup 사용
 
 	// OLLAMA_HOST → llm.providers.ollama.host
 	if v := envLookup("OLLAMA_HOST"); v != "" {
@@ -84,20 +114,6 @@ func envOverlay(cfg *Config, sources sourceMap, logger *zap.Logger, envLookup fu
 		p.APIKey = v
 		cfg.LLM.Providers["anthropic"] = p
 		sources.set("llm.providers.anthropic.api_key", SourceEnv)
-	}
-
-	// GOOSE_LEARNING_ENABLED → learning.enabled
-	if v := envLookup("GOOSE_LEARNING_ENABLED"); v != "" {
-		b, err := strconv.ParseBool(v)
-		if err != nil {
-			logger.Warn("GOOSE_LEARNING_ENABLED bool 파싱 실패, 기존 값 유지",
-				zap.String("value", v),
-				zap.Error(err),
-			)
-		} else {
-			cfg.Learning.Enabled = b
-			sources.set("learning.enabled", SourceEnv)
-		}
 	}
 
 	return nil

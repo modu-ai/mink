@@ -33,6 +33,9 @@ var secretPatterns = []string{
 	"_TOKEN",
 	"_KEY",
 	"_SECRET",
+	// SPEC-MINK-ENV-MIGRATE-001: MINK_SHUTDOWN_TOKEN / GOOSE_SHUTDOWN_TOKEN 명시적 deny
+	// (_TOKEN suffix 가 catch 하지만 visibility 위해 명시)
+	"MINK_SHUTDOWN_TOKEN",
 	"GOOSE_SHUTDOWN_TOKEN",
 }
 

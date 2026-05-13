@@ -14,7 +14,7 @@ import (
 // TestIntegration_FullFlow 전체 흐름 통합 테스트
 func TestIntegration_FullFlow(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("GOOSE_HOME", tmpDir)
+	t.Setenv("MINK_HOME", tmpDir)
 
 	// 1. 유효한 aliases.yaml 생성
 	configPath := filepath.Join(tmpDir, "aliases.yaml")
@@ -70,7 +70,7 @@ func TestIntegration_FullFlow(t *testing.T) {
 // TestIntegration_InvalidConfig 잘못된 설정 파일 처리 통합 테스트
 func TestIntegration_InvalidConfig(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("GOOSE_HOME", tmpDir)
+	t.Setenv("MINK_HOME", tmpDir)
 
 	// 잘못된 형식의 aliases.yaml
 	configPath := filepath.Join(tmpDir, "aliases.yaml")
@@ -102,7 +102,7 @@ func TestIntegration_InvalidConfig(t *testing.T) {
 // TestIntegration_UnknownProvider 존재하지 않는 provider 통합 테스트
 func TestIntegration_UnknownProvider(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("GOOSE_HOME", tmpDir)
+	t.Setenv("MINK_HOME", tmpDir)
 
 	configPath := filepath.Join(tmpDir, "aliases.yaml")
 	yamlContent := `aliases:
@@ -130,7 +130,7 @@ func TestIntegration_UnknownProvider(t *testing.T) {
 // TestIntegration_LenientModeLenient 모드에서 검증 실패 시에도 별칭 유지 테스트
 func TestIntegration_LenientMode(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("GOOSE_HOME", tmpDir)
+	t.Setenv("MINK_HOME", tmpDir)
 
 	configPath := filepath.Join(tmpDir, "aliases.yaml")
 	yamlContent := `aliases:
@@ -168,7 +168,7 @@ func TestIntegration_LenientMode(t *testing.T) {
 // TestIntegration_CommentHandling 주석 처리 테스트
 func TestIntegration_CommentHandling(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("GOOSE_HOME", tmpDir)
+	t.Setenv("MINK_HOME", tmpDir)
 
 	configPath := filepath.Join(tmpDir, "aliases.yaml")
 	yamlContent := `aliases:

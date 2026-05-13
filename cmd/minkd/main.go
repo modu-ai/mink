@@ -11,13 +11,15 @@ import (
 	"syscall"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/modu-ai/mink/internal/command/adapter/aliasconfig"
 	"github.com/modu-ai/mink/internal/config"
 	"github.com/modu-ai/mink/internal/core"
+	"github.com/modu-ai/mink/internal/envalias"
 	"github.com/modu-ai/mink/internal/health"
 	"github.com/modu-ai/mink/internal/hook"
 	"github.com/modu-ai/mink/internal/llm/router"
-	"go.uber.org/zap"
 )
 
 // version은 빌드 시 ldflags로 주입된다.
@@ -60,6 +62,9 @@ func runWithContext(ctx context.Context) int {
 	}
 	defer logger.Sync() //nolint:errcheck
 
+	// 2a. alias loader 초기화 — logger 준비 직후, env 읽기 이전에 호출 (SPEC-MINK-ENV-MIGRATE-001 §4.4 OQ-PL-4)
+	envalias.Init(logger)
+
 	// 3. Root context — 호출자가 제공한 ctx 사용 (REQ-CORE-004(b))
 	rootCtx := ctx
 
@@ -84,9 +89,10 @@ func runWithContext(ctx context.Context) int {
 	}
 
 	// 5.7. Alias map validation (optional, strict mode)
-	// GOOSE_ALIAS_STRICT 환경변수로 제어 (default: true)
+	// MINK_ALIAS_STRICT (legacy: GOOSE_ALIAS_STRICT) 환경변수로 제어 (default: true)
+	// SPEC-MINK-ENV-MIGRATE-001: envalias.DefaultGet("ALIAS_STRICT") 경유.
 	if aliasMap != nil {
-		strictStr := os.Getenv("GOOSE_ALIAS_STRICT")
+		strictStr, _, _ := envalias.DefaultGet("ALIAS_STRICT")
 		strict := strictStr == "" || strictStr == "1" || strictStr == "true"
 		if validationErrs := aliasconfig.Validate(aliasMap, providerRegistry, strict); len(validationErrs) > 0 {
 			for _, e := range validationErrs {

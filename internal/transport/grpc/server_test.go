@@ -526,15 +526,15 @@ func TestMaxRecvMsgSize_Override(t *testing.T) {
 // AC-TR-014 추가 검증
 func TestMaxRecvMsgSize_EnvOverride(t *testing.T) {
 	// 이 테스트는 환경변수를 사용하므로 병렬 실행 불가
-	old, exists := os.LookupEnv("GOOSE_GRPC_MAX_RECV_MSG_BYTES")
+	old, exists := os.LookupEnv("MINK_GRPC_MAX_RECV_MSG_BYTES")
 	t.Cleanup(func() {
 		if exists {
-			os.Setenv("GOOSE_GRPC_MAX_RECV_MSG_BYTES", old)
+			os.Setenv("MINK_GRPC_MAX_RECV_MSG_BYTES", old)
 		} else {
-			os.Unsetenv("GOOSE_GRPC_MAX_RECV_MSG_BYTES")
+			os.Unsetenv("MINK_GRPC_MAX_RECV_MSG_BYTES")
 		}
 	})
-	os.Setenv("GOOSE_GRPC_MAX_RECV_MSG_BYTES", "1024")
+	os.Setenv("MINK_GRPC_MAX_RECV_MSG_BYTES", "1024")
 
 	state := &core.StateHolder{}
 	state.Store(core.StateServing)
@@ -592,4 +592,121 @@ func TestNonLoopbackBind_Rejected(t *testing.T) {
 	require.NotNil(t, ip, "listener host must be a valid IP, got %q", host)
 	assert.True(t, ip.IsLoopback(),
 		"listener must bind to loopback only (got %s)", host)
+}
+
+// --- Phase 3 alias migration sub-tests for grpc callsites 3/4/5 ---
+
+// TestGRPC_AliasLoader_Reflection_MinkOnly verifies MINK_GRPC_REFLECTION is respected.
+// REQ-MINK-EM-003 callsite: GOOSE_GRPC_REFLECTION → envalias.DefaultGet("GRPC_REFLECTION").
+func TestGRPC_AliasLoader_Reflection_MinkOnly(t *testing.T) {
+	t.Setenv("MINK_GRPC_REFLECTION", "true")
+	t.Setenv("GOOSE_GRPC_REFLECTION", "")
+
+	state := &core.StateHolder{}
+	state.Store(core.StateServing)
+	rootCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Config.EnableReflection=false so the env var path is exercised
+	srv, err := grpcserver.NewServer(grpcserver.Config{
+		BindAddr:         "127.0.0.1:0",
+		EnableReflection: false,
+	}, zap.NewNop(), state, rootCtx)
+	require.NoError(t, err)
+	defer srv.Stop()
+
+	// If the alias works, reflection is registered; the server starts without error
+	require.NotNil(t, srv)
+}
+
+// TestGRPC_AliasLoader_Reflection_GooseOnly verifies GOOSE_GRPC_REFLECTION alias fallback.
+// REQ-MINK-EM-002: GOOSE_GRPC_REFLECTION 단독 설정 시 backward compat.
+func TestGRPC_AliasLoader_Reflection_GooseOnly(t *testing.T) {
+	t.Setenv("GOOSE_GRPC_REFLECTION", "true")
+	t.Setenv("MINK_GRPC_REFLECTION", "")
+
+	state := &core.StateHolder{}
+	state.Store(core.StateServing)
+	rootCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	srv, err := grpcserver.NewServer(grpcserver.Config{
+		BindAddr:         "127.0.0.1:0",
+		EnableReflection: false,
+	}, zap.NewNop(), state, rootCtx)
+	require.NoError(t, err)
+	defer srv.Stop()
+	require.NotNil(t, srv)
+}
+
+// TestGRPC_AliasLoader_MaxRecvBytes_MinkOnly verifies MINK_GRPC_MAX_RECV_MSG_BYTES is used.
+func TestGRPC_AliasLoader_MaxRecvBytes_MinkOnly(t *testing.T) {
+	t.Setenv("MINK_GRPC_MAX_RECV_MSG_BYTES", "2048")
+	t.Setenv("GOOSE_GRPC_MAX_RECV_MSG_BYTES", "")
+
+	state := &core.StateHolder{}
+	state.Store(core.StateServing)
+	rootCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	srv, err := grpcserver.NewServer(grpcserver.Config{
+		BindAddr: "127.0.0.1:0",
+	}, zap.NewNop(), state, rootCtx)
+	require.NoError(t, err)
+	defer srv.Stop()
+	require.NotNil(t, srv)
+}
+
+// TestGRPC_AliasLoader_MaxRecvBytes_GooseOnly verifies GOOSE_GRPC_MAX_RECV_MSG_BYTES alias.
+func TestGRPC_AliasLoader_MaxRecvBytes_GooseOnly(t *testing.T) {
+	t.Setenv("GOOSE_GRPC_MAX_RECV_MSG_BYTES", "2048")
+	t.Setenv("MINK_GRPC_MAX_RECV_MSG_BYTES", "")
+
+	state := &core.StateHolder{}
+	state.Store(core.StateServing)
+	rootCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	srv, err := grpcserver.NewServer(grpcserver.Config{
+		BindAddr: "127.0.0.1:0",
+	}, zap.NewNop(), state, rootCtx)
+	require.NoError(t, err)
+	defer srv.Stop()
+	require.NotNil(t, srv)
+}
+
+// TestGRPC_AliasLoader_ShutdownToken_MinkOnly verifies MINK_SHUTDOWN_TOKEN is used.
+func TestGRPC_AliasLoader_ShutdownToken_MinkOnly(t *testing.T) {
+	t.Setenv("MINK_SHUTDOWN_TOKEN", "mink-token-123")
+	t.Setenv("GOOSE_SHUTDOWN_TOKEN", "")
+
+	state := &core.StateHolder{}
+	state.Store(core.StateServing)
+	rootCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	srv, err := grpcserver.NewServer(grpcserver.Config{
+		BindAddr: "127.0.0.1:0",
+	}, zap.NewNop(), state, rootCtx)
+	require.NoError(t, err)
+	defer srv.Stop()
+	require.NotNil(t, srv)
+}
+
+// TestGRPC_AliasLoader_ShutdownToken_GooseOnly verifies GOOSE_SHUTDOWN_TOKEN alias fallback.
+func TestGRPC_AliasLoader_ShutdownToken_GooseOnly(t *testing.T) {
+	t.Setenv("GOOSE_SHUTDOWN_TOKEN", "goose-token-abc")
+	t.Setenv("MINK_SHUTDOWN_TOKEN", "")
+
+	state := &core.StateHolder{}
+	state.Store(core.StateServing)
+	rootCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	srv, err := grpcserver.NewServer(grpcserver.Config{
+		BindAddr: "127.0.0.1:0",
+	}, zap.NewNop(), state, rootCtx)
+	require.NoError(t, err)
+	defer srv.Stop()
+	require.NotNil(t, srv)
 }

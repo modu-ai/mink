@@ -38,10 +38,12 @@ func TestNew_Loader_CustomPath(t *testing.T) {
 	}
 }
 
-// TestNew_Loader_GOOSE_HOME 환경변수 우선 테스트
-func TestNew_Loader_GOOSE_HOME(t *testing.T) {
+// TestNew_Loader_MinkHome MINK_HOME 환경변수 우선 테스트.
+// SPEC-MINK-ENV-MIGRATE-001 Phase 4: GOOSE_HOME → MINK_HOME 마이그레이션.
+// GOOSE_HOME backward compat 는 TestNew_Loader_AliasLoader_GooseOnly_WarnsOnce 가 별도 검증.
+func TestNew_Loader_MinkHome(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("GOOSE_HOME", tmpDir)
+	t.Setenv("MINK_HOME", tmpDir)
 
 	opts := Options{Logger: zap.NewNop()}
 	loader := New(opts)
@@ -49,6 +51,40 @@ func TestNew_Loader_GOOSE_HOME(t *testing.T) {
 	expectedPath := filepath.Join(tmpDir, "aliases.yaml")
 	if loader.configPath != expectedPath {
 		t.Errorf("configPath = %s, want %s", loader.configPath, expectedPath)
+	}
+}
+
+// --- Phase 3 alias migration sub-tests for callsite 9: homeEnv ---
+
+// TestNew_Loader_AliasLoader_MinkOnly verifies MINK_HOME is respected.
+// REQ-MINK-EM-003 callsite 9: homeEnv value changed to short key "HOME".
+func TestNew_Loader_AliasLoader_MinkOnly(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("MINK_HOME", tmpDir)
+	t.Setenv("GOOSE_HOME", "")
+
+	opts := Options{Logger: zap.NewNop()}
+	loader := New(opts)
+
+	expectedPath := filepath.Join(tmpDir, "aliases.yaml")
+	if loader.configPath != expectedPath {
+		t.Errorf("configPath (MINK_HOME) = %s, want %s", loader.configPath, expectedPath)
+	}
+}
+
+// TestNew_Loader_AliasLoader_GooseOnly_WarnsOnce verifies GOOSE_HOME alias backward compat.
+// REQ-MINK-EM-002 callsite 9: GOOSE_HOME 단독 설정 시 alias 통해 동작.
+func TestNew_Loader_AliasLoader_GooseOnly_WarnsOnce(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("GOOSE_HOME", tmpDir)
+	t.Setenv("MINK_HOME", "")
+
+	opts := Options{Logger: zap.NewNop()}
+	loader := New(opts)
+
+	expectedPath := filepath.Join(tmpDir, "aliases.yaml")
+	if loader.configPath != expectedPath {
+		t.Errorf("configPath (GOOSE_HOME alias) = %s, want %s", loader.configPath, expectedPath)
 	}
 }
 
@@ -158,7 +194,7 @@ aliases:
 // TestLoadDefault 기본 경로 로드 테스트
 func TestLoadDefault(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("GOOSE_HOME", tmpDir)
+	t.Setenv("MINK_HOME", tmpDir)
 
 	configPath := filepath.Join(tmpDir, "aliases.yaml")
 	yamlContent := `aliases:

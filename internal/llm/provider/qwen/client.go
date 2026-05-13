@@ -6,13 +6,14 @@ package qwen
 import (
 	"errors"
 	"net/http"
-	"os"
 
+	"go.uber.org/zap"
+
+	"github.com/modu-ai/mink/internal/envalias"
 	"github.com/modu-ai/mink/internal/llm/credential"
 	"github.com/modu-ai/mink/internal/llm/provider"
 	"github.com/modu-ai/mink/internal/llm/provider/openai"
 	"github.com/modu-ai/mink/internal/llm/ratelimit"
-	"go.uber.org/zap"
 )
 
 // ErrInvalidRegion은 지원하지 않는 region 값이 설정되었을 때 반환된다.
@@ -34,8 +35,10 @@ const (
 	dashscopeIntlURL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
 	// 중국판 DashScope 엔드포인트.
 	dashscopeCNURL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-	// GOOSE_QWEN_REGION 환경변수 키.
-	envQwenRegion = "GOOSE_QWEN_REGION"
+	// envQwenRegion은 alias loader short key 이다 (SPEC-MINK-ENV-MIGRATE-001 §4.5 OQ-PL-2).
+	// 값이 short key "QWEN_REGION" 으로 변경됨: DefaultGet("QWEN_REGION") →
+	// MINK_QWEN_REGION (primary) / GOOSE_QWEN_REGION (legacy alias).
+	envQwenRegion = "QWEN_REGION"
 )
 
 // Options는 Qwen 어댑터 생성 옵션이다.
@@ -49,8 +52,8 @@ type Options struct {
 	// HTTPClient는 HTTP 요청에 사용할 클라이언트이다. 빈 값이면 기본 클라이언트 사용.
 	HTTPClient *http.Client
 	// Region은 DashScope API 지역이다.
-	// 빈 값이면 GOOSE_QWEN_REGION 환경변수를 참조하고, 없으면 RegionIntl(기본값) 사용.
-	// REQ-ADP2-011, REQ-ADP2-018
+	// 빈 값이면 MINK_QWEN_REGION (legacy: GOOSE_QWEN_REGION) 환경변수를 참조하고, 없으면 RegionIntl(기본값) 사용.
+	// REQ-ADP2-011, REQ-ADP2-018, SPEC-MINK-ENV-MIGRATE-001
 	Region Region
 	// BaseURL은 API 엔드포인트 기본 URL이다. 빈 값이면 Region에 따라 자동 결정. (테스트 override용)
 	BaseURL string
@@ -59,7 +62,7 @@ type Options struct {
 }
 
 // New는 Qwen DashScope용 OpenAIAdapter를 생성한다.
-// Region → GOOSE_QWEN_REGION 환경변수 → intl(기본값) 순으로 URL 결정.
+// Region → MINK_QWEN_REGION (legacy: GOOSE_QWEN_REGION) 환경변수 → intl(기본값) 순으로 URL 결정.
 // AC-ADP2-010, AC-ADP2-011, AC-ADP2-012
 func New(opts Options) (*openai.OpenAIAdapter, error) {
 	baseURL := opts.BaseURL
@@ -92,11 +95,11 @@ func New(opts Options) (*openai.OpenAIAdapter, error) {
 }
 
 // resolveBaseURL은 Region 문자열로 DashScope BaseURL을 결정한다.
-// 빈 region이면 GOOSE_QWEN_REGION 환경변수를 참조하고, 없으면 intl을 사용한다.
+// 빈 region이면 MINK_QWEN_REGION (legacy: GOOSE_QWEN_REGION) 환경변수를 참조하고, 없으면 intl을 사용한다.
 // "intl"과 "cn" 외의 값은 ErrInvalidRegion을 반환한다 (REQ-ADP2-018).
 func resolveBaseURL(region string) (string, error) {
 	if region == "" {
-		region = os.Getenv(envQwenRegion)
+		region, _, _ = envalias.DefaultGet(envQwenRegion)
 	}
 	if region == "" {
 		region = string(RegionIntl)

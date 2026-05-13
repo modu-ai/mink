@@ -11,13 +11,15 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+
+	"github.com/modu-ai/mink/internal/envalias"
 )
 
 // userAliasPath returns the user-scope aliases.yaml path using the same
 // fallback chain as New(opts) when opts.ConfigPath is empty.
 // Returns empty string when no home directory can be determined.
 func userAliasPath() string {
-	if home := os.Getenv(homeEnv); home != "" {
+	if home, _, ok := envalias.DefaultGet(homeEnv); ok {
 		return filepath.Join(home, "aliases.yaml")
 	}
 	homeDir, err := os.UserHomeDir()

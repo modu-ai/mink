@@ -17,10 +17,10 @@ func NewOSKeyring() *OSKeyring { return &OSKeyring{} }
 
 // Store always returns an error in nokeyring builds.
 func (OSKeyring) Store(_, _ string, _ []byte) error {
-	return errors.New("OSKeyring: disabled at build time (-tags=nokeyring); use MemoryKeyring or GOOSE_TELEGRAM_BOT_TOKEN env var")
+	return errors.New("OSKeyring: disabled at build time (-tags=nokeyring); use MemoryKeyring or set MINK_TELEGRAM_BOT_TOKEN (legacy: GOOSE_TELEGRAM_BOT_TOKEN) env var")
 }
 
 // Retrieve always returns an error in nokeyring builds.
 func (OSKeyring) Retrieve(_, _ string) ([]byte, error) {
-	return nil, errors.New("OSKeyring: disabled at build time (-tags=nokeyring); use MemoryKeyring or GOOSE_TELEGRAM_BOT_TOKEN env var")
+	return nil, errors.New("OSKeyring: disabled at build time (-tags=nokeyring); use MemoryKeyring or set MINK_TELEGRAM_BOT_TOKEN (legacy: GOOSE_TELEGRAM_BOT_TOKEN) env var")
 }

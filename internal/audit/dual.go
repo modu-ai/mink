@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/modu-ai/mink/internal/envalias"
 )
 
 // DualWriter writes audit events to two locations simultaneously:
@@ -134,18 +136,18 @@ func (w *DualWriter) IsLocalEnabled() bool {
 }
 
 // DefaultGlobalAuditPath returns the default global audit log path.
-// It uses the GOOSE_HOME environment variable or defaults to ~/.goose/logs/audit.log
+// It uses the MINK_HOME (or legacy GOOSE_HOME) environment variable,
+// or defaults to ~/.goose/logs/audit.log
 func DefaultGlobalAuditPath() (string, error) {
-	// Check GOOSE_HOME env var
-	gooseHome := os.Getenv("GOOSE_HOME")
-	if gooseHome == "" {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return "", fmt.Errorf("failed to determine home directory: %w", err)
-		}
-		gooseHome = filepath.Join(homeDir, ".goose")
+	// Check MINK_HOME / GOOSE_HOME via alias loader (SPEC-MINK-ENV-MIGRATE-001)
+	if gooseHome, _, ok := envalias.DefaultGet("HOME"); ok {
+		return filepath.Join(gooseHome, "logs", "audit.log"), nil
 	}
-
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to determine home directory: %w", err)
+	}
+	gooseHome := filepath.Join(homeDir, ".goose")
 	return filepath.Join(gooseHome, "logs", "audit.log"), nil
 }
 

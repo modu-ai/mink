@@ -206,10 +206,12 @@ func TestBash_InvalidJSON(t *testing.T) {
 	assert.True(t, result.IsError)
 }
 
-// TestBash_SecretEnvVar_GooseShutdownToken — GOOSE_SHUTDOWN_TOKEN 필터링
-func TestBash_SecretEnvVar_GooseShutdownToken(t *testing.T) {
-	os.Setenv("GOOSE_SHUTDOWN_TOKEN", "secret-shutdown")
-	defer os.Unsetenv("GOOSE_SHUTDOWN_TOKEN")
+// TestBash_SecretEnvVar_MinkShutdownToken — MINK_SHUTDOWN_TOKEN (legacy: GOOSE_SHUTDOWN_TOKEN) 필터링
+// SPEC-MINK-ENV-MIGRATE-001 Phase 4: GOOSE_SHUTDOWN_TOKEN → MINK_SHUTDOWN_TOKEN.
+// _TOKEN suffix heuristic 가 두 변수 모두 catch.
+func TestBash_SecretEnvVar_MinkShutdownToken(t *testing.T) {
+	os.Setenv("MINK_SHUTDOWN_TOKEN", "secret-shutdown")
+	defer os.Unsetenv("MINK_SHUTDOWN_TOKEN")
 
 	bash := terminal.NewBash()
 	input, _ := json.Marshal(map[string]any{"command": "env"})
@@ -220,7 +222,7 @@ func TestBash_SecretEnvVar_GooseShutdownToken(t *testing.T) {
 	var out map[string]any
 	require.NoError(t, json.Unmarshal(result.Content, &out))
 	stdout := out["stdout"].(string)
-	assert.NotContains(t, stdout, "GOOSE_SHUTDOWN_TOKEN")
+	assert.NotContains(t, stdout, "MINK_SHUTDOWN_TOKEN")
 }
 
 // TestBash_SecretEnvVar_Secret — *_SECRET suffix

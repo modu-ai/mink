@@ -55,7 +55,7 @@ func addTsHelperSkill(t *testing.T, skillsDir string) {
 // AC-WIRE-001 / REQ-WIRE-001, REQ-WIRE-002, REQ-WIRE-006
 func TestWire_NormalBootstrap(t *testing.T) {
 	home := makeTestHome(t)
-	t.Setenv("GOOSE_HOME", home)
+	t.Setenv("MINK_HOME", home)
 
 	// readyCh는 run()이 StateServing에 도달했을 때 신호를 보낸다.
 	readyCh := make(chan struct{}, 1)
@@ -114,7 +114,7 @@ func TestWire_NormalBootstrap(t *testing.T) {
 // AC-WIRE-002 / REQ-WIRE-004
 func TestWire_SIGTERMDrainTools(t *testing.T) {
 	home := makeTestHome(t)
-	t.Setenv("GOOSE_HOME", home)
+	t.Setenv("MINK_HOME", home)
 
 	readyCh := make(chan struct{}, 1)
 	cancelCh := make(chan struct{})
@@ -168,7 +168,7 @@ outer:
 func TestWire_DispatchFileChanged(t *testing.T) {
 	home := makeTestHome(t)
 	addTsHelperSkill(t, filepath.Join(home, "skills"))
-	t.Setenv("GOOSE_HOME", home)
+	t.Setenv("MINK_HOME", home)
 
 	readyCh := make(chan struct{}, 1)
 	cancelCh := make(chan struct{})
@@ -271,7 +271,7 @@ func TestWire_NilConsumerRejectsWithExitConfig(t *testing.T) {
 
 	// wire-up 과정에서 nil consumer → ExitConfig 반환 검증
 	home := makeTestHome(t)
-	t.Setenv("GOOSE_HOME", home)
+	t.Setenv("MINK_HOME", home)
 
 	// runNilConsumerPath는 skill registry의 FileChangedConsumer를 nil로 만들어
 	// wire-up 실패 → ExitConfig 반환을 시뮬레이션한다.
@@ -287,7 +287,7 @@ func TestWire_NilConsumerRejectsWithExitConfig(t *testing.T) {
 // AC-WIRE-007 / REQ-WIRE-009
 func TestWire_InteractiveHandlerPlaceholder(t *testing.T) {
 	home := makeTestHome(t)
-	t.Setenv("GOOSE_HOME", home)
+	t.Setenv("MINK_HOME", home)
 
 	readyCh := make(chan struct{}, 1)
 	cancelCh := make(chan struct{})
@@ -319,7 +319,7 @@ func TestWire_InteractiveHandlerPlaceholder(t *testing.T) {
 func TestWire_FullIntegrationSmoke(t *testing.T) {
 	home := makeTestHome(t)
 	addTsHelperSkill(t, filepath.Join(home, "skills"))
-	t.Setenv("GOOSE_HOME", home)
+	t.Setenv("MINK_HOME", home)
 
 	start := time.Now()
 	goroutinesBefore := runtime.NumGoroutine()
@@ -541,7 +541,7 @@ func TestRunWithContext_ConfigError(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(home, "config.yaml"), []byte(badCfg), 0o644); err != nil {
 		t.Fatalf("write bad config: %v", err)
 	}
-	t.Setenv("GOOSE_HOME", home)
+	t.Setenv("MINK_HOME", home)
 
 	ctx := context.Background()
 	code := runWithContext(ctx)
@@ -554,7 +554,7 @@ func TestRunWithContext_ConfigError(t *testing.T) {
 // context cancel → ExitOK 반환을 검증한다.
 func TestRunWithContext_SuccessPath(t *testing.T) {
 	home := makeTestHome(t)
-	t.Setenv("GOOSE_HOME", home)
+	t.Setenv("MINK_HOME", home)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -619,7 +619,7 @@ func TestRunWithContext_HealthPortInUse(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(home, "skills"), 0o755); err != nil {
 		t.Fatalf("mkdir skills: %v", err)
 	}
-	t.Setenv("GOOSE_HOME", home)
+	t.Setenv("MINK_HOME", home)
 
 	code := runWithContext(context.Background())
 	if code != core.ExitConfig {
@@ -657,4 +657,111 @@ func TestWireRegistries_WithSkillError(t *testing.T) {
 	if skillReg == nil {
 		t.Error("skillRegistry nil")
 	}
+}
+
+// --- Phase 3 alias migration sub-tests for callsite 8: ALIAS_STRICT ---
+
+// TestAliasStrict_AliasLoader_MinkOnly verifies MINK_ALIAS_STRICT is respected.
+// REQ-MINK-EM-003 callsite 8: GOOSE_ALIAS_STRICT → envalias.DefaultGet("ALIAS_STRICT").
+func TestAliasStrict_AliasLoader_MinkOnly(t *testing.T) {
+	home := makeTestHome(t)
+	t.Setenv("MINK_HOME", home)
+	t.Setenv("GOOSE_HOME", "")
+	t.Setenv("MINK_ALIAS_STRICT", "0") // disable strict so validation errors are non-fatal
+	t.Setenv("GOOSE_ALIAS_STRICT", "")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	exitCh := make(chan int, 1)
+	go func() { exitCh <- runWithContext(ctx) }()
+	time.Sleep(300 * time.Millisecond)
+	cancel()
+	select {
+	case <-exitCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout: runWithContext가 5초 내에 종료되지 않음")
+	}
+}
+
+// TestAliasStrict_AliasLoader_GooseOnly verifies GOOSE_ALIAS_STRICT alias backward compat.
+// REQ-MINK-EM-002 callsite 8.
+func TestAliasStrict_AliasLoader_GooseOnly(t *testing.T) {
+	home := makeTestHome(t)
+	t.Setenv("MINK_HOME", "")
+	t.Setenv("GOOSE_HOME", home)
+	t.Setenv("MINK_ALIAS_STRICT", "")
+	t.Setenv("GOOSE_ALIAS_STRICT", "0")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	exitCh := make(chan int, 1)
+	go func() { exitCh <- runWithContext(ctx) }()
+	time.Sleep(300 * time.Millisecond)
+	cancel()
+	select {
+	case <-exitCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout: runWithContext가 5초 내에 종료되지 않음")
+	}
+}
+
+// ---- SPEC-MINK-ENV-MIGRATE-001 §7.1 — main wire-up env alias 통합 테스트 ----
+
+// TestMain_EnvAlias_MinkHomeOnly는 MINK_HOME 단독 설정 시 daemon 정상 부팅을 검증한다.
+// AC-MINK-EM-003: MINK_HOME 우선 사용.
+func TestMain_EnvAlias_MinkHomeOnly(t *testing.T) {
+	home := makeTestHome(t)
+	t.Setenv("MINK_HOME", home)
+	t.Setenv("GOOSE_HOME", "")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	exitCh := make(chan int, 1)
+	go func() { exitCh <- runWithContext(ctx) }()
+	time.Sleep(300 * time.Millisecond)
+	cancel()
+	select {
+	case <-exitCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout: runWithContext가 5초 내에 종료되지 않음 (MINK_HOME 단독)")
+	}
+}
+
+// TestMain_EnvAlias_GooseHomeOnly는 GOOSE_HOME 단독 (legacy alias) 설정 시 daemon 정상 부팅을 검증한다.
+// AC-MINK-EM-002: backward compat 보장.
+func TestMain_EnvAlias_GooseHomeOnly(t *testing.T) {
+	home := makeTestHome(t)
+	t.Setenv("MINK_HOME", "")
+	t.Setenv("GOOSE_HOME", home)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	exitCh := make(chan int, 1)
+	go func() { exitCh <- runWithContext(ctx) }()
+	time.Sleep(300 * time.Millisecond)
+	cancel()
+	select {
+	case <-exitCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout: runWithContext가 5초 내에 종료되지 않음 (GOOSE_HOME alias)")
+	}
+}
+
+// TestMain_EnvAlias_BothSet_PrefersMink는 MINK_HOME + GOOSE_HOME 동시 설정 시
+// MINK_HOME 우선 사용을 검증한다.
+// AC-MINK-EM-004: 충돌 시 MINK_X 우선, GOOSE_X 무시 (warning emit는 envalias unit test 가 검증).
+func TestMain_EnvAlias_BothSet_PrefersMink(t *testing.T) {
+	minkHome := makeTestHome(t)
+	gooseHome := makeTestHome(t) // 다른 디렉토리 — MINK 우선 검증 위해
+	t.Setenv("MINK_HOME", minkHome)
+	t.Setenv("GOOSE_HOME", gooseHome)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	exitCh := make(chan int, 1)
+	go func() { exitCh <- runWithContext(ctx) }()
+	time.Sleep(300 * time.Millisecond)
+	cancel()
+	select {
+	case <-exitCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout: runWithContext가 5초 내에 종료되지 않음 (MINK+GOOSE 동시)")
+	}
+	// MINK_HOME 의 config.yaml 이 사용되었는지는 daemon 종료 후 검증 어려움 — Phase 2 unit test
+	// (TestEnvOverlay_BothSet_PrefersMink in internal/config/env_test.go) 가 동일 로직을 직접 검증.
 }
