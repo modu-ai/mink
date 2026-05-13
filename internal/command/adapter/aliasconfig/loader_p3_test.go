@@ -17,9 +17,10 @@ import (
 func TestProjectLocalAliasFile(t *testing.T) {
 	t.Run("project local file exists", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		projectLocalPath := filepath.Join(tmpDir, ".goose")
+		// REQ-MINK-UDM-001: .goose → .mink
+		projectLocalPath := filepath.Join(tmpDir, ".mink")
 		if err := os.MkdirAll(projectLocalPath, 0o755); err != nil {
-			t.Fatalf("mkdir .goose: %v", err)
+			t.Fatalf("mkdir .mink: %v", err)
 		}
 
 		configPath := filepath.Join(projectLocalPath, "aliases.yaml")

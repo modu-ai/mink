@@ -15,7 +15,7 @@ import (
 // and sets GOOSE_HOME to the user dir so New(opts) resolves the user file.
 //
 // userAliases: map written to GOOSE_HOME/aliases.yaml
-// projAliases: map written to CWD/.goose/aliases.yaml (via tmpDir/cwd subdir)
+// projAliases: map written to CWD/.mink/aliases.yaml (via tmpDir/cwd subdir)
 //
 // Returns a cleanup func to restore CWD. Callers MUST defer the cleanup.
 func setupUserAndProjectFiles(t *testing.T, userAliases, projAliases map[string]string) (userPath, projPath string, cleanup func()) {
@@ -37,12 +37,12 @@ func setupUserAndProjectFiles(t *testing.T, userAliases, projAliases map[string]
 		t.Fatalf("write user file: %v", err)
 	}
 
-	// Project file: $CWD/.goose/aliases.yaml
+	// Project file: $CWD/.mink/aliases.yaml (REQ-MINK-UDM-001)
 	projCWD := filepath.Join(tmpDir, "project")
-	if err := os.MkdirAll(filepath.Join(projCWD, ".goose"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(projCWD, ".mink"), 0o755); err != nil {
 		t.Fatalf("mkdir proj: %v", err)
 	}
-	projPath = filepath.Join(projCWD, ".goose", "aliases.yaml")
+	projPath = filepath.Join(projCWD, ".mink", "aliases.yaml")
 	projContent := "aliases:\n"
 	for k, v := range projAliases {
 		projContent += "  " + k + ": " + v + "\n"

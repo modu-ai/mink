@@ -26,8 +26,9 @@ var (
 	ErrConfigNotFound = errors.New("aliasconfig: config file not found")
 )
 
-// defaultConfigPath is the default config file path relative to the home directory.
-const defaultConfigPath = ".goose/aliases.yaml"
+// defaultConfigPath is the default config file path relative to the mink home directory.
+// REQ-MINK-UDM-001: .goose → .mink.
+const defaultConfigPath = ".mink/aliases.yaml"
 
 // homeEnv is the short alias key for the Mink home directory (SPEC-MINK-ENV-MIGRATE-001 §4.5 OQ-PL-2).
 // The const name is preserved for git blame continuity; its value is now the short canonical key
@@ -157,16 +158,17 @@ type AliasConfig struct {
 // maxAliasFileSize is the maximum allowed size for the alias file (1 MiB).
 const maxAliasFileSize = 1 * 1024 * 1024
 
-// detectProjectLocalAliasFile probes $CWD/.goose/aliases.yaml and returns
+// detectProjectLocalAliasFile probes $CWD/.mink/aliases.yaml and returns
 // its absolute path when it exists. Returns empty string otherwise.
 // Supports project-local config overlay (P3 feature).
+// REQ-MINK-UDM-001: .goose → .mink.
 func detectProjectLocalAliasFile() string {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return ""
 	}
 
-	projectLocalPath := filepath.Join(cwd, ".goose", "aliases.yaml")
+	projectLocalPath := filepath.Join(cwd, ".mink", "aliases.yaml")
 	if _, err := os.Stat(projectLocalPath); err == nil {
 		return projectLocalPath
 	}
