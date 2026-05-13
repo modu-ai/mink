@@ -1,13 +1,15 @@
 ---
 id: SPEC-MINK-ENV-MIGRATE-001
-version: "0.1.1"
-status: draft
+version: "0.2.0"
+status: implemented
 created_at: 2026-05-13
 updated_at: 2026-05-13
 author: manager-spec (delegated by orchestrator)
 priority: High
 labels: [migration, env-vars, branding, deprecation, alias-loader, mink, post-brand-rename]
 issue_number: null
+pr_number: 171
+implemented_at: 2026-05-13
 depends_on: [SPEC-MINK-BRAND-RENAME-001]
 related_specs: [SPEC-MINK-PRODUCT-V7-001, SPEC-MINK-DISTANCING-STATEMENT-001, SPEC-MINK-USERDATA-MIGRATE-001]
 phase: meta

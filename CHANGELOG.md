@@ -5,6 +5,21 @@
 
 ## [Unreleased]
 
+### Changed — SPEC-MINK-ENV-MIGRATE-001 v0.2.0 (env vars `GOOSE_*` → `MINK_*` deprecation alias loader)
+
+6-phase atomic 구현 (PR #171, 6 commits squash merge):
+
+- **신규 패키지** `internal/envalias`: 22-key alias mapping table + `sync.Once` per-key deprecation warning + `StrictMode` (REQ-MINK-EM-009) + `DefaultGet` 편의 API
+- **22 keys** (single 21 + AUTH_ prefix glob): MINK_X 우선 / GOOSE_X fallback + warning emit
+  - HOME, LOG_LEVEL, HEALTH_PORT, GRPC_PORT, LOCALE, ALIAS_STRICT, GRPC_REFLECTION, GRPC_MAX_RECV_MSG_BYTES, SHUTDOWN_TOKEN, HOOK_TRACE, HOOK_NON_INTERACTIVE, QWEN_REGION, KIMI_REGION, TELEGRAM_BOT_TOKEN, LEARNING_ENABLED, CONFIG_STRICT, METRICS_ENABLED, HISTORY_SNIP, METRICS_PORT, METRICS_HOST, TELEMETRY_ENDPOINT, AUTH_* (prefix glob)
+- **Phase 2**: `internal/config/envOverlay` 의 5 keys (LOG_LEVEL/HEALTH_PORT/GRPC_PORT/LOCALE/LEARNING_ENABLED) alias loader 도입
+- **Phase 3**: 11 분산 production callsite 마이그레이션 (audit/dual.go, config/config.go, transport/grpc/server.go ×3, hook/handlers.go, hook/permission.go, cmd/minkd/main.go, aliasconfig/loader.go, llm/provider/qwen/client.go, llm/provider/kimi/client.go)
+- **Phase 4**: env scrub deny-list `MINK_AUTH_*` prefix 추가 + 33 `GOOSE_*` `t.Setenv`/`os.Setenv` → `MINK_*` 마이그레이션. 의도적 `GOOSE_*` 24 라인 보존 (Phase 3 GooseOnly/MinkOnly 페어 + DenyList + NoGOOSE_HOME defer + MinkHome_Unset isolation)
+- **Phase 5**: prose / error message / 주석 12 사이트 `MINK_X (legacy: GOOSE_X)` 표기. `internal/tools/builtin/terminal/bash.go` secretPatterns `MINK_SHUTDOWN_TOKEN` 명시화.
+- **Phase 6**: `cmd/minkd/integration_test.go` 의 신규 3 통합 테스트 (`TestMain_EnvAlias_MinkHomeOnly`/`_GooseHomeOnly`/`_BothSet_PrefersMink`)
+- **Backward compat**: 모든 `GOOSE_*` env vars 가 alias 통해 동작. `GooseOnly_WarnsOnce` 11 callsite 검증.
+- **검증**: `go build ./...` clean, `gofmt -l .` clean, `go vet ./...` clean, `go test -race -count=1 ./...` PASS (전 패키지)
+
 ### Changed — SPEC-MINK-BRAND-RENAME-001 v0.1.0 (BREAKING: brand `AI.GOOSE` → MINK + module path goose → mink)
 
 8-phase atomic 전역 brand rename. Single PR squash merge (PR #168, 11 commits, 600+ files):
