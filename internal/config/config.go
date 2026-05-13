@@ -22,6 +22,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/modu-ai/mink/internal/envalias"
+	"github.com/modu-ai/mink/internal/userpath"
 )
 
 // Config는 goosed 전체 설정 구조체다.
@@ -227,7 +228,7 @@ func Load(opts LoadOptions) (*Config, error) {
 				return nil, fmt.Errorf("작업 디렉토리 탐색 실패: %w", err)
 			}
 		}
-		projectCfgPath := filepath.Join(workDir, ".goose", "config.yaml")
+		projectCfgPath := filepath.Join(userpath.ProjectLocal(workDir), "config.yaml")
 		if err := mergeYAMLFile(fsys, projectCfgPath, cfg, sources, SourceProject, logger); err != nil {
 			return nil, err
 		}
@@ -271,18 +272,19 @@ func Load(opts LoadOptions) (*Config, error) {
 }
 
 // resolveGooseHome은 MINK_HOME (또는 legacy GOOSE_HOME) 환경변수를 읽고,
-// 비어있으면 $HOME/.goose를 반환한다.
+// 비어있으면 $HOME/.mink 를 반환한다.
 // REQ-CFG-011: 단 1회만 $HOME을 참조한다.
 // SPEC-MINK-ENV-MIGRATE-001: envalias.DefaultGet("HOME") 경유.
+// REQ-MINK-UDM-002: userpath.UserHomeE() 로 중앙화 (에러 시 $HOME/.mink fallback).
 func resolveGooseHome() string {
 	if home, _, ok := envalias.DefaultGet("HOME"); ok {
 		return home
 	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return filepath.Join(os.Getenv("HOME"), ".goose")
+	if home, err := userpath.UserHomeE(); err == nil {
+		return home
 	}
-	return filepath.Join(home, ".goose")
+	// fallback: HOME 환경변수가 설정되지 않았거나 MINK_HOME 이 유효하지 않은 경우
+	return filepath.Join(os.Getenv("HOME"), ".mink")
 }
 
 // makeEnvLookup은 EnvOverrides 맵을 우선 조회하는 envLookup 함수를 반환한다.

@@ -3,7 +3,6 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -82,12 +81,12 @@ Outputs results as a JSON array to stdout. Supports filtering by time range
 
 			// Set default log directory if not specified
 			if logDir == "" {
-				// Default to global audit log directory
-				homeDir, err := os.UserHomeDir()
-				if err != nil {
-					return fmt.Errorf("failed to determine home directory: %w", err)
+				// Default to global audit log directory (REQ-MINK-UDM-002)
+				var pathErr error
+				logDir, pathErr = audit.DefaultGlobalAuditPath()
+				if pathErr != nil {
+					return fmt.Errorf("failed to determine default log directory: %w", pathErr)
 				}
-				logDir = fmt.Sprintf("%s/.goose/logs", homeDir)
 			}
 
 			// Build query options
@@ -119,7 +118,7 @@ Outputs results as a JSON array to stdout. Supports filtering by time range
 	cmd.Flags().String("since", "", "Filter events after this timestamp (RFC3339 format, e.g., 2026-04-29T12:00:00Z)")
 	cmd.Flags().String("until", "", "Filter events before this timestamp (RFC3339 format, e.g., 2026-04-29T12:00:00Z)")
 	cmd.Flags().String("type", "", "Filter by event types (comma-separated, e.g., fs.write,permission.grant)")
-	cmd.Flags().String("log-dir", "", "Path to audit log directory (default: ~/.goose/logs)")
+	cmd.Flags().String("log-dir", "", "Path to audit log directory (default: ~/.mink/logs)")
 
 	return cmd
 }

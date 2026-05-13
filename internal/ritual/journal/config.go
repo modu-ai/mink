@@ -13,7 +13,7 @@ type Config struct {
 	// Enabled gates the entire feature. Default: false (privacy opt-in).
 	Enabled bool `yaml:"enabled"`
 	// DataDir is the directory for the SQLite journal database.
-	// Default: ~/.goose/journal/
+	// Default: ~/.mink/journal/
 	DataDir string `yaml:"data_dir"`
 	// EmotionLLMAssisted enables LLM-based emotion analysis (M3). Default: false.
 	EmotionLLMAssisted bool `yaml:"emotion_llm_assisted"`

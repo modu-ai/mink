@@ -39,12 +39,12 @@ func defaultConfig() *Config {
 		Audit: AuditConfig{
 			Enabled:   true,
 			MaxSizeMB: 100,
-			GlobalDir: "~/.goose/logs",
-			LocalDir:  "./.goose/logs",
+			GlobalDir: "~/.mink/logs",
+			LocalDir:  "./.mink/logs",
 		},
 		FSAccess: FSAccessConfig{
 			Enabled:        true,
-			PolicyPath:     "./.goose/config/security.yaml",
+			PolicyPath:     "./.mink/config/security.yaml",
 			ReloadInterval: "5s",
 		},
 	}

@@ -14,6 +14,7 @@ import (
 	"github.com/modu-ai/mink/internal/cli/tui/i18n"
 	"github.com/modu-ai/mink/internal/cli/tui/permission"
 	"github.com/modu-ai/mink/internal/cli/tui/sessionmenu"
+	"github.com/modu-ai/mink/internal/userpath"
 )
 
 // ChatMessage represents a chat message with role and content.
@@ -159,13 +160,15 @@ func NewModel(client DaemonClient, sessionName string, noColor bool) *Model {
 	}
 }
 
-// defaultPermStorePath returns the default permissions.json path (~/.goose/permissions.json).
+// defaultPermStorePath는 기본 permissions.json 경로를 반환한다 (~/.mink/permissions.json).
+// REQ-MINK-UDM-002: userpath.UserHomeE() 경유.
 func defaultPermStorePath() string {
-	home := os.Getenv("HOME")
-	if home == "" {
-		home, _ = os.UserHomeDir()
+	if home, err := userpath.UserHomeE(); err == nil {
+		return filepath.Join(home, "permissions.json")
 	}
-	return filepath.Join(home, ".goose", "permissions.json")
+	// fallback: $HOME/.mink/permissions.json
+	home := os.Getenv("HOME")
+	return filepath.Join(home, ".mink", "permissions.json")
 }
 
 // Init returns the initial command.

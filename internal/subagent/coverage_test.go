@@ -12,15 +12,17 @@ import (
 )
 
 // TestNewMemdirManager는 MemdirManager 생성자를 테스트한다.
+// REQ-MINK-UDM-002. AC-005: .mink 경로 사용.
 func TestNewMemdirManager(t *testing.T) {
 	t.Parallel()
-	mgr := NewMemdirManager("researcher", []MemoryScope{ScopeProject, ScopeUser}, "/project", "/home")
+	// homeDir은 이미 .mink-rooted 경로 (userpath.UserHomeE() 결과)를 전달
+	mgr := NewMemdirManager("researcher", []MemoryScope{ScopeProject, ScopeUser}, "/project", "/home/.mink")
 	assert.NotNil(t, mgr)
 	assert.Equal(t, "researcher", mgr.agentType)
 	assert.Equal(t, []MemoryScope{ScopeProject, ScopeUser}, mgr.scopes)
-	assert.Contains(t, mgr.baseDirs[ScopeUser], ".goose/agent-memory/researcher")
-	assert.Contains(t, mgr.baseDirs[ScopeProject], ".goose/agent-memory/researcher")
-	assert.Contains(t, mgr.baseDirs[ScopeLocal], ".goose/agent-memory-local/researcher")
+	assert.Contains(t, mgr.baseDirs[ScopeUser], "agent-memory/researcher")
+	assert.Contains(t, mgr.baseDirs[ScopeProject], ".mink/agent-memory/researcher")
+	assert.Contains(t, mgr.baseDirs[ScopeLocal], ".mink/agent-memory-local/researcher")
 }
 
 // TestNewMemdirManager_DefaultScopes는 scopes가 nil이면 기본값으로 [ScopeProject]가 설정됨을 검증한다.

@@ -522,16 +522,21 @@ func TestSaveCredential_WithExpiryDirect(t *testing.T) {
 }
 
 // TestCredentialPath는 credentialPath 함수를 검증한다.
+// REQ-MINK-UDM-002: .mink/mcp-credentials 경로 사용.
 func TestCredentialPath(t *testing.T) {
 	oldHome := os.Getenv("HOME")
 	tmpHome := t.TempDir()
 	os.Setenv("HOME", tmpHome)
-	defer os.Setenv("HOME", oldHome)
+	os.Unsetenv("MINK_HOME")
+	defer func() {
+		os.Setenv("HOME", oldHome)
+		os.Unsetenv("MINK_HOME")
+	}()
 
 	path, err := credentialPath("test-server")
 	require.NoError(t, err)
 	assert.Contains(t, path, "test-server.json")
-	assert.Contains(t, path, ".goose")
+	assert.Contains(t, path, ".mink") // REQ-MINK-UDM-002: .goose → .mink
 }
 
 // --- adapter.go 커버리지 ---
@@ -844,15 +849,19 @@ func TestSaveCredential_DirCreation(t *testing.T) {
 	oldHome := os.Getenv("HOME")
 	tmpHome := t.TempDir()
 	os.Setenv("HOME", tmpHome)
-	defer os.Setenv("HOME", oldHome)
+	os.Unsetenv("MINK_HOME")
+	defer func() {
+		os.Setenv("HOME", oldHome)
+		os.Unsetenv("MINK_HOME")
+	}()
 
 	// 디렉토리가 없는 상태에서 저장
 	ts := &TokenSet{AccessToken: "tok"}
 	err := SaveCredential("dir-create-test", ts)
 	require.NoError(t, err)
 
-	// 파일이 생성되었는지 확인
-	path := filepath.Join(tmpHome, credentialsDir, "dir-create-test.json")
+	// 파일이 생성되었는지 확인 (.mink/mcp-credentials/, REQ-MINK-UDM-002)
+	path := filepath.Join(tmpHome, ".mink", credentialsDirName, "dir-create-test.json")
 	_, err = os.Stat(path)
 	assert.NoError(t, err)
 }

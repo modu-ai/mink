@@ -8,6 +8,7 @@ import (
 	"github.com/modu-ai/mink/internal/cli/commands"
 	"github.com/modu-ai/mink/internal/cli/transport"
 	"github.com/modu-ai/mink/internal/cli/tui"
+	"github.com/modu-ai/mink/internal/userpath"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -36,6 +37,19 @@ func NewRootCommand(version, commit, builtAt string) *cobra.Command {
 			// Create logger
 			logLevel, _ := cmd.PersistentFlags().GetString("log-level")
 			logger := newLogger(logLevel)
+
+			// T-015: ~/.goose/ → ~/.mink/ 최초 1회 자동 마이그레이션.
+			// 비치명적: 마이그레이션 실패 시 경고 로그 후 계속 진행.
+			result, migrateErr := userpath.MigrateOnce(cmd.Context())
+			if migrateErr != nil {
+				logger.Warn("userdata migration failed (non-fatal)", zap.Error(migrateErr))
+			} else if result.Migrated {
+				logger.Info(result.Notice,
+					zap.String("from", result.SourcePath),
+					zap.String("to", result.DestPath),
+					zap.String("method", result.Method),
+				)
+			}
 
 			// Get flags for App initialization
 			daemonAddr, _ := cmd.PersistentFlags().GetString("daemon-addr")

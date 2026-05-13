@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/modu-ai/mink/internal/userpath"
 )
 
 // MemoryConfig holds configuration for the memory system.
@@ -15,7 +17,7 @@ type MemoryConfig struct {
 // BuiltinConfig holds configuration for the BuiltinProvider.
 type BuiltinConfig struct {
 	// DBPath is the path to the SQLite database file.
-	// Defaults to ~/.goose/memory/memory.db
+	// Defaults to ~/.mink/memory/memory.db
 	DBPath string `yaml:"db_path"`
 
 	// MaxRows is the maximum number of facts to store in the facts table.
@@ -36,15 +38,15 @@ type PluginConfig struct {
 }
 
 // ApplyDefaults sets sensible defaults for unset configuration values.
+// REQ-MINK-UDM-002: userpath.UserHomeE() 경유 → .mink/memory/memory.db.
 func (c *MemoryConfig) ApplyDefaults() {
 	if c.Builtin.DBPath == "" {
-		homeDir, err := os.UserHomeDir()
-		if err == nil {
-			c.Builtin.DBPath = filepath.Join(homeDir, ".goose", "memory", "memory.db")
-		} else {
-			// Fallback if home directory cannot be determined
-			c.Builtin.DBPath = "memory.db"
+		homeDir, err := userpath.UserHomeE()
+		if err != nil {
+			// fallback: $HOME/.mink/memory/memory.db
+			homeDir = filepath.Join(os.Getenv("HOME"), ".mink")
 		}
+		c.Builtin.DBPath = filepath.Join(homeDir, "memory", "memory.db")
 	}
 
 	if c.Builtin.MaxRows == 0 {

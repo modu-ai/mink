@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -245,14 +246,40 @@ func TestSweepOnce_MtimeError(t *testing.T) {
 	j.sweepOnce(time.Now().Add(1 * time.Second))
 }
 
-// TestDefaultConfigPath verifies it returns a non-empty path.
+// TestDefaultConfigPath verifies it returns a .mink path.
+// REQ-MINK-UDM-002. AC-005.
 func TestDefaultConfigPath(t *testing.T) {
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+	os.Unsetenv("MINK_HOME")
+	t.Cleanup(func() { os.Unsetenv("MINK_HOME") })
+
 	p, err := DefaultConfigPath()
 	if err != nil {
 		t.Fatalf("DefaultConfigPath: %v", err)
 	}
 	if p == "" {
 		t.Error("expected non-empty default config path")
+	}
+	if !strings.Contains(p, ".mink") {
+		t.Errorf("expected .mink in path, got %q (REQ-MINK-UDM-002)", p)
+	}
+}
+
+// TestDefaultStorePath_UsesMinkDir verifies DefaultStorePath returns a .mink path.
+// REQ-MINK-UDM-002. AC-005.
+func TestDefaultStorePath_UsesMinkDir(t *testing.T) {
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+	os.Unsetenv("MINK_HOME")
+	t.Cleanup(func() { os.Unsetenv("MINK_HOME") })
+
+	p, err := DefaultStorePath()
+	if err != nil {
+		t.Fatalf("DefaultStorePath: %v", err)
+	}
+	if !strings.Contains(p, ".mink") {
+		t.Errorf("expected .mink in path, got %q (REQ-MINK-UDM-002)", p)
 	}
 }
 

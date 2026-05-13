@@ -12,10 +12,10 @@ import (
 )
 
 // setupUserAndProjectFiles creates user and project alias files under tmpDir
-// and sets GOOSE_HOME to the user dir so New(opts) resolves the user file.
+// and sets MINK_HOME to the user dir so New(opts) resolves the user file.
 //
-// userAliases: map written to GOOSE_HOME/aliases.yaml
-// projAliases: map written to CWD/.goose/aliases.yaml (via tmpDir/cwd subdir)
+// userAliases: map written to MINK_HOME/aliases.yaml
+// projAliases: map written to CWD/.mink/aliases.yaml (via tmpDir/cwd subdir)
 //
 // Returns a cleanup func to restore CWD. Callers MUST defer the cleanup.
 func setupUserAndProjectFiles(t *testing.T, userAliases, projAliases map[string]string) (userPath, projPath string, cleanup func()) {
@@ -23,7 +23,7 @@ func setupUserAndProjectFiles(t *testing.T, userAliases, projAliases map[string]
 
 	tmpDir := t.TempDir()
 
-	// User file: GOOSE_HOME/aliases.yaml
+	// User file: MINK_HOME/aliases.yaml
 	userDir := filepath.Join(tmpDir, "user")
 	if err := os.MkdirAll(userDir, 0o755); err != nil {
 		t.Fatalf("mkdir user: %v", err)
@@ -37,12 +37,12 @@ func setupUserAndProjectFiles(t *testing.T, userAliases, projAliases map[string]
 		t.Fatalf("write user file: %v", err)
 	}
 
-	// Project file: $CWD/.goose/aliases.yaml
+	// Project file: $CWD/.mink/aliases.yaml (REQ-MINK-UDM-001)
 	projCWD := filepath.Join(tmpDir, "project")
-	if err := os.MkdirAll(filepath.Join(projCWD, ".goose"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(projCWD, ".mink"), 0o755); err != nil {
 		t.Fatalf("mkdir proj: %v", err)
 	}
-	projPath = filepath.Join(projCWD, ".goose", "aliases.yaml")
+	projPath = filepath.Join(projCWD, ".mink", "aliases.yaml")
 	projContent := "aliases:\n"
 	for k, v := range projAliases {
 		projContent += "  " + k + ": " + v + "\n"
@@ -51,7 +51,7 @@ func setupUserAndProjectFiles(t *testing.T, userAliases, projAliases map[string]
 		t.Fatalf("write proj file: %v", err)
 	}
 
-	// Set GOOSE_HOME to user dir so New() picks up userPath.
+	// Set MINK_HOME to user dir so New() picks up userPath.
 	t.Setenv("MINK_HOME", userDir)
 
 	// Change CWD to projCWD so detectProjectLocalAliasFile picks up projPath.

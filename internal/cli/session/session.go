@@ -11,6 +11,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/modu-ai/mink/internal/userpath"
 )
 
 // Message represents a single message in a session.
@@ -33,13 +35,13 @@ func Dir() string {
 		return testDir
 	}
 
-	homeDir, err := os.UserHomeDir()
+	// REQ-MINK-UDM-002: userpath.UserHome() 경유 — .mink/sessions
+	home, err := userpath.UserHomeE()
 	if err != nil {
-		// Fallback to current directory if home directory cannot be determined
-		return ".goose/sessions"
+		// fallback: $HOME/.mink/sessions
+		return filepath.Join(os.Getenv("HOME"), ".mink", "sessions")
 	}
-
-	return filepath.Join(homeDir, ".goose", "sessions")
+	return filepath.Join(home, "sessions")
 }
 
 // Save writes messages to a session file as JSONL (one JSON object per line).
@@ -59,7 +61,8 @@ func Save(name string, messages []Message) error {
 
 	// Create temp file in the same directory for atomic rename
 	// @MX:NOTE Temp file in same directory ensures rename works across filesystems.
-	tmpPath := filepath.Join(dir, ".goose-session-"+name+".tmp")
+	// REQ-MINK-UDM-004: tmp prefix .mink-session-* (AC-006)
+	tmpPath := filepath.Join(dir, userpath.TempPrefix()+"session-"+name+".tmp")
 	tmpFile, err := os.Create(tmpPath)
 	if err != nil {
 		return fmt.Errorf("failed to create temp file: %w", err)

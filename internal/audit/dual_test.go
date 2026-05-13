@@ -136,8 +136,9 @@ func TestDefaultGlobalAuditPath(t *testing.T) {
 }
 
 func TestDefaultLocalAuditPath(t *testing.T) {
+	// REQ-MINK-UDM-002: .mink 으로 이전
 	path := DefaultLocalAuditPath()
-	assert.Equal(t, ".goose/logs/audit.local.log", path)
+	assert.Equal(t, ".mink/logs/audit.local.log", path)
 }
 
 func TestDualWriter_GlobalPath(t *testing.T) {
@@ -302,11 +303,11 @@ func TestDefaultGlobalAuditPath_NoGOOSE_HOME(t *testing.T) {
 	// Act: Get default path
 	path, err := DefaultGlobalAuditPath()
 
-	// Assert: Should use default ~/.goose/logs/audit.log
+	// REQ-MINK-UDM-002: .mink 으로 이전
 	require.NoError(t, err)
-	homeDir, _ := os.UserHomeDir()
-	expectedPath := filepath.Join(homeDir, ".goose", "logs", "audit.log")
-	assert.Equal(t, expectedPath, path)
+	assert.Contains(t, path, ".mink",
+		"DefaultGlobalAuditPath must reference .mink when no env set")
+	assert.NotContains(t, path, ".goose")
 }
 
 // TestDefaultGlobalAuditPath_AliasLoader_MinkOnly verifies that MINK_HOME is respected.
@@ -331,4 +332,35 @@ func TestDefaultGlobalAuditPath_AliasLoader_GooseOnly_WarnsOnce(t *testing.T) {
 	path, err := DefaultGlobalAuditPath()
 	require.NoError(t, err)
 	assert.Equal(t, filepath.Join(tmpDir, "logs", "audit.log"), path)
+}
+
+// ── T-009: audit 패키지 userpath 마이그레이션 ─────────────────────────────
+
+// TestDefaultLocalAuditPath_UsesMink는 DefaultLocalAuditPath 가 .mink 를 사용함을 검증한다.
+// REQ-MINK-UDM-002. AC-005 (.goose literal = 0건).
+func TestDefaultLocalAuditPath_UsesMink(t *testing.T) {
+	path := DefaultLocalAuditPath()
+	assert.Contains(t, path, ".mink",
+		"DefaultLocalAuditPath must reference .mink (REQ-MINK-UDM-002)")
+	assert.NotContains(t, path, ".goose",
+		"DefaultLocalAuditPath must not reference .goose")
+}
+
+// TestDefaultGlobalAuditPath_NoEnv_UsesMink는 env 미설정 시 $HOME/.mink/logs 를 사용함을 검증한다.
+// REQ-MINK-UDM-002. AC-005.
+func TestDefaultGlobalAuditPath_NoEnv_UsesMink(t *testing.T) {
+	oldMink := os.Getenv("MINK_HOME")
+	oldGoose := os.Getenv("GOOSE_HOME")
+	defer func() {
+		_ = os.Setenv("MINK_HOME", oldMink)
+		_ = os.Setenv("GOOSE_HOME", oldGoose)
+	}()
+	_ = os.Unsetenv("MINK_HOME")
+	_ = os.Unsetenv("GOOSE_HOME")
+
+	path, err := DefaultGlobalAuditPath()
+	require.NoError(t, err)
+	assert.Contains(t, path, ".mink",
+		"DefaultGlobalAuditPath must reference .mink when no env set (REQ-MINK-UDM-002)")
+	assert.NotContains(t, path, ".goose")
 }

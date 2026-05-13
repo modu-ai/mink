@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/modu-ai/mink/internal/messaging/telegram"
+	"github.com/modu-ai/mink/internal/userpath"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -39,8 +40,8 @@ type keyringIface interface {
 // group with setup, status, start, approve, and revoke sub-subcommands.
 //
 // client and kr may be nil (production default) or injected by tests.
-// cfgDir overrides the config directory (defaults to ~/.goose/messaging/).
-// storePath overrides the sqlite store path (defaults to ~/.goose/messaging/telegram.db).
+// cfgDir overrides the config directory (defaults to ~/.mink/messaging/).
+// storePath overrides the sqlite store path (defaults to ~/.mink/messaging/telegram.db).
 func newMessagingTelegramCommand(client telegramClientIface, kr keyringIface, cfgDir, storePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "telegram",
@@ -56,7 +57,7 @@ func newMessagingTelegramCommand(client telegramClientIface, kr keyringIface, cf
 
 // newTelegramSetupCommand implements "goose messaging telegram setup".
 // It validates the token via GetMe, stores it in the keyring, and writes
-// ~/.goose/messaging/telegram.yaml.
+// ~/.mink/messaging/telegram.yaml.
 func newTelegramSetupCommand(client telegramClientIface, kr keyringIface, cfgDir string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "setup",
@@ -315,15 +316,17 @@ func newTelegramStartCommand(kr keyringIface, cfgDir string) *cobra.Command {
 }
 
 // resolveConfigDir returns the effective config directory path.
+// REQ-MINK-UDM-002: userpath.UserHomeE() 경유 → .mink/messaging/.
 func resolveConfigDir(override string) (string, error) {
 	if override != "" {
 		return override, nil
 	}
-	home, err := os.UserHomeDir()
+	home, err := userpath.UserHomeE()
 	if err != nil {
-		return "", fmt.Errorf("determine home dir: %w", err)
+		// fallback: $HOME/.mink/messaging
+		home = filepath.Join(os.Getenv("HOME"), ".mink")
 	}
-	return filepath.Join(home, ".goose", "messaging"), nil
+	return filepath.Join(home, "messaging"), nil
 }
 
 // resolveStorePath returns the effective sqlite store path.

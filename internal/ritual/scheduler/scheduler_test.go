@@ -171,17 +171,19 @@ func TestStartPartialFailure_StoppedInvariant(t *testing.T) {
 }
 
 // TestFilePersister_DefaultHomeDir verifies that NewFilePersister("") derives
-// the home directory from the OS and constructs a valid path.
+// the home directory from userpath.UserHomeE() and constructs a .mink path.
+// REQ-MINK-UDM-002. AC-005.
 func TestFilePersister_DefaultHomeDir(t *testing.T) {
-	t.Parallel()
+	// t.Parallel() 제거 — HOME 환경 변수 수정 필요
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+	os.Unsetenv("MINK_HOME")
+	t.Cleanup(func() { os.Unsetenv("MINK_HOME") })
+
 	p := scheduler.NewFilePersister("")
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		t.Skipf("os.UserHomeDir() failed: %v", err)
-	}
-	expected := filepath.Join(homeDir, ".goose", "ritual", "schedule.json")
+	expected := filepath.Join(fakeHome, ".mink", "ritual", "schedule.json")
 	if p.Path != expected {
-		t.Errorf("Path = %q, want %q", p.Path, expected)
+		t.Errorf("Path = %q, want %q (must use .mink, REQ-MINK-UDM-002)", p.Path, expected)
 	}
 }
 

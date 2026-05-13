@@ -10,13 +10,18 @@ import (
 )
 
 // setupHome overrides HOME so sessionsDir() resolves under a temp dir.
+// REQ-MINK-UDM-002: .mink/sessions 경로 사용.
 func setupHome(t *testing.T) (sessDir string, cleanup func()) {
 	t.Helper()
 	tmpDir := t.TempDir()
 	oldHome := os.Getenv("HOME")
 	os.Setenv("HOME", tmpDir)
-	sessDir = filepath.Join(tmpDir, ".goose", "sessions")
-	cleanup = func() { os.Setenv("HOME", oldHome) }
+	os.Unsetenv("MINK_HOME")
+	sessDir = filepath.Join(tmpDir, ".mink", "sessions")
+	cleanup = func() {
+		os.Setenv("HOME", oldHome)
+		os.Unsetenv("MINK_HOME")
+	}
 	return sessDir, cleanup
 }
 
@@ -103,7 +108,7 @@ func TestSessionMenu_Loader_EmptyDir(t *testing.T) {
 func TestSessionMenu_Loader_AbsentDir(t *testing.T) {
 	tmpDir := t.TempDir()
 	oldHome := os.Getenv("HOME")
-	// Point HOME to a dir that has no .goose/ subtree at all.
+	// Point HOME to a dir that has no .mink/ subtree at all.
 	os.Setenv("HOME", tmpDir)
 	defer os.Setenv("HOME", oldHome)
 

@@ -501,9 +501,10 @@ func persistTranscript(sa *Subagent, cfg *runConfig) {
 }
 
 // transcriptDir는 transcript 디렉토리 경로를 반환한다.
-// REQ-SA-002: {memoryDir}/transcript-{agentId}/
+// REQ-SA-002: {homeDir}/agent-memory/{agentType}/transcript-{agentId}/
+// REQ-MINK-UDM-002: homeDir은 userpath.UserHomeE() 결과 (.mink 경로).
 func transcriptDir(agentID, agentType, homeDir string) string {
-	return fmt.Sprintf("%s/.goose/agent-memory/%s/transcript-%s",
+	return fmt.Sprintf("%s/agent-memory/%s/transcript-%s",
 		homeDir, agentType, agentID)
 }
 

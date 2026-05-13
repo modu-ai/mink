@@ -9,6 +9,8 @@ import (
 
 	"github.com/gofrs/flock"
 	"go.uber.org/zap"
+
+	"github.com/modu-ai/mink/internal/userpath"
 )
 
 // MemdirManager는 3-scope 메모리 디렉토리를 관리한다.
@@ -25,14 +27,18 @@ type MemdirManager struct {
 
 // NewMemdirManager는 MemdirManager를 생성한다.
 // projectRoot와 homeDir를 기반으로 3-scope 경로를 구성한다.
+// REQ-MINK-UDM-002: homeDir은 userpath.UserHomeE() 경유 .mink, projectRoot는 .mink/ 서브디렉토리.
 func NewMemdirManager(agentType string, scopes []MemoryScope, projectRoot, homeDir string) *MemdirManager {
 	if len(scopes) == 0 {
 		scopes = []MemoryScope{ScopeProject}
 	}
+	// ScopeUser: homeDir 은 이미 .mink 경로 (userpath.UserHomeE() 결과)
+	// ScopeProject/ScopeLocal: projectRoot 기반 .mink/ 서브디렉토리
+	minkProject := userpath.ProjectLocal(projectRoot)
 	baseDirs := map[MemoryScope]string{
-		ScopeUser:    filepath.Join(homeDir, ".goose", "agent-memory", agentType),
-		ScopeProject: filepath.Join(projectRoot, ".goose", "agent-memory", agentType),
-		ScopeLocal:   filepath.Join(projectRoot, ".goose", "agent-memory-local", agentType),
+		ScopeUser:    filepath.Join(homeDir, "agent-memory", agentType),
+		ScopeProject: filepath.Join(minkProject, "agent-memory", agentType),
+		ScopeLocal:   filepath.Join(minkProject, "agent-memory-local", agentType),
 	}
 	return &MemdirManager{
 		agentType: agentType,

@@ -8,11 +8,14 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+
+	"github.com/modu-ai/mink/internal/userpath"
 )
 
-// credentialsDir은 credential 파일 저장 디렉토리이다.
-// REQ-MCP-003: ~/.goose/mcp-credentials/{server-id}.json
-const credentialsDir = ".goose/mcp-credentials"
+// credentialsDirName은 credential 파일 저장 디렉토리 이름이다.
+// REQ-MCP-003: ~/.mink/mcp-credentials/{server-id}.json
+// REQ-MINK-UDM-002: userpath.UserHomeE() 경유.
+const credentialsDirName = "mcp-credentials"
 
 // credentialFileMode은 credential 파일에 요구되는 최대 파일 mode이다.
 // REQ-MCP-003: 0600 초과 시 거부
@@ -27,12 +30,14 @@ type credentialData struct {
 }
 
 // credentialPath는 서버 ID에 대응하는 credential 파일 경로를 반환한다.
+// REQ-MINK-UDM-002: userpath.UserHomeE() 경유 → ~/.mink/mcp-credentials/{id}.json.
 func credentialPath(serverID string) (string, error) {
-	home, err := os.UserHomeDir()
+	home, err := userpath.UserHomeE()
 	if err != nil {
-		return "", fmt.Errorf("home dir: %w", err)
+		// fallback: $HOME/.mink/mcp-credentials
+		home = filepath.Join(os.Getenv("HOME"), ".mink")
 	}
-	return filepath.Join(home, credentialsDir, serverID+".json"), nil
+	return filepath.Join(home, credentialsDirName, serverID+".json"), nil
 }
 
 // SaveCredential은 token을 credential 파일에 저장한다.

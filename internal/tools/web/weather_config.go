@@ -8,7 +8,7 @@ import (
 )
 
 // WeatherConfig holds runtime configuration for all weather tools.
-// It is loaded from ~/.goose/config/weather.yaml at startup (or from the
+// It is loaded from ~/.mink/config/weather.yaml at startup (or from the
 // path passed to LoadWeatherConfig). Missing keys fall back to safe defaults.
 type WeatherConfig struct {
 	// Provider selects the weather data source.

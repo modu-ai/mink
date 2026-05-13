@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/modu-ai/mink/internal/envalias"
+	"github.com/modu-ai/mink/internal/userpath"
 )
 
 // DualWriter writes audit events to two locations simultaneously:
@@ -137,22 +138,26 @@ func (w *DualWriter) IsLocalEnabled() bool {
 
 // DefaultGlobalAuditPath returns the default global audit log path.
 // It uses the MINK_HOME (or legacy GOOSE_HOME) environment variable,
-// or defaults to ~/.goose/logs/audit.log
+// or defaults to ~/.mink/logs/audit.log (REQ-MINK-UDM-002).
 func DefaultGlobalAuditPath() (string, error) {
 	// Check MINK_HOME / GOOSE_HOME via alias loader (SPEC-MINK-ENV-MIGRATE-001)
-	if gooseHome, _, ok := envalias.DefaultGet("HOME"); ok {
-		return filepath.Join(gooseHome, "logs", "audit.log"), nil
+	if minkHome, _, ok := envalias.DefaultGet("HOME"); ok {
+		return filepath.Join(minkHome, "logs", "audit.log"), nil
 	}
-	homeDir, err := os.UserHomeDir()
+	// userpath.UserHomeE() 로 중앙화 (REQ-MINK-UDM-002)
+	minkHome, err := userpath.UserHomeE()
 	if err != nil {
-		return "", fmt.Errorf("failed to determine home directory: %w", err)
+		homeDir, hdErr := os.UserHomeDir()
+		if hdErr != nil {
+			return "", fmt.Errorf("failed to determine home directory: %w", hdErr)
+		}
+		minkHome = filepath.Join(homeDir, ".mink")
 	}
-	gooseHome := filepath.Join(homeDir, ".goose")
-	return filepath.Join(gooseHome, "logs", "audit.log"), nil
+	return filepath.Join(minkHome, "logs", "audit.log"), nil
 }
 
 // DefaultLocalAuditPath returns the default project-local audit log path.
-// It returns ./.goose/logs/audit.local.log
+// It returns ./.mink/logs/audit.local.log (REQ-MINK-UDM-002).
 func DefaultLocalAuditPath() string {
-	return filepath.Join(".goose", "logs", "audit.local.log")
+	return filepath.Join(".mink", "logs", "audit.local.log")
 }

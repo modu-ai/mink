@@ -129,8 +129,9 @@ func TestConfigDefaults(t *testing.T) {
 		t.Error("DefaultConfig() Enabled should be true")
 	}
 
-	if config.IndexPath != "./.goose/data/qmd-index/" {
-		t.Errorf("DefaultConfig() IndexPath = %v, want %v", config.IndexPath, "./.goose/data/qmd-index/")
+	// REQ-MINK-UDM-001: 프로젝트 로컬 경로 .goose → .mink
+	if config.IndexPath != "./.mink/data/qmd-index/" {
+		t.Errorf("DefaultConfig() IndexPath = %v, want %v", config.IndexPath, "./.mink/data/qmd-index/")
 	}
 
 	if config.MaxResults != 10 {

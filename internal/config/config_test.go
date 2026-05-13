@@ -171,11 +171,12 @@ func TestLoad_ProjectOverridesUser(t *testing.T) {
 	gooseHomeFSKey := gooseHome[1:]
 	workDirFSKey := workDir[1:]
 
+	// REQ-MINK-UDM-002: project config 는 .mink/config.yaml
 	memFS := fstest.MapFS{
 		filepath.Join(gooseHomeFSKey, "config.yaml"): &fstest.MapFile{
 			Data: []byte(userYAML),
 		},
-		filepath.Join(workDirFSKey, ".goose", "config.yaml"): &fstest.MapFile{
+		filepath.Join(workDirFSKey, ".mink", "config.yaml"): &fstest.MapFile{
 			Data: []byte(projectYAML),
 		},
 	}
@@ -190,6 +191,70 @@ func TestLoad_ProjectOverridesUser(t *testing.T) {
 
 	assert.Equal(t, "ollama", cfg.LLM.DefaultProvider)
 	assert.Equal(t, config.SourceProject, cfg.Source("llm.default_provider"))
+}
+
+// ── T-008: internal/userpath 로 config 패키지 콜사이트 마이그레이션 ────────
+
+// TestLoad_ProjectConfig_MinkPath는 project config 가 .mink/config.yaml 에서 로드됨을 검증한다.
+// REQ-MINK-UDM-002, REQ-MINK-UDM-014. AC-005 (production .goose literal = 0).
+func TestLoad_ProjectConfig_MinkPath(t *testing.T) {
+	t.Parallel()
+
+	gooseHome := t.TempDir()
+	workDir := t.TempDir()
+
+	userYAML := `llm:
+  default_provider: openai
+`
+	projectYAML := `llm:
+  default_provider: anthropic
+`
+	gooseHomeFSKey := gooseHome[1:]
+	workDirFSKey := workDir[1:]
+
+	// T-008: 프로젝트 config 는 .mink/config.yaml (not .goose/config.yaml)
+	memFS := fstest.MapFS{
+		filepath.Join(gooseHomeFSKey, "config.yaml"): &fstest.MapFile{
+			Data: []byte(userYAML),
+		},
+		filepath.Join(workDirFSKey, ".mink", "config.yaml"): &fstest.MapFile{
+			Data: []byte(projectYAML),
+		},
+	}
+
+	cfg, err := config.Load(config.LoadOptions{
+		FS:           memFS,
+		MinkHome:     gooseHome,
+		WorkDir:      workDir,
+		EnvOverrides: map[string]string{},
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, "anthropic", cfg.LLM.DefaultProvider,
+		"project config must be loaded from .mink/config.yaml (REQ-MINK-UDM-002)")
+	assert.Equal(t, config.SourceProject, cfg.Source("llm.default_provider"))
+}
+
+// TestLoad_DefaultAuditPaths_UsesMinkDir는 defaults 의 audit log path 가 .mink 를 사용함을 검증한다.
+// REQ-MINK-UDM-002. AC-005.
+func TestLoad_DefaultAuditPaths_UsesMinkDir(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := config.Load(config.LoadOptions{
+		FS:           fstest.MapFS{},
+		MinkHome:     t.TempDir(),
+		WorkDir:      t.TempDir(),
+		EnvOverrides: map[string]string{},
+	})
+	require.NoError(t, err)
+
+	// defaults.go 의 audit path 가 .mink 를 참조해야 함
+	assert.Contains(t, cfg.Audit.GlobalDir, ".mink",
+		"GlobalDir default must reference .mink (REQ-MINK-UDM-002)")
+	assert.Contains(t, cfg.Audit.LocalDir, ".mink",
+		"LocalDir default must reference .mink (REQ-MINK-UDM-002)")
+	assert.Contains(t, cfg.FSAccess.PolicyPath, ".mink",
+		"PolicyPath default must reference .mink (REQ-MINK-UDM-002)")
 }
 
 // ---- AC-CFG-006: Unknown 키 보존 (비-strict) ----
@@ -622,28 +687,32 @@ func TestLoad_TypeMismatch_GRPCPort_String(t *testing.T) {
 	assert.Equal(t, "int", fieldErr.Expected)
 }
 
-// ---- AC-CFG-017: $GOOSE_HOME 미설정 시 $HOME/.goose fallback ----
+// ---- AC-CFG-017: $HOME 미설정 시 $HOME/.mink fallback ----
+// REQ-MINK-UDM-002: 사용자 config 는 $HOME/.mink/config.yaml
 
-// TestLoad_MinkHome_Unset_UsesHomeDotGoose는 AC-CFG-017을 검증한다.
+// TestLoad_MinkHome_Unset_UsesHomeDotMink는 AC-CFG-017을 검증한다.
+// MINK_HOME 미설정 시 $HOME/.mink/config.yaml 에서 user config 로드.
 // 이 테스트는 실제 HOME env를 변경하므로 serial로 실행 (t.Parallel() 없음)
-func TestLoad_MinkHome_Unset_UsesHomeDotGoose(t *testing.T) {
+func TestLoad_MinkHome_Unset_UsesHomeDotMink(t *testing.T) {
 	// env 변경 필요 — 격리를 위해 serial 실행
 	fakeHome := t.TempDir()
-	gooseDir := filepath.Join(fakeHome, ".goose")
-	require.NoError(t, os.MkdirAll(gooseDir, 0755))
+	// REQ-MINK-UDM-002: user config 는 $HOME/.mink/config.yaml
+	minkDir := filepath.Join(fakeHome, ".mink")
+	require.NoError(t, os.MkdirAll(minkDir, 0755))
 	require.NoError(t, os.WriteFile(
-		filepath.Join(gooseDir, "config.yaml"),
+		filepath.Join(minkDir, "config.yaml"),
 		[]byte("log:\n  level: warn\n"),
 		0600,
 	))
 
-	// MINK_HOME 미설정, HOME을 fakeHome으로 설정 (legacy GOOSE_HOME alias 도 함께 클리어)
-	// t.Setenv는 t.Parallel()과 공존 불가이므로 non-parallel 테스트에서만 사용
+	// MINK_HOME 은 비워둠 (os.Unsetenv — t.Setenv("", ...) 는 MINK_HOME="" 를 의미하므로 직접 해제)
 	t.Setenv("HOME", fakeHome)
-	t.Setenv("MINK_HOME", "")
+	os.Unsetenv("MINK_HOME")
+	t.Cleanup(func() { os.Unsetenv("MINK_HOME") })
 	t.Setenv("GOOSE_HOME", "") // SPEC-MINK-ENV-MIGRATE-001: alias loader fallback 차단 (test isolation)
 
 	// 실제 디스크 접근 (os.DirFS 사용, MinkHome 미지정)
+	// resolveGooseHome 이 매 호출마다 env 를 읽으므로 캐시 초기화 불필요
 	cfg, err := config.Load(config.LoadOptions{
 		WorkDir: t.TempDir(),
 	})

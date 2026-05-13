@@ -29,14 +29,15 @@ func userAliasPath() string {
 	return filepath.Join(homeDir, defaultConfigPath)
 }
 
-// projectAliasPath returns $CWD/.goose/aliases.yaml.
+// projectAliasPath returns $CWD/.mink/aliases.yaml.
 // Returns empty string when the working directory cannot be determined.
+// REQ-MINK-UDM-001: .goose → .mink.
 func projectAliasPath() string {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(cwd, ".goose", "aliases.yaml")
+	return filepath.Join(cwd, ".mink", "aliases.yaml")
 }
 
 // fileExists reports whether the given path exists in the real filesystem.

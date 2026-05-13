@@ -19,6 +19,9 @@ cover.out
 cover.html
 cpu.prof
 mem.prof
+# Root-level MINK binaries (go build ./cmd/mink ./cmd/minkd output)
+/mink
+/minkd
 
 # ===========================================
 # Build Artifacts & Distribution

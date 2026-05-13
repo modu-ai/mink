@@ -8,6 +8,8 @@ import (
 	"time"
 
 	_ "modernc.org/sqlite" // SQLite driver (CGo-free)
+
+	"github.com/modu-ai/mink/internal/userpath"
 )
 
 // UserMapping records the association between a Telegram chat_id and a Mink
@@ -241,10 +243,12 @@ func (s *SqliteStore) Close() error {
 }
 
 // DefaultStorePath returns the default path for the telegram SQLite store.
+// REQ-MINK-UDM-002: userpath.UserHomeE() 경유 → ~/.mink/messaging/telegram.db.
 func DefaultStorePath() (string, error) {
-	home, err := os.UserHomeDir()
+	home, err := userpath.UserHomeE()
 	if err != nil {
-		return "", fmt.Errorf("telegram store: determine home dir: %w", err)
+		// fallback: $HOME/.mink/messaging/telegram.db
+		home = os.Getenv("HOME") + "/.mink"
 	}
-	return home + "/.goose/messaging/telegram.db", nil
+	return home + "/messaging/telegram.db", nil
 }

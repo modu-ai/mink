@@ -10,6 +10,7 @@ import (
 
 	"github.com/modu-ai/mink/internal/tools"
 	"github.com/modu-ai/mink/internal/tools/builtin"
+	"github.com/modu-ai/mink/internal/userpath"
 )
 
 func init() {
@@ -79,7 +80,8 @@ func (t *fileWriteTool) Call(ctx context.Context, input json.RawMessage) (tools.
 	}
 
 	// Atomic write: tmp 파일에 쓰고 rename
-	tmpFile, err := os.CreateTemp(dir, ".goose-write-*")
+	// REQ-MINK-UDM-004 (AC-006): .mink- prefix 사용.
+	tmpFile, err := os.CreateTemp(dir, userpath.TempPrefix()+"write-*")
 	if err != nil {
 		return tools.ToolResult{IsError: true, Content: []byte(fmt.Sprintf("create_temp_error: %v", err))}, nil
 	}
