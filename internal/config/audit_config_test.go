@@ -16,11 +16,12 @@ func TestDefaultConfig_HasAuditDefaults(t *testing.T) {
 	if cfg.Audit.MaxSizeMB != 100 {
 		t.Errorf("Expected audit.max_size_mb to be 100, got %d", cfg.Audit.MaxSizeMB)
 	}
-	if cfg.Audit.GlobalDir != "~/.goose/logs" {
-		t.Errorf("Expected audit.global_dir to be '~/.goose/logs', got %s", cfg.Audit.GlobalDir)
+	// REQ-MINK-UDM-002: defaults が .mink に移行済み
+	if cfg.Audit.GlobalDir != "~/.mink/logs" {
+		t.Errorf("Expected audit.global_dir to be '~/.mink/logs', got %s", cfg.Audit.GlobalDir)
 	}
-	if cfg.Audit.LocalDir != "./.goose/logs" {
-		t.Errorf("Expected audit.local_dir to be './.goose/logs', got %s", cfg.Audit.LocalDir)
+	if cfg.Audit.LocalDir != "./.mink/logs" {
+		t.Errorf("Expected audit.local_dir to be './.mink/logs', got %s", cfg.Audit.LocalDir)
 	}
 }
 
