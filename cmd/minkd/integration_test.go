@@ -776,7 +776,7 @@ func TestRunWithContext_MigrateOnce_NoopWhenNoLegacyDir(t *testing.T) {
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
 	t.Setenv("MINK_HOME", "")
-	os.Unsetenv("MINK_HOME") //nolint:errcheck
+	os.Unsetenv("MINK_HOME")                       //nolint:errcheck
 	t.Cleanup(func() { os.Unsetenv("MINK_HOME") }) //nolint:errcheck
 
 	// MINK_HOME 미설정 → config.Load는 HOME 기반 경로를 찾음 → makeTestHome 패턴 사용

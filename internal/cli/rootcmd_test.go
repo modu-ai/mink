@@ -122,7 +122,7 @@ func TestRootCommand_MigrateOnce_CalledOnStartup(t *testing.T) {
 	t.Setenv("HOME", tmpDir)
 	t.Setenv("MINK_HOME", "")
 	// MINK_HOME 빈 문자열 → ErrMinkHomeEmpty 방지: 키 자체를 제거
-	os.Unsetenv("MINK_HOME") //nolint:errcheck
+	os.Unsetenv("MINK_HOME")                       //nolint:errcheck
 	t.Cleanup(func() { os.Unsetenv("MINK_HOME") }) //nolint:errcheck
 
 	rootCmd := cli.NewRootCommand("v0.1.0", "abc123", "2026-05-13")
