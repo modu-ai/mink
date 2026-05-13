@@ -2,12 +2,16 @@
 
 - Started: 2026-05-13 (run phase entry)
 - Completed: 2026-05-13
+- **Status: completed (v0.2.0 implemented)**
 - Worktree: /Users/goos/.moai/worktrees/goose/SPEC-MINK-BRAND-RENAME-001
 - Branch: impl/SPEC-MINK-USERDATA-MIGRATE-001 (forked from origin/main = 2297124, post PR #173 merge)
 - Plan PR: #173 merged into main (squash, 2297124)
+- **Impl PR: #174 merged into main (squash, 9c5c4173) — 19 tasks + 1 coverage fix-up (7c04832)**
+- Sync PR: docs/sync-SPEC-MINK-USERDATA-MIGRATE-001 (this branch)
 - Issue: #172 closed (auto via squash commit body)
 - Development mode: TDD (quality.yaml `constitution.development_mode: tdd`)
 - Coverage targets: 80% per commit (tdd_settings.min_coverage_per_commit), 85% overall (test_coverage_target), 90% strict for `internal/userpath/**` (plan.md §5)
+- **Final coverage (internal/userpath): 90.5% (strict ≥ 90% PASS, +0.5%p buffer)**
 - Harness level: thorough (security REQ-019 mode bits + R2 data loss risk + 16 AC + brownfield migration)
 - Scale mode: Full Pipeline (23+ touched files, 1 domain Go backend, 5 new files + 17~18 modify files)
 - Language skill: moai-lang-go (go.mod detected)
@@ -17,7 +21,8 @@
 
 - Phase 0.9 complete: language=go (moai-lang-go), single-language project
 - Phase 0.95 complete: scale=full-pipeline, mode=sub-agent (no --team flag)
-- Phase 1 in_progress: manager-strategy invocation pending (this entry written before spawn)
+- Phase 1~6 complete: 19 atomic tasks all DONE (T-001 ~ T-019)
+- Post-merge fix-up: coverage_internal_test.go (7c04832) → 90.5% strict 임계 달성
 
 ### TDD Task Completion
 
