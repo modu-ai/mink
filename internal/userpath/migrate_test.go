@@ -460,3 +460,130 @@ func TestMigrateOnce_Windows_ErrLockUnsupported(t *testing.T) {
 	_, err := userpath.MigrateOnce(ctx)
 	assert.ErrorIs(t, err, userpath.ErrLockUnsupported)
 }
+
+// ── T-007: dual-existence + symlink + brand marker ────────────────────────
+
+// TestMigrateOnce_Symlink은 .goose 가 symlink 이면 ErrSymlinkPath 를 반환함을 검증한다.
+// REQ-MINK-UDM-013, EC-001. R3 (symlink auto-resolve 0건).
+func TestMigrateOnce_Symlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink creation requires elevated privileges on Windows")
+	}
+	homeDir := setupMigrationEnv(t)
+
+	// .goose 의 실제 대상 디렉토리를 생성한 후 symlink 로 연결
+	realDir := filepath.Join(homeDir, ".goose-real")
+	require.NoError(t, os.MkdirAll(realDir, 0o700))
+	writeFile(t, filepath.Join(realDir, "config.yaml"), "version: 1")
+
+	symlinkPath := filepath.Join(homeDir, ".goose")
+	require.NoError(t, os.Symlink(realDir, symlinkPath))
+
+	ctx := context.Background()
+	_, err := userpath.MigrateOnce(ctx)
+
+	// symlink 감지 → ErrSymlinkPath, 자동 resolve 0건
+	assert.ErrorIs(t, err, userpath.ErrSymlinkPath,
+		".goose symlink must return ErrSymlinkPath (EC-001)")
+
+	// 실제 경로 (realDir) 는 그대로 보존돼야 함 — auto-resolve 금지
+	assert.DirExists(t, realDir, "real directory must be preserved when .goose is a symlink")
+}
+
+// TestMigrateOnce_DualExistence는 .goose + .mink 양쪽 존재 시 .mink 우선 + no-op 를 검증한다.
+// REQ-MINK-UDM-012. AC-002.
+func TestMigrateOnce_DualExistence(t *testing.T) {
+	homeDir := setupMigrationEnv(t)
+
+	// .goose + .mink 모두 존재 (marker 없음 — 이미 .mink 사용 중이지만 marker 누락)
+	legacyDir := filepath.Join(homeDir, ".goose")
+	require.NoError(t, os.MkdirAll(legacyDir, 0o700))
+	writeFile(t, filepath.Join(legacyDir, "old.txt"), "old content")
+
+	minkDir := filepath.Join(homeDir, ".mink")
+	require.NoError(t, os.MkdirAll(minkDir, 0o700))
+	writeFile(t, filepath.Join(minkDir, "new.txt"), "new content")
+
+	ctx := context.Background()
+	result, err := userpath.MigrateOnce(ctx)
+
+	// 에러 없음, .mink 우선 (Migrated=false, no rename)
+	require.NoError(t, err)
+	assert.False(t, result.Migrated, "dual existence must not rename: .mink already exists (AC-002)")
+
+	// .goose 는 그대로 남아있어야 함 — 자동 삭제 금지
+	assert.DirExists(t, legacyDir, ".goose must remain when .mink already exists (dual-existence policy)")
+	// .mink 의 파일도 손상 없음
+	assert.FileExists(t, filepath.Join(minkDir, "new.txt"), ".mink content must be untouched")
+}
+
+// TestMigrateOnce_DualExistenceWithMarker는 .mink + marker 모두 존재 시 즉시 no-op 를 검증한다.
+// 이 케이스는 이미 T-004 AlreadyMigrated 로 커버되지만 dual-existence 맥락에서 재검증.
+func TestMigrateOnce_DualExistenceWithMarker(t *testing.T) {
+	homeDir := setupMigrationEnv(t)
+
+	// .goose + .mink + marker — marker 가 있으면 즉시 no-op
+	legacyDir := filepath.Join(homeDir, ".goose")
+	require.NoError(t, os.MkdirAll(legacyDir, 0o700))
+
+	minkDir := filepath.Join(homeDir, ".mink")
+	require.NoError(t, os.MkdirAll(minkDir, 0o700))
+	writeFile(t, filepath.Join(minkDir, ".migrated-from-goose"),
+		"migrated_at=2026-01-01T00:00:00Z binary=mink brand_verified=true")
+
+	ctx := context.Background()
+	result, err := userpath.MigrateOnce(ctx)
+
+	require.NoError(t, err)
+	assert.False(t, result.Migrated, "marker present must return no-op immediately")
+	// .goose 는 여전히 존재 (삭제하지 않음)
+	assert.DirExists(t, legacyDir)
+}
+
+// TestMigrateOnce_BrandMarkerFalse는 brand marker 없는 .mink 에서 brand_verified=false 가
+// 마이그레이션 marker 에 기록됨을 검증한다. REQ-MINK-UDM-017. AC-010.
+func TestMigrateOnce_BrandMarkerFalse(t *testing.T) {
+	homeDir := setupMigrationEnv(t)
+	createLegacyDir(t, homeDir)
+
+	// brand marker 없는 상태 — SetBrandVerifiedFunc seam 으로 false 강제
+	userpath.SetBrandVerifiedFunc(func(minkDir string) bool {
+		return false
+	})
+
+	ctx := context.Background()
+	result, err := userpath.MigrateOnce(ctx)
+
+	require.NoError(t, err)
+	assert.True(t, result.Migrated)
+
+	// marker 파일에 brand_verified=false 기록 확인
+	minkDir := filepath.Join(homeDir, ".mink")
+	markerContent, readErr := os.ReadFile(filepath.Join(minkDir, ".migrated-from-goose"))
+	require.NoError(t, readErr)
+	assert.Contains(t, string(markerContent), "brand_verified=false",
+		"migration marker must record brand_verified=false when brand marker is absent (AC-010)")
+}
+
+// TestMigrateOnce_BrandMarkerTrue는 brand marker 있는 .mink 에서 brand_verified=true 가
+// 기록됨을 검증한다. AC-010 positive case.
+func TestMigrateOnce_BrandMarkerTrue(t *testing.T) {
+	homeDir := setupMigrationEnv(t)
+	createLegacyDir(t, homeDir)
+
+	// brand marker 있는 상태 — SetBrandVerifiedFunc seam 으로 true 강제
+	userpath.SetBrandVerifiedFunc(func(minkDir string) bool {
+		return true
+	})
+
+	ctx := context.Background()
+	result, err := userpath.MigrateOnce(ctx)
+
+	require.NoError(t, err)
+	assert.True(t, result.Migrated)
+
+	minkDir := filepath.Join(homeDir, ".mink")
+	markerContent, readErr := os.ReadFile(filepath.Join(minkDir, ".migrated-from-goose"))
+	require.NoError(t, readErr)
+	assert.Contains(t, string(markerContent), "brand_verified=true")
+}

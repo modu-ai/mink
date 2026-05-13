@@ -28,7 +28,7 @@
 | T-004 (migrate.go core) | DONE | prior | n/a | MigrateOnce, doMigrate, sync.Once idempotency |
 | T-005 (copy fallback) | DONE | prior | n/a | EXDEV, mode bits, SHA-256 verify-before-remove |
 | T-006 (file lock) | DONE | pending | 81.9% | acquireMigrationLock, stale recovery, macOS rename fix |
-| T-007 (edge cases) | TODO | - | - | dual-existence, symlink, brand marker |
+| T-007 (edge cases) | DONE | pending | 83.6% | dual-existence, symlink, brand marker seam |
 
 ### T-006 Technical Notes
 

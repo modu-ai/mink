@@ -24,6 +24,7 @@ func ResetMigrateForTesting() {
 	copyFileFunc = defaultCopyFile
 	verifyHashFunc = defaultVerifyHash
 	lockTimeout = 30 * time.Second
+	brandVerifiedFunc = defaultBrandVerified
 }
 
 // SetRenameFunc는 renameFunc 테스트 seam 을 교체한다.
@@ -45,4 +46,10 @@ func SetVerifyHashFunc(fn func(src, dst string) error) {
 // T-006 락 timeout 테스트에 사용한다.
 func SetLockTimeout(d time.Duration) {
 	lockTimeout = d
+}
+
+// SetBrandVerifiedFunc는 brandVerifiedFunc 테스트 seam 을 교체한다.
+// T-007 brand marker 검증 테스트에 사용한다.
+func SetBrandVerifiedFunc(fn func(minkDir string) bool) {
+	brandVerifiedFunc = fn
 }

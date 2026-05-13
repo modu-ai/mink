@@ -50,6 +50,10 @@ var verifyHashFunc = defaultVerifyHash
 // 테스트에서 SetLockTimeout 으로 교체 가능.
 var lockTimeout = 30 * time.Second
 
+// brandVerifiedFunc 는 .mink 디렉토리에 brand marker 가 있는지 확인하는 테스트 seam.
+// 기본값: defaultBrandVerified (config.yaml 등 heuristic 검사).
+var brandVerifiedFunc = defaultBrandVerified
+
 const migrationNotice = "INFO: 사용자 데이터가 이전 디렉토리에서 새 mink 디렉토리(밍크)로 마이그레이션되었습니다."
 
 // MigrateOnce는 ~/.goose/ → ~/.mink/ 의 최초 1회 자동 마이그레이션을 수행한다.
@@ -123,9 +127,16 @@ func doMigrate(ctx context.Context) (MigrationResult, error) {
 		return MigrationResult{Err: mkErr}, mkErr
 	}
 
-	// 4. 이미 마이그레이션됐는지 확인 (marker)
+	// 4. marker 확인 (이미 완료된 마이그레이션)
 	markerPath := filepath.Join(userHome, ".migrated-from-goose")
 	if _, markerErr := os.Stat(markerPath); markerErr == nil {
+		return MigrationResult{Migrated: false, SourcePath: legacyHome, DestPath: userHome}, nil
+	}
+
+	// 4.1. dual-existence 감지: .mink 에 실사용 파일이 있으면 → .mink 우선 no-op
+	// REQ-012, AC-002: 양쪽 동시 존재 시 .mink 우선, .goose 삭제 금지.
+	// .migration.lock 만 있는 경우는 마이그레이션 진행 중이므로 dual-existence 아님.
+	if hasMinkUserData(userHome) {
 		return MigrationResult{Migrated: false, SourcePath: legacyHome, DestPath: userHome}, nil
 	}
 
@@ -154,7 +165,8 @@ func doMigrate(ctx context.Context) (MigrationResult, error) {
 	// 8. atomic rename 시도
 	renameErr := renameFunc(legacyHome, userHome)
 	if renameErr == nil {
-		_ = writeMigrationMarker(markerPath, true)
+		brandOK := brandVerifiedFunc(userHome)
+		_ = writeMigrationMarker(markerPath, brandOK)
 		return MigrationResult{
 			Migrated:   true,
 			Notice:     migrationNotice,
@@ -297,7 +309,8 @@ func doCopyFallback(src, dst, markerPath string) (MigrationResult, error) {
 		return MigrationResult{Err: removeErr, SourcePath: src, DestPath: dst}, removeErr
 	}
 
-	_ = writeMigrationMarker(markerPath, true)
+	brandOK := brandVerifiedFunc(dst)
+	_ = writeMigrationMarker(markerPath, brandOK)
 
 	return MigrationResult{
 		Migrated:   true,
@@ -364,4 +377,31 @@ func writeMigrationMarker(path string, brandVerified bool) error {
 		brandVerified,
 	)
 	return os.WriteFile(path, []byte(content), 0o600)
+}
+
+// hasMinkUserData는 minkDir 에 .migration.lock 이외의 실제 사용자 파일이 있는지 확인한다.
+// dual-existence 판단에 사용: lock 파일만 있는 경우는 진행 중인 마이그레이션이므로 dual-existence 아님.
+func hasMinkUserData(minkDir string) bool {
+	entries, err := os.ReadDir(minkDir)
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		if e.Name() != ".migration.lock" {
+			return true
+		}
+	}
+	return false
+}
+
+// defaultBrandVerified는 minkDir 에 config.yaml 또는 managed marker 가 있는지
+// best-effort 로 확인한다. REQ-MINK-UDM-017.
+func defaultBrandVerified(minkDir string) bool {
+	// heuristic: config.yaml 의 version field 존재 여부로 판단
+	configPath := filepath.Join(minkDir, "config.yaml")
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return false
+	}
+	return strings.Contains(string(data), "version")
 }
