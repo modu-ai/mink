@@ -15,7 +15,7 @@ const tempPrefix = ".mink-"
 
 // userHomeOnce는 UserHome() 결과를 process 레벨에서 캐시한다.
 var (
-	userHomeOnce  sync.Once
+	userHomeOnce   sync.Once
 	userHomeCached string
 	userHomePanic  interface{}
 )

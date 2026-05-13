@@ -2,12 +2,15 @@ package userpath_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -346,4 +349,114 @@ func TestMigrateOnce_CopyFallback_ChecksumMismatch(t *testing.T) {
 
 	// 소스 보존됨
 	assert.DirExists(t, filepath.Join(homeDir, ".goose"), "source must be preserved on checksum mismatch")
+}
+
+// ── T-006: 파일 락 + stale 락 복구 ────────────────────────────────────────
+
+// TestMigrateOnce_LockTimeout은 live PID 락 + 짧은 timeout 시 ErrLockTimeout 을 반환함을 검증한다.
+// REQ-MINK-UDM-011. EC-002.
+func TestMigrateOnce_LockTimeout(t *testing.T) {
+	homeDir := setupMigrationEnv(t)
+	createLegacyDir(t, homeDir)
+
+	// .mink 디렉토리 미리 생성 (lock 파일 위치)
+	minkDir := filepath.Join(homeDir, ".mink")
+	require.NoError(t, os.MkdirAll(minkDir, 0o700))
+
+	// lock 파일에 현재 PID (live process) 를 기록
+	lockPath := filepath.Join(minkDir, ".migration.lock")
+	lockContent := fmt.Sprintf("pid=%d\nstarted_at=%s\n", os.Getpid(), time.Now().UTC().Format(time.RFC3339))
+	require.NoError(t, os.WriteFile(lockPath, []byte(lockContent), 0o600))
+
+	// lockTimeout 을 50ms 로 줄여서 빠르게 timeout 유도
+	userpath.SetLockTimeout(50 * time.Millisecond)
+
+	ctx := context.Background()
+	_, err := userpath.MigrateOnce(ctx)
+
+	assert.ErrorIs(t, err, userpath.ErrLockTimeout,
+		"live lock with short timeout must return ErrLockTimeout")
+}
+
+// TestMigrateOnce_StaleLockRecovery는 lock 파일에 파싱 불가한 PID (stale) 가 있을 때
+// 정리 후 마이그레이션을 완료함을 검증한다.
+// REQ-MINK-UDM-015. EC-003.
+func TestMigrateOnce_StaleLockRecovery(t *testing.T) {
+	homeDir := setupMigrationEnv(t)
+	createLegacyDir(t, homeDir)
+
+	// .mink 디렉토리 미리 생성 + lock 파일에 파싱 불가한 PID (stale 강제 유도)
+	minkDir := filepath.Join(homeDir, ".mink")
+	require.NoError(t, os.MkdirAll(minkDir, 0o700))
+	lockPath := filepath.Join(minkDir, ".migration.lock")
+	// pid=-1 → parsePIDFromLock 이 -1 반환 → isLockStale 에서 true
+	lockContent := fmt.Sprintf("pid=-1\nstarted_at=%s\n", time.Now().UTC().Format(time.RFC3339))
+	require.NoError(t, os.WriteFile(lockPath, []byte(lockContent), 0o600))
+
+	ctx := context.Background()
+	result, err := userpath.MigrateOnce(ctx)
+
+	// stale lock (pid=-1) → 정리 + 마이그레이션 성공
+	require.NoError(t, err)
+	assert.True(t, result.Migrated, "stale lock recovery must complete migration successfully")
+	assert.FileExists(t, filepath.Join(minkDir, ".migrated-from-goose"))
+}
+
+// TestMigrateOnce_ConcurrentLock은 동시 고루틴에서 sync.Once 로 정확히 1번 doMigrate 가 실행됨을 검증한다.
+// MigrateOnce 는 process-level 멱등이므로 첫 번째 callCount=1 만 doMigrate 결과를 그대로 반환,
+// 나머지는 Migrated=false 를 반환한다. 전체 에러는 0건이어야 한다.
+// REQ-MINK-UDM-011. EC-002.
+func TestMigrateOnce_ConcurrentLock(t *testing.T) {
+	homeDir := setupMigrationEnv(t)
+	createLegacyDir(t, homeDir)
+
+	const goroutines = 3
+	results := make([]userpath.MigrationResult, goroutines)
+	errs := make([]error, goroutines)
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+
+	for i := range goroutines {
+		i := i
+		go func() {
+			defer wg.Done()
+			results[i], errs[i] = userpath.MigrateOnce(context.Background())
+		}()
+	}
+	wg.Wait()
+
+	// 에러 0건
+	for i := range goroutines {
+		assert.NoError(t, errs[i], "goroutine %d must not return error", i)
+	}
+
+	// 마이그레이션 결과: 첫 번째 호출이 Migrated=true, 나머지는 false
+	// (sync.Once 로 doMigrate 는 1번만 실행, callCount 로 첫 번째만 true 반환)
+	migratedCount := 0
+	for i := range goroutines {
+		if results[i].Migrated {
+			migratedCount++
+		}
+	}
+	// 최대 1개만 Migrated=true (race 조건에서 0도 가능하지 않음, sync.Once 보장)
+	assert.LessOrEqual(t, migratedCount, 1, "at most one goroutine must report Migrated=true")
+
+	// 마이그레이션 결과 확인: 실제 .mink 에 파일 있어야 함
+	minkDir := filepath.Join(homeDir, ".mink")
+	assert.FileExists(t, filepath.Join(minkDir, ".migrated-from-goose"),
+		"migration must have completed (marker must exist)")
+}
+
+// TestMigrateOnce_Windows_ErrLockUnsupported는 Windows 에서 ErrLockUnsupported 를 반환함을 검증한다.
+// R9 (Windows fallback). 이 테스트는 다른 플랫폼에서 skip 된다.
+func TestMigrateOnce_Windows_ErrLockUnsupported(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows-only test")
+	}
+	homeDir := setupMigrationEnv(t)
+	createLegacyDir(t, homeDir)
+
+	ctx := context.Background()
+	_, err := userpath.MigrateOnce(ctx)
+	assert.ErrorIs(t, err, userpath.ErrLockUnsupported)
 }
