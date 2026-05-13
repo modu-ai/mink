@@ -104,13 +104,14 @@ func containsDotDot(p string) bool {
 	return false
 }
 
-// isLegacyGoosePath는 cleaned 경로가 $HOME/.goose 접두어를 가지는지 확인한다.
+// isLegacyGoosePath는 cleaned 경로가 LegacyHome() 접두어를 가지는지 확인한다.
+// 레거시 basename 리터럴은 legacy.go 의 LegacyBaseName() 에 단일 위치로 흡수되어 있다 (AC-005).
 func isLegacyGoosePath(cleaned string) bool {
 	sysHome := os.Getenv("HOME")
 	if sysHome == "" {
 		return false
 	}
-	legacyBase := filepath.Join(sysHome, ".goose")
+	legacyBase := filepath.Join(sysHome, LegacyBaseName())
 	return cleaned == legacyBase || strings.HasPrefix(cleaned, legacyBase+string(filepath.Separator))
 }
 
