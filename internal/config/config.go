@@ -321,7 +321,7 @@ func mergeYAMLFile(fsys fs.FS, path string, cfg *Config, sources sourceMap, src 
 			Underlying: err,
 		}
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	data, err := io.ReadAll(f)
 	if err != nil {

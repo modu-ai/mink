@@ -90,7 +90,7 @@ Examples:
 				// Check if error is "daemon unreachable"
 				if isUnreachableError(err) {
 					// REQ-CLI-008: stderr message + exit 69
-					fmt.Fprintf(cmd.ErrOrStderr(), "goose: daemon unreachable at %s\n", addr)
+					_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "goose: daemon unreachable at %s\n", addr)
 					return fmt.Errorf("daemon unreachable")
 				}
 				return fmt.Errorf("failed to start chat stream: %w", err)
@@ -101,14 +101,14 @@ Examples:
 				switch event.Type {
 				case "text":
 					// Stream text to stdout
-					fmt.Fprint(cmd.OutOrStdout(), event.Content)
+					_, _ = fmt.Fprint(cmd.OutOrStdout(), event.Content)
 				case "error":
 					// Print error to stderr and exit with error
-					fmt.Fprintf(cmd.ErrOrStderr(), "goose: %s\n", event.Content)
+					_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "goose: %s\n", event.Content)
 					return fmt.Errorf("LLM error: %s", event.Content)
 				case "done":
 					// Stream ended successfully
-					fmt.Fprintln(cmd.OutOrStdout()) // Final newline
+					_, _ = fmt.Fprintln(cmd.OutOrStdout()) // Final newline
 					return nil
 				default:
 					fmt.Fprintf(cmd.ErrOrStderr(), "goose: unknown event type: %s\n", event.Type)

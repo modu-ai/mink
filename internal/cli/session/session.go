@@ -72,20 +72,17 @@ func Save(name string, messages []Message) error {
 	encoder := json.NewEncoder(tmpFile)
 	for _, msg := range messages {
 		if err := encoder.Encode(msg); err != nil {
-			tmpFile.Close()
-			os.Remove(tmpPath)
+			_ = tmpFile.Close()
+			_ = os.Remove(tmpPath)
 			return fmt.Errorf("failed to encode message: %w", err)
 		}
 	}
 
-	if err := tmpFile.Close(); err != nil {
-		os.Remove(tmpPath)
-		return fmt.Errorf("failed to close temp file: %w", err)
-	}
-
+	_ = tmpFile.Close()
 	// Atomic rename
 	finalPath := filepath.Join(dir, name+".jsonl")
 	if err := os.Rename(tmpPath, finalPath); err != nil {
+		_ = os.Remove(tmpPath)
 		return fmt.Errorf("failed to rename temp file: %w", err)
 	}
 
@@ -110,7 +107,7 @@ func Load(name string) ([]Message, error) {
 		}
 		return nil, fmt.Errorf("failed to open session file: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	var messages []Message
 	scanner := bufio.NewScanner(file)
