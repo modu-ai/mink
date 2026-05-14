@@ -1,0 +1,20 @@
+========================================
+  MORNING BRIEFING
+========================================
+Weather
+  Temp: 18.5°C (feels 17.0°C)
+  Cond: Clear
+  Loc:  Seoul
+  AQI:  45 (good)
+
+Journal Recall
+  1Y: 2025-05-14
+
+Date
+  2026-05-14 (목요일)
+
+Mantra
+  "오늘도 한 걸음"
+----------------------------------------
+weather:ok  journal:ok  date:ok  mantra:ok
+========================================

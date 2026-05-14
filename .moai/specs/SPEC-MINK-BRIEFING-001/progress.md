@@ -56,8 +56,16 @@
 - T-202 crisis hotline canned response (REQ-BR-055) — JOURNAL crisis pattern 재사용 + briefing 본문 prepend
 - AC-009 invariants 5/6 (LLM payload minimization + crisis hotline) 은 M3 와 함께 GREEN 예정
 
-## 후속 작업 (M3 범위 외)
+## TUI Panel (BriefingPanel snapshot, AC-008 GREEN)
 
-- sessionmenu bubbletea panel widget — internal/cli/tui/sessionmenu/briefing_panel.go 신설 + /briefing slash dispatch + TUI snapshot golden
-- AC-008 (TestBriefingPanel_Snapshot) 은 위 sessionmenu 통합 PR 에서 GREEN 예정
+- 2026-05-14: internal/cli/tui/briefing_panel.go + briefing_panel_test.go + snapshots/briefing_panel.txt 신설
+  - `BriefingPanel` struct + `Render()` → snapshot-friendly multi-line string (`internal/ritual/briefing.RenderTUI` 위에 terminal frame wrapper)
+  - `TestBriefingPanel_Snapshot` (-update-golden flag 지원) PASS
+  - 추가 sub-test: NilPayload / TitleOverride / DegradedStatus 모두 PASS
+- AC-008 (`go test ./internal/cli/tui -run TestBriefingPanel_Snapshot`) GREEN
+
+## 후속 작업 (M3 범위 외, 본 SPEC 외부 영역)
+
+- bubbletea tea.Model 풀 integration (`Init`/`Update`/`View`) + `/briefing` slash dispatch (`internal/cli/tui/dispatch.go` 확장) — 별도 후속 PR
+- M3 LLM summary (T-201) + crisis hotline canned response (T-202) — AC-009 invariants 5/6
 - Coverage 85% 이상 push (T-107 보강 또는 edge case test 추가)
