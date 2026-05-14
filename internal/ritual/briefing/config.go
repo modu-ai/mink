@@ -29,6 +29,14 @@ type Config struct {
 
 	// Mantras is an array of mantras for rotation (mutually exclusive with Mantra).
 	Mantras []string `json:"mantras,omitempty" yaml:"mantras,omitempty"`
+
+	// LLMSummary enables M3 optional LLM-generated 2-3 line briefing summary.
+	// Default false (deterministic-only briefing). When true, an LLMProvider
+	// must be passed to the orchestrator and the LLM payload carries only
+	// categorical signals (REQ-BR-054, AC-009 invariant 5).
+	//
+	// SPEC-MINK-BRIEFING-001 REQ-BR-032.
+	LLMSummary bool `json:"llm_summary,omitempty" yaml:"llm_summary,omitempty"`
 }
 
 // Validate checks if the configuration is valid.

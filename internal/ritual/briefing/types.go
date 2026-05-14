@@ -12,6 +12,12 @@ type BriefingPayload struct {
 	Mantra        MantraModule      `json:"mantra"`
 	Status        map[string]string `json:"status"` // module -> status (ok, offline, timeout, skipped, error)
 	GeneratedAt   time.Time         `json:"generated_at"`
+
+	// LLMSummary is the optional M3-generated 2-3 line summary. Empty when
+	// briefing.llm_summary is false (deterministic mode). Populated only by
+	// GenerateLLMSummary which guarantees categorical-only payload to the
+	// provider (REQ-BR-054, AC-009 invariant 5).
+	LLMSummary string `json:"llm_summary,omitempty"`
 }
 
 // WeatherModule contains weather information for the briefing.

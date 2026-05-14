@@ -28,6 +28,40 @@ func TestPrivacy_Invariants(t *testing.T) {
 	t.Run("Invariant2_ArchiveFilePerms", TestPrivacyInvariant2_ArchivePerms)
 	t.Run("Invariant3_NoA2ACommunication", TestPrivacyInvariant3_NoA2ACommunication)
 	t.Run("Invariant4_NoClinicalVocabulary", TestPrivacyInvariant4_NoClinicalVocabulary)
+	t.Run("Invariant5_LLMPayloadCategoricalOnly", TestPrivacyInvariant5_LLMPayloadCategoricalOnly)
+	t.Run("Invariant6_CrisisHotlinePrepend", TestPrivacyInvariant6_CrisisHotlinePrepend)
+}
+
+// TestPrivacyInvariant5_LLMPayloadCategoricalOnly is the M3-scope check that
+// LLM payloads carry only categorical signals. Re-asserts what
+// TestBuildLLMSummaryRequest_CategoricalOnly + TestGenerateLLMSummary_*
+// already cover, but lives under TestPrivacy_Invariants so the SPEC AC-009
+// aggregator entry covers all 6 invariants.
+//
+// REQ-BR-054.
+func TestPrivacyInvariant5_LLMPayloadCategoricalOnly(t *testing.T) {
+	t.Run("BuildLLMSummaryRequest excludes entry text + mantra + raw coords",
+		TestBuildLLMSummaryRequest_CategoricalOnly)
+	t.Run("FormatLLMPrompt excludes entry text + mantra + raw coords",
+		TestFormatLLMPrompt_StructureAndAbsence)
+	t.Run("GenerateLLMSummary end-to-end never leaks forbidden tokens to provider",
+		TestGenerateLLMSummary_HappyPath_RequestInvariant5)
+}
+
+// TestPrivacyInvariant6_CrisisHotlinePrepend covers AC-009 invariant 6:
+// when a crisis keyword surfaces, the hotline canned response is prepended
+// and no analytical commentary is introduced.
+//
+// REQ-BR-055.
+func TestPrivacyInvariant6_CrisisHotlinePrepend(t *testing.T) {
+	t.Run("DetectedPathPrepends",
+		TestPrependCrisisResponseIfDetected_DetectedPathPrepends)
+	t.Run("NoCrisisPassthrough",
+		TestPrependCrisisResponseIfDetected_NoCrisisPassthrough)
+	t.Run("NoAnalyticalCommentary",
+		TestPrependCrisisResponse_NoAnalyticalCommentary)
+	t.Run("PayloadDetection",
+		TestPayloadHasCrisis_Detection)
 }
 
 // TestPrivacyInvariant2_ArchivePerms verifies that archive files are written
