@@ -92,10 +92,10 @@ func TestBuildLLMSummaryRequest_CategoricalOnly(t *testing.T) {
 	encoded := string(b)
 
 	forbidden := []string{
-		"맛있는 저녁을 먹었다",     // entry text 1
-		"친구와 영화를 봤다",       // entry text 2
-		"오늘도 한 걸음",         // mantra text
-		"18.7",                  // raw float coord/temp
+		"맛있는 저녁을 먹었다", // entry text 1
+		"친구와 영화를 봤다",  // entry text 2
+		"오늘도 한 걸음",    // mantra text
+		"18.7",        // raw float coord/temp
 	}
 	for _, f := range forbidden {
 		if strings.Contains(encoded, f) {
