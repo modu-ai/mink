@@ -1,6 +1,25 @@
+---
+version: 4.0.1
+brand: MINK
+status: published
+created_at: 2026-04-21
+updated_at: 2026-05-15
+classification: STRUCTURE_DOCUMENT
+language: ko
+---
+
 # MINK - Structure Document v4.0 GLOBAL EDITION
 
-**Version**: 4.0.0 GLOBAL EDITION  
+## HISTORY
+
+| Version | Date | Author | Change |
+|---------|------|--------|--------|
+| 4.0.0 | 2026-04-21 | manager-spec | Global Edition 초기 비전: Go+TS, MoAI 계승, Learning 엔진 38+ 패키지 트리 정의. |
+| 4.0.1 | 2026-05-15 | MoAI orchestrator | MINK ritual companion 실 구현 진척 sync. `internal/ritual/` 카테고리 신설 (briefing/journal/scheduler 3개 패키지 반영 — BRIEFING-001 v0.3.0 16/16 AC GREEN, JOURNAL-001 v0.3.0, SCHEDULER-001 v0.2.2). `internal/cli/tui/` 카테고리 신설 (bubbletea TUI + BriefingPanel + slash dispatch + sessionmenu + i18n). `.moai/design/mink-runtime-architecture-v0.2.md` rename 반영. 모듈 책임 매트릭스에 ritual + tui 4 row 추가. **note**: v4.0 비전 트리는 Global Edition 초기 청사진이며 실 구현은 ritual companion 방향으로 분기 진행 중 — 비전 트리 cleanup 은 별도 SPEC 영역. |
+
+---
+
+**Version**: 4.0.1 GLOBAL EDITION  
 **Language**: Go + TypeScript (영문 기술 문서, 한국어 주석)  
 **Base**: MoAI-ADK-Go 직접 계승 및 확장  
 **License**: Apache-2.0  
@@ -396,11 +415,68 @@ goose-agent/
 │   │   ├── nextra.go           # Nextra 통합
 │   │   └── multilang.go        # 다국어 지원
 │   │
-│   └── util/                   # Utilities
-│       ├── logger.go           # 로깅
-│       ├── config.go           # 설정 로더
-│       ├── crypto.go           # 암호화
-│       └── retry.go            # Retry 로직
+│   ├── util/                   # Utilities
+│   │   ├── logger.go           # 로깅
+│   │   ├── config.go           # 설정 로더
+│   │   ├── crypto.go           # 암호화
+│   │   └── retry.go            # Retry 로직
+│   │
+│   ├── ritual/                 # ⭐ 신규: MINK ritual companion 도메인 (v4.0.1)
+│   │   │
+│   │   ├── briefing/           # 모닝 브리핑 오케스트레이터 (SPEC-MINK-BRIEFING-001 v0.3.0)
+│   │   │   ├── orchestrator.go      # collectors fan-out + privacy gates
+│   │   │   ├── collect_weather.go   # 날씨 (WEATHER-001 통합)
+│   │   │   ├── collect_journal.go   # 일기 추억 회수 (JOURNAL-001 통합)
+│   │   │   ├── collect_date.go      # 절기 + 한국 공휴일 + solar term
+│   │   │   ├── collect_mantra.go    # 일일 mantra
+│   │   │   ├── collect_adapters.go  # collector → orchestrator 어댑터
+│   │   │   ├── llm_summary.go       # LLMSummaryEnhancer (M3 신규)
+│   │   │   ├── crisis_response.go   # crisis hotline + prepend (M3 신규)
+│   │   │   ├── render_cli.go        # CLI 렌더링
+│   │   │   ├── render_tui.go        # TUI 렌더링 (bubbletea)
+│   │   │   ├── render_telegram.go   # Telegram 렌더링
+│   │   │   ├── archive.go           # 브리핑 아카이브
+│   │   │   ├── audit.go             # 감사 로깅
+│   │   │   ├── cron.go              # cron 트리거
+│   │   │   ├── holiday.go           # 한국 공휴일 데이터
+│   │   │   ├── solarterm.go         # 24절기 데이터
+│   │   │   ├── config.go            # 브리핑 설정
+│   │   │   ├── types.go             # 도메인 타입
+│   │   │   └── doc.go               # 패키지 문서
+│   │   │
+│   │   ├── journal/            # 일기·기분·anniversary 회수 (SPEC-MINK-JOURNAL-001 v0.3.0)
+│   │   │   ├── entry.go             # Journal entry 모델
+│   │   │   ├── store.go             # SQLite 저장소
+│   │   │   ├── emotion.go           # LLMEmotionAnalyzer
+│   │   │   ├── summary.go           # LLMSummaryEnhancer
+│   │   │   ├── recall.go            # 1년 전 오늘 추억 회수
+│   │   │   ├── privacy.go           # PrivateMode + 임상 어휘 silent reject
+│   │   │   └── ... (총 19 production + 18 test)
+│   │   │
+│   │   └── scheduler/          # cron-based ritual 스케줄러 (SPEC-MINK-SCHEDULER-001 v0.2.2)
+│   │       ├── scheduler.go         # 메인 스케줄러
+│   │       ├── job.go               # Job 인터페이스
+│   │       ├── trigger.go           # cron 표현식 파서
+│   │       ├── dispatch.go          # 브리핑/일기 trigger
+│   │       └── ... (P1~P3 milestone 종결)
+│   │
+│   └── cli/                    # ⭐ 신규: CLI 진입점 + TUI (v4.0.1)
+│       └── tui/                # bubbletea 기반 TUI (SPEC-MINK-CLI-TUI-002/003)
+│           ├── model.go             # tea.Model 메인
+│           ├── update.go            # Update 함수 (사용자 키 이벤트)
+│           ├── view.go              # View 렌더링
+│           ├── dispatch.go          # slash command dispatcher
+│           ├── slash.go             # slash command 등록
+│           ├── briefing_panel.go    # BriefingPanel 컴포넌트 (AC-008 GREEN)
+│           ├── session_ops.go       # 세션 조작
+│           ├── client.go            # backend client 연결
+│           │
+│           ├── editor/              # in-TUI 에디터
+│           ├── i18n/                # 다국어 (ko/en)
+│           ├── permission/          # 권한 prompt
+│           ├── sessionmenu/         # 세션 메뉴
+│           ├── snapshots/           # 골든 스냅샷 (briefing_panel + initial render + sessionmenu + slash help + i18n)
+│           └── testdata/            # 테스트 픽스처
 │
 ├── pkg/                        # Go Public API (export)
 │   ├── goose/                  # Main SDK
@@ -540,15 +616,16 @@ goose-agent/
 │   │   ├── design.yaml         # 신규: 디자인 생산 파이프라인 설정
 │   │   └── db.yaml             # 신규: DB 메타 관리 설정
 │   │
-│   ├── design/                 # 신규: 창작 생산 산출물
-│   │   ├── README.md           # 디자인 시스템 개요
-│   │   ├── research.md         # 사용자 리서치·경쟁사 분석
-│   │   ├── spec.md             # 디자인 스펙 문서
-│   │   ├── system.md           # 디자인 시스템 정의
-│   │   ├── tokens.json         # Design tokens (color, typography, spacing)
-│   │   ├── components.json     # 컴포넌트 스펙
-│   │   ├── wireframes/         # 와이어프레임 SVG
-│   │   └── screenshots/        # 프로토타입 스크린샷
+│   ├── design/                 # 신규: 창작 생산 산출물 + MINK runtime 아키텍처
+│   │   ├── README.md                          # 디자인 시스템 개요 + auto-load 정책
+│   │   ├── research.md                        # 사용자 리서치·경쟁사 분석
+│   │   ├── spec.md                            # 디자인 스펙 문서
+│   │   ├── system.md                          # 디자인 시스템 정의
+│   │   ├── mink-runtime-architecture-v0.2.md  # ⭐ MINK end-user runtime 아키텍처 v0.2 (Hermes + Claude Code + moai-adk + PAI + Macaron 계승)
+│   │   ├── tokens.json                        # Design tokens (auto-generated)
+│   │   ├── components.json                    # 컴포넌트 스펙 (auto-generated)
+│   │   ├── wireframes/                        # 와이어프레임 SVG (human-authored)
+│   │   └── screenshots/                       # 프로토타입 스크린샷
 │   │
 │   ├── project/                # 프로젝트 문서
 │   │   ├── structure.md        # 이 파일
@@ -757,6 +834,10 @@ graph TD
 | `internal/template` | 템플릿 생성 | generator | 🆕 신규 |
 | `internal/workflow` | SPEC 워크플로우 | plan, run, sync | ✅ MoAI 계승 |
 | `internal/docs` | 문서 생성 | markdown, nextra | 🆕 신규 |
+| `internal/ritual/briefing` | 모닝 브리핑 오케스트레이터 (collectors fan-out, LLM summary, crisis prepend) | weather, journal, llm, telegram | 🆕 BRIEFING-001 v0.3.0 (16/16 AC) |
+| `internal/ritual/journal` | 일기·기분·1년 전 추억 회수 (LLM emotion + summary, PrivateMode, 임상 어휘 silent reject) | sqlite, llm | 🆕 JOURNAL-001 v0.3.0 |
+| `internal/ritual/scheduler` | cron-based ritual 스케줄러 (브리핑/일기 trigger) | cron, briefing | 🆕 SCHEDULER-001 v0.2.2 |
+| `internal/cli/tui` | bubbletea TUI (model/update/view + BriefingPanel + slash dispatch + sessionmenu + i18n) | briefing, journal | 🆕 CLI-TUI-002/003 |
 | 외 7개 | 유틸리티 | - | ✅ |
 
 ---
@@ -1080,14 +1161,15 @@ pnpm --filter goose-web dev
 
 | 버전 | 날짜 | 변경사항 |
 |---|---|---|
+| v4.0.1 | 2026-05-15 | MINK ritual companion 실 구현 sync: `internal/ritual/` + `internal/cli/tui/` 신설, design rename 반영, 모듈 매트릭스 4 row 추가 |
 | v4.0.0 | 2026-04-21 | Global Edition: Go+TS, MoAI 계승, Learning 엔진 |
 | v3.0.0 | 2026-03-01 | Korea Edition: Rust, 기가지니 이식 |
 | v2.0.0 | 2025-12-01 | 초기 글로벌 버전 |
 
 ---
 
-**Document Version**: 4.0.0  
-**Last Updated**: 2026-04-21  
+**Document Version**: 4.0.1  
+**Last Updated**: 2026-05-15  
 **Author**: MoAI Strategic Orchestrator  
 **Status**: 글로벌 오픈소스  
 **License**: Apache-2.0
