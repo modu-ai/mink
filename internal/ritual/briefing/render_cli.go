@@ -12,6 +12,11 @@ import (
 	"golang.org/x/text/language"
 )
 
+// ModuleStatusOrder defines the canonical output order for the Module Status section.
+// Using a fixed slice instead of map iteration prevents Go map non-determinism.
+// T-309 / REQ-BR-063 / AC-017.
+var ModuleStatusOrder = []string{"weather", "journal", "date", "mantra"}
+
 // RenderCLI renders the briefing payload to a formatted string.
 // If plain is false and stdout is a TTY, uses ANSI colors and emoji.
 // Otherwise, renders plain text without formatting.
@@ -56,13 +61,21 @@ func RenderCLI(payload *BriefingPayload, plain bool) string {
 		sb.WriteString("Module Status:\n")
 	}
 
-	for module, status := range payload.Status {
+	// Use ModuleStatusOrder to guarantee deterministic output regardless of
+	// Go map iteration randomization (T-309 / REQ-BR-063 / AC-017).
+	for _, module := range ModuleStatusOrder {
+		status, ok := payload.Status[module]
+		if !ok {
+			status = "skipped"
+		}
 		sb.WriteString(formatStatus(module, status, isTTY))
 	}
 
 	sb.WriteString("\n")
 
-	return sb.String()
+	// T-305: Prepend crisis hotline response when payload or rendered text
+	// contains a crisis keyword. REQ-BR-055 / REQ-BR-061 / AC-015.
+	return PrependCrisisResponseIfDetected(sb.String())
 }
 
 // renderWeather renders the weather module section.

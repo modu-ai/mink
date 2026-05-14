@@ -30,8 +30,8 @@ Daily Mantra
 
 ----------------------------------------
 Module Status:
-  Mantra: ok ✓
   Weather: ok ✓
   Journal: ok ✓
   Date: ok ✓
+  Mantra: ok ✓
 

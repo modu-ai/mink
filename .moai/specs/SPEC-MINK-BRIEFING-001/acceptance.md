@@ -1,9 +1,9 @@
 ---
 id: SPEC-MINK-BRIEFING-001
-version: 0.1.0
-status: draft
+version: 0.3.1
+status: implemented
 created_at: 2026-05-14
-updated_at: 2026-05-14
+updated_at: 2026-05-15
 author: manager-spec
 ---
 
@@ -31,8 +31,13 @@ author: manager-spec
 | EC-002 | All modules failed | M1 | `go test ./internal/ritual/briefing -run TestOrchestrator_AllFail` | REQ-BR-041 |
 | EC-003 | Clock skew (1899 or 2101) | M1 | `go test ./internal/ritual/briefing -run TestDateModule_OutOfRange` | REQ-BR-042 |
 | EC-004 | Telegram token absent | M2 | `go test ./internal/ritual/briefing -run TestTelegram_TokenMissing` | REQ-BR-022 |
+| **AC-013** | **Production real collectors wiring** | **M4** | `grep -iE "mock[A-Za-z]*factory" internal/cli/commands/*.go --exclude="*_test.go"` returns non-zero exit (no match) | **REQ-BR-001, REQ-BR-002, REQ-BR-064** |
+| **AC-014** | **Orchestrator → LLM summary wiring** | **M4** | `go test -run TestOrchestrator_LLMSummary ./internal/ritual/briefing/` | **REQ-BR-032, REQ-BR-060** |
+| **AC-015** | **Crisis hotline prepend in 3 channels** | **M4** | `go test -run TestRenderers_CrisisPrepend ./internal/ritual/briefing/` AND `go test -run TestBriefingPanel_CrisisPrepend ./internal/cli/tui/` (둘 다 PASS 필요) | **REQ-BR-055, REQ-BR-061** |
+| **AC-016** | **/briefing TUI slash dispatch** | **M4** | `go test -run TestTUI_BriefingSlash ./internal/cli/tui/` | **REQ-BR-033, REQ-BR-062** |
+| **AC-017** | **Deterministic Module Status order** | **M4** | `go test -run TestRenderCLI_Golden ./internal/ritual/briefing/` + `go test -run TestRenderCLI_StatusOrder_Fixed ./internal/ritual/briefing/` (golden + structural guard 둘 다 PASS) | **REQ-BR-063** |
 
-총 12 AC + 4 EC = 16 binary gates.
+총 17 AC + 4 EC = 21 binary gates (v0.3.0 의 12 AC + 4 EC + v0.3.1 신규 5 AC).
 
 ---
 
@@ -244,6 +249,139 @@ go test ./internal/ritual/briefing -run TestCronWiring -v
 
 ---
 
+### AC-013 — Production real collectors wiring (M4, REQ-BR-001/002/064)
+
+**Given**: `internal/cli/commands/briefing.go` 가 cobra root 에 `mink briefing` 명령을 등록한 상태. 4 real collectors (collect_weather.go / collect_journal.go / collect_date.go / collect_mantra.go) 는 `internal/ritual/briefing/` 에 구현 완료. `MockBriefingCollectorFactory` 는 v0.3.0 시점에서 production 소스 (briefing.go) 와 test 코드에 모두 존재.
+
+**Scope of rule**: 본 AC 의 mock-factory 금지 규칙은 단일 파일 `briefing.go` 가 아니라 **`internal/cli/commands/` 디렉토리 내 모든 non-test (`*.go`, except `*_test.go`) 파일** 에 적용된다. 또한 식별자 rename 으로 우회 불가능하도록 **대소문자 무시 정규식 `mock[A-Za-z]*factory`** 로 검증 (예: `mockBriefingCollectorFactory`, `BriefingCollectorFactoryMock`, `MockFactory` 등 모두 차단).
+
+**When**: M4 wiring 적용 후 `mink briefing` 명령을 production binary 로 실행.
+
+**Then**:
+- `internal/cli/commands/` 의 모든 non-test 파일에서 `mock*factory` (case-insensitive) symbol 부재
+- `internal/cli/commands/briefing.go` 내에 `RealBriefingCollectorFactory` 또는 동등한 real wiring 존재 — `collect_weather.NewCollector` 등 실 패키지 함수 참조
+- Mock factory 정의/사용은 `internal/cli/commands/*_test.go` 또는 `internal/ritual/briefing/*_test.go` 에만 존재
+- `mink briefing --dry-run` 실행 시 4 module status 가 ok|offline|timeout 중 하나 (skipped 가 아님 — real collector 가 실행됨을 의미)
+
+**검증 명령**:
+```bash
+# Primary verification (must produce non-zero exit when any mock-factory pattern matches in production code)
+grep -iE "mock[A-Za-z]*factory" internal/cli/commands/*.go --exclude="*_test.go" && exit 1 || exit 0
+# Secondary functional verification
+go test ./internal/cli/commands -run TestBriefingCmd_RealFactory -v
+```
+
+---
+
+### AC-014 — Orchestrator → LLM summary wiring (M4, REQ-BR-032/060)
+
+**Given**: M3 의 `GenerateLLMSummary(ctx, provider, payload, cfg, model)` 구현 완료, `BriefingPayload.LLMSummary` 필드 + `cfg.LLMSummary bool` flag 존재. `Orchestrator.Run()` 가 v0.3.0 시점에서 GenerateLLMSummary 를 호출하지 않음.
+
+**When**: M4 wiring 적용 후 다음 세 케이스를 테스트:
+- Case A (happy path): `cfg.LLMSummary = true`, mock LLMProvider 가 "오늘은 평온한 하루입니다" 반환하도록 설정, `Orchestrator.Run(ctx, userID)` 호출
+- Case B (disabled / nil provider): `cfg.LLMSummary = false` 또는 LLMProvider == nil, `Orchestrator.Run(ctx, userID)` 호출
+- Case C (LLM error path): `cfg.LLMSummary = true`, mock LLMProvider 가 timeout / provider error / network error 등 `error != nil` 반환하도록 설정, `Orchestrator.Run(ctx, userID)` 호출
+
+**Then**:
+- Case A: `payload.LLMSummary == "오늘은 평온한 하루입니다"`, `Status["llm_summary"] == "ok"`, GenerateLLMSummary 정확히 1회 호출됨
+- Case B: `payload.LLMSummary == ""`, `Status["llm_summary"]` 미존재 또는 `"skipped"`, GenerateLLMSummary 미호출, no error returned
+- Case C: `payload.LLMSummary == ""`, `Status["llm_summary"] == "error"`, `Orchestrator.Run` 반환 error == nil (파이프라인 실패 없음), 다른 4 모듈 (weather/journal/date/mantra) 의 Status 는 영향받지 않음, 로그에 LLM 요청/응답 payload 내용 미포함 (error category 만 — 예: `error_type=timeout`)
+- 어느 케이스도 panic 미발생
+
+**검증 명령**: `go test -race -run TestOrchestrator_LLMSummary ./internal/ritual/briefing/ -v`
+
+(3 sub-test 필수: `TestOrchestrator_LLMSummary_HappyPath` (Case A), `TestOrchestrator_LLMSummary_Disabled` (Case B), `TestOrchestrator_LLMSummary_ErrorPath` (Case C))
+
+---
+
+### AC-015 — Crisis hotline prepend in 3 channels (M4, REQ-BR-055/061)
+
+**Given**: `PrependCrisisResponseIfDetected` + `PayloadHasCrisis` 헬퍼는 `crisis_response.go` 에 구현 완료. v0.3.0 시점에서는 어느 renderer 도 이들을 호출하지 않음. 테스트 fixture 로 mantra 또는 LLMSummary 또는 anniversary text 중 하나에 crisis keyword 가 포함된 BriefingPayload 준비.
+
+**Crisis prepend wiring 의 정확한 3 location**:
+1. `internal/ritual/briefing/render_cli.go` — CLI stdout renderer
+2. `internal/ritual/briefing/render_telegram.go` — Telegram MarkdownV2 renderer
+3. `internal/cli/tui/briefing_panel.go` — TUI BriefingPanel.Render() (별도 패키지 — internal/cli/tui)
+
+CLI/Telegram 의 entrypoint 는 `internal/ritual/briefing` 패키지 내, TUI panel 의 entrypoint 는 `internal/cli/tui` 패키지 내 — 따라서 검증도 두 패키지로 나뉘어 수행.
+
+**When**: M4 wiring 적용 후 3 channel renderer 호출:
+- `RenderCLI(payload)` (TTY/plain 모두) — `internal/ritual/briefing` 패키지
+- `RenderTelegram(payload)` (MarkdownV2 body 생성 직전) — `internal/ritual/briefing` 패키지
+- `BriefingPanel.Render(payload)` — `internal/cli/tui` 패키지
+
+**Then**:
+- 모든 3 channel 의 rendered output 의 **첫 줄** (또는 첫 문단) 이 JOURNAL-001 CrisisResponse canned 텍스트 (1577-0199 자살예방상담 / 1393 정신건강상담 / 1388 청소년상담)
+- briefing 본문은 hotline 응답 다음에 등장
+- 분석 commentary / mood scoring / LLM summary expansion 등 모두 미포함 (REQ-BR-055 의 strict no-commentary 조항 준수)
+- `PayloadHasCrisis(payload) == false` 인 경우 동일 renderer 는 hotline 을 prepend 하지 **않음**
+
+**검증 명령** (두 명령 모두 PASS 필수):
+```bash
+# Coverage 1: CLI + Telegram renderers (internal/ritual/briefing)
+go test -race -run TestRenderers_CrisisPrepend ./internal/ritual/briefing/ -v
+# Coverage 2: TUI BriefingPanel renderer (internal/cli/tui)
+go test -race -run TestBriefingPanel_CrisisPrepend ./internal/cli/tui/ -v
+```
+
+(`TestRenderers_CrisisPrepend` 하위 2 sub-test: TestRenderCLI_CrisisPrepend, TestRenderTelegram_CrisisPrepend. `TestBriefingPanel_CrisisPrepend` 는 TUI panel crisis-prepend 검증 전용 — TUI 패키지는 별도 test file 필요.)
+
+---
+
+### AC-016 — /briefing TUI slash dispatch (M4, REQ-BR-033/062)
+
+**Given**: `internal/cli/tui/slash.go` 의 `HandleSlashCmd` switch 에 `case "briefing":` 부재. `BriefingPanel.Render()` 는 v0.3.0 에서 snapshot test 만 됨. tea.Model 의 messages slice 및 system role 메시지 append 패턴은 기존 다른 slash command (`/help`, `/journal` 등) 와 동일.
+
+**When**: M4 wiring 적용 후 TUI session 활성 상태에서 `/briefing` 입력. 내부적으로:
+- `HandleSlashCmd("briefing")` 호출 → `briefingRunCmd` tea.Cmd 반환
+- tea.Cmd 비동기 실행 → `Orchestrator.Run(ctx, userID)` → `BriefingResultMsg{Payload: ...}` 발행
+- tea.Model `Update(BriefingResultMsg)` → `BriefingPanel.Render(payload)` → `m.messages` 에 system role 메시지로 append
+
+**Then**:
+- `HandleSlashCmd` 가 `tea.Cmd` non-nil 반환 (블로킹 0)
+- `BriefingResultMsg` tea.Msg 타입이 `internal/cli/tui` 에 정의됨
+- Update() 처리 후 `m.messages` 의 마지막 element 가 system role + BriefingPanel rendering 내용 포함
+- TUI event loop blocking 0 (async 보장)
+- snapshot test 가 panel rendering 의 결정성 검증
+
+**검증 명령**: `go test -race -run TestTUI_BriefingSlash ./internal/cli/tui/ -v`
+
+(sub-test: TestSlash_BriefingDispatch, TestModel_BriefingResultMsg_Append, TestModel_BriefingSlash_NonBlocking)
+
+---
+
+### AC-017 — Deterministic Module Status order (M4, REQ-BR-063)
+
+**Given**: `orchestrator.go` 의 `BriefingPayload.Status` 는 `map[string]string`. `render_cli.go` 가 이 map 을 순회하며 "Module Status:" 섹션 행을 출력. Go map iteration 비결정성으로 인해 golden test `testdata/golden_cli_render.txt` 가 실행마다 Mantra 행 위치 변동 → flaky. v0.3.0 의 working tree 에 정확히 이 증상의 uncommitted diff 가 존재 (`internal/ritual/briefing/testdata/golden_cli_render.txt`).
+
+**Why two-part verification (`-count=10` 한계)**: T-309 적용 후 map iteration 이 fixed slice 순회로 바뀌면 `-count=10` 반복 실행해도 항상 동일 출력이라 비결정성 검출 가치가 사라진다. 진짜 회귀 리스크는 **미래 refactor 가 fixed slice 를 다시 map iteration 으로 되돌리는 것**. 따라서 golden test (출력 정확성) 와 별도로 **structural guard test** 를 추가해 source 코드 구조 자체를 보호한다.
+
+**M4 implementation 패턴 (Option A 채택)**:
+- `internal/ritual/briefing/render_cli.go` 내에 exported package-level 상수 신설: `var ModuleStatusOrder = []string{"weather", "journal", "date", "mantra"}`
+- RenderCLI / RenderCLIPlain 의 Module Status 섹션 출력 시 `for _, key := range ModuleStatusOrder { ... }` 패턴 사용 (map iteration 직접 금지)
+- 구조적 guard test 가 (1) 슬라이스 contents 일치, (2) render_cli.go 가 ModuleStatusOrder 참조함을 모두 검증
+
+**When**: M4 wiring 적용 후 두 가지 검증 트랙 실행:
+- Track 1 (correctness): `RenderCLI(payload)` 호출 → golden file diff 0
+- Track 2 (structural guard): `TestRenderCLI_StatusOrder_Fixed` 실행 → ModuleStatusOrder 상수 값과 render_cli.go 의 참조 유무 검증
+
+**Then**:
+- Track 1: golden file `testdata/golden_cli_render.txt` 가 Weather → Journal → Date → Mantra fixed order 로 갱신, RenderCLI 출력과 byte-for-byte 일치
+- Track 2: (a) `ModuleStatusOrder` 가 정확히 `[]string{"weather","journal","date","mantra"}` 와 일치 (slice deep equal), (b) `render_cli.go` source 가 `ModuleStatusOrder` 식별자를 참조 (Go source grep 또는 ast.Walk 로 확인), (c) `render_cli.go` source 에 `range payload.Status` 패턴 부재 (map iteration 금지)
+- 빠진 module (status 미존재) 은 "(skipped)" 등 명시적 표기
+
+**검증 명령** (두 명령 모두 PASS 필수):
+```bash
+# Track 1: correctness via golden
+go test -race -run TestRenderCLI_Golden ./internal/ritual/briefing/ -count=1 -v
+# Track 2: structural guard against future regression
+go test -race -run TestRenderCLI_StatusOrder_Fixed ./internal/ritual/briefing/ -v
+```
+
+(`TestRenderCLI_StatusOrder_Fixed` 는 다음 3 assertion 을 모두 검증: slice equality + render_cli.go 의 ModuleStatusOrder 참조 + render_cli.go 의 `range payload.Status` pattern 부재. 미래 refactor 가 fixed slice 를 다시 map iteration 으로 되돌리면 본 test 가 실패하여 회귀 차단.)
+
+---
+
 ## 3. Edge Cases (EC)
 
 ### EC-001 — Config malformed
@@ -331,24 +469,43 @@ go test ./internal/ritual/briefing -run TestCronWiring -v
 - [ ] crisis hotline 단위 테스트
 - [ ] LLM provider abstraction 호환성 확인
 
+### M4 DoD (v0.3.1 wiring)
+- [ ] M3 모든 항목 + AC-013 + AC-014 + AC-015 + AC-016 + AC-017 모두 GREEN
+- [ ] `grep -iE "mock[A-Za-z]*factory" internal/cli/commands/*.go --exclude="*_test.go"` no match (case-insensitive, all non-test files; production path clean against any rename bypass)
+- [ ] `go test -race -count=1 ./internal/ritual/briefing/ -run TestRenderCLI_Golden` PASS (golden file 정확성 검증)
+- [ ] `go test -race -count=1 ./internal/ritual/briefing/ -run TestRenderCLI_StatusOrder_Fixed` PASS (structural guard — ModuleStatusOrder slice equality + render_cli.go 의 ModuleStatusOrder 참조 + render_cli.go 의 `range payload.Status` pattern 부재)
+- [ ] `go test -race ./internal/ritual/briefing/ -run TestOrchestrator_LLMSummary` PASS (3 sub-test: TestOrchestrator_LLMSummary_HappyPath + TestOrchestrator_LLMSummary_Disabled + TestOrchestrator_LLMSummary_ErrorPath)
+- [ ] `go test -race ./internal/ritual/briefing/ -run TestRenderers_CrisisPrepend` PASS (CLI + Telegram 2 sub-test, briefing 패키지)
+- [ ] `go test -race ./internal/cli/tui/ -run TestBriefingPanel_CrisisPrepend` PASS (TUI panel renderer, internal/cli/tui 패키지 별도 검증)
+- [ ] `go test -race ./internal/cli/tui/ -run TestTUI_BriefingSlash` PASS (slash dispatch + BriefingResultMsg + non-blocking)
+- [ ] `internal/ritual/briefing` 패키지 coverage >= 88% (v0.3.0 85.5% + 신규 wiring 테스트로 자연 증가 목표)
+- [ ] manual smoke: `mink briefing` 명령으로 real collectors (network 실호출 fallback 가능) 4 module 결과 출력 확인
+- [ ] manual smoke: TUI session 에서 `/briefing` 입력 → panel 정상 표시
+- [ ] `testdata/golden_cli_render.txt` 갱신본 commit (Weather/Journal/Date/Mantra 고정 순서)
+
 ---
 
 ## 5. Quality Gates 요약
 
-| Gate | M1 | M2 | M3 |
-|------|----|----|----|
-| Unit + integration tests | All AC GREEN | All AC GREEN | All AC GREEN |
-| Race detector | clean | clean | clean |
-| go vet | clean | clean | clean |
-| gofmt | clean | clean | clean |
-| golangci-lint | clean | clean | clean |
-| Coverage (briefing pkg) | >= 80% | >= 85% | >= 80% |
-| Strict coverage (new package) | >= 90% | >= 90% | >= 85% |
-| External Go dep added | 0 | 0 | possibly 1 (LLM provider) |
-| Privacy invariants | 6/6 | 6/6 | 6/6 |
-| Manual smoke (telegram) | n/a | required | required |
+| Gate | M1 | M2 | M3 | M4 (v0.3.1) |
+|------|----|----|----|----|
+| Unit + integration tests | All AC GREEN | All AC GREEN | All AC GREEN | All AC GREEN incl AC-013~017 |
+| Race detector | clean | clean | clean | clean (golden test `-count=1` + structural guard test `TestRenderCLI_StatusOrder_Fixed` PASS) |
+| go vet | clean | clean | clean | clean |
+| gofmt | clean | clean | clean | clean |
+| golangci-lint | clean | clean | clean | clean |
+| Coverage (briefing pkg) | >= 80% | >= 85% | >= 80% | >= 88% |
+| Strict coverage (new package) | >= 90% | >= 90% | >= 85% | >= 88% |
+| External Go dep added | 0 | 0 | possibly 1 (LLM provider) | 0 |
+| Privacy invariants | 6/6 | 6/6 | 6/6 | 6/6 |
+| Manual smoke (telegram) | n/a | required | required | required |
+| Manual smoke (TUI `/briefing`) | n/a | n/a | n/a | required |
+| Manual smoke (CLI real collectors) | n/a | n/a | n/a | required |
+| Golden file stability (10 runs) | n/a | n/a | n/a | required |
 
 ---
 
-Version: 0.1.0
-Updated: 2026-05-14
+Version: 0.3.1
+Updated: 2026-05-15
+
+v0.3.0 종결물 (AC-001~012 + EC-001~004) 은 v0.3.1 amendment 에서 변경 0. M4 는 5 wiring AC (AC-013~017) 만 추가.

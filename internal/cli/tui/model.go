@@ -127,6 +127,16 @@ type Model struct {
 	// Set to the slice index of the user message being edited (REQ-CLITUI3-005).
 	// SPEC-GOOSE-CLI-TUI-003 P3
 	editingMessageIndex int
+
+	// briefingRunner executes the briefing pipeline via /briefing slash command.
+	// Nil when the briefing feature is not wired (graceful disable).
+	// T-308 / REQ-BR-033 / REQ-BR-062 / AC-016.
+	briefingRunner BriefingRunner
+
+	// userID identifies the current user for per-user briefing data.
+	// Empty string is valid (falls back to anonymous in the pipeline).
+	// T-308 / REQ-BR-062.
+	userID string
 }
 
 // NewModel creates a new TUI model with default state.
@@ -216,6 +226,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// SPEC-GOOSE-CLI-TUI-003 P2 REQ-CLITUI3-003, -008
 		m.sessionMenuState = sessionmenu.New()
 		return m, nil
+
+	case BriefingResultMsg:
+		// T-308: briefing pipeline result delivered from briefingRunCmd goroutine.
+		// Appended as a system message so it appears in the chat viewport.
+		// REQ-BR-033 / REQ-BR-062 / AC-016.
+		return m.handleBriefingResult(msg)
 
 	default:
 		// Pass through to input and viewport
