@@ -2,6 +2,9 @@ package briefing
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -10,6 +13,61 @@ import (
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
 )
+
+// TestPrivacy_Invariants is the aggregator entry point referenced by the
+// acceptance criteria (AC-009 verification command:
+//
+//	go test ./internal/ritual/briefing -run TestPrivacy_Invariants -v -count=1
+//
+// It groups the individual invariant tests under a single named sub-tree so
+// that selective invocation matches the SPEC verification command verbatim.
+//
+// REQ-BR-050 .. REQ-BR-055, AC-009.
+func TestPrivacy_Invariants(t *testing.T) {
+	t.Run("Invariant1_LogRedaction", TestPrivacyInvariant1_LogRedaction)
+	t.Run("Invariant2_ArchiveFilePerms", TestPrivacyInvariant2_ArchivePerms)
+	t.Run("Invariant3_NoA2ACommunication", TestPrivacyInvariant3_NoA2ACommunication)
+	t.Run("Invariant4_NoClinicalVocabulary", TestPrivacyInvariant4_NoClinicalVocabulary)
+}
+
+// TestPrivacyInvariant2_ArchivePerms verifies that archive files are written
+// with file mode 0600 and their parent directory with mode 0700. This is the
+// concrete privacy guarantee for the persistent briefing record on disk.
+//
+// REQ-BR-051, AC-009 invariant 2.
+func TestPrivacyInvariant2_ArchivePerms(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("posix permission semantics not enforced on windows")
+	}
+
+	dir := filepath.Join(t.TempDir(), "archive")
+	payload := &BriefingPayload{
+		GeneratedAt: time.Date(2026, 5, 14, 7, 0, 0, 0, time.UTC),
+		Status:      map[string]string{"weather": "ok", "mantra": "ok"},
+		Mantra:      MantraModule{Text: "ok"},
+	}
+
+	path, err := WriteArchiveToDir(dir, payload)
+	if err != nil {
+		t.Fatalf("WriteArchiveToDir: %v", err)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat file: %v", err)
+	}
+	if mode := info.Mode().Perm(); mode != 0o600 {
+		t.Errorf("file mode = %o, want 0600 (invariant 2 violation)", mode)
+	}
+
+	dinfo, err := os.Stat(dir)
+	if err != nil {
+		t.Fatalf("stat dir: %v", err)
+	}
+	if mode := dinfo.Mode().Perm(); mode != 0o700 {
+		t.Errorf("dir mode = %o, want 0700 (invariant 2 violation)", mode)
+	}
+}
 
 // TestPrivacyInvariant1_LogRedaction verifies that log output does not contain
 // entry text, mantra text, chat_id, or API keys.
