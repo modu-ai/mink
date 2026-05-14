@@ -2,15 +2,15 @@
 
 > **⚠ v0.2 Amendment (2026-04-24)**
 > SPEC-GOOSE-ARCH-REDESIGN-v0.2 확정본에 따라 주요 변경 발생. 아래 본문은 v6.2 기준이며, **실제 구현 우선순위와 범위는 재편본을 따른다**.
-> 자세한 재편 내용: `.moai/design/goose-runtime-architecture-v0.2.md` + `.moai/specs/SPEC-GOOSE-ARCH-REDESIGN-v0.2/spec.md`
+> 자세한 재편 내용: `.moai/design/mink-runtime-architecture-v0.2.md` + `.moai/specs/SPEC-GOOSE-ARCH-REDESIGN-v0.2/spec.md`
 >
 > **v0.2 주요 변화 요약**:
 > - **삭제** (5건): MOBILE-001, WIDGET-001, SYNC-001, CLOUD-001, DISCOVERY-001
 > - **축소** (4건): AUTH-001, NOTIFY-001, BRIDGE-001, ONBOARDING-001
 > - **신규** (9건): QMD-001, WEBUI-001, SELF-CRITIQUE-001, PAI-CONTEXT-001, PERMISSION-001, SECURITY-SANDBOX-001, CREDENTIAL-PROXY-001, FS-ACCESS-001, AUDIT-001
 > - **채널 변경**: v0.1 Alpha는 CLI/TUI + Telegram + Web UI 3종 (Email 제거, Mobile 제거, Apple Native 제거)
-> - **스토리지 2원화**: `~/.goose/` (secrets only) + `./.goose/` (workspace)
-> - **Module path**: `github.com/modu-ai/goose`
+> - **스토리지 2원화**: `~/.mink/` (secrets only) + `./.mink/` (workspace)
+> - **Module path**: `github.com/modu-ai/mink`
 > - **SPEC 총량**: 58 → 약 54 (-5 +9 = +4 순증)
 >
 > 기존 v6.2 본문은 **참조용**으로 보존되며, 새 Milestone 순서는 v0.2 문서의 §10을 기준으로 한다.
@@ -70,7 +70,7 @@ CLI-001(TUI 보강), AGENT-001, LLM-001, QMD-001, CREDENTIAL-PROXY-001, FS-ACCES
 
 ---
 
-> **프로젝트**: GOOSE — Daily Companion AI (self-hosted, project-local workspace)
+> **프로젝트**: MINK — Daily Companion AI (self-hosted, project-local workspace)
 > **작성일**: 2026-04-22 (v6.2) · 2026-04-24 (v0.2 amendment)
 > **이전 버전**: v5.0 (47 SPEC) · v6.0 (48) · v6.1 (52) · v6.2 (58) · **v0.2 (54, 재편본)**
 > **대화 언어**: 한국어 · **코드 식별자**: 영어
@@ -103,7 +103,7 @@ CLI-001(TUI 보강), AGENT-001, LLM-001, QMD-001, CREDENTIAL-PROXY-001, FS-ACCES
 
 > "에르메스처럼 챗봇 연결 X, 앱 개발해서 연동" (1차)
 > "모바일↔PC 바로 연결되나? 클라우드 필요? 메신저 환경 복구?" (2차)
-> "텔레그램에서 PC GOOSE에게 지시 가능한 Hermes 패턴 복원" (3차)
+> "텔레그램에서 PC MINK에게 지시 가능한 Hermes 패턴 복원" (3차)
 > "iMessage 추가 가능하면 추가" (4차)
 
 ---
@@ -170,7 +170,7 @@ Cloud는 **Zero-Knowledge**: 이메일 해시, 장치 공개키, 암호화 APNs 
 ### Phase 0 — Agentic Core (5 SPEC, P0)
 | # | SPEC-ID | 제목 | 우선 | 범위 |
 |---|---|---|---|---|
-| 01 | `SPEC-GOOSE-CORE-001` | goosed 데몬 부트스트랩 | P0 | S |
+| 01 | `SPEC-GOOSE-CORE-001` | minkd 데몬 부트스트랩 | P0 | S |
 | 02 | `SPEC-GOOSE-QUERY-001` ★ | QueryEngine + queryLoop | P0 | L |
 | 03 | `SPEC-GOOSE-CONTEXT-001` | Context Window + compaction | P0 | M |
 | 04 | `SPEC-GOOSE-TRANSPORT-001` | gRPC 서버 + proto | P0 | M |
@@ -193,7 +193,7 @@ Cloud는 **Zero-Knowledge**: 이메일 해시, 장치 공개키, 암호화 APNs 
 ### Phase 3 — Agentic Primitives (3 SPEC, P0)
 | 16 | `SPEC-GOOSE-TOOLS-001` | Tool Registry + ToolSearch | P0 | M |
 | 17 | `SPEC-GOOSE-COMMAND-001` | Slash Command System | P1 | S |
-| 18 | `SPEC-GOOSE-CLI-001` | goose CLI (개발·헤드리스용) | P0 | M |
+| 18 | `SPEC-GOOSE-CLI-001` | mink CLI (개발·헤드리스용) | P0 | M |
 
 ### Phase 4 — Self-Evolution (5 SPEC, P0) ★
 | 19 | `SPEC-GOOSE-TRAJECTORY-001` | Trajectory 수집 | P0 | S |
@@ -418,7 +418,7 @@ SCHEDULER → [WEATHER ∥ CALENDAR ∥ HEALTH]
 
 | Release | Milestone 포함 | Tier 지원 | Channel 지원 | 핵심 기능 |
 |---|---|---|---|---|
-| v0.1 Alpha | M0~M1 | Tier 0 | CLI only | `goose ask "hello"` |
+| v0.1 Alpha | M0~M1 | Tier 0 | CLI only | `mink ask "hello"` |
 | v0.2 Beta | M0~M2 | Tier 0 | CLI | 4 Primitive 완성 |
 | v0.3 Beta | M0~M3 | Tier 0 | CLI | 헤드리스 개발자 CLI |
 | **v0.4 Public Beta** | **M0~M6** | **Tier 0 + 1** | **Ch.1 + Ch.2** | **Desktop+Mobile 공개, 20+ 언어** |
@@ -514,7 +514,7 @@ SCHEDULER → [WEATHER ∥ CALENDAR ∥ HEALTH]
 5. LoRA Base Model
 6. LLM Stream 인터페이스
 7. proto commit 정책
-8. Rust goose-ml 배포
+8. Rust mink-ml 배포
 9. 운세 문화 범위 (한국 vs 서양)
 10. 건강 DB 소스 (식약처 vs WHO)
 11. 캘린더 기본 프로바이더
@@ -539,7 +539,7 @@ SCHEDULER → [WEATHER ∥ CALENDAR ∥ HEALTH]
 ### v6.1 3-Tier (3건, Kakao/WeChat 3건 삭제됨)
 25. APNs 인증서 방식 (p12 vs p8 Key)
 26. Android 푸시 프로바이더 (FCM 전용 vs HMS 중국 병행)
-27. GOOSE Cloud 호스팅 지역 (Hetzner/AWS/Cloudflare Workers)
+27. MINK Cloud 호스팅 지역 (Hetzner/AWS/Cloudflare Workers)
 
 ### v6.2 Channel (3건)
 28. Telegram Bot Token 사용자 지침 (BotFather 문서화)
@@ -554,7 +554,7 @@ SCHEDULER → [WEATHER ∥ CALENDAR ∥ HEALTH]
 
 ### v0.1 진입 순서
 1. **선결 의사결정 6건 확정** (Go 버전, sqlite, Tokenizer, Graph DB, Stream 인터페이스, proto 정책)
-2. `go.mod` 초기화 + `cmd/goosed` 스켈레톤
+2. `go.mod` 초기화 + `cmd/minkd` 스켈레톤
 3. **`SPEC-GOOSE-CORE-001` TDD RED 진입**
    ```bash
    /moai run SPEC-GOOSE-CORE-001
