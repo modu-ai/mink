@@ -129,7 +129,9 @@ func RenderTelegramText(payload *BriefingPayload) string {
 		sb.WriteString(fmt.Sprintf("_%s_\n", payload.Mantra.Text))
 	}
 
-	return sb.String()
+	// T-305: Prepend crisis hotline response when rendered text contains a
+	// crisis keyword. REQ-BR-055 / REQ-BR-061 / AC-015.
+	return PrependCrisisResponseIfDetected(sb.String())
 }
 
 // SendBriefingTelegram dispatches the briefing payload via the supplied

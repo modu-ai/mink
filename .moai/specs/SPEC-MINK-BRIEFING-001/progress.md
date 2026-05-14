@@ -1,5 +1,7 @@
 ## SPEC-MINK-BRIEFING-001 Progress
 
+- **Current status (2026-05-15)**: `amendment-in-progress` (v0.3.1 M4 wiring). status returns to `implemented` after M4 DoD complete.
+- v0.3.0 종결물 (M1+M2+M3, AC 16/16 GREEN) 은 기존 그대로 유지.
 - Started: 2026-05-14T09:30+09:00
 - Phase 0.9: Language = Go (go.mod detected)
 - Phase 0.95: Scale = Standard Mode (M1: 13 tasks, ~20 files, single domain Go backend)
@@ -104,3 +106,50 @@
 - bubbletea tea.Model 풀 integration (`Init`/`Update`/`View`) + `/briefing` slash dispatch (`internal/cli/tui/dispatch.go` 확장) — 별도 후속 PR
 - M3 LLM summary (T-201) + crisis hotline canned response (T-202) — AC-009 invariants 5/6
 - Coverage 85% 이상 push (T-107 보강 또는 edge case test 추가)
+
+## M4 — Full wiring (v0.3.1 amendment, completed)
+
+**Status**: run 완료 (2026-05-15). AC-013~017 전원 GREEN. v0.3.1 status = implemented.
+
+v0.3.0 종결 시점에서 식별된 5 wiring gap 을 닫는 amendment milestone. 본 SPEC 의 plan 단계 (manager-spec) 에서 SPEC/AC/Tasks 갱신 완료. 다음 단계는 manager-tdd (또는 manager-ddd, quality.yaml 의 development_mode 에 따름) 의 run phase.
+
+### M4 wiring gap 식별 (2026-05-15)
+
+| Gap | 설명 | 영향 |
+|-----|------|------|
+| Gap 1 | `internal/cli/commands/briefing.go` production path 가 `MockBriefingCollectorFactory` 사용 중 | `mink briefing` 실 실행이 mock 데이터만 반환 |
+| Gap 2 | `Orchestrator.Run()` 이 `GenerateLLMSummary` 미호출 (cfg.LLMSummary flag 미사용) | M3 구현물(T-201) 이 production wiring 0 |
+| Gap 3 | `PrependCrisisResponseIfDetected` / `PayloadHasCrisis` 가 어느 renderer 에도 미연결 | crisis 검출되어도 hotline canned response 출력 안 됨 |
+| Gap 4 | TUI `slash.go` 의 `HandleSlashCmd` switch 에 `case "briefing":` 부재 | `/briefing` 입력 시 dispatch 0, BriefingPanel snapshot test 만 존재 |
+| Gap 5 | `render_cli.go` 의 `Status` map iteration 비결정성 → golden test (`testdata/golden_cli_render.txt`) flaky | working tree 의 uncommitted golden diff (Mantra 행 위치 변동) 가 증거 |
+
+### M4 Quality Gates (run 완료, 2026-05-15)
+
+- [x] `go build ./...` PASS
+- [x] `go vet ./...` PASS
+- [x] `gofmt -l internal/ritual/briefing internal/cli/commands internal/cli/tui` 빈 출력
+- [x] `go test -race -count=1 ./internal/ritual/briefing/ ./internal/cli/commands/ ./internal/cli/tui/` PASS
+- [x] Coverage: `internal/ritual/briefing` 88.1% ≥ 88% target
+- [x] `make brand-lint` 0 violations
+- [x] `grep -rn "MockBriefingCollectorFactory" internal/cli/commands/briefing.go` no match (mock moved to _test.go)
+
+### M4 AC 충족 status (run 완료)
+
+| AC | 상태 | 핵심 task |
+|----|------|----------|
+| AC-013 production real collectors wiring | GREEN | T-301, T-302 |
+| AC-014 Orchestrator → LLM summary wiring | GREEN | T-303, T-304 |
+| AC-015 Crisis hotline prepend in 3 channels | GREEN | T-305 |
+| AC-016 `/briefing` TUI slash dispatch | GREEN | T-306, T-307, T-308 |
+| AC-017 Deterministic Module Status order | GREEN | T-309 |
+
+### M4 진입 조건
+
+- `.moai/config/sections/quality.yaml` 의 `development_mode` 확인 (tdd 기본)
+- v0.3.0 종결물 (AC 16/16 GREEN) 회귀 없음 — M4 신규 task 가 기존 테스트를 깨지 않을 것
+- M4 task 분해는 `tasks.md` §2 의 Milestone M4 — Full wiring (T-301~T-310) 참조
+
+### 후속 SPEC 가능성
+
+- M5 (가능): Telegram MarkdownV2 escape 정합성 보강 + TUI accessibility 옵션 + 다국어 i18n 진입 (별도 SPEC)
+- BRIEFING-001 본 SPEC 의 IN SCOPE 는 v0.3.1 M4 로 종결 — M5 이상은 새 SPEC ID 권장

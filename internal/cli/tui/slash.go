@@ -69,6 +69,11 @@ func HandleSlashCmd(cmd SlashCmd, m *Model) (string, tea.Cmd) {
 	case "session":
 		return handleSession(m), nil
 
+	case "briefing":
+		// T-307: non-blocking async briefing dispatch.
+		// REQ-BR-033 / REQ-BR-062 / AC-016.
+		return handleBriefing(m)
+
 	default:
 		return fmt.Sprintf("Unknown slash command: %s. Type /help for available commands.", cmd.Name), nil
 	}
@@ -128,6 +133,16 @@ func handleClear(m *Model) string {
 	m.messages = make([]ChatMessage, 0)
 	m.updateViewport()
 	return "Chat history cleared."
+}
+
+// handleBriefing dispatches an async briefing pipeline run via briefingRunCmd.
+// Returns a non-nil tea.Cmd immediately (non-blocking). REQ-BR-062 / AC-016.
+// If no runner is wired, returns an informative message with a nil Cmd.
+func handleBriefing(m *Model) (string, tea.Cmd) {
+	if m.briefingRunner == nil {
+		return "Briefing is not configured for this session.", nil
+	}
+	return "Fetching briefing...", briefingRunCmd(m.briefingRunner, m.userID)
 }
 
 // handleSession shows the current session name.

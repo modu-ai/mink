@@ -1,10 +1,11 @@
 ---
 id: SPEC-MINK-BRIEFING-001
-version: 0.3.0
-status: implemented
+version: 0.3.1
+status: amendment-in-progress
+# status returns to "implemented" after M4 DoD complete
 supersedes: SPEC-GOOSE-BRIEFING-001
 created_at: 2026-05-14
-updated_at: 2026-05-14
+updated_at: 2026-05-15
 author: manager-spec
 priority: P1
 labels:
@@ -15,6 +16,7 @@ labels:
   - integration
   - multi-channel-output
   - prefix-mink
+  - amendment-m4-wiring
 ---
 
 # SPEC-MINK-BRIEFING-001 — Daily Morning Briefing (Weather + Journal Recall + Date/Calendar + Mantra, CLI + Telegram + TUI)
@@ -26,6 +28,7 @@ labels:
 | 0.1.0 | 2026-05-14 | 초안 작성. Sprint 2 두 번째 SPEC. WEATHER-001 (v0.2.0 completed) + JOURNAL-001 (v0.3.0 completed) + SCHEDULER-001 (v0.2.x completed) + MSG-TELEGRAM-001 (v0.1.3 completed) 4 SPEC 통합. MINK prefix 적용 (USERDATA-MIGRATE-001 이후 표준). Socratic 2026-05-14 인터뷰 결론 반영: morning only + on-demand CLI + 4 modules + 3 channels (CLI/Telegram/TUI) + deterministic M1 (LLM off by default). 외부 dependency 0: 24절기/한국 명절 internal algorithm. 8 파일 산출 (spec/plan/acceptance/tasks/contract/spec-compact/progress/research). | manager-spec |
 | 0.2.0 | 2026-05-14 | M1 + M2 implementation 완료 (status=implemented). M1: T-001~T-013 (commits 8f8e8e5 + 1f32a68) — 패키지 스켈레톤 / 24절기 / 한국 공휴일 / 4 collectors / orchestrator / CLI render / cobra mink briefing 명령 / audit redaction / privacy invariants partial. M2: T-101~T-107 (commit 574d5f0) — Telegram renderer + archive writer (0600/0700) + SCHEDULER cron wiring (EvMorningBriefingTime, SCHEDULER 측 수정 0) + Telegram graceful disable + fan-out integration test + privacy invariants 보강 (Invariant 2 archive perms). 추가로 GOOSE-BRIEFING-001 supersede 처리 (commit 32cd25b). 검증: go build/vet/race-test PASS, coverage 83.9% (M2 DoD 85% 에 1.1% 부족 — 후속 보강 필요). M3 (LLM summary + crisis hotline) 와 sessionmenu bubbletea panel 통합은 후속 SPEC/PR 로 분리. | manager-spec |
 | 0.3.0 | 2026-05-14 | M3 (T-201 LLM summary + T-202 crisis hotline) 구현 완료 — AC-009 invariants 5/6 GREEN, AC 16/16 완전 종결. types.go 에 BriefingPayload.LLMSummary 필드 신설 + config.go 에 LLMSummary flag (default false). llm_summary.go (T-201): LLMSummaryRequest categorical-only struct + BuildLLMSummaryRequest + FormatLLMPrompt + GenerateLLMSummary (LLMProvider 의존성 주입). crisis_response.go (T-202): JOURNAL-001 CrisisDetector + CrisisResponse 재사용, PrependCrisisResponseIfDetected + PayloadHasCrisis 헬퍼. 추가 BriefingPanel snapshot test (PR #182, AC-008 GREEN) 와 함께 본 PR (#183) 머지 시점에서 16/16 AC + EC 모두 GREEN. 검증: build/vet/race-test/brand-lint PASS, coverage 85.5% (M2 DoD 85% 충족). | manager-spec |
+| 0.3.1 | 2026-05-15 | **M4 milestone amendment — 풀 wiring 단계 추가**. v0.3.0 종결물(M1+M2+M3) 위에서 발견된 5 wiring gap 을 닫기 위한 amendment. Gap 1: `internal/cli/commands/briefing.go` 가 production path 에서도 `MockBriefingCollectorFactory` 를 사용 중 — real collectors (collect_weather/journal/date/mantra) 가 구현되어 있으나 cobra command 와 wiring 되지 않음. Gap 2: orchestrator.go `Run()` 이 GenerateLLMSummary 를 호출하지 않음 (cfg.LLMSummary flag 미사용 상태). Gap 3: PrependCrisisResponseIfDetected / PayloadHasCrisis 가 어느 renderer 에도 wiring 되지 않음. Gap 4: TUI slash.go HandleSlashCmd 에 `case "briefing":` 부재 — BriefingPanel.Render() 는 snapshot-test 만 되고 live dispatch 경로 없음. Gap 5: render_cli.go 의 `Status` map 순회가 Go map iteration 비결정성으로 인해 golden test (`testdata/golden_cli_render.txt`) flaky — Module Status 행 순서 고정 필요. v0.3.1 은 신규 REQ-BR-060~064 (5 EARS), 신규 AC-013~017 (5 binary verify), 신규 task T-301~T-310 (10 atomic) 추가. v0.3.0 의 REQ-BR-001~055 / AC-001~012 / EC-001~004 는 변경 0 (종결물 보존). | manager-spec |
 
 ---
 
@@ -172,6 +175,16 @@ MINK 의 4 개 핵심 도메인 SPEC (WEATHER / JOURNAL / SCHEDULER / TELEGRAM) 
 - **REQ-BR-054 (Security)**: When the LLM summary (M3) is active, the LLM payload **shall** contain only categorical signals (weather summary token, anniversary year count, trend slope sign) — **shall not** include journal entry text, exact location coordinates, or Telegram chat_id.
 - **REQ-BR-055 (Security)**: If any content module surfaces text matching a known crisis pattern (JOURNAL-001 `crisis.go` keyword list), the system **shall** prepend a hotline canned response to the output and **shall not** include analytical commentary.
 
+### 5.7 M4 Wiring Requirements (v0.3.1 amendment)
+
+v0.3.0 종결물 위에서 식별된 5 wiring gap 을 닫기 위해 추가된 EARS 요구사항. 모든 항목은 신규 구현 영역이 아니라 **이미 구현된 컴포넌트를 production path 에 연결** 하는 것이 핵심.
+
+- **REQ-BR-060 (Event-Driven)**: **When** the orchestrator pipeline completes the 4 collector phase and `cfg.LLMSummary == true` and an `LLMProvider` is provided, the orchestrator **shall** invoke `GenerateLLMSummary` and attach the resulting summary text to `payload.LLMSummary`. **When** `cfg.LLMSummary == false` or no provider is injected, the orchestrator **shall** leave `payload.LLMSummary` empty and emit no error. **When** the LLM call fails (provider timeout, network error, provider-side error, or any non-nil error returned by `GenerateLLMSummary`), the orchestrator **shall** set `payload.Status["llm_summary"] = "error"`, leave `payload.LLMSummary` empty, log only the error category (e.g., `error_type=timeout`, `error_type=provider_error`) without including the LLM request/response payload contents, and **shall** continue the pipeline without returning a pipeline-level error (graceful degradation — other modules and renderers proceed normally).
+- **REQ-BR-061 (Event-Driven)**: **When** `PayloadHasCrisis(payload) == true`, each channel renderer (CLI, Telegram, TUI) **shall** prepend the JOURNAL-001 hotline canned response (1577-0199 / 1393 / 1388) to the rendered output before any briefing body content.
+- **REQ-BR-062 (Event-Driven)**: **When** the user enters `/briefing` in the TUI session, the system **shall** asynchronously execute the briefing pipeline via a `tea.Cmd` and, on completion, append the `BriefingPanel.Render()` output to `m.messages` as a system-role message (no blocking of the TUI event loop).
+- **REQ-BR-063 (Ubiquitous)**: The CLI renderer **shall** output the "Module Status:" section with rows in fixed order — Weather, Journal, Date, Mantra — matching the `BriefingPayload` struct field declaration order, regardless of Go map iteration randomization.
+- **REQ-BR-064 (Unwanted)**: **If** the `mink briefing` cobra command is invoked in a production path (non-test binary) without real collectors wired (i.e., still bound to `MockBriefingCollectorFactory`), **then** the command **shall** fail at startup with a clear error message indicating the mock factory leaked into production; mock factories **shall** reside only in `*_test.go` files.
+
 ---
 
 ## 6. 도메인 모델 / 데이터 구조
@@ -274,8 +287,9 @@ type ChannelRenderer interface {
 | M1 (MVP) | P1 | Briefing collector (4 modules) + CLI stdout renderer + `mink briefing` cobra command + deterministic template | WEATHER-001 / JOURNAL-001 / 신규 internal solar-term + holiday |
 | M2 | P1 | Telegram renderer + TUI panel + SCHEDULER cron integration + archive 파일 | M1 완료 + MSG-TELEGRAM-001 / SCHEDULER-001 / TUI |
 | M3 | P2 (Optional) | LLM summary mode (config flag, default off) | M2 완료 + LLM provider abstraction |
+| **M4 (v0.3.1)** | **P1** | **5 wiring AC 종결: (1) production real collectors wiring, (2) Orchestrator → GenerateLLMSummary, (3) Crisis hotline prepend in 3 channels, (4) `/briefing` TUI slash dispatch with async tea.Cmd, (5) deterministic Module Status order** | **M3 완료물 (모든 컴포넌트 구현 상태) + tea.Model TUI 구조** |
 
-Milestone 별 task 분해는 `tasks.md` 참조.
+Milestone 별 task 분해는 `tasks.md` 참조 (M4 는 T-301~T-310).
 
 ---
 
@@ -305,21 +319,25 @@ Milestone 별 task 분해는 `tasks.md` 참조.
 
 ---
 
-Version: 0.3.0
-Classification: IMPLEMENTED
-Last Updated: 2026-05-14
-REQ coverage: REQ-BR-001 ~ REQ-BR-055 (총 22 REQs)
-AC coverage: AC-001 ~ AC-012 + EC-001 ~ EC-004 (acceptance.md)
+Version: 0.3.1
+Classification: IMPLEMENTED (v0.3.0 종결) + AMENDMENT (M4 wiring 진행 중)
+Last Updated: 2026-05-15
+REQ coverage: REQ-BR-001 ~ REQ-BR-055 (v0.3.0) + REQ-BR-060 ~ REQ-BR-064 (v0.3.1, 총 27 REQs)
+AC coverage: AC-001 ~ AC-012 + EC-001 ~ EC-004 (v0.3.0) + AC-013 ~ AC-017 (v0.3.1, 총 21 binary gates)
 
-M1 + M2 구현 완료:
-- 구현 commit: 8f8e8e5, 1f32a68, 574d5f0 (M1 T-001~T-013 + M2 T-101~T-107)
+M1 + M2 + M3 구현 완료 (v0.3.0, 2026-05-14):
+- 구현 commit: 8f8e8e5, 1f32a68, 574d5f0 (M1 T-001~T-013 + M2 T-101~T-107), 추가 M3 (T-201 + T-202)
 - 검증: `go build ./...`, `go vet ./...`, `go test -race -count=1 ./internal/ritual/briefing/` 모두 PASS
-- Coverage: 83.9% of statements (M2 DoD 85% 대비 1.1% 부족 — 후속 보강 권장)
-- 사용 가능한 surfaces: CLI `mink briefing` 명령 / Telegram outbound (graceful disable) / TUIPanel 구조화 (bubbletea 통합은 후속 PR)
-- Archive: `~/.mink/briefing/YYYY-MM-DD.md` (file 0600, dir 0700)
-- SCHEDULER 통합: `hook.EvMorningBriefingTime` 에 `BriefingHookHandler` 등록 (`RegisterMorningBriefing(reg, h)`)
+- Coverage: 85.5% of statements (M2 DoD 85% 충족)
+- AC 16/16 GREEN
 
-후속 작업:
-- M3 (Optional): T-201 LLM summary + T-202 crisis hotline canned response
-- sessionmenu bubbletea panel widget + /briefing slash dispatch
-- Coverage 85% 이상 보강
+v0.3.1 M4 amendment (2026-05-15):
+- 5 wiring gap 식별 → REQ-BR-060~064 + AC-013~017 + T-301~T-310 추가
+- v0.3.0 종결물(M1+M2+M3) 의 REQ/AC/Task 는 변경 0 (보존)
+- 구현 phase 는 manager-tdd 의 run phase 로 이양 (본 SPEC 은 plan 단계)
+- 산출 디렉토리: `internal/ritual/briefing/`, `internal/cli/commands/`, `internal/cli/tui/`
+- 의존 패키지: tea.Model (TUI), LLMProvider (M3 구현물), JOURNAL CrisisResponse (재사용)
+
+후속 작업 (M4 이후):
+- Coverage 90% strict 도달 (v0.3.0 의 85.5% → M4 wiring 테스트 추가로 자연 증가 예상)
+- M5 (가능) — Telegram MarkdownV2 escape 정합성 보강 + TUI accessibility 옵션

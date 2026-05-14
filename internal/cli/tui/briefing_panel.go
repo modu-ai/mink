@@ -68,5 +68,7 @@ func (p *BriefingPanel) Render() string {
 	}
 	sb.WriteString(sep)
 	sb.WriteString("\n")
-	return sb.String()
+	// T-305: Prepend crisis hotline response when the rendered text contains a
+	// crisis keyword. REQ-BR-055 / REQ-BR-061 / AC-015.
+	return briefing.PrependCrisisResponseIfDetected(sb.String())
 }

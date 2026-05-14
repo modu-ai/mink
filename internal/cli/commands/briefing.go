@@ -64,101 +64,40 @@ Use --plain for plain text output suitable for logging or pipes.`,
 	return cmd
 }
 
-// MockBriefingCollectorFactory creates mock collectors for testing.
-// This function simulates successful collection for all modules.
-func MockBriefingCollectorFactory() (weather, journal, date, mantra briefing.Collector) {
-	weather = &mockCollector{
-		module: &briefing.WeatherModule{
-			Current: &briefing.WeatherCurrent{
-				Temp:      18.5,
-				FeelsLike: 17.0,
-				Humidity:  65.0,
-				Condition: "Cloudy",
-				Location:  "Seoul, South Korea",
-			},
-			AirQuality: &briefing.AirQuality{
-				PM25:  15.0,
-				PM10:  25.0,
-				AQI:   45,
-				Level: "Good",
-			},
-			Offline: false,
-		},
-		status: "ok",
-	}
-
-	journal = &mockCollector{
-		module: &briefing.RecallModule{
-			Anniversaries: []*briefing.AnniversaryEntry{
-				{
-					YearsAgo:  1,
-					Date:      "2025-05-14",
-					Text:      "Project milestone",
-					EmojiMood: "🎉",
-					Anniversary: &briefing.Anniversary{
-						Type: "1Y",
-						Name: "1 Year Ago",
-					},
-				},
-			},
-			MoodTrend: &briefing.MoodTrend{
-				Period:     "7 days",
-				AvgValence: 0.6,
-				AvgArousal: 0.4,
-				Trend:      "improving",
-			},
-			Offline: false,
-		},
-		status: "ok",
-	}
-
-	date = &mockCollector{
-		module: &briefing.DateModule{
-			Today:     time.Now().Format("2006-01-02"),
-			DayOfWeek: "목요일",
-			SolarTerm: &briefing.SolarTerm{
-				Name:      "입하",
-				NameHanja: "立夏",
-				Date:      "2026-05-05",
-			},
-			Holiday: nil,
-		},
-		status: "ok",
-	}
-
-	mantra = &mockCollector{
-		module: &briefing.MantraModule{
-			Text:   "Every day is a new beginning",
-			Source: "Daily Wisdom",
-			Index:  0,
-			Total:  365,
-		},
-		status: "ok",
-	}
-
-	return weather, journal, date, mantra
+// RealCollectorDeps holds the real collector instances needed by
+// RealBriefingCollectorFactory. Callers populate each field from their
+// dependency injection site (e.g., the cobra root command setup).
+//
+// T-302 / REQ-BR-064 / AC-013.
+type RealCollectorDeps struct {
+	// Weather is the real weather data collector.
+	Weather *briefing.WeatherCollector
+	// Journal is the real journal recall collector.
+	Journal *briefing.JournalCollector
+	// Date is the real date/calendar collector.
+	Date *briefing.DateCollector
+	// Mantra is the real daily mantra collector.
+	Mantra *briefing.MantraCollector
+	// Location is the user location string forwarded to the weather adapter.
+	Location string
 }
 
-// mockCollector is a test double for Collector interface.
-type mockCollector struct {
-	module any
-	status string
-	delay  time.Duration
-	err    error
-}
-
-func (m *mockCollector) Collect(ctx context.Context, userID string, today time.Time) (any, string) {
-	if m.delay > 0 {
-		select {
-		case <-ctx.Done():
-			return nil, "timeout"
-		case <-time.After(m.delay):
-		}
+// RealBriefingCollectorFactory returns a BriefingCollectorFactory that wraps
+// the concrete collector implementations supplied via deps. The returned
+// factory is wired with the adapter layer (collect_adapters.go) so the
+// Orchestrator receives properly typed Collector values.
+//
+// REQ-BR-001 (weather), REQ-BR-004 (journal recall), REQ-BR-007 (date),
+// REQ-BR-010 (mantra). REQ-BR-064 / AC-013.
+//
+// @MX:ANCHOR: RealBriefingCollectorFactory is the production wiring entry point.
+// @MX:REASON: [AUTO] Binds all 4 collector adapters; called by CLI root setup. REQ-BR-064.
+func RealBriefingCollectorFactory(deps RealCollectorDeps) BriefingCollectorFactory {
+	return func() (weather, journal, date, mantra briefing.Collector) {
+		weather = briefing.NewWeatherCollectorAdapter(deps.Weather, deps.Location)
+		journal = briefing.NewJournalCollectorAdapter(deps.Journal)
+		date = briefing.NewDateCollectorAdapter(deps.Date)
+		mantra = briefing.NewMantraCollectorAdapter(deps.Mantra)
+		return weather, journal, date, mantra
 	}
-
-	if m.err != nil {
-		return nil, "error"
-	}
-
-	return m.module, m.status
 }
