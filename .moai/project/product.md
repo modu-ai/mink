@@ -1,9 +1,9 @@
 ---
-version: 7.0.0
+version: 7.0.1
 brand: MINK
 status: published
 created_at: 2026-05-12
-updated_at: 2026-05-12
+updated_at: 2026-05-14
 classification: VISION_DOCUMENT
 spec: SPEC-MINK-PRODUCT-V7-001
 language: ko
@@ -16,6 +16,7 @@ language: ko
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
 | 7.0.0 | 2026-05-12 | manager-spec | v7.0 신설 — 1인 dev personal ritual companion 비전 정립. v6.0 ("Daily Companion Edition", multi-tenant agent platform 야망) → product-archive/product-v6.0-2026-04-27.md 로 archive. IDEA-002 brain Wave 3 §4.1 item 2 구현. SPEC-MINK-PRODUCT-V7-001 로 추적. |
+| 7.0.1 | 2026-05-14 | MoAI orchestrator | Wave 2/3 진행 상태 sync. Wave 2 → 완료 (BRIEFING-001 v0.3.0 implemented PR #178/#182/#183, JOURNAL-001 v0.3.0, MSG-TELEGRAM-001 v0.1.3 등). Wave 3 → 진행 중 (BRAND-RENAME / DISTANCING / USERDATA-MIGRATE / ENV-MIGRATE / PRODUCT-V7 모두 completed, Draft 3종 MINK rebrand PR #180, 메타문서 rebrand PR #181, 95-SPEC 리뷰 PR #178). MoAI sync 자동 갱신. |
 
 ---
 
@@ -136,19 +137,24 @@ OpenClaw는 tool-use agent framework + developer toolkit. MINK는 end-user produ
 - Local SQLite 기반 메모리
 - SPEC-GOOSE-CLI-001~CLI-TUI-003 / WEATHER-001 / SCHEDULER-001 / JOURNAL-001 / TELEGRAM-001 완료(v0.1.3)
 
-### Wave 2 (진행 중): Integration
-- Morning brief 통합
+### Wave 2 (완료): Integration
+- Morning brief 통합 — **SPEC-MINK-BRIEFING-001 v0.3.0 implemented** (PR #178/#182/#183, 2026-05-14): 4 module (Weather + Journal Recall + Date/Calendar + Mantra) collection + 3 출력 채널 (CLI + Telegram + TUI panel) + SCHEDULER cron + archive (`~/.mink/briefing/YYYY-MM-DD.md`, 0600/0700) + Privacy 6 invariants + Optional LLM summary + Crisis hotline canned response. AC 16/16 GREEN, coverage 85.5%.
 - Ambient LLM context injection
-- Long-term memory recall (1년 후 추억, trend, search)
-- Telegram bridge, Insights 리팩터링
+- Long-term memory recall (1년 후 추억, trend, search) — SPEC-GOOSE-JOURNAL-001 v0.3.0 completed
+- Telegram bridge — SPEC-GOOSE-MSG-TELEGRAM-001 v0.1.3 completed
+- Insights 리팩터링
 - SPEC-GOOSE-TOOLS-WEB-001 / OBS-METRICS-001 완료
 
-### Wave 3 (계획): Brand Reset + New Rituals
-- SPEC-MINK-BRAND-RENAME-001: brand identifier rename (GOOSE→MINK)
-- SPEC-MINK-DISTANCING-STATEMENT-001: distancing detail document
-- SPEC-MINK-USERDATA-MIGRATE-001: `./.goose/` → `./.mink/` 마이그레이션
-- SPEC-MINK-ENV-MIGRATE-001: env var 마이그레이션
-- 신규 ritual SPEC (FORTUNE, HEALTH, CALENDAR, RITUAL 등)
+### Wave 3 (진행 중): Brand Reset + New Rituals
+- SPEC-MINK-BRAND-RENAME-001: brand identifier rename (GOOSE→MINK) — **completed** (commit f0f02e4, 8-phase atomic)
+- SPEC-MINK-DISTANCING-STATEMENT-001: distancing detail document — **completed** (PR #167)
+- SPEC-MINK-USERDATA-MIGRATE-001: `./.goose/` → `./.mink/` 마이그레이션 — **completed** (PR #174/#175)
+- SPEC-MINK-ENV-MIGRATE-001: env var 마이그레이션 — **completed** (PR #170/#171)
+- SPEC-MINK-PRODUCT-V7-001: product v7.0 비전 — **completed** (PR #166)
+- Draft 3종 MINK rebrand (CROSSPLAT/I18N/ONBOARDING) — **신설** (PR #180, draft 상태로 implementation 대기)
+- 메타문서 MINK rebrand (ROADMAP/IMPLEMENTATION-ORDER/design runtime arch) — **completed** (PR #181)
+- 95-SPEC 전체 리뷰 + frontmatter 정규화 — **completed** (PR #178)
+- 신규 ritual SPEC (FORTUNE, HEALTH, CALENDAR, RITUAL 등) — 계획
 
 ### Wave 4 (미결정): Advanced
 - 자기진화 엔진 고도화 (LoRA adapter)

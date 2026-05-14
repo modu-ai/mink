@@ -5,6 +5,65 @@
 
 ## [Unreleased]
 
+### Added — SPEC-MINK-BRIEFING-001 v0.3.0 implemented (Daily Morning Briefing, AC 16/16 GREEN)
+
+**Status**: completed (PR #178 M1+M2 merged efc307b, PR #182 TUI Panel AC-008 merged ffe98e2, PR #183 M3 LLM summary + crisis hotline merged 0cdd448). 12 AC + 4 EC = **16/16 모두 GREEN**, coverage **85.5%** (M2 DoD 85% 충족).
+
+`internal/ritual/briefing/` 패키지 신설 — 4 module collection (Weather + Journal Recall + Date/Calendar + Mantra) 을 3 채널 (CLI + Telegram + TUI panel) 로 동기 출력하는 morning ritual integration layer.
+
+- **M1 (T-001~T-013)** 패키지 스켈레톤 + 24절기 (Meeus 단순화) + 한국 명절 (KASI 1900~2100 lookup) + 4 collectors (weather/journal/date/mantra) + orchestrator (errgroup parallel + 30s timeout) + CLI renderer (ANSI/plain TTY detect) + `mink briefing` cobra command + audit logger redaction + privacy invariants 1/3/4 + integration test
+- **M2 (T-101~T-107)** Telegram renderer (MarkdownV2 + graceful disable, chat_id 미노출) + archive writer (`~/.mink/briefing/YYYY-MM-DD.md`, 0600/0700 file/dir mode) + SCHEDULER-001 cron wiring (`hook.EvMorningBriefingTime` 재사용, SCHEDULER 측 수정 0) + fan-out integration test + privacy invariant 2 (archive perms)
+- **TUI Panel (PR #182, ffe98e2)** `internal/cli/tui/briefing_panel.go` — `BriefingPanel` snapshot wrapper + 4 sub-tests + `internal/cli/tui/snapshots/briefing_panel.txt` golden + `-update-golden` flag. AC-008 GREEN. bubbletea tea.Model 풀 integration + `/briefing` slash dispatch 는 별도 후속 PR.
+- **M3 (T-201, T-202, PR #183, 0cdd448)** LLM summary (`LLMSummaryRequest` categorical-only struct + `BuildLLMSummaryRequest` + `FormatLLMPrompt` + `GenerateLLMSummary`, `cfg.LLMSummary=false` 시 no-op) + crisis hotline canned response (JOURNAL-001 `CrisisDetector` + `CrisisResponse` 재사용, 1577-0199/1393/1388 hotline prepend, 분석/진단 어휘 0). AC-009 invariants 5/6 GREEN.
+
+**의존 SPEC**: SPEC-GOOSE-WEATHER-001 (v0.2.0 completed) + SPEC-GOOSE-JOURNAL-001 (v0.3.0 completed) + SPEC-GOOSE-SCHEDULER-001 (v0.2.x completed) + SPEC-GOOSE-MSG-TELEGRAM-001 (v0.1.3 completed) + SPEC-GOOSE-LLM-001 (LLMProvider interface) — 외부 dep 0, internal API call only.
+
+**Backwards compatibility**: M1/M2 deterministic 기본. M3 LLM summary 는 `briefing.llm_summary: true` opt-in.
+
+### Changed — Draft 3종 MINK rebrand (CROSSPLAT/I18N/ONBOARDING) — PR #180 (81d9fa4)
+
+SPEC-MINK-BRAND-RENAME-001 (commit f0f02e4) 의 GOOSE → MINK 전역 rename 정책에 따라 draft 상태로 남아 있던 3개 GOOSE prefix SPEC 을 MINK rebrand. 옵션 (c) — 신규 SPEC-MINK-* dir 신설 + 기존 SPEC-GOOSE-* status=superseded.
+
+- **SPEC-MINK-CROSSPLAT-001 신설 (v0.2.0, draft, supersedes SPEC-GOOSE-CROSSPLAT-001)** — Universal Cross-Platform Installer + Model Distribution, 4 파일 (spec/acceptance/plan/progress)
+- **SPEC-MINK-I18N-001 신설 (v0.3.0, draft, supersedes SPEC-GOOSE-I18N-001)** — UI Internationalization (20+ Languages, Plurals, RTL), 3 파일 (spec/research/status)
+- **SPEC-MINK-ONBOARDING-001 신설 (v0.3.0, draft, supersedes SPEC-GOOSE-ONBOARDING-001)** — CLI + Web UI Install Wizard (`mink init`), 5 파일 (spec/amendment-v0.3/progress/research/status)
+- 기존 GOOSE-* 3종 frontmatter status=draft → superseded, superseded_by 추가, labels[superseded] 추가 (body immutable 정책 준수)
+- perl protection-substitute-restore 패턴으로 brand-position GOOSE → MINK + code identifier 동기화 + 88개 SPEC-GOOSE-* immutable cross-reference 보존
+
+### Changed — 메타문서 MINK rebrand (ROADMAP + IMPLEMENTATION-ORDER + design runtime arch) — PR #181 (685ae1c)
+
+- `.moai/specs/ROADMAP.md` (29KB): brand-position 79 → 72 (잔여는 immutable cross-ref), storage path + module path + design ref 일괄 동기화
+- `.moai/specs/IMPLEMENTATION-ORDER.md` (24KB): brand-position 17 → 5 (잔여는 immutable cross-ref)
+- `.moai/design/goose-runtime-architecture-v0.2.md` → `.moai/design/mink-runtime-architecture-v0.2.md` (git mv + 본문 43 → 0 occurrences)
+- `.moai/specs/CMDCTX-DEPENDENCY-ANALYSIS.md`: 사전 점검 결과 GOOSE 0건, 변경 없음
+
+### Changed — 95-SPEC 전체 리뷰 + frontmatter 일관성 정규화 — PR #178 (efc307b)
+
+- **version 인용부호 일관성**: 9개 SPEC 의 `version: "0.x.y"` → `version: 0.x.y` 정규화 (CLI/CLI-TUI-002/CLI-TUI-003/LLM-ROUTING-V2/MSG-TELEGRAM/DISTANCING-STATEMENT/ENV-MIGRATE/PRODUCT-V7/USERDATA-MIGRATE)
+- **GOOSE-BRIEFING-001 superseded** by SPEC-MINK-BRIEFING-001 (32cd25b): 5 차이점 명시 (MINK prefix / 데이터 소스 재구성 / 외부 dep 0 / 3 출력 채널 / Privacy 6 invariants), 코드 산출물 없음
+- **POST-BRAND-RENAME marker** 3종 draft SPEC 에 추가 (CROSSPLAT/I18N/ONBOARDING — 이후 PR #180 에서 옵션 (c) rebrand 적용)
+- **spot drift check 5 SPEC PASS**: SPEC-GOOSE-BRIDGE-001 (`internal/bridge/`) + SCHEDULER-001 + WEATHER-001 + JOURNAL-001 + LLM-ROUTING-V2-001 모두 code path 존재
+- SPEC-AGENCY-ABSORB-001 / CLEANUP-002: `.agency/` archive 정상
+
+### Fixed — 빌드 회귀 4건 (errcheck cleanup batch 잔재) — PR #178 (efc307b commit b9fcf4a)
+
+전사적 errcheck/`_ =` 패턴 정리 batch 의 잔여 회귀를 일괄 fix:
+
+- `internal/cli/session/session.go`: `Save()` 함수 중복 atomic rename 블록 제거
+- `internal/hook/handlers.go`: tagless `switch {}` 의 `case 0:` / `case 2:` → `case exitCode == 0:` / `case exitCode == 2:` 복원
+- `internal/subagent/run.go`: `lastMsg` 선언 제거에 따른 dead 사용처 제거
+- `internal/cli/commands/ask.go`: `fmt.Fprintf/Fprint/Fprintln` 의 `_ =` 단일 할당을 `_, _ =` 2-값 할당으로 정정 (4개소)
+
+### Added — Makefile `ci-local` 타겟 + `fmt` + `lint` (pre-push hook root cause fix) — PR #178 (commit 8df7d34)
+
+pre-push hook (`.git/hooks/pre-push`) 이 호출하는 `make ci-local` 타겟이 부재하여 push 가 차단된 상태였음. CLAUDE.md HARD rule "Never skip hooks; investigate and fix" 에 따라 SKIP_MOAI_PREPUSH 우회 대신 root cause fix:
+
+- `fmt` 타겟 — gofmt 위반 파일 출력 + 위반 있으면 exit 1
+- `lint` 타겟 — go vet (alias, golangci-lint 도입 시 확장)
+- `ci-local` 타겟 — pre-push hook 미러 = `fmt vet test-race brand-lint` 일괄 실행
+
+GitHub Actions 의 `Go (build / vet / gofmt / test -race)` + `Brand Notation Check` 게이트와 일치.
+
 ### Changed — MINK 리브랜드 시리즈 4 SPEC status sync + drift correction
 
 - **SPEC-MINK-ENV-MIGRATE-001**: status `implemented` → `completed` (sync). PR #170 plan + PR #171 impl merged.
