@@ -6,12 +6,12 @@ import (
 
 func TestSolarTermOnDate(t *testing.T) {
 	tests := []struct {
-		name      string
-		year      int
-		month     int
-		day       int
-		wantTerm  *SolarTerm
-		wantErr   bool
+		name     string
+		year     int
+		month    int
+		day      int
+		wantTerm *SolarTerm
+		wantErr  bool
 	}{
 		{
 			name:  "2026-02-04 입추 (Beginning of Spring)",
@@ -62,28 +62,28 @@ func TestSolarTermOnDate(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "2026-01-15 no solar term",
-			year:    2026,
-			month:   1,
-			day:     15,
+			name:     "2026-01-15 no solar term",
+			year:     2026,
+			month:    1,
+			day:      15,
 			wantTerm: nil,
-			wantErr: false,
+			wantErr:  false,
 		},
 		{
-			name:    "1899 out of range",
-			year:    1899,
-			month:   1,
-			day:     1,
+			name:     "1899 out of range",
+			year:     1899,
+			month:    1,
+			day:      1,
 			wantTerm: nil,
-			wantErr: true,
+			wantErr:  true,
 		},
 		{
-			name:    "2101 out of range",
-			year:    2101,
-			month:   1,
-			day:     1,
+			name:     "2101 out of range",
+			year:     2101,
+			month:    1,
+			day:      1,
 			wantTerm: nil,
-			wantErr: true,
+			wantErr:  true,
 		},
 	}
 

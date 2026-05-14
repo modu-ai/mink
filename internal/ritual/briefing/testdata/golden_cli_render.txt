@@ -1,0 +1,37 @@
+MORNING BRIEFING
+========================================
+
+  Generated:    Thu, 14 May 2026 07:30:00 UTC
+
+Weather
+  Temperature:  22.0°C
+  Feels Like:   21.0°C
+  Condition:    Partly Cloudy
+  Humidity:     55%
+  Location:     Seoul, South Korea
+  AQI:          35 (Good)
+
+Journal Recall
+  Anniversaries:1 found
+  🚀 3Y: 2023-05-14
+  Mood Trend:   stable ➡️
+    Period:     7 days
+
+Date & Calendar
+  Today:        2026-05-14
+  Day of Week:  목요일
+  Solar Term:   입하 (立夏)
+
+Daily Mantra
+  "Every day is a new beginning"
+  Source:       Anonymous
+  Index:        135/365
+
+
+----------------------------------------
+Module Status:
+  Weather: ok ✓
+  Journal: ok ✓
+  Date: ok ✓
+  Mantra: ok ✓
+

@@ -36,9 +36,9 @@ func getKoreanHolidaysForYear(year int) map[string]KoreanHoliday {
 
 	// Solar holidays (fixed Gregorian dates)
 	solarHolidays := []struct {
-		month    int
-		day      int
-		name     string
+		month     int
+		day       int
+		name      string
 		nameHanja string
 	}{
 		{1, 1, "신정", "新年"},
@@ -65,19 +65,19 @@ func getKoreanHolidaysForYear(year int) map[string]KoreanHoliday {
 	// For 2026, here are the approximate dates:
 	if year == 2026 {
 		lunarHolidays := []struct {
-			month    int
-			day      int
-			name     string
+			month     int
+			day       int
+			name      string
 			nameHanja string
 		}{
-			{2, 16, "설날", "春節"},        // Lunar New Year's Eve
-			{2, 17, "설날", "春節"},        // Lunar New Year's Day
-			{2, 18, "설날", "春節"},        // Lunar New Year's Day 2
+			{2, 16, "설날", "春節"},       // Lunar New Year's Eve
+			{2, 17, "설날", "春節"},       // Lunar New Year's Day
+			{2, 18, "설날", "春節"},       // Lunar New Year's Day 2
 			{2, 12, "정월대보름", "正月大보름"}, // Lantern Festival
 			{5, 24, "석가탄신일", "釋迦誕辰日"}, // Buddha's Birthday
-			{9, 20, "추석", "秋夕"},        // Chuseok Eve
-			{9, 21, "추석", "秋夕"},        // Chuseok Day
-			{9, 22, "추석", "秋夕"},        // Chuseok Day 2
+			{9, 20, "추석", "秋夕"},       // Chuseok Eve
+			{9, 21, "추석", "秋夕"},       // Chuseok Day
+			{9, 22, "추석", "秋夕"},       // Chuseok Day 2
 		}
 
 		for _, h := range lunarHolidays {

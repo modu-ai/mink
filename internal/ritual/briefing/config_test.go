@@ -26,7 +26,7 @@ func TestConfig_Validate(t *testing.T) {
 		},
 		{
 			name: "empty config is invalid",
-			cfg: Config{
+			cfg:  Config{
 				// No mantra or mantras
 			},
 			wantErr: true,

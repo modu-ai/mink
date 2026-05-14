@@ -2,6 +2,7 @@ package briefing
 
 import (
 	"errors"
+	"slices"
 )
 
 var (
@@ -55,10 +56,8 @@ func (c *Config) Validate() error {
 		return ErrEmptyMantras
 	}
 
-	for _, m := range c.Mantras {
-		if m == "" {
-			return ErrEmptyMantraInArray
-		}
+	if slices.Contains(c.Mantras, "") {
+		return ErrEmptyMantraInArray
 	}
 
 	return nil
