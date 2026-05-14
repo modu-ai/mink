@@ -1,6 +1,6 @@
 ---
 id: SPEC-MINK-BRIEFING-001
-version: 0.2.0
+version: 0.3.0
 status: implemented
 supersedes: SPEC-GOOSE-BRIEFING-001
 created_at: 2026-05-14
@@ -25,6 +25,7 @@ labels:
 |-----|------|---------|------|
 | 0.1.0 | 2026-05-14 | 초안 작성. Sprint 2 두 번째 SPEC. WEATHER-001 (v0.2.0 completed) + JOURNAL-001 (v0.3.0 completed) + SCHEDULER-001 (v0.2.x completed) + MSG-TELEGRAM-001 (v0.1.3 completed) 4 SPEC 통합. MINK prefix 적용 (USERDATA-MIGRATE-001 이후 표준). Socratic 2026-05-14 인터뷰 결론 반영: morning only + on-demand CLI + 4 modules + 3 channels (CLI/Telegram/TUI) + deterministic M1 (LLM off by default). 외부 dependency 0: 24절기/한국 명절 internal algorithm. 8 파일 산출 (spec/plan/acceptance/tasks/contract/spec-compact/progress/research). | manager-spec |
 | 0.2.0 | 2026-05-14 | M1 + M2 implementation 완료 (status=implemented). M1: T-001~T-013 (commits 8f8e8e5 + 1f32a68) — 패키지 스켈레톤 / 24절기 / 한국 공휴일 / 4 collectors / orchestrator / CLI render / cobra mink briefing 명령 / audit redaction / privacy invariants partial. M2: T-101~T-107 (commit 574d5f0) — Telegram renderer + archive writer (0600/0700) + SCHEDULER cron wiring (EvMorningBriefingTime, SCHEDULER 측 수정 0) + Telegram graceful disable + fan-out integration test + privacy invariants 보강 (Invariant 2 archive perms). 추가로 GOOSE-BRIEFING-001 supersede 처리 (commit 32cd25b). 검증: go build/vet/race-test PASS, coverage 83.9% (M2 DoD 85% 에 1.1% 부족 — 후속 보강 필요). M3 (LLM summary + crisis hotline) 와 sessionmenu bubbletea panel 통합은 후속 SPEC/PR 로 분리. | manager-spec |
+| 0.3.0 | 2026-05-14 | M3 (T-201 LLM summary + T-202 crisis hotline) 구현 완료 — AC-009 invariants 5/6 GREEN, AC 16/16 완전 종결. types.go 에 BriefingPayload.LLMSummary 필드 신설 + config.go 에 LLMSummary flag (default false). llm_summary.go (T-201): LLMSummaryRequest categorical-only struct + BuildLLMSummaryRequest + FormatLLMPrompt + GenerateLLMSummary (LLMProvider 의존성 주입). crisis_response.go (T-202): JOURNAL-001 CrisisDetector + CrisisResponse 재사용, PrependCrisisResponseIfDetected + PayloadHasCrisis 헬퍼. 추가 BriefingPanel snapshot test (PR #182, AC-008 GREEN) 와 함께 본 PR (#183) 머지 시점에서 16/16 AC + EC 모두 GREEN. 검증: build/vet/race-test/brand-lint PASS, coverage 85.5% (M2 DoD 85% 충족). | manager-spec |
 
 ---
 
@@ -304,7 +305,7 @@ Milestone 별 task 분해는 `tasks.md` 참조.
 
 ---
 
-Version: 0.2.0
+Version: 0.3.0
 Classification: IMPLEMENTED
 Last Updated: 2026-05-14
 REQ coverage: REQ-BR-001 ~ REQ-BR-055 (총 22 REQs)

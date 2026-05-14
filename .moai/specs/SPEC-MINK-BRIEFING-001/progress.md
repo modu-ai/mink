@@ -50,11 +50,46 @@
 - Coverage: 83.9% of statements (M2 DoD 85% 에 1.1% 부족 — 후속 unit test 보강 권장, 단 race 클린 + 모든 AC 검증 명령 GREEN 이므로 implemented 진입 가능)
 - AC 추가 충족: AC-007 (fan-out), AC-009 invariants 1/2/3/4, AC-011 (cron wiring), AC-012 (archive perms), EC-004 (telegram disable)
 
-## M3 — LLM summary + crisis hotline (Optional, 미진행)
+## M3 — LLM summary + crisis hotline (완료)
 
-- T-201 LLM summary integration (REQ-BR-032, REQ-BR-054) — categorical payload only, default off
-- T-202 crisis hotline canned response (REQ-BR-055) — JOURNAL crisis pattern 재사용 + briefing 본문 prepend
-- AC-009 invariants 5/6 (LLM payload minimization + crisis hotline) 은 M3 와 함께 GREEN 예정
+- 2026-05-14: T-201 + T-202 일괄 구현, AC-009 invariants 5/6 GREEN, AC 16/16 완전 종결.
+  - **T-201 LLM summary**: `internal/ritual/briefing/llm_summary.go` (+ test)
+    - `LLMSummaryRequest` struct — categorical-only field set (entry text / mantra / raw coords / chat_id 제외 보장)
+    - `BuildLLMSummaryRequest(payload) → *LLMSummaryRequest` — payload 에서 categorical signals 만 추출
+    - `FormatLLMPrompt(req) → string` — 한국어 prompt 템플릿, 위 categorical 필드만 사용
+    - `GenerateLLMSummary(ctx, provider, payload, cfg, model) → (string, error)` — LLMProvider.Complete 호출, cfg.LLMSummary=false 시 no-op
+  - **T-202 Crisis hotline**: `internal/ritual/briefing/crisis_response.go` (+ test)
+    - JOURNAL-001 `CrisisDetector` + `CrisisResponse` 재사용 (1577-0199/1393/1388 hotline canned)
+    - `CheckCrisis(rendered) → bool` — rendered output 의 crisis keyword 검출
+    - `PrependCrisisResponseIfDetected(rendered) → string` — 검출 시 hotline canned 을 prefix 로 prepend
+    - `PayloadHasCrisis(payload) → bool` — 사전 검출 헬퍼 (mantra / LLMSummary / anniversary text)
+  - **types.go**: `BriefingPayload.LLMSummary` 필드 신설 (optional, M3 only populated)
+  - **config.go**: `LLMSummary bool` flag (default false, M1/M2 deterministic mode 유지)
+  - **privacy_test.go**: `TestPrivacyInvariant5_LLMPayloadCategoricalOnly` + `TestPrivacyInvariant6_CrisisHotlinePrepend` 신설 + `TestPrivacy_Invariants` aggregator 갱신
+
+### M3 Quality Gates (2026-05-14 검증)
+
+- `go build ./...` PASS
+- `go vet ./...` PASS
+- `gofmt -l internal/ritual/briefing` 빈 출력
+- `go test -race -count=1 ./internal/ritual/briefing/` PASS
+- **Coverage: 85.5% of statements** (M2 DoD 85% **충족**, 83.9% → 85.5%)
+- `make brand-lint` 0 violations
+- `go test -v -count=1 -run TestPrivacy_Invariants ./internal/ritual/briefing/` PASS (6/6 invariants)
+
+### AC 최종 현황
+
+| AC | 상태 | Milestone |
+|----|------|-----------|
+| AC-001~006 | GREEN | M1 |
+| AC-007 fan-out | GREEN | M2 |
+| AC-008 TUI snapshot | GREEN | TUI Panel PR |
+| AC-009 invariants 1/2/3/4 | GREEN | M1+M2 |
+| **AC-009 invariants 5/6** | **GREEN** | **M3** |
+| AC-010~012 | GREEN | M1+M2 |
+| EC-001~004 | GREEN | M1+M2 |
+
+**총 12 AC + 4 EC = 16/16 GREEN** — SPEC-MINK-BRIEFING-001 완전 종결.
 
 ## TUI Panel (BriefingPanel snapshot, AC-008 GREEN)
 
