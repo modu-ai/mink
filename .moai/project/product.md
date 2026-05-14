@@ -138,7 +138,7 @@ OpenClaw는 tool-use agent framework + developer toolkit. MINK는 end-user produ
 - SPEC-GOOSE-CLI-001~CLI-TUI-003 / WEATHER-001 / SCHEDULER-001 / JOURNAL-001 / TELEGRAM-001 완료(v0.1.3)
 
 ### Wave 2 (완료): Integration
-- Morning brief 통합 — **SPEC-MINK-BRIEFING-001 v0.3.0 implemented** (PR #178/#182/#183, 2026-05-14): 4 module (Weather + Journal Recall + Date/Calendar + Mantra) collection + 3 출력 채널 (CLI + Telegram + TUI panel) + SCHEDULER cron + archive (`~/.mink/briefing/YYYY-MM-DD.md`, 0600/0700) + Privacy 6 invariants + Optional LLM summary + Crisis hotline canned response. AC 16/16 GREEN, coverage 85.5%.
+- Morning brief 통합 — **SPEC-MINK-BRIEFING-001 v0.3.1 implemented** (PR #178/#182/#183/#186, 2026-05-15, M4 wiring complete): 4 module (Weather + Journal Recall + Date/Calendar + Mantra) collection + 3 출력 채널 (CLI + Telegram + TUI panel) + SCHEDULER cron + archive (`~/.mink/briefing/YYYY-MM-DD.md`, 0600/0700) + Privacy 6 invariants + Optional LLM summary + Crisis hotline canned response + Tea Model /briefing slash dispatch. AC 21/21 GREEN (v0.3.0 16 + v0.3.1 5), coverage 88.1%.
 - Ambient LLM context injection
 - Long-term memory recall (1년 후 추억, trend, search) — SPEC-GOOSE-JOURNAL-001 v0.3.0 completed
 - Telegram bridge — SPEC-GOOSE-MSG-TELEGRAM-001 v0.1.3 completed

@@ -5,6 +5,20 @@
 
 ## [Unreleased]
 
+### Added — SPEC-MINK-BRIEFING-001 v0.3.1 M4 wiring (Tea Model dispatch + Real collectors + LLM/crisis wiring, AC 5/5 GREEN)
+
+**Status**: completed (PR #186 M4 impl merged, all AC-013~017 GREEN). v0.3.1 v0.3.0 의 5 wiring gap 을 closure, v0.3.0 완성도 (AC 16/16 GREEN) 회귀 없음, coverage **88.1%** (M4 DoD 88% 충족).
+
+**M4 wiring 5개 gap closure**:
+
+- **풀 production wiring**: `internal/cli/commands/briefing.go` MockBriefingCollectorFactory → RealBriefingCollectorFactory (T-301/T-302), `mink briefing` 실행이 이제 진짜 weather/journal/date/mantra collectors 호출
+- **Orchestrator LLM summary wiring**: `Orchestrator.Run()` 이 이제 `GenerateLLMSummary` 호출 (T-303/T-304), cfg.LLMSummary flag 활성화 시 M3 LLM summary 구현 활성
+- **Crisis hotline 3채널 prepend**: `PrependCrisisResponseIfDetected` 이 이제 RenderCLI / RenderTelegramText / BriefingPanel.Render 모두에 연결 (T-305), crisis keyword 감지 시 1577-0199/1393/1388 hotline canned 자동 prepend
+- **TUI `/briefing` slash dispatch**: `internal/cli/tui/slash.go` HandleSlashCmd 에 `case "briefing":` 신설 (T-306/T-307/T-308), BriefingRunner 인터페이스 + BriefingResultMsg 추가, tea.Cmd 비동기 wiring
+- **Deterministic module status order**: `render_cli.go` ModuleStatusOrder slice 신설 + TestRenderCLI_StatusOrder_Fixed golden guard (T-309), Go map iteration 비결정성 제거, golden `testdata/golden_cli_render.txt` flaky 해결
+
+**의존성 & QA**: v0.3.0 (M1+M2+M3, 16 AC + 4 EC) 12 test files 잔존, M4 신규 8 test files (orchestrator_llm_test, render_crisis_test, briefing_slash_test, briefing_panel_crisis_test, render_cli_order_test 외 3), 총 20 test files 누적. `go build` / `go vet` / `gofmt` / `go test -race` / `brand-lint` PASS. REQ-BR-060~064 (5 EARS) + AC-013~017 (5 binary verify) + T-301~T-310 (10 atomic) 모두 GREEN.
+
 ### Added — SPEC-MINK-BRIEFING-001 v0.3.0 implemented (Daily Morning Briefing, AC 16/16 GREEN)
 
 **Status**: completed (PR #178 M1+M2 merged efc307b, PR #182 TUI Panel AC-008 merged ffe98e2, PR #183 M3 LLM summary + crisis hotline merged 0cdd448). 12 AC + 4 EC = **16/16 모두 GREEN**, coverage **85.5%** (M2 DoD 85% 충족).

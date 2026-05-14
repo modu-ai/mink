@@ -1,8 +1,7 @@
 ---
 id: SPEC-MINK-BRIEFING-001
 version: 0.3.1
-status: amendment-in-progress
-# status returns to "implemented" after M4 DoD complete
+status: implemented
 created_at: 2026-05-14
 updated_at: 2026-05-15
 author: manager-spec

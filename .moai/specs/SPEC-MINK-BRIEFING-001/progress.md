@@ -1,6 +1,6 @@
 ## SPEC-MINK-BRIEFING-001 Progress
 
-- **Current status (2026-05-15)**: `amendment-in-progress` (v0.3.1 M4 wiring). status returns to `implemented` after M4 DoD complete.
+- **Current status (2026-05-15)**: implemented (M4 AC 5/5 GREEN, PR #186)
 - v0.3.0 종결물 (M1+M2+M3, AC 16/16 GREEN) 은 기존 그대로 유지.
 - Started: 2026-05-14T09:30+09:00
 - Phase 0.9: Language = Go (go.mod detected)
@@ -125,13 +125,13 @@ v0.3.0 종결 시점에서 식별된 5 wiring gap 을 닫는 amendment milestone
 
 ### M4 Quality Gates (run 완료, 2026-05-15)
 
-- [x] `go build ./...` PASS
-- [x] `go vet ./...` PASS
-- [x] `gofmt -l internal/ritual/briefing internal/cli/commands internal/cli/tui` 빈 출력
-- [x] `go test -race -count=1 ./internal/ritual/briefing/ ./internal/cli/commands/ ./internal/cli/tui/` PASS
-- [x] Coverage: `internal/ritual/briefing` 88.1% ≥ 88% target
-- [x] `make brand-lint` 0 violations
-- [x] `grep -rn "MockBriefingCollectorFactory" internal/cli/commands/briefing.go` no match (mock moved to _test.go)
+- `go build ./...` PASS
+- `go vet ./...` PASS
+- `gofmt -l internal/ritual/briefing internal/cli/commands internal/cli/tui` 빈 출력
+- `go test -race -count=1 ./internal/ritual/briefing/ ./internal/cli/commands/ ./internal/cli/tui/` PASS
+- Coverage 88.1% (target 88%, +2.6% delta vs v0.3.0 85.5%)
+- `make brand-lint` 0 violations
+- All 16+5 AC (v0.3.0 12 + EC 4 + v0.3.1 5) GREEN
 
 ### M4 AC 충족 status (run 완료)
 
