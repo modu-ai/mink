@@ -11,12 +11,13 @@
 > - **M4 Self-Evolution** 🟡 **부분** — ERROR-CLASS ✅ · MEMORY-001 ✅ · TRAJECTORY 📋 · COMPRESSOR 📋 · INSIGHTS 📋 · auto-skill 📋
 > - **M5 Safety (★ 대폭 확장)** 🟡 **부분** — AUDIT-001 ✅ · CREDENTIAL-PROXY-001 🟡 · FS-ACCESS-001 🟡 · SECURITY-SANDBOX-001 🟡 · SIGNING-001 🟡 · SAFETY 📋 · ROLLBACK 📋
 > - **M6 Channels (축소)** 📋 **계획** — TELEGRAM-001 📋 · WEBUI-001 📋 (MOBILE/WIDGET/SYNC/CLOUD/DISCOVERY/Email 제거)
-> - **M7 Daily Companion v1.0** 📋 **계획** — RITUAL-001 📋 · BRIEFING 📋 · JOURNAL 📋 · PAI-CONTEXT-001 📋 · GROWTH 📋
+> - **M7 Daily Companion v1.0** 🟡 **부분 진행** — RITUAL-001 📋 · **BRIEFING-001 ✅ (v0.3.0 implemented 2026-05-14, AC 16/16 GREEN, PR #178/#182/#183)** · **JOURNAL-001 ✅ (v0.3.0 completed)** · **WEATHER-001 ✅ (v0.2.0 completed)** · **MSG-TELEGRAM-001 ✅ (v0.1.3 completed)** · **SCHEDULER-001 ✅ (v0.2.x completed)** · PAI-CONTEXT-001 📋 · GROWTH 📋
 > - **M8 Deep Personalization** 📋 **계획** — IDENTITY-001 📋 · VECTOR 📋 · LORA 📋 · Kuzu 도입 📋 · Affective 📋
 > - **M9 Ecosystem v2.0** 📋 **계획** — plugin marketplace · additional channels
 >
-> **진행 요약** (2026-04-30 갱신): M0/M1/M2 완료 ✅ · M3/M4/M5 부분 진행 🟡 · M6+ 계획 📋
-> **다음 Critical Path**: CLI-001 TUI 보강 → Phase 4 Self-Evolution (TRAJECTORY → COMPRESSOR → INSIGHTS) → OBS-METRICS-001 plan (TELEMETRY-001 BLOCKER 해소)
+> **진행 요약** (2026-05-14 갱신): M0/M1/M2 완료 ✅ · M3/M4/M5 부분 진행 🟡 · **M7 Daily Companion v1.0 부분 진행 🟡 (BRIEFING/JOURNAL/WEATHER/TELEGRAM/SCHEDULER 5 SPEC implemented)** · M6/M8/M9 계획 📋
+> **MINK rebrand 시리즈 완료** (2026-05-14): BRAND-RENAME-001 ✅ + DISTANCING-STATEMENT-001 ✅ + USERDATA-MIGRATE-001 ✅ + ENV-MIGRATE-001 ✅ + PRODUCT-V7-001 ✅ + Draft 3종 rebrand ✅ (PR #180) + 메타문서 rebrand ✅ (PR #181) + 95-SPEC 리뷰 ✅ (PR #178)
+> **다음 Critical Path**: CLI-001 TUI 보강 (BriefingPanel bubbletea integration + /briefing slash dispatch) → Phase 4 Self-Evolution (TRAJECTORY → COMPRESSOR → INSIGHTS) → OBS-METRICS-001 / 신규 MINK-{CROSSPLAT,I18N,ONBOARDING}-001 implementation 진입
 >
 > **메타 정정 (2026-04-30)**: ADAPTER-001 / ALIAS-CONFIG-001 모두 spec.md frontmatter `completed: 2026-04-27` 정합. 이전 'Round 2 진행 중' / 'planned' 표기는 progress.md 미갱신에 따른 메타 불일치였으며, 실제 구현은 완료 상태. 추가 개선은 별도 amendment SPEC(ADAPTER-001-AMEND-001, ALIAS-CONFIG-001-AMEND-001)로 분리.
 >
