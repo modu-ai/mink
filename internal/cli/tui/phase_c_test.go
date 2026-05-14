@@ -282,7 +282,7 @@ func TestExisting_SlashParsing_NoRegression(t *testing.T) {
 func TestSmoke_ConnectFactoryAsDaemonClient(t *testing.T) {
 	t.Parallel()
 
-	var client DaemonClient = NewConnectClientFactory("127.0.0.1:9005")
+	var client = NewConnectClientFactory("127.0.0.1:9005")
 	if client == nil {
 		t.Fatal("NewConnectClientFactory must satisfy DaemonClient")
 	}

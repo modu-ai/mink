@@ -175,10 +175,9 @@ func (w *RotatingWriter) compressFile(path string) error {
 		return err // Silent fail - rotation already succeeded
 	}
 	defer func() {
-		if err := srcFile.Close(); err != nil {
-			// Log warning but continue - file will be closed on process exit
-			// This is in a defer during compression, so we can't do much else
-		}
+		_ = srcFile.Close()
+		// Log warning but continue - file will be closed on process exit
+		// This is in a defer during compression, so we can't do much else
 	}()
 
 	// Create compressed file
@@ -188,19 +187,17 @@ func (w *RotatingWriter) compressFile(path string) error {
 		return err
 	}
 	defer func() {
-		if err := gzFile.Close(); err != nil {
-			// Log warning but continue - file will be closed on process exit
-			// This is in a defer during compression, so we can't do much else
-		}
+		_ = gzFile.Close()
+		// Log warning but continue - file will be closed on process exit
+		// This is in a defer during compression, so we can't do much else
 	}()
 
 	// Create gzip writer
 	gzWriter := gzip.NewWriter(gzFile)
 	defer func() {
-		if err := gzWriter.Close(); err != nil {
-			// Log warning but continue - file will be closed on process exit
-			// This is in a defer during compression, so we can't do much else
-		}
+		_ = gzWriter.Close()
+		// Log warning but continue - file will be closed on process exit
+		// This is in a defer during compression, so we can't do much else
 	}()
 
 	// Copy content

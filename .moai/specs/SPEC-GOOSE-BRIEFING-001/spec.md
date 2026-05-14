@@ -1,19 +1,41 @@
 ---
 id: SPEC-GOOSE-BRIEFING-001
-version: 0.1.1
-status: draft
+version: 0.1.2
+status: superseded
+superseded_by: SPEC-MINK-BRIEFING-001
 created_at: 2026-04-22
-updated_at: 2026-04-25
+updated_at: 2026-05-14
 author: manager-spec
 priority: critical
 issue_number: null
 phase: 7
 size: 중(M)
 lifecycle: spec-anchored
-labels: [ritual, llm, tts, orchestration, briefing, scheduler-consumer]
+labels: [ritual, llm, tts, orchestration, briefing, scheduler-consumer, superseded]
 ---
 
 # SPEC-GOOSE-BRIEFING-001 — Morning Briefing Orchestrator (Fortune + Weather + Calendar, LLM Narrative, TTS Optional)
+
+## STATUS: SUPERSEDED
+
+본 SPEC 은 2026-05-14 자로 **SPEC-MINK-BRIEFING-001** 에 의해 supersede 되었다.
+
+후속 SPEC 위치: `.moai/specs/SPEC-MINK-BRIEFING-001/spec.md`
+
+차이점 (왜 supersede 되었는가):
+
+- **Prefix**: `GOOSE-*` → `MINK-*` (브랜드 리네임, SPEC-MINK-BRAND-RENAME-001 의 일환)
+- **데이터 소스 재구성**: FORTUNE(opt-in) + CALENDAR(별도 SPEC) 제거, **JOURNAL Recall** + **Date/Calendar** (24절기/한국 명절 internal algorithm) + **Mantra** 추가. WEATHER 는 유지.
+- **외부 dependency 정책**: 외부 lunar / solar-term 라이브러리 도입 금지. internal algorithm (Meeus 단순화 + KASI 음력 lookup table) 으로 외부 dep 0 보장.
+- **출력 채널 확장**: CLI stdout (기존) + Telegram (MSG-TELEGRAM-001 통합) + TUI panel (`/briefing` slash command).
+- **deterministic M1 + optional LLM M3**: LLM 호출은 M3 의 optional 기능으로 분리. M1/M2 는 deterministic template only.
+- **Privacy 6 invariants** 신설 (JOURNAL-001 패턴 그대로 적용).
+
+본 SPEC 의 코드 산출물은 **없다** — M1 implementation 은 SPEC-MINK-BRIEFING-001 의 namespace 에서 직접 수행되었다 (`internal/ritual/briefing/` 패키지).
+
+본 SPEC 은 backward reference 와 history 보존 목적으로만 유지된다.
+
+---
 
 ## HISTORY
 
@@ -21,6 +43,7 @@ labels: [ritual, llm, tts, orchestration, briefing, scheduler-consumer]
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-22 | 초안 작성 (Phase 7 #35, FORTUNE/WEATHER/CALENDAR/SCHEDULER 통합) | manager-spec |
 | 0.1.1 | 2026-04-25 | plan-auditor 감사(mass-20260425/BRIEFING-001) 반영: frontmatter 정규화(labels/status/priority), §5 EARS 형식 선언 + 각 AC에 EARS 문장 및 REQ 참조, 미커버 REQ(002/003/004/010/014/015/017/018) AC 신설(특히 PII 보안 REQ-014, 텔레메트리 REQ-015), REQ-007 JSON 스키마/REQ-013 길이 상한/REQ-018 mood 임계치/AC-011 임박 표현 정량화, D12(언어 vs 번역) 해소 | manager-spec |
+| 0.1.2 | 2026-05-14 | status=superseded by SPEC-MINK-BRIEFING-001. MINK 브랜드 리네임 + 데이터 소스 재구성 (Fortune→Journal Recall, Calendar→internal 24절기/한국 명절) + 외부 dep 0 정책 + 3 출력 채널 (CLI/Telegram/TUI) + Privacy 6 invariants. 본 SPEC 의 코드 산출물 없음 — implementation 은 후속 SPEC namespace 에서 진행. | manager-spec |
 
 ---
 

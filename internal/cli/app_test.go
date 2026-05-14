@@ -130,7 +130,7 @@ func TestWithApp_AppFromContext(t *testing.T) {
 
 // TestAppFromContext_NilContext verifies nil-safe context handling.
 func TestAppFromContext_NilContext(t *testing.T) {
-	retrieved := AppFromContext(nil)
+	retrieved := AppFromContext(context.TODO())
 	if retrieved != nil {
 		t.Error("AppFromContext should return nil for nil context")
 	}

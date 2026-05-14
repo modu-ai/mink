@@ -1,6 +1,6 @@
 ---
 id: SPEC-GOOSE-CLI-001
-version: "0.2.1"
+version: 0.2.1
 status: completed
 created_at: 2026-04-21
 updated_at: 2026-05-05

@@ -143,7 +143,7 @@ func (h *InlineCommandHandler) Handle(ctx context.Context, input HookInput) (Hoo
 
 	// 9. stdin goroutine write (REQ-HK-022: slow-reading child 데드락 방지)
 	go func() {
-		defer stdinPipe.Close()
+		defer func() { _ = stdinPipe.Close() }()
 		select {
 		case <-cctx.Done():
 			return

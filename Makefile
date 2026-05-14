@@ -1,4 +1,4 @@
-.PHONY: proto-generate proto-lint proto-breaking test test-race vet brand-lint
+.PHONY: proto-generate proto-lint proto-breaking test test-race vet brand-lint fmt lint ci-local
 
 # buf 바이너리가 PATH에 없어도 go run으로 실행한다.
 BUF := go run github.com/bufbuild/buf/cmd/buf
@@ -29,3 +29,21 @@ vet:
 # 위반 발견 시 exit 1, 위반 없으면 exit 0
 brand-lint:
 	bash scripts/check-brand.sh
+
+# fmt: gofmt 위반 파일 출력 + 위반 있으면 exit 1 (auto-fix 하지 않음)
+fmt:
+	@out="$$(gofmt -l . 2>/dev/null)"; \
+	if [ -n "$$out" ]; then \
+		echo "gofmt diffs detected. Run 'gofmt -w .' to fix:" >&2; \
+		echo "$$out" >&2; \
+		exit 1; \
+	fi
+
+# lint: go vet (golangci-lint 도입 시 여기로 확장)
+lint: vet
+
+# ci-local: pre-push hook 이 호출하는 로컬 CI mirror. GitHub Actions 의
+# Go (build / vet / gofmt / test -race) + Brand Notation Check 와 같은 게이트.
+# 실패 시 hook 이 push 를 차단한다.
+ci-local: fmt vet test-race brand-lint
+	@echo "[ci-local] all gates passed"

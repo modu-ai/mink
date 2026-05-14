@@ -171,7 +171,7 @@ func (c *httpClient) PostChat(ctx context.Context, req chatRequest) (*chatRespon
 	if err != nil {
 		return nil, &httpError{Err: err, StatusCode: 0}
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
@@ -219,7 +219,7 @@ func (c *httpClient) PostChatStream(ctx context.Context, req chatRequest) (*chat
 
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		return nil, &httpError{
 			Err:        fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(bodyBytes)),
 			StatusCode: resp.StatusCode,
@@ -268,7 +268,7 @@ func (c *httpClient) GetShow(ctx context.Context, model string) (*showResponse, 
 	if err != nil {
 		return nil, &httpError{Err: err, StatusCode: 0}
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)

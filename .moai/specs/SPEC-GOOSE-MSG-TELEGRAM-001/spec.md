@@ -1,6 +1,6 @@
 ---
 id: SPEC-GOOSE-MSG-TELEGRAM-001
-version: "0.1.4"
+version: 0.1.4
 status: completed
 created_at: 2026-05-05
 updated_at: 2026-05-10

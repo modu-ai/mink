@@ -286,7 +286,6 @@ func RunAgent(
 		close(done)
 		_ = done
 
-		lastMsg := time.Now()
 		var idleTimer *time.Timer
 		if isolation == IsolationBackground {
 			idleTimer = time.AfterFunc(DefaultBackgroundIdleThreshold, func() {
@@ -357,8 +356,6 @@ func RunAgent(
 
 				// idle timer 리셋
 				if isolation == IsolationBackground && idleTimer != nil {
-					lastMsg = time.Now()
-					_ = lastMsg
 					idleTimer.Reset(DefaultBackgroundIdleThreshold)
 				}
 

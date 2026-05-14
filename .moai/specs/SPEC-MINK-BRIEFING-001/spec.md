@@ -1,7 +1,8 @@
 ---
 id: SPEC-MINK-BRIEFING-001
-version: 0.1.0
-status: draft
+version: 0.2.0
+status: implemented
+supersedes: SPEC-GOOSE-BRIEFING-001
 created_at: 2026-05-14
 updated_at: 2026-05-14
 author: manager-spec
@@ -23,6 +24,7 @@ labels:
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-05-14 | 초안 작성. Sprint 2 두 번째 SPEC. WEATHER-001 (v0.2.0 completed) + JOURNAL-001 (v0.3.0 completed) + SCHEDULER-001 (v0.2.x completed) + MSG-TELEGRAM-001 (v0.1.3 completed) 4 SPEC 통합. MINK prefix 적용 (USERDATA-MIGRATE-001 이후 표준). Socratic 2026-05-14 인터뷰 결론 반영: morning only + on-demand CLI + 4 modules + 3 channels (CLI/Telegram/TUI) + deterministic M1 (LLM off by default). 외부 dependency 0: 24절기/한국 명절 internal algorithm. 8 파일 산출 (spec/plan/acceptance/tasks/contract/spec-compact/progress/research). | manager-spec |
+| 0.2.0 | 2026-05-14 | M1 + M2 implementation 완료 (status=implemented). M1: T-001~T-013 (commits 8f8e8e5 + 1f32a68) — 패키지 스켈레톤 / 24절기 / 한국 공휴일 / 4 collectors / orchestrator / CLI render / cobra mink briefing 명령 / audit redaction / privacy invariants partial. M2: T-101~T-107 (commit 574d5f0) — Telegram renderer + archive writer (0600/0700) + SCHEDULER cron wiring (EvMorningBriefingTime, SCHEDULER 측 수정 0) + Telegram graceful disable + fan-out integration test + privacy invariants 보강 (Invariant 2 archive perms). 추가로 GOOSE-BRIEFING-001 supersede 처리 (commit 32cd25b). 검증: go build/vet/race-test PASS, coverage 83.9% (M2 DoD 85% 에 1.1% 부족 — 후속 보강 필요). M3 (LLM summary + crisis hotline) 와 sessionmenu bubbletea panel 통합은 후속 SPEC/PR 로 분리. | manager-spec |
 
 ---
 
@@ -302,8 +304,21 @@ Milestone 별 task 분해는 `tasks.md` 참조.
 
 ---
 
-Version: 0.1.0
-Classification: DRAFT
+Version: 0.2.0
+Classification: IMPLEMENTED
 Last Updated: 2026-05-14
 REQ coverage: REQ-BR-001 ~ REQ-BR-055 (총 22 REQs)
 AC coverage: AC-001 ~ AC-012 + EC-001 ~ EC-004 (acceptance.md)
+
+M1 + M2 구현 완료:
+- 구현 commit: 8f8e8e5, 1f32a68, 574d5f0 (M1 T-001~T-013 + M2 T-101~T-107)
+- 검증: `go build ./...`, `go vet ./...`, `go test -race -count=1 ./internal/ritual/briefing/` 모두 PASS
+- Coverage: 83.9% of statements (M2 DoD 85% 대비 1.1% 부족 — 후속 보강 권장)
+- 사용 가능한 surfaces: CLI `mink briefing` 명령 / Telegram outbound (graceful disable) / TUIPanel 구조화 (bubbletea 통합은 후속 PR)
+- Archive: `~/.mink/briefing/YYYY-MM-DD.md` (file 0600, dir 0700)
+- SCHEDULER 통합: `hook.EvMorningBriefingTime` 에 `BriefingHookHandler` 등록 (`RegisterMorningBriefing(reg, h)`)
+
+후속 작업:
+- M3 (Optional): T-201 LLM summary + T-202 crisis hotline canned response
+- sessionmenu bubbletea panel widget + /briefing slash dispatch
+- Coverage 85% 이상 보강

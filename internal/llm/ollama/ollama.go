@@ -200,7 +200,7 @@ func (p *Provider) mapError(err error) llm.LLMError {
 // REQ-LLM-010: Malformed lines close channel with error chunk.
 // REQ-LLM-008: Context cancellation closes channel within 100ms.
 func (p *Provider) parseStream(ctx context.Context, stream *chatStream, out chan<- llm.Chunk) {
-	defer stream.Close()
+	defer func() { _ = stream.Close() }()
 
 	for {
 		// Check context cancellation before each operation
