@@ -1,9 +1,9 @@
 ---
-id: SPEC-GOOSE-I18N-001
-version: 0.2.2
-status: superseded
-superseded_by: SPEC-MINK-I18N-001
-created_at: 2026-04-22
+id: SPEC-MINK-I18N-001
+version: 0.3.0
+status: draft
+supersedes: SPEC-GOOSE-I18N-001
+created_at: 2026-05-14
 updated_at: 2026-05-14
 author: manager-spec
 priority: P0
@@ -11,26 +11,22 @@ issue_number: null
 phase: 6
 size: 중(M)
 lifecycle: spec-anchored
-labels: [i18n, localization, ui, rtl, icu, phase-6, post-brand-rename, superseded]
+labels: [i18n, localization, ui, rtl, icu, phase-6, mink-rebrand]
 ---
 
-# SPEC-GOOSE-I18N-001 — UI Internationalization (20+ Languages, Plurals, RTL)
+# SPEC-MINK-I18N-001 — UI Internationalization (20+ Languages, Plurals, RTL)
 
-> **POST-BRAND-RENAME NOTICE (2026-05-14)**: 본 SPEC 은 SPEC-MINK-BRAND-RENAME-001 (commit f0f02e4, 2026-05-13) 이전에 작성된 draft 이다. 본문 곳곳에 GOOSE 명칭이 남아 있으며, 후속 implementation 진입 시 다음 중 하나로 처리해야 한다.
->
-> 1. **MINK 로 rebrand** — id `SPEC-MINK-I18N-001` 신설, 본 SPEC 은 status=superseded
-> 2. **본문 내 MINK 치환** — id 유지, 본문 GOOSE → MINK 치환 (BRAND-RENAME-001 의 binary rename 정책과 align)
->
-> 후속 implementation 진입 직전에 결정. 본 marker 가 추가되기 전까지 본 SPEC 은 "draft, awaiting brand-rename decision" 상태이다.
+> **REBRAND FROM SPEC-GOOSE-I18N-001 (2026-05-14)**: 본 SPEC 은 SPEC-MINK-BRAND-RENAME-001 (commit f0f02e4, 2026-05-13) 의 GOOSE → MINK 전역 rename 정책에 따라 선행 SPEC-GOOSE-I18N-001 (v0.2.1, draft) 의 본문을 MINK 로 rebrand 한 후속 SPEC 이다. 선행 SPEC body 는 immutable 로 유지되며 (BRAND-RENAME-001 OUT-scope 정책), 선행 SPEC frontmatter status 는 별도 commit 에서 `superseded` 로 전환된다. 다른 SPEC 의 cross-reference (`SPEC-GOOSE-LOCALE-001` 등) 는 immutable 정책에 따라 그대로 유지된다.
 
 ## HISTORY
 
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
-| 0.2.0 | 2026-04-25 | 감사 리포트(mass-20260425/I18N-001-audit.md) 반영: frontmatter `labels` 채움 및 `status: draft`로 정규화, §5 header "Test Scenarios"로 변경 + "Verifies: REQ-I18N-XXX" 라인 추가(D3), REQ-013/015/016 Unwanted 정형화(D4), REQ-018 `may`→조건부 `shall`(D5), REQ-016 Tier 1/Tier 2 범위로 한정(D8), REQ-019(BCP 47 regional fallback chain) 신설(D9), 누락 AC 6개 추가(D7), REQ-020(calendar-system 렌더링) 신설(D14), gender/context-dependent 번역은 Exclusions 명시(D10/D11), CI exit code 일관화(D13). | manager-spec |
-| 0.1.0 | 2026-04-22 | 초안 작성. v5.0 ROADMAP Phase 6 Localization 시리즈 2번째. LOCALE-001이 제공하는 `primary_language`를 소비하여 20+ 언어 UI 번역 제공. Hermes 수준 다국어. | manager-spec |
-| 0.2.1 | 2026-05-14 | POST-BRAND-RENAME marker 추가. BRAND-RENAME-001 (commit f0f02e4) 이후 GOOSE prefix draft 의 후속 처리 (rebrand vs 본문 치환) 미결정. frontmatter created_at/updated_at 인용부호 정규화 (다른 SPEC 들과 동일 unquoted 스타일 align). labels 에 `post-brand-rename` 추가. | manager-spec |
-| 0.2.2 | 2026-05-14 | Superseded by SPEC-MINK-I18N-001 (rebrand 옵션 c 선택). frontmatter status=draft → superseded, superseded_by 추가, labels 에 `superseded` 추가. 본문 body 는 immutable 로 유지 (BRAND-RENAME-001 OUT-scope 정책). 후속 implementation 은 SPEC-MINK-I18N-001 에서 진행. | manager-spec |
+| 0.1.0 | 2026-04-22 | 초안 작성 (선행 SPEC-GOOSE-I18N-001). v5.0 ROADMAP Phase 6 Localization 시리즈 2번째. LOCALE-001이 제공하는 `primary_language`를 소비하여 20+ 언어 UI 번역 제공. Hermes 수준 다국어. | manager-spec |
+| 0.2.0 | 2026-04-25 | (선행 SPEC) 감사 리포트(mass-20260425/I18N-001-audit.md) 반영: frontmatter `labels` 채움 및 `status: draft`로 정규화, §5 header "Test Scenarios"로 변경 + "Verifies: REQ-I18N-XXX" 라인 추가(D3), REQ-013/015/016 Unwanted 정형화(D4), REQ-018 `may`→조건부 `shall`(D5), REQ-016 Tier 1/Tier 2 범위로 한정(D8), REQ-019(BCP 47 regional fallback chain) 신설(D9), 누락 AC 6개 추가(D7), REQ-020(calendar-system 렌더링) 신설(D14), gender/context-dependent 번역은 Exclusions 명시(D10/D11), CI exit code 일관화(D13). | manager-spec |
+| 0.2.1 | 2026-05-14 | (선행 SPEC) POST-BRAND-RENAME marker 추가. frontmatter created_at/updated_at 인용부호 정규화. | manager-spec |
+| 0.3.0 | 2026-05-14 | SPEC-MINK-BRAND-RENAME-001 rebrand 정책 적용. 본문 GOOSE/Goose/goose 명칭을 MINK/Mink/mink 로 치환. id `SPEC-GOOSE-I18N-001` → `SPEC-MINK-I18N-001` 신설, 선행 SPEC supersede. 다른 SPEC 의 cross-reference (SPEC-GOOSE-LOCALE-001 / SPEC-GOOSE-ADAPTER-001 / SPEC-GOOSE-CONFIG-001 / SPEC-GOOSE-DESKTOP-001 / SPEC-GOOSE-MOBILE-001 / SPEC-GOOSE-REGION-SKILLS-001) 는 immutable 보존. labels 에 `mink-rebrand` 추가. | manager-spec |
+| 0.2.1 | 2026-05-14 | POST-BRAND-RENAME marker 추가. BRAND-RENAME-001 (commit f0f02e4) 이후 MINK prefix draft 의 후속 처리 (rebrand vs 본문 치환) 미결정. frontmatter created_at/updated_at 인용부호 정규화 (다른 SPEC 들과 동일 unquoted 스타일 align). labels 에 `post-brand-rename` 추가. | manager-spec |
 
 ---
 
@@ -40,7 +36,7 @@ labels: [i18n, localization, ui, rtl, icu, phase-6, post-brand-rename, supersede
 
 > "hermes-agent 정도의 다국어를 제공하자."
 
-본 SPEC은 **GOOSE의 모든 UI 표면(Desktop App, Mobile App, CLI 메시지, 에러 메시지, 알림 텍스트)을 20+ 언어로 제공**하는 번역 시스템을 정의한다. LOCALE-001이 제공한 `LocaleContext.primary_language`(BCP 47)를 소비하여 런타임에 적절한 locale bundle을 로드하고, ICU MessageFormat 기반 플루럴/날짜/숫자/통화 포맷팅을 수행하며, RTL 언어(ar/he)의 레이아웃 대칭화를 지원한다.
+본 SPEC은 **MINK의 모든 UI 표면(Desktop App, Mobile App, CLI 메시지, 에러 메시지, 알림 텍스트)을 20+ 언어로 제공**하는 번역 시스템을 정의한다. LOCALE-001이 제공한 `LocaleContext.primary_language`(BCP 47)를 소비하여 런타임에 적절한 locale bundle을 로드하고, ICU MessageFormat 기반 플루럴/날짜/숫자/통화 포맷팅을 수행하며, RTL 언어(ar/he)의 레이아웃 대칭화를 지원한다.
 
 티어링:
 
@@ -51,11 +47,11 @@ labels: [i18n, localization, ui, rtl, icu, phase-6, post-brand-rename, supersede
 본 SPEC이 통과하면:
 
 - `internal/i18n/`(Go backend) 패키지와 `packages/*/src/i18n/`(TS frontend) 모듈이 동기화된 번역 키 스키마를 제공,
-- 번역 파일 포맷은 **YAML 한 파일 = 한 언어 = 한 네임스페이스** (`packages/goose-desktop/locales/ko/common.yaml`),
+- 번역 파일 포맷은 **YAML 한 파일 = 한 언어 = 한 네임스페이스** (`packages/mink-desktop/locales/ko/common.yaml`),
 - 플루럴은 ICU MessageFormat,
 - 숫자/날짜/통화/상대시간은 `Intl.*` (frontend) + `golang.org/x/text/*` (backend),
 - RTL은 CSS logical properties + `dir="rtl"` 자동 적용,
-- 누락 번역 키는 CI에서 경고(`goose i18n lint`),
+- 누락 번역 키는 CI에서 경고(`mink i18n lint`),
 - 개발 모드에서 hot reload.
 
 ---
@@ -64,11 +60,11 @@ labels: [i18n, localization, ui, rtl, icu, phase-6, post-brand-rename, supersede
 
 ### 2.1 왜 20+ 언어인가
 
-사용자 지시(2026-04-22)는 "hermes-agent 정도의 다국어"를 명시. Hermes가 프로바이더 15+를 지원하듯, GOOSE는 **사용자 언어 20+**를 지원한다. 세계 상위 20개 언어의 L1(원어) 사용자 인구만으로도 약 50억 명 커버.
+사용자 지시(2026-04-22)는 "hermes-agent 정도의 다국어"를 명시. Hermes가 프로바이더 15+를 지원하듯, MINK는 **사용자 언어 20+**를 지원한다. 세계 상위 20개 언어의 L1(원어) 사용자 인구만으로도 약 50억 명 커버.
 
 ### 2.2 왜 Tier 구조인가
 
-- Tier 1(en/ko/ja/zh): MoAI-ADK와 GOOSE 기존 문서가 이미 4개 언어로 정비됨(`branding.md` §3, `adaptation.md` §4). 네이티브 품질 유지.
+- Tier 1(en/ko/ja/zh): MoAI-ADK와 MINK 기존 문서가 이미 4개 언어로 정비됨(`branding.md` §3, `adaptation.md` §4). 네이티브 품질 유지.
 - Tier 2(12개): OpenStreetMap, Wikipedia 다국어 커뮤니티에서 안정적으로 유지되는 언어군. 초기 LLM 자동번역 → 커뮤니티 PR로 품질 개선.
 - Tier 3(무제한): BCP 47 코드가 들어오면 로드 시 LLM(`ADAPTER-001`)로 자동번역 시도. 사용자가 수정 후 PR로 기여하면 Tier 2 승격.
 
@@ -122,18 +118,18 @@ Desktop(Tailwind 4.x + logical properties) + Mobile(React Native `I18nManager.is
    - `pluralizer.go` — CLDR 플루럴 규칙 resolver
    - `rtl.go` — RTL 언어 감지 (ar, he, fa, ur, yi)
    - `translator.go` — `Translator` 인터페이스 + `T(key, args, lang)` 함수
-2. **Frontend (TypeScript)** — `packages/goose-desktop/src/i18n/` + `packages/goose-mobile/src/i18n/`:
+2. **Frontend (TypeScript)** — `packages/mink-desktop/src/i18n/` + `packages/mink-mobile/src/i18n/`:
    - `i18next` + `react-i18next` 설정
    - `i18next-icu` 플러그인으로 ICU MessageFormat 활성화
    - `i18next-http-backend`로 동적 로드 (개발), 번들 static (production)
    - Tauri IPC로 backend Translator와 키 동기화
 3. **번역 파일 구조**:
    ```
-   packages/goose-desktop/locales/{lang}/common.yaml
-   packages/goose-desktop/locales/{lang}/ritual.yaml
-   packages/goose-desktop/locales/{lang}/onboarding.yaml
-   packages/goose-mobile/locales/{lang}/common.yaml
-   packages/goose-mobile/locales/{lang}/push.yaml
+   packages/mink-desktop/locales/{lang}/common.yaml
+   packages/mink-desktop/locales/{lang}/ritual.yaml
+   packages/mink-desktop/locales/{lang}/onboarding.yaml
+   packages/mink-mobile/locales/{lang}/common.yaml
+   packages/mink-mobile/locales/{lang}/push.yaml
    internal/i18n/locales/{lang}/errors.yaml
    internal/i18n/locales/{lang}/prompts.yaml
    ```
@@ -158,7 +154,7 @@ Desktop(Tailwind 4.x + logical properties) + Mobile(React Native `I18nManager.is
    - `i18next-http-backend` + `chokidar` 파일 감시
    - YAML 저장 시 5초 내 UI 갱신
 9. **CI Linter**:
-   - `goose i18n lint` 명령:
+   - `mink i18n lint` 명령:
      - 누락 키 감지(Tier 1 언어에서 영어 대비)
      - ICU 문법 검증
      - 사용 안 된 키 감지
@@ -193,7 +189,7 @@ Desktop(Tailwind 4.x + logical properties) + Mobile(React Native `I18nManager.is
 
 **REQ-I18N-003 [Ubiquitous]** — Translation files **shall** be valid UTF-8 YAML with Unix line endings; the loader **shall** reject BOM, CRLF, and mixed indentation.
 
-**REQ-I18N-004 [Ubiquitous]** — All Tier 1 languages (en, ko, ja, zh-CN) **shall** have 100% key coverage enforced by the `goose i18n lint` CI gate.
+**REQ-I18N-004 [Ubiquitous]** — All Tier 1 languages (en, ko, ja, zh-CN) **shall** have 100% key coverage enforced by the `mink i18n lint` CI gate.
 
 ### 4.2 Event-Driven
 
@@ -227,7 +223,7 @@ Desktop(Tailwind 4.x + logical properties) + Mobile(React Native `I18nManager.is
 
 ### 4.5 Optional
 
-**REQ-I18N-017 [Optional]** — **Where** the user provides a custom translation file via CLI (`goose i18n override --file my-korean.yaml`), the override **shall** take priority over bundled translations for the matching language.
+**REQ-I18N-017 [Optional]** — **Where** the user provides a custom translation file via CLI (`mink i18n override --file my-korean.yaml`), the override **shall** take priority over bundled translations for the matching language.
 
 **REQ-I18N-018 [Optional]** — **Where** the active language is Tier 1 AND the user has enabled the `feedback.translation_suggestions` setting in CONFIG-001, the UI **shall** offer an "Improve this translation" inline feedback button that submits suggestions to the GitHub repository.
 
@@ -309,7 +305,7 @@ Desktop(Tailwind 4.x + logical properties) + Mobile(React Native `I18nManager.is
 
 **AC-I18N-011 — 누락 키 CI lint (Tier 1, exit 1)**
 - **Given** ko 번들에 `common:farewell` 키 누락, en에는 존재
-- **When** `goose i18n lint`
+- **When** `mink i18n lint`
 - **Then** exit code 1 (CI fail), 출력에 `missing key "common:farewell" in ko`
 - **Verifies**: REQ-I18N-004
 
@@ -333,7 +329,7 @@ Desktop(Tailwind 4.x + logical properties) + Mobile(React Native `I18nManager.is
 
 **AC-I18N-015 — 20+ 언어 번들 존재 확인**
 - **Given** 릴리스 빌드
-- **When** `packages/goose-desktop/locales/` 디렉토리 스캔
+- **When** `packages/mink-desktop/locales/` 디렉토리 스캔
 - **Then** en, ko, ja, zh-CN, es, fr, de, pt-BR, ru, vi, th, id, ar, hi, tr, pl 최소 16개 언어 디렉토리 존재 (Tier 1 + Tier 2)
 - **Verifies**: REQ-I18N-004, REQ-I18N-016
 
@@ -368,7 +364,7 @@ Desktop(Tailwind 4.x + logical properties) + Mobile(React Native `I18nManager.is
 - **Verifies**: REQ-I18N-016
 
 **AC-I18N-021 — CLI 오버라이드 우선순위**
-- **Given** 번들 `locales/ko/common.yaml`에 `greeting: "안녕하세요"`, 사용자가 `goose i18n override --file custom-ko.yaml --lang ko` 실행, `custom-ko.yaml`의 `greeting: "반갑습니다"`
+- **Given** 번들 `locales/ko/common.yaml`에 `greeting: "안녕하세요"`, 사용자가 `mink i18n override --file custom-ko.yaml --lang ko` 실행, `custom-ko.yaml`의 `greeting: "반갑습니다"`
 - **When** 앱이 `t("common:greeting")` 호출 (`primary_language="ko-KR"`)
 - **Then** `"반갑습니다"` 반환(override 우선), 오버라이드되지 않은 다른 키는 번들 기본값 사용
 - **Verifies**: REQ-I18N-017
@@ -391,9 +387,9 @@ Desktop(Tailwind 4.x + logical properties) + Mobile(React Native `I18nManager.is
 
 ### 6.1 번역 파일 구조 (YAML)
 
-`packages/goose-desktop/locales/ko/common.yaml`:
+`packages/mink-desktop/locales/ko/common.yaml`:
 ```yaml
-# GOOSE Desktop 공통 번역 (한국어)
+# MINK Desktop 공통 번역 (한국어)
 greeting: "안녕하세요"
 farewell: "안녕히 가세요"
 messages: "{count, plural, =0 {메시지 없음} other {#개의 메시지}}"
@@ -408,7 +404,7 @@ settings:
     auto: "시스템 설정 따르기"
 
 onboarding:
-  step_1_welcome: "GOOSE에 오신 것을 환영합니다"
+  step_1_welcome: "MINK에 오신 것을 환영합니다"
   step_2_locale: "여기서 거주하시나요?"
   # ...
 
@@ -458,7 +454,7 @@ func RTLLanguages() []string  // ["ar", "he", "fa", "ur", "yi"]
 ### 6.3 Frontend TypeScript 구조
 
 ```typescript
-// packages/goose-desktop/src/i18n/index.ts
+// packages/mink-desktop/src/i18n/index.ts
 import i18next from "i18next";
 import { initReactI18next } from "react-i18next";
 import ICU from "i18next-icu";
@@ -529,7 +525,7 @@ export function isRTL(lang: string): boolean {
 프롬프트 예시:
 
 ```
-You are translating UI strings for a desktop application called GOOSE
+You are translating UI strings for a desktop application called MINK
 into Swahili (sw-TZ). Preserve all ICU placeholders like {count, plural, ...}
 exactly. Keep technical terms (JavaScript, Promise, API) in English.
 The tone is warm and companionable.
@@ -555,10 +551,10 @@ Return ONLY the translated YAML, no commentary.
 - REQ-I18N-007: 재시작 확인 prompt 표시
 - React Native 0.76+ Fabric은 logical flexbox 일부 지원
 
-### 6.7 CI Linter (`goose i18n lint`)
+### 6.7 CI Linter (`mink i18n lint`)
 
 ```bash
-goose i18n lint --locales-dir packages/goose-desktop/locales
+mink i18n lint --locales-dir packages/mink-desktop/locales
 ```
 
 검증 항목:
@@ -608,7 +604,7 @@ Exit code: `0`(pass), `1`(Tier 1 누락 또는 구문 오류), `2`(Tier 2 누락
 |-----|---------|
 | **T**ested | CLDR 플루럴 8개 언어 테이블 테스트, ICU 30+ 케이스, RTL 5언어 통합 테스트, 커버리지 85%+ |
 | **R**eadable | 네임스페이스 분리(common/settings/onboarding/...), YAML 주석 권장 |
-| **U**nified | `goose i18n lint` CI 필수, 키 네이밍 규칙(snake_case + dot namespace) |
+| **U**nified | `mink i18n lint` CI 필수, 키 네이밍 규칙(snake_case + dot namespace) |
 | **S**ecured | ICU 코드 실행 거부(REQ-I18N-013), YAML type 검증(REQ-I18N-014), LLM에 PII 전송 금지(REQ-I18N-015) |
 | **T**rackable | 번역 기여 PR 템플릿 + `_machine_translated` 마커로 출처 추적 |
 
@@ -693,4 +689,4 @@ Exit code: `0`(pass), `1`(Tier 1 누락 또는 구문 오류), `2`(Tier 2 누락
 
 ---
 
-**End of SPEC-GOOSE-I18N-001**
+**End of SPEC-MINK-I18N-001**
