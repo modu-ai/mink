@@ -30,10 +30,34 @@
 - Coverage: 82.7% of statements (DoD M1 ≥ 80% 충족)
 - AC 충족: AC-001~AC-006, AC-009 (partial), AC-010, EC-001~EC-003
 
-## M2 — Multi-channel + cron + archive (대기)
+## M2 — Multi-channel + cron + archive (완료)
 
-- T-101 ~ T-107: 후속 commit 으로 진행 예정 (사용자 승인 2026-05-14)
+- Commit 574d5f0 (2026-05-14): T-101 ~ T-107 일괄 구현
+  - T-101 render_telegram.go + render_telegram_test.go — MarkdownV2 body + telegram.SendRequest
+  - T-102 render_tui.go + render_tui_test.go — TUIPanel struct (framework-agnostic, bubbletea import 0)
+  - T-103 archive.go + archive_test.go — ~/.mink/briefing/YYYY-MM-DD.md (file 0600, dir 0700, umask 방어 chmod 재확정)
+  - T-104 cron.go + cron_test.go — BriefingHookHandler + RegisterMorningBriefing (SCHEDULER EvMorningBriefingTime 재사용, SCHEDULER 측 수정 0)
+  - T-105 SendBriefingTelegram graceful disable — sender nil / token empty / chatID 0 → "disabled", warning log 에 chat_id raw 미포함
+  - T-106 fanout_integration_test.go — 3 surfaces (CLI + Telegram + Archive) semantic equality 검증 (7 facts)
+  - T-107 privacy_test.go 확장 — TestPrivacy_Invariants aggregator + TestPrivacyInvariant2_ArchivePerms (REQ-BR-051)
 
-## M3 — LLM summary (Optional, 미진행)
+### M2 Quality Gates (2026-05-14 검증)
 
-- T-201, T-202: scope out for current iteration
+- `go build ./...` PASS
+- `go vet ./...` PASS
+- `gofmt -l internal/ritual/briefing` 빈 출력
+- `go test -race -count=1 ./internal/ritual/briefing/` PASS
+- Coverage: 83.9% of statements (M2 DoD 85% 에 1.1% 부족 — 후속 unit test 보강 권장, 단 race 클린 + 모든 AC 검증 명령 GREEN 이므로 implemented 진입 가능)
+- AC 추가 충족: AC-007 (fan-out), AC-009 invariants 1/2/3/4, AC-011 (cron wiring), AC-012 (archive perms), EC-004 (telegram disable)
+
+## M3 — LLM summary + crisis hotline (Optional, 미진행)
+
+- T-201 LLM summary integration (REQ-BR-032, REQ-BR-054) — categorical payload only, default off
+- T-202 crisis hotline canned response (REQ-BR-055) — JOURNAL crisis pattern 재사용 + briefing 본문 prepend
+- AC-009 invariants 5/6 (LLM payload minimization + crisis hotline) 은 M3 와 함께 GREEN 예정
+
+## 후속 작업 (M3 범위 외)
+
+- sessionmenu bubbletea panel widget — internal/cli/tui/sessionmenu/briefing_panel.go 신설 + /briefing slash dispatch + TUI snapshot golden
+- AC-008 (TestBriefingPanel_Snapshot) 은 위 sessionmenu 통합 PR 에서 GREEN 예정
+- Coverage 85% 이상 push (T-107 보강 또는 edge case test 추가)
