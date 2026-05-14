@@ -1,19 +1,26 @@
 ---
 id: SPEC-GOOSE-ONBOARDING-001
-version: 0.2.0
+version: 0.2.1
 status: draft
 created_at: 2026-04-22
-updated_at: 2026-04-25
+updated_at: 2026-05-14
 author: manager-spec
 priority: critical
 issue_number: null
 phase: 6
 size: 중(M)
 lifecycle: spec-anchored
-labels: [onboarding, cli, web-ui, installer, wizard, localization]
+labels: [onboarding, cli, web-ui, installer, wizard, localization, post-brand-rename]
 ---
 
 # SPEC-GOOSE-ONBOARDING-001 — CLI + Web UI Install Wizard
+
+> **POST-BRAND-RENAME NOTICE (2026-05-14)**: 본 SPEC 은 SPEC-MINK-BRAND-RENAME-001 (commit f0f02e4, 2026-05-13) 이전에 작성된 draft 이다. 본문 곳곳에 `goose init` / `./.goose/` 같은 GOOSE 명칭이 남아 있으며, 후속 implementation 진입 시 다음 중 하나로 처리해야 한다.
+>
+> 1. **MINK 로 rebrand** — id `SPEC-MINK-ONBOARDING-001` 신설 (CLI 명령 `mink init`, 디렉토리 `~/.mink/`), 본 SPEC 은 status=superseded
+> 2. **본문 내 MINK 치환** — id 유지, 본문 goose → mink 치환 (BRAND-RENAME-001 + ENV-MIGRATE-001 + USERDATA-MIGRATE-001 시리즈와 align)
+>
+> 후속 implementation 진입 직전에 결정. 본 marker 가 추가되기 전까지 본 SPEC 은 "draft, awaiting brand-rename decision" 상태이다.
 
 > **v0.2 Amendment (2026-04-24, propagated 2026-04-25)**: SPEC-GOOSE-ARCH-REDESIGN-v0.2 반영.
 > **제거**: 이메일 가입/로그인 플로우, 모바일 디바이스 페어링 단계, Apple Native 초기 설정, Desktop Tauri 8-step 전체 플로우.
@@ -28,6 +35,7 @@ labels: [onboarding, cli, web-ui, installer, wizard, localization]
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-22 | 초안 작성. v5.0 ROADMAP Phase 6 Localization 시리즈 4번째(최종). 사용자 지시: "설치시 사용자의 국가와 정보를 수집해서 사용자에 맞게". Desktop App 첫 실행 시 8단계 UX로 locale + identity + daily pattern + interests + ritual + LLM provider + privacy 수집. | manager-spec |
+| 0.2.1 | 2026-05-14 | POST-BRAND-RENAME marker 추가. BRAND-RENAME-001 (commit f0f02e4) 이후 GOOSE prefix draft 의 후속 처리 (rebrand vs 본문 치환) 미결정. labels 에 `post-brand-rename` 추가. | manager-spec |
 | 0.2.0 | 2026-04-25 | SPEC-GOOSE-ARCH-REDESIGN-v0.2 Amendment를 본문 전반에 전파. 스코프를 Desktop Tauri 8-step → CLI(`goose init`) + Web UI 설치 마법사로 축소. REQ-OB-013(Ritual soft notice)와 REQ-OB-018(Mobile QR 페어링)는 `[DEPRECATED v0.2]`로 표시(번호 보존). §1~§3 및 §6 본문 재작성, §5를 "Test Scenarios"로 재명명 + 각 AC에 REQ 명시 참조 추가. AC-OB-014 로케일 문자열 프랑스어로 수정(REQ-OB-003 정합). 5개 미커버 REQ(014/015-invalid/016/019)에 대응하는 AC 신설(AC-OB-017~020). D8(수동 측정) → Playwright 자동화 참조로 수정. Exclusions L657(CLI 온보딩 금지)을 CLI IN SCOPE로 교체(D11 해소). | manager-spec |
 
 ---

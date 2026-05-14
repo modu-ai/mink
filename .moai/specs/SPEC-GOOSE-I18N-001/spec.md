@@ -1,19 +1,26 @@
 ---
 id: SPEC-GOOSE-I18N-001
-version: 0.2.0
+version: 0.2.1
 status: draft
-created_at: "2026-04-22"
-updated_at: "2026-04-25"
+created_at: 2026-04-22
+updated_at: 2026-05-14
 author: manager-spec
 priority: P0
 issue_number: null
 phase: 6
 size: 중(M)
 lifecycle: spec-anchored
-labels: [i18n, localization, ui, rtl, icu, phase-6]
+labels: [i18n, localization, ui, rtl, icu, phase-6, post-brand-rename]
 ---
 
 # SPEC-GOOSE-I18N-001 — UI Internationalization (20+ Languages, Plurals, RTL)
+
+> **POST-BRAND-RENAME NOTICE (2026-05-14)**: 본 SPEC 은 SPEC-MINK-BRAND-RENAME-001 (commit f0f02e4, 2026-05-13) 이전에 작성된 draft 이다. 본문 곳곳에 GOOSE 명칭이 남아 있으며, 후속 implementation 진입 시 다음 중 하나로 처리해야 한다.
+>
+> 1. **MINK 로 rebrand** — id `SPEC-MINK-I18N-001` 신설, 본 SPEC 은 status=superseded
+> 2. **본문 내 MINK 치환** — id 유지, 본문 GOOSE → MINK 치환 (BRAND-RENAME-001 의 binary rename 정책과 align)
+>
+> 후속 implementation 진입 직전에 결정. 본 marker 가 추가되기 전까지 본 SPEC 은 "draft, awaiting brand-rename decision" 상태이다.
 
 ## HISTORY
 
@@ -21,6 +28,7 @@ labels: [i18n, localization, ui, rtl, icu, phase-6]
 |-----|------|---------|------|
 | 0.2.0 | 2026-04-25 | 감사 리포트(mass-20260425/I18N-001-audit.md) 반영: frontmatter `labels` 채움 및 `status: draft`로 정규화, §5 header "Test Scenarios"로 변경 + "Verifies: REQ-I18N-XXX" 라인 추가(D3), REQ-013/015/016 Unwanted 정형화(D4), REQ-018 `may`→조건부 `shall`(D5), REQ-016 Tier 1/Tier 2 범위로 한정(D8), REQ-019(BCP 47 regional fallback chain) 신설(D9), 누락 AC 6개 추가(D7), REQ-020(calendar-system 렌더링) 신설(D14), gender/context-dependent 번역은 Exclusions 명시(D10/D11), CI exit code 일관화(D13). | manager-spec |
 | 0.1.0 | 2026-04-22 | 초안 작성. v5.0 ROADMAP Phase 6 Localization 시리즈 2번째. LOCALE-001이 제공하는 `primary_language`를 소비하여 20+ 언어 UI 번역 제공. Hermes 수준 다국어. | manager-spec |
+| 0.2.1 | 2026-05-14 | POST-BRAND-RENAME marker 추가. BRAND-RENAME-001 (commit f0f02e4) 이후 GOOSE prefix draft 의 후속 처리 (rebrand vs 본문 치환) 미결정. frontmatter created_at/updated_at 인용부호 정규화 (다른 SPEC 들과 동일 unquoted 스타일 align). labels 에 `post-brand-rename` 추가. | manager-spec |
 
 ---
 

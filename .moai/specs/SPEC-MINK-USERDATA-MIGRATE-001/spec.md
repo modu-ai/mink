@@ -1,6 +1,6 @@
 ---
 id: SPEC-MINK-USERDATA-MIGRATE-001
-version: "0.2.0"
+version: 0.2.0
 status: completed
 created_at: 2026-05-13
 updated_at: 2026-05-13

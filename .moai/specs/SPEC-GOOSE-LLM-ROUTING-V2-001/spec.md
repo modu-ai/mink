@@ -1,6 +1,6 @@
 ---
 id: SPEC-GOOSE-LLM-ROUTING-V2-001
-version: "0.2.1"
+version: 0.2.1
 status: completed
 created_at: 2026-05-05
 updated_at: 2026-05-10

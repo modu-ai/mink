@@ -1,25 +1,33 @@
 ---
 id: SPEC-GOOSE-CROSSPLAT-001
-version: 0.1.0
+version: 0.1.1
 status: draft
 created_at: 2026-04-29
-updated_at: 2026-04-29
+updated_at: 2026-05-14
 author: manager-spec
 priority: P0
 issue_number: null
 phase: 1
 size: 대(L)
 lifecycle: spec-anchored
-labels: [installer, cross-platform, ollama, goreleaser, distribution, model-download]
+labels: [installer, cross-platform, ollama, goreleaser, distribution, model-download, post-brand-rename]
 ---
 
 # SPEC-GOOSE-CROSSPLAT-001 — Universal Cross-Platform Installer + Model Distribution
+
+> **POST-BRAND-RENAME NOTICE (2026-05-14)**: 본 SPEC 은 SPEC-MINK-BRAND-RENAME-001 (commit f0f02e4, 2026-05-13) 이전에 작성된 draft 이다. 본문 곳곳에 GOOSE / AI.GOOSE 명칭이 남아 있으며, 후속 implementation 진입 시 다음 중 하나로 처리해야 한다.
+>
+> 1. **MINK 로 rebrand** — id `SPEC-MINK-CROSSPLAT-001` 신설, 본 SPEC 은 status=superseded
+> 2. **본문 내 MINK 치환** — id 유지, 본문 GOOSE → MINK 치환 (BRAND-RENAME-001 의 binary rename 정책과 align)
+>
+> 후속 implementation 진입 직전에 결정. 본 marker 가 추가되기 전까지 본 SPEC 은 "draft, awaiting brand-rename decision" 상태이다.
 
 ## HISTORY
 
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-29 | 초안 작성. Phase 1 배포 인프라: 범용 설치 스크립트, Ollama 자동 설치, Gemma 4 RL 모델 자동 선택/다운로드, goreleaser 다중 플랫폼 빌드, 패키지 매니저 배포. | manager-spec |
+| 0.1.1 | 2026-05-14 | POST-BRAND-RENAME marker 추가. BRAND-RENAME-001 (commit f0f02e4) 이후 GOOSE prefix draft 의 후속 처리 (rebrand vs 본문 치환) 미결정. labels 에 `post-brand-rename` 추가. | manager-spec |
 
 ---
 
