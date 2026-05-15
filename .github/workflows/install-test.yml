@@ -14,6 +14,7 @@ on:
     paths:
       - 'scripts/install.sh'
       - 'scripts/install.bats'
+      - '.github/workflows/install-test.yml'
 
 jobs:
   bats:

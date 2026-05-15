@@ -86,13 +86,43 @@ detect_arch() {
 # fetch_latest_version: query GitHub Releases API and parse tag_name without jq.
 # Uses sed/awk to extract the tag_name field from the JSON response.
 # Prints the tag string (e.g. "v0.1.0") to stdout.
+# Fails fast if the response is empty, the tag_name field is missing, or the
+# parsed value does not look like a valid version tag (v<digits>...).
 fetch_latest_version() {
     _api_url="https://api.github.com/repos/${MINK_REPO}/releases/latest"
     _response="$(curl -fsSL "${_api_url}")"
+
+    if [ -z "${_response}" ]; then
+        log_error "GitHub API returned an empty response for ${_api_url}"
+        exit 1
+    fi
+
     # Extract "tag_name":"v0.1.0" → v0.1.0
-    # Works with both `"tag_name": "v0.1.0"` and `"tag_name":"v0.1.0"` formats
+    # Works with both `"tag_name": "v0.1.0"` and `"tag_name":"v0.1.0"` formats.
+    # If the sed pattern does not match, the substitution leaves the input
+    # unchanged — detect that case by comparing length with the raw response.
     _tag="$(printf '%s' "${_response}" \
-        | sed 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')"
+        | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+        | head -n 1)"
+
+    if [ -z "${_tag}" ]; then
+        log_error "Failed to parse tag_name from GitHub Releases API."
+        log_error "API URL: ${_api_url}"
+        log_error "Check that the repository has at least one published release."
+        exit 1
+    fi
+
+    # Validate tag format: must start with 'v' followed by a digit.
+    # This catches cases where unrelated JSON content slipped through the sed.
+    case "${_tag}" in
+        v[0-9]*) : ;;
+        *)
+            log_error "Parsed tag_name does not look like a version: ${_tag}"
+            log_error "Expected format: v<major>.<minor>.<patch> (e.g. v0.1.0)"
+            exit 1
+            ;;
+    esac
+
     printf '%s' "${_tag}"
 }
 
@@ -353,9 +383,14 @@ main() {
     _archive_url="${_base_url}/${_archive_name}"
     _checksums_url="${_base_url}/checksums.txt"
 
-    # Download to temp directory
+    # Download to temp directory. Register cleanup trap immediately so partial
+    # downloads or intermediate failures (verify_checksum, install_binary, etc.)
+    # do not leak temp artifacts. The trap uses single quotes so _tmp_dir is
+    # expanded at trap-fire time, after the value is fully set.
     _tmp_dir="${TMPDIR:-/tmp}/mink_install_$$"
     mkdir -p "${_tmp_dir}"
+    # shellcheck disable=SC2064
+    trap "rm -rf '${_tmp_dir}'" EXIT INT HUP TERM
 
     _archive_path="${_tmp_dir}/${_archive_name}"
     _checksums_path="${_tmp_dir}/checksums.txt"
@@ -390,8 +425,7 @@ main() {
     # Write config (REQ-CP-021); missing tools do not block install (REQ-CP-022)
     write_config "${_tools}"
 
-    # Cleanup temp files
-    rm -rf "${_tmp_dir}"
+    # Cleanup runs automatically via the EXIT trap registered earlier.
 
     log_info ""
     log_info "MINK ${_version} installed successfully!"

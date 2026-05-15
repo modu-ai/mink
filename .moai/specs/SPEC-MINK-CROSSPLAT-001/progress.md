@@ -42,12 +42,16 @@
 - `scripts/install.bats` (234 LOC, bats-core 17 테스트)
 - `.github/workflows/install-test.yml` (48 LOC, ubuntu-latest + macos-latest)
 
+### M1 PR #189 으로 산출 (구현 완료, E2E 검증 보류)
+
+- REQ-CP-015, REQ-CP-016, REQ-CP-017: goreleaser 6플랫폼 cross-compile + `checksums.txt` (SHA256) + SBOM(SPDX) — `.goreleaser.yaml` + `.github/workflows/release.yml` 에 구현 완료. 실제 artifact 생성/업로드는 v0.1.0 tag push 시점부터, 최종 E2E 검증은 M7 통합 테스트에서.
+- AC-CP-011 (goreleaser 6플랫폼 빌드), AC-CP-014 (`.deb`/`.rpm` 패키지 생성): 같은 시점에 검증.
+
 ### 잔여 REQ/AC (M3-M7)
 
 - REQ-CP-002, REQ-CP-003: PowerShell + winget (M3)
 - REQ-CP-006~009: Ollama 자동 설치 + 서비스 시작 (M4)
 - REQ-CP-010~014: 모델 자동 선택 + 다운로드 + 재개 (M5)
-- REQ-CP-015~017: goreleaser 6플랫폼 + checksums + SBOM — M1 PR #189 에서 이미 산출 (검증만 남음)
 - REQ-CP-018, REQ-CP-019: Homebrew tap, `.deb`/`.rpm` (M1.A — 외부 repo 작업 후)
 - REQ-CP-026: Ollama 설치 실패 graceful degradation (M4)
 
