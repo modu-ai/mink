@@ -63,7 +63,18 @@ jobs:
         uses: Vampire/setup-wsl@v3
         with:
           distribution: Ubuntu-22.04
-          additional-packages: bats dash
+          additional-packages: dash git ca-certificates
+
+      # Install bats-core latest from git instead of jammy's bats 1.2.1, which
+      # has the BATS_TEARDOWN_STARTED unbound-variable bug that fails `skip`
+      # calls inside test bodies. Newer bats-core (>=1.5) initializes the
+      # variable correctly.
+      - name: Install bats-core latest inside WSL2
+        shell: wsl-bash {0}
+        run: |
+          git clone --depth=1 https://github.com/bats-core/bats-core.git /tmp/bats-core
+          sudo /tmp/bats-core/install.sh /usr/local
+          bats --version
 
       - name: POSIX syntax check with dash inside WSL2
         shell: wsl-bash {0}
