@@ -1,0 +1,6 @@
+# SPEC-MINK-CROSSPLAT-001 M7 (PR #197): POSIX shell scripts and bats tests
+# must remain LF on all platforms. Windows runners (used for WSL2 CI) default
+# to core.autocrlf=true and would otherwise convert these files to CRLF,
+# breaking dash/bash POSIX execution inside WSL2.
+*.sh text eol=lf
+*.bats text eol=lf
