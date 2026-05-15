@@ -43,17 +43,16 @@ func TestMain(m *testing.M) {
 	)
 }
 
-// serverHarness는 테스트용 gRPC 서버와 클라이언트를 묶는 하네스다.
+// serverHarness bundles a test gRPC server and client.
 type serverHarness struct {
 	srv    *grpcserver.Server
 	conn   *grpc.ClientConn
 	client minkv1.DaemonServiceClient
 	health grpc_health_v1.HealthClient
 	state  *core.StateHolder
-	cancel context.CancelFunc
 }
 
-// newHarness는 테스트용 gRPC 서버를 시작하고 클라이언트 연결을 반환한다.
+// newHarness starts a test gRPC server and returns the client connection.
 func newHarness(t *testing.T, cfg grpcserver.Config) *serverHarness {
 	t.Helper()
 
@@ -64,7 +63,7 @@ func newHarness(t *testing.T, cfg grpcserver.Config) *serverHarness {
 	state := &core.StateHolder{}
 	state.Store(core.StateServing)
 
-	rootCtx, cancel := context.WithCancel(context.Background())
+	rootCtx := t.Context()
 
 	srv, err := grpcserver.NewServer(cfg, zap.NewNop(), state, rootCtx)
 	require.NoError(t, err)
@@ -78,7 +77,6 @@ func newHarness(t *testing.T, cfg grpcserver.Config) *serverHarness {
 	t.Cleanup(func() {
 		conn.Close()
 		srv.Stop()
-		cancel()
 	})
 
 	return &serverHarness{
@@ -87,11 +85,10 @@ func newHarness(t *testing.T, cfg grpcserver.Config) *serverHarness {
 		client: minkv1.NewDaemonServiceClient(conn),
 		health: grpc_health_v1.NewHealthClient(conn),
 		state:  state,
-		cancel: cancel,
 	}
 }
 
-// newHarnessWithLogger는 커스텀 logger와 함께 서버를 시작한다.
+// newHarnessWithLogger starts the server with a custom logger.
 func newHarnessWithLogger(t *testing.T, cfg grpcserver.Config, logger *zap.Logger) *serverHarness {
 	t.Helper()
 
@@ -102,7 +99,7 @@ func newHarnessWithLogger(t *testing.T, cfg grpcserver.Config, logger *zap.Logge
 	state := &core.StateHolder{}
 	state.Store(core.StateServing)
 
-	rootCtx, cancel := context.WithCancel(context.Background())
+	rootCtx := t.Context()
 
 	srv, err := grpcserver.NewServer(cfg, logger, state, rootCtx)
 	require.NoError(t, err)
@@ -116,7 +113,6 @@ func newHarnessWithLogger(t *testing.T, cfg grpcserver.Config, logger *zap.Logge
 	t.Cleanup(func() {
 		conn.Close()
 		srv.Stop()
-		cancel()
 	})
 
 	return &serverHarness{
@@ -125,7 +121,6 @@ func newHarnessWithLogger(t *testing.T, cfg grpcserver.Config, logger *zap.Logge
 		client: minkv1.NewDaemonServiceClient(conn),
 		health: grpc_health_v1.NewHealthClient(conn),
 		state:  state,
-		cancel: cancel,
 	}
 }
 
@@ -230,8 +225,7 @@ func TestGetInfo_DrainingState_Unavailable(t *testing.T) {
 
 	state := &core.StateHolder{}
 	state.Store(core.StateDraining)
-	rootCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	rootCtx := t.Context()
 
 	srv, err := grpcserver.NewServer(grpcserver.Config{
 		BindAddr: "127.0.0.1:0",
@@ -264,8 +258,7 @@ func TestPanicHandler_Recovered(t *testing.T) {
 
 	state := &core.StateHolder{}
 	state.Store(core.StateServing)
-	rootCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	rootCtx := t.Context()
 
 	// PanicTestService must be registered via Config (before Serve);
 	// gRPC fatals if RegisterService is called after Serve has started.
@@ -396,8 +389,7 @@ func TestGracefulStop_WithTimeout(t *testing.T) {
 
 	state := &core.StateHolder{}
 	state.Store(core.StateServing)
-	rootCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	rootCtx := t.Context()
 
 	srv, err := grpcserver.NewServer(grpcserver.Config{
 		BindAddr: "127.0.0.1:0",
@@ -432,8 +424,7 @@ func TestGracefulStop_FallbackOnTimeout(t *testing.T) {
 
 	state := &core.StateHolder{}
 	state.Store(core.StateServing)
-	rootCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	rootCtx := t.Context()
 
 	srv, err := grpcserver.NewServer(grpcserver.Config{
 		BindAddr: "127.0.0.1:0",
@@ -538,8 +529,7 @@ func TestMaxRecvMsgSize_EnvOverride(t *testing.T) {
 
 	state := &core.StateHolder{}
 	state.Store(core.StateServing)
-	rootCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	rootCtx := t.Context()
 
 	// Config.MaxRecvMsgBytes=0이면 환경변수에서 읽음
 	srv, err := grpcserver.NewServer(grpcserver.Config{
@@ -577,8 +567,7 @@ func TestNonLoopbackBind_Rejected(t *testing.T) {
 
 	state := &core.StateHolder{}
 	state.Store(core.StateServing)
-	rootCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	rootCtx := t.Context()
 
 	srv, err := grpcserver.NewServer(grpcserver.Config{
 		BindAddr: "127.0.0.1:0",
@@ -604,8 +593,7 @@ func TestGRPC_AliasLoader_Reflection_MinkOnly(t *testing.T) {
 
 	state := &core.StateHolder{}
 	state.Store(core.StateServing)
-	rootCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	rootCtx := t.Context()
 
 	// Config.EnableReflection=false so the env var path is exercised
 	srv, err := grpcserver.NewServer(grpcserver.Config{
@@ -627,8 +615,7 @@ func TestGRPC_AliasLoader_Reflection_GooseOnly(t *testing.T) {
 
 	state := &core.StateHolder{}
 	state.Store(core.StateServing)
-	rootCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	rootCtx := t.Context()
 
 	srv, err := grpcserver.NewServer(grpcserver.Config{
 		BindAddr:         "127.0.0.1:0",
@@ -646,8 +633,7 @@ func TestGRPC_AliasLoader_MaxRecvBytes_MinkOnly(t *testing.T) {
 
 	state := &core.StateHolder{}
 	state.Store(core.StateServing)
-	rootCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	rootCtx := t.Context()
 
 	srv, err := grpcserver.NewServer(grpcserver.Config{
 		BindAddr: "127.0.0.1:0",
@@ -664,8 +650,7 @@ func TestGRPC_AliasLoader_MaxRecvBytes_GooseOnly(t *testing.T) {
 
 	state := &core.StateHolder{}
 	state.Store(core.StateServing)
-	rootCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	rootCtx := t.Context()
 
 	srv, err := grpcserver.NewServer(grpcserver.Config{
 		BindAddr: "127.0.0.1:0",
@@ -682,8 +667,7 @@ func TestGRPC_AliasLoader_ShutdownToken_MinkOnly(t *testing.T) {
 
 	state := &core.StateHolder{}
 	state.Store(core.StateServing)
-	rootCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	rootCtx := t.Context()
 
 	srv, err := grpcserver.NewServer(grpcserver.Config{
 		BindAddr: "127.0.0.1:0",
@@ -700,8 +684,7 @@ func TestGRPC_AliasLoader_ShutdownToken_GooseOnly(t *testing.T) {
 
 	state := &core.StateHolder{}
 	state.Store(core.StateServing)
-	rootCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	rootCtx := t.Context()
 
 	srv, err := grpcserver.NewServer(grpcserver.Config{
 		BindAddr: "127.0.0.1:0",
