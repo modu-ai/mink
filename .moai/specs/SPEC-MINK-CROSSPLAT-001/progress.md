@@ -1,6 +1,6 @@
 ## SPEC-MINK-CROSSPLAT-001 Progress
 
-- **Status**: 🟢 COMPLETE — M1 + M2 + M4 + M5 + M6 (sh) + M7 완료, M1.A + M3 = SUPERSEDED by amendment-v0.2
+- **Status**: 🟢 COMPLETE (100%) — M1 + M2 + M4 + M5 + M6 (sh) + M7 + amendment-v0.2 §5.1 가드 완료, M1.A + M3 = SUPERSEDED by amendment-v0.2
 - **Last update**: 2026-05-15
 - **Milestones completed**: M1 (PR #189), M2 (PR #194), M4+M5 (PR #195), M6 install.sh (M2 PR 에 포함)
 - **Amendment applied**: amendment-v0.2 (curl-single + WSL-only, 2026-05-15)
@@ -89,13 +89,20 @@ AC-CP-002 는 WSL2 bash 시나리오로 재정의되었다.
 - README.md: Quick Start에 curl one-liner (macOS/Linux) + WSL2 설치 안내 (Windows) 추가
 - progress.md / acceptance.md: M7 GREEN 처리
 
-### 잔여 항목 (별도 PR)
+### amendment-v0.2 §5.1 가드 완료 (PR #198)
 
-- (선택) install.sh 의 non-WSL Windows 감지 (MINGW/CYGWIN/MSYS) + 친절한 거부 메시지 — amendment-v0.2 §5.1
+- install.sh 에 `require_supported_shell()` 함수 추가 — `uname -a` 기반 MINGW/MSYS/CYGWIN 감지 + WSL2 안내 + exit 1
+- main() 진입점에서 require_supported_shell 호출 (detect_os 전에 fail-fast)
+- install.bats 에 5개 신규 테스트 (MINGW/CYGWIN/MSYS 거부 + Linux/Darwin 통과) — bats 32 → 37 PASS
+- 헤더/error_unsupported_platform 메시지의 "windows (MINGW/MSYS2/Cygwin)" 표기 → "linux (WSL2 on Windows is detected as Linux)" 로 일관성 갱신
+
+### 잔여 항목
+
+없음 — SPEC-MINK-CROSSPLAT-001 100% 종결.
 
 ## 운영 노트
 
 본 SPEC은 milestone 별 분할 PR 전략으로 점진적 종결. amendment-v0.2 (2026-05-15) 적용으로 M1.A + M3 가 전면 OUT scope 전환되어 잔여 작업이 M7 (curl + WSL2 E2E + 문서) 로 축소되었다. paste-ready prompt 잔여 (M7 + 선택적 install.sh non-WSL 가드) 는 hand-off 메모리에 적재되어 후속 세션에서 진입 가능.
 
 ---
-Last Updated: 2026-05-15 (M7 완료 — WSL2 CI 매트릭스 + README curl one-liner + acceptance.md 체크 완료. amendment-v0.2 §4.2 + §5.2 적용)
+Last Updated: 2026-05-15 (amendment-v0.2 §5.1 가드 완료 — install.sh 의 require_supported_shell() + 5 bats tests. SPEC-MINK-CROSSPLAT-001 100% 종결)

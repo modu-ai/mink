@@ -78,6 +78,47 @@ make_stub() {
     [[ "${output}" == *"Unsupported platform"* ]]
 }
 
+# ── require_supported_shell (amendment-v0.2 §5.1) ─────────────────────────────
+
+@test "require_supported_shell rejects MINGW64 with WSL2 guidance and exit 1" {
+    UNAME_FULL_OVERRIDE="MINGW64_NT-10.0 HOSTNAME 10.0.19044 x86_64 Msys" \
+        run require_supported_shell
+    [ "${status}" -eq 1 ]
+    [[ "${output}" == *"MINK requires WSL2 on Windows"* ]]
+    [[ "${output}" == *"wsl --install"* ]]
+    [[ "${output}" == *"learn.microsoft.com/en-us/windows/wsl/install"* ]]
+}
+
+@test "require_supported_shell rejects CYGWIN_NT with WSL2 guidance and exit 1" {
+    UNAME_FULL_OVERRIDE="CYGWIN_NT-10.0 HOSTNAME 3.4.6 x86_64 Cygwin" \
+        run require_supported_shell
+    [ "${status}" -eq 1 ]
+    [[ "${output}" == *"MINK requires WSL2 on Windows"* ]]
+    [[ "${output}" == *"Native Windows shells"* ]]
+}
+
+@test "require_supported_shell rejects MSYS_NT with WSL2 guidance and exit 1" {
+    UNAME_FULL_OVERRIDE="MSYS_NT-10.0 HOSTNAME 3.4.0 x86_64 Msys" \
+        run require_supported_shell
+    [ "${status}" -eq 1 ]
+    [[ "${output}" == *"MINK requires WSL2 on Windows"* ]]
+    [[ "${output}" == *"wsl --install"* ]]
+}
+
+@test "require_supported_shell passes silently on Linux (WSL2 reports Linux)" {
+    UNAME_FULL_OVERRIDE="Linux hostname 5.15.0 #1 SMP x86_64 GNU/Linux" \
+        run require_supported_shell
+    [ "${status}" -eq 0 ]
+    [ -z "${output}" ]
+}
+
+@test "require_supported_shell passes silently on macOS Darwin" {
+    UNAME_FULL_OVERRIDE="Darwin hostname 23.0.0 Darwin Kernel arm64" \
+        run require_supported_shell
+    [ "${status}" -eq 0 ]
+    [ -z "${output}" ]
+}
+
 # ── detect_arch ───────────────────────────────────────────────────────────────
 
 @test "detect_arch normalizes x86_64 to amd64" {

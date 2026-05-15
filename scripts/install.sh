@@ -13,8 +13,12 @@
 #   MINK_INSTALL_TEST=1 . scripts/install.sh   # source-only for bats testing
 #
 # Supported platforms:
-#   OS:   darwin, linux, windows (Git Bash / MSYS2 / Cygwin)
+#   OS:   darwin, linux (WSL2 on Windows is detected as Linux)
 #   Arch: amd64 (x86_64), arm64 (aarch64)
+#
+# Native Windows shells (Git Bash / MSYS2 / Cygwin) are explicitly rejected per
+# amendment-v0.2 §5.1. Windows users must install WSL2 and run the installer
+# inside a WSL2 distribution shell. See `require_supported_shell` below.
 #
 # All inline comments are in English per .moai/config/sections/language.yaml.
 
@@ -41,6 +45,37 @@ log_error() {
     printf 'Error: %s\n' "$1" >&2
 }
 
+# ── Shell environment guard (amendment-v0.2 §5.1) ─────────────────────────────
+
+# require_supported_shell: reject native Windows shells (Git Bash / MinGW /
+# MSYS / Cygwin) with a helpful WSL2 guidance message and exit 1.
+#
+# MINK on Windows is supported only via WSL2 per amendment-v0.2 §4.1 (M3
+# install.ps1 is SUPERSEDED) and §5.1 (this guard).
+#
+# Detection uses `uname -a` so that MINGW64_NT / CYGWIN_NT / MSYS_NT signatures
+# match regardless of release. The check is short-circuited via the
+# UNAME_FULL_OVERRIDE env var so install.bats can verify all three branches
+# without needing the actual shells.
+require_supported_shell() {
+    _uname_full="${UNAME_FULL_OVERRIDE:-$(uname -a)}"
+    case "${_uname_full}" in
+        *MINGW*|*MSYS*|*CYGWIN*)
+            printf '%s\n' "MINK requires WSL2 on Windows." >&2
+            printf '%s\n' "Native Windows shells (Git Bash, MinGW, Cygwin, MSYS) are not supported." >&2
+            printf '\n' >&2
+            printf '%s\n' "Please install WSL2 first:" >&2
+            printf '%s\n' "  wsl --install" >&2
+            printf '\n' >&2
+            printf '%s\n' "Then run the installer inside a WSL2 distribution shell:" >&2
+            printf '%s\n' "  wsl bash -c \"curl -fsSL https://mink.ai/install | sh\"" >&2
+            printf '\n' >&2
+            printf '%s\n' "See: https://learn.microsoft.com/en-us/windows/wsl/install" >&2
+            exit 1
+            ;;
+    esac
+}
+
 # ── Platform detection ────────────────────────────────────────────────────────
 
 # detect_os: normalize uname -s output to "darwin" | "linux" | "windows"
@@ -59,7 +94,7 @@ detect_os() {
             ;;
         *)
             log_error "Unsupported platform: ${_raw_os}"
-            log_error "Supported platforms: darwin, linux, windows (MINGW/MSYS/Cygwin)"
+            log_error "Supported platforms: darwin, linux (WSL2 on Windows is detected as Linux)"
             return 1
             ;;
     esac
@@ -348,7 +383,7 @@ write_config() {
 error_unsupported_platform() {
     log_error "Unsupported platform: $1"
     log_error "MINK supports the following platforms:"
-    log_error "  OS:   darwin, linux, windows (MINGW / MSYS2 / Cygwin)"
+    log_error "  OS:   darwin, linux (WSL2 on Windows is detected as Linux)"
     log_error "  Arch: amd64 (x86_64), arm64 (aarch64)"
     exit 1
 }
@@ -534,6 +569,11 @@ verify_model() {
 
 main() {
     log_info "MINK installer starting..."
+
+    # Reject native Windows shells before any other work (amendment-v0.2 §5.1).
+    # WSL2 reports `Linux` in `uname -s`, so it passes this guard and continues
+    # through the Linux code path.
+    require_supported_shell
 
     # Detect platform
     _os="$(detect_os)"
