@@ -1,10 +1,10 @@
 ## SPEC-MINK-ONBOARDING-001 Progress
 
-- **Status**: 🟡 draft — Phase 1A backend state machine 완료, Phase 1B~4 implementation 잔여
+- **Status**: 🟡 draft — Phase 1A + 1B 완료, Phase 1C~4 implementation 잔여
 - **Last update**: 2026-05-15
 - **Spec version**: v0.3.1 (amendment-v0.3 본문 병합 후)
 - **Doc commits**: SPEC 생성 (`a2b3551`) → MINK rebrand (`81d9fa4`) → amendment-v0.3 본문 병합 (본 PR)
-- **Implementation commits**: 1 (Phase 1A, PR #200)
+- **Implementation commits**: 2 (Phase 1A PR #200 / Phase 1B PR #201)
 
 ## 문서 진척 (Phase 0)
 
@@ -20,7 +20,7 @@
 | Sub-scope | 상태 | 예상 규모 | 비고 |
 |-----------|------|---------|------|
 | **Phase 1A**: Backend state machine 골격 (types + flow) | 🟢 완료 (PR #200) | 782 LOC (3 files, 12 tests) | `internal/onboarding/{types.go, flow.go, flow_test.go}` — OnboardingData 7-step 타입 + OnboardingFlow state machine (StartFlow/SubmitStep/SkipStep/Back/Complete) + 5 sentinel errors. File I/O / keyring 미포함. |
-| **Phase 1B**: Validators (`validators.go`) | ⏸️ | 200-300 LOC | API key prefix 검증 (provider별 regex 테이블), 이름 sanitization (HTML/shell injection 거부), GDPR 명시적 동의 enforcement, 입력 표준화 |
+| **Phase 1B**: Validators (`validators.go`) | 🟢 완료 (PR #201) | 912 LOC (2 files, 46 sub-tests) | `internal/onboarding/{validators.go (338), validators_test.go (574)}`. 5 validator (Persona name / Provider API key / GDPR consent / Honorific level / Sensitive field whitelist) + 10 sentinel errors. flow.go 변경 없음 (wiring 은 후속 phase). |
 | **Phase 1C**: Persistence (`progress.go` + `keyring.go`) | ⏸️ | 250-350 LOC | draft atomic write (`./.mink/onboarding-draft.yaml`), `~/.mink/credentials/` OS keyring 통합 (zalando/go-keyring), `./.mink/onboarding-completed` 타임스탬프. `./.mink` vs `~/.mink` canonical 경로 정렬 (CodeRabbit Thread 1 fallout 동반 해소). |
 | **Phase 1D**: Model Setup + CLI Tools (`model_setup.go` + `cli_detection.go`) | ⏸️ | 150-250 LOC | CROSSPLAT-001 의존 (완료) — install.sh 의 `~/.mink/config.yaml` 의 `delegation.available_tools` 읽기. Ollama detection, RAM 감지, ollama pull 호출. claude/gemini/codex `command -v` 스캔. |
 | **Phase 1E**: Completion (`completion.go`) | ⏸️ | 100-200 LOC | LOCALE/I18N/REGION-SKILLS 초기화 호출 + UserProfile 빌드 + 후속 SPEC 초기화 + onboarding-completed 기록 |
@@ -40,4 +40,4 @@
 본 SPEC 은 대형 (43 KB → 47 KB after amendment merge). implementation 진입 시 분할 PR 전략 권장. 후속 세션에서 위 7개 sub-scope 중 우선순위 결정 (예: Backend state machine 먼저 → CLI → Web UI 순). amendment-v0.3 의 §10.3 step number semantic 변경 (Step 2/3/4/5 → Step 4/5/6/7) 은 본 병합에서 일부 AC 만 갱신됨 — implementation 시점에 잔여 AC 의 step 참조 정합성 재검토 필요.
 
 ---
-Last Updated: 2026-05-15 (Phase 1A backend state machine — `internal/onboarding/{types,flow,flow_test}.go` 782 LOC, 12 tests PASS)
+Last Updated: 2026-05-16 (Phase 1B validators 5종 + 10 sentinel errors — `internal/onboarding/{validators,validators_test}.go` 912 LOC, 46 sub-tests PASS)
