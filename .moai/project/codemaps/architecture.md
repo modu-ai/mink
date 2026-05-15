@@ -387,6 +387,26 @@ Agent.Execute error
 
 ---
 
-**Version**: Architecture v0.1.0  
-**Last Updated**: 2026-05-04  
-**Layers**: 5 (Entry → Core → Agent → Domain → Foundation)
+## Ritual Layer (v0.2.0 추가 — 2026-05-15)
+
+Sprint 2에서 출현한 사용자 향 daily ritual 계층. core layer 위에 얹어 사용자 일상 시나리오(아침 브리핑/일기/일정)를 묶는다.
+
+```
+internal/ritual/
+├── briefing/   ← SPEC-MINK-BRIEFING-001 v0.3.1 (4 module fanout + 3 channel + crisis)
+│   ├── 4 collectors (weather/journal/date/mantra)
+│   ├── orchestrator + Collector interface + 3 Options
+│   ├── 3 renderers (CLI/Telegram/TUI) + crisis prepend
+│   ├── LLM categorical-only summary (privacy invariants)
+│   └── hook handler → SCHEDULER-001 EvMorningBriefingTime
+├── journal/    ← JOURNAL-001 v0.3.0 (mood trend + crisis detector + LLM emotion analyzer)
+└── scheduler/  ← SCHEDULER-001 v0.2.x (cron event registry)
+```
+
+TUI/Telegram/CLI 어느 채널에서 호출되어도 동일 payload를 통과시키는 single-source-of-truth 패턴. 슬래시 wiring은 [modules/cli-tui-briefing.md](./modules/cli-tui-briefing.md), 패키지 본체는 [modules/ritual-briefing.md](./modules/ritual-briefing.md) 참고.
+
+---
+
+**Version**: Architecture v0.2.0 (incremental — ritual layer 추가)
+**Last Updated**: 2026-05-15
+**Layers**: 5 + ritual (Entry → Core → Agent → Domain → Foundation → Ritual)
