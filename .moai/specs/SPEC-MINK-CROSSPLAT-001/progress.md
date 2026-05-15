@@ -16,7 +16,7 @@
 | M4 | Ollama 자동 설치 + 서비스 시작 | 🟢 완료 (Unix/WSL2) | PR #195 (`948fdfc`). install.sh 측 완료. install.ps1 측은 amendment-v0.2 로 OUT scope |
 | M5 | 모델 자동 선택 + 다운로드 | 🟢 완료 (Unix/WSL2) | PR #195 (`948fdfc`). RAM 감지 + ollama pull + verify. install.ps1 측은 amendment-v0.2 로 OUT scope |
 | M6 | CLI 도구 감지 + 설정 기록 | 🟢 완료 (install.sh 측) | M2 PR #194 에 포함 (claude/gemini/codex 감지 + ~/.mink/config.yaml 기록). install.ps1 측은 amendment-v0.2 로 OUT scope |
-| M7 | 통합 테스트 + 문서 (curl + WSL2) | 🟢 완료 | PR #<N>. install-test.yml WSL2 매트릭스 추가 (Vampire/setup-wsl@v3, Ubuntu-22.04). README Quick Start curl one-liner + WSL2 안내 추가. amendment-v0.2 §4.2 적용 |
+| M7 | 통합 테스트 + 문서 (curl + WSL2) | 🟢 완료 | PR #197. install-test.yml WSL2 매트릭스 추가 (Vampire/setup-wsl@v3, Ubuntu-22.04). README Quick Start curl one-liner + WSL2 안내 추가. amendment-v0.2 §4.2 적용 |
 
 ## REQ/AC 충족 현황
 
@@ -83,7 +83,7 @@
 
 AC-CP-002 는 WSL2 bash 시나리오로 재정의되었다.
 
-### M7 완료 (PR #<N>)
+### M7 완료 (PR #197)
 
 - install-test.yml: WSL2 매트릭스 추가 (Vampire/setup-wsl@v3, Ubuntu-22.04, bats + dash)
 - README.md: Quick Start에 curl one-liner (macOS/Linux) + WSL2 설치 안내 (Windows) 추가
