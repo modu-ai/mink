@@ -25,6 +25,7 @@ labels: [installer, cross-platform, ollama, goreleaser, distribution, model-down
 | 0.1.0 | 2026-04-29 | 초안 작성 (선행 SPEC-GOOSE-CROSSPLAT-001). Phase 1 배포 인프라: 범용 설치 스크립트, Ollama 자동 설치, Gemma 4 RL 모델 자동 선택/다운로드, goreleaser 다중 플랫폼 빌드, 패키지 매니저 배포. | manager-spec |
 | 0.1.1 | 2026-05-14 | (선행 SPEC) POST-BRAND-RENAME marker 추가. | manager-spec |
 | 0.2.0 | 2026-05-14 | SPEC-MINK-BRAND-RENAME-001 rebrand 정책 적용. 본문 GOOSE/Goose/goose 명칭을 MINK/Mink/mink 로 치환 + Go module path / cmd binary / env var / workspace path 등 code identifier 동기화. id `SPEC-GOOSE-CROSSPLAT-001` → `SPEC-MINK-CROSSPLAT-001` 신설, 선행 SPEC supersede. 다른 SPEC 의 cross-reference (SPEC-GOOSE-CONFIG-001 / SPEC-GOOSE-LLM-001 / SPEC-GOOSE-LOCALE-001 / SPEC-GOOSE-ONBOARDING-001 등) 는 immutable 보존. labels 에 `mink-rebrand` 추가. | manager-spec |
+| 0.2.0+amendment-v0.2 | 2026-05-15 | curl-single + WSL-only 정책 적용. M1.A (Homebrew tap + winget + nfpms + AUR + scoop) 와 M3 (install.ps1) 전면 OUT scope 전환. REQ-CP-002 / 003 / 018 / 019 및 AC-CP-003 / 012 / 014 SUPERSEDED 마킹. AC-CP-002 WSL2 bash 시나리오로 재정의. 근거: hermes-agent (NousResearch v0.13.0) 공식 권장 = curl + WSL2, 2026 WSL2 dev 표준, 유지보수 ROI. M1/M2/M4/M5 머지본 (#189/#194/#195) 영향 없음. 상세 amendment 본문은 amendment-v0.2.md 참조. | manager-spec |
 
 ---
 
@@ -32,13 +33,25 @@ labels: [installer, cross-platform, ollama, goreleaser, distribution, model-down
 
 MINK를 **macOS, Linux, Windows** 세 플랫폼에서 **단일 명령어로 설치**할 수 있는 범용 인스톨러와, 훈련된 Gemma 4 RL 모델의 자동 선택 및 다운로드 시스템을 정의한다.
 
-사용자 경험 목표:
+> **[AMENDED by amendment-v0.2 — 2026-05-15]**: Windows 진입 경로는 **WSL2 only** 로 축소되었다. PowerShell native (install.ps1) + winget + Homebrew tap + nfpms 는 OUT scope 전환. 상세 근거는 `amendment-v0.2.md` §2 참조.
+
+사용자 경험 목표 (amendment-v0.2 적용 후):
+
+```bash
+# macOS / Linux
+curl -fsSL https://mink.ai/install | sh
+
+# Windows (WSL2 only)
+wsl bash -c "curl -fsSL https://mink.ai/install | sh"
+```
+
+원래 사용자 경험 목표 (amendment-v0.2 이전, **SUPERSEDED**):
 
 ```bash
 # macOS / Linux / Windows (Git Bash / WSL)
 curl -fsSL https://mink.ai/install | sh
 
-# Windows Native (PowerShell)
+# Windows Native (PowerShell) — SUPERSEDED by amendment-v0.2
 irm https://mink.ai/install.ps1 | iex
 ```
 
@@ -102,19 +115,19 @@ MINK는 개발자뿐 아니라 비개발자(가족, 친지)도 사용할 수 있
 
 1. **Unix Shell 설치 스크립트** — `install.sh`:
    - `curl -fsSL https://mink.ai/install | sh` 진입점
-   - macOS, Linux, Windows (Git Bash / WSL) 감지 및 지원
+   - macOS, Linux, Windows (WSL2 only) 감지 및 지원
    - OS + CPU 아키텍처 자동 감지
    - GitHub Release에서 정확한 바이너리 다운로드
-   - 설치 경로: `~/.local/bin` (Linux/macOS), `%USERPROFILE%\bin` (Windows)
+   - 설치 경로: `~/.local/bin` (Linux/macOS/WSL2)
    - PATH 설정 자동화 (`.bashrc`, `.zshrc`, `.profile` 감지)
    - SHA256 체크섬 검증
 
-2. **PowerShell 설치 스크립트** — `install.ps1`:
+2. **PowerShell 설치 스크립트** — `install.ps1` **[SUPERSEDED by amendment-v0.2 — 2026-05-15: §3.2 OUT scope 으로 이동]**:
    - `irm https://mink.ai/install.ps1 | iex` 진입점
    - Windows 네이티브 PowerShell 5.1+ / PowerShell 7 지원
    - Windows Defender SmartScreen 우회 가이드 (문서만)
 
-3. **winget 매니페스트**:
+3. **winget 매니페스트** **[SUPERSEDED by amendment-v0.2 — 2026-05-15: §3.2 OUT scope 으로 이동]**:
    - `winget install ai-mink.mink` 진입점
    - `manifests/a/ai-mink/mink/` 디렉토리 구조
    - 버전별 YAML 매니페스트 자동 업데이트 (CI)
@@ -140,19 +153,19 @@ MINK는 개발자뿐 아니라 비개발자(가족, 친지)도 사용할 수 있
 7. **goreleaser 설정** — `.goreleaser.yaml`:
    - 6개 타겟: darwin/amd64, darwin/arm64, linux/amd64, linux/arm64, windows/amd64, windows/arm64
    - 산출물: 바이너리, SHA256 체크섬, SBOM (syft)
-   - Homebrew tap: `ai-mink/tap/mink`
-   - Debian 패키지 (.deb)
-   - RPM 패키지 (.rpm)
-   - scoopa bucket (Windows)
+   - ~~Homebrew tap: `ai-mink/tap/mink`~~ **[SUPERSEDED by amendment-v0.2 — 2026-05-15]**
+   - ~~Debian 패키지 (.deb)~~ **[SUPERSEDED by amendment-v0.2 — 2026-05-15]**
+   - ~~RPM 패키지 (.rpm)~~ **[SUPERSEDED by amendment-v0.2 — 2026-05-15]**
+   - ~~scoopa bucket (Windows)~~ **[SUPERSEDED by amendment-v0.2 — 2026-05-15]**
 
-8. **Homebrew tap** — `ai-mink/homebrew-tap`:
+8. **Homebrew tap** — `ai-mink/homebrew-tap` **[SUPERSEDED by amendment-v0.2 — 2026-05-15: §3.2 OUT scope 으로 이동]**:
    - `brew install ai-mink/tap/mink` 진입점
    - goreleaser가 자동 업데이트
 
 9. **CI/CD 파이프라인** — `.github/workflows/release.yml`:
    - 태그 push 시 goreleaser 트리거
    - 설치 스크립트를 `mink.ai` 도메인에 배포
-   - winget PR 자동 생성
+   - ~~winget PR 자동 생성~~ **[SUPERSEDED by amendment-v0.2 — 2026-05-15]**
 
 ### 3.2 OUT OF SCOPE
 
@@ -165,6 +178,11 @@ MINK는 개발자뿐 아니라 비개발자(가족, 친지)도 사용할 수 있
 - **모델 레지스트리 호스팅**: Ollama 레지스트리(or Hugging Face)에 배포하는 것은 별도 작업
 - **프록시/방화벽 대응**: `HTTP_PROXY`/`HTTPS_PROXY` 환경변수 인식은 기본 지원하나 상세 SOCKS5/NTLM 프록시는 후속
 - **ARM Windows 네이티브 검증**: windows/arm64 빌드는 제공하나 QA는 x86_64 우선
+- **PowerShell native installer (`install.ps1`)** **[amendment-v0.2 — 2026-05-15]**: §3.1 항목 2 에서 이동. Windows = WSL2 only 정책. 상세 근거 amendment-v0.2.md §2.
+- **winget package manager 매니페스트** **[amendment-v0.2 — 2026-05-15]**: §3.1 항목 3 에서 이동. `manifests/a/ai-mink/mink/` 디렉토리 + Microsoft winget repo PR 모두 작성하지 않음.
+- **Homebrew tap (`ai-mink/homebrew-tap`)** **[amendment-v0.2 — 2026-05-15]**: §3.1 항목 8 에서 이동. `brew install ai-mink/tap/mink` 경로 OUT. 별도 tap repo 생성/유지하지 않음.
+- **Debian/RPM 패키지 (goreleaser nfpms)** **[amendment-v0.2 — 2026-05-15]**: §3.1 항목 7 의 sub-bullet 에서 이동. `.deb` / `.rpm` artifact 생성하지 않음.
+- **scoop bucket / AUR PKGBUILD** **[amendment-v0.2 — 2026-05-15]**: §3.1 항목 7 의 sub-bullet 에서 이동. Windows scoop / Arch Linux AUR 등 추가 패키지 매니저 매니페스트 모두 OUT.
 
 ---
 
@@ -172,11 +190,11 @@ MINK는 개발자뿐 아니라 비개발자(가족, 친지)도 사용할 수 있
 
 ### 4.1 Ubiquitous
 
-**REQ-CP-001 [Ubiquitous]** — The system **shall** provide a Unix shell installation command `curl -fsSL https://mink.ai/install | sh` that works on macOS, Linux, and Windows (Git Bash / WSL) without prerequisite software beyond a POSIX-compliant shell and `curl`.
+**REQ-CP-001 [Ubiquitous]** — The system **shall** provide a Unix shell installation command `curl -fsSL https://mink.ai/install | sh` that works on macOS, Linux, and Windows (WSL2 only) without prerequisite software beyond a POSIX-compliant shell and `curl`.
 
-**REQ-CP-002 [Ubiquitous]** — The system **shall** provide a PowerShell installation command `irm https://mink.ai/install.ps1 | iex` for Windows native environments (PowerShell 5.1+ and PowerShell 7). The PowerShell script **shall** handle restrictive execution policies by using `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` internally (process-scoped only, no system-wide change); if the execution policy cannot be bypassed, the script **shall** print a manual instruction suggesting `powershell -ExecutionPolicy Bypass -File install.ps1`.
+**REQ-CP-002 [Ubiquitous]** — The system **shall** provide a PowerShell installation command `irm https://mink.ai/install.ps1 | iex` for Windows native environments (PowerShell 5.1+ and PowerShell 7). The PowerShell script **shall** handle restrictive execution policies by using `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` internally (process-scoped only, no system-wide change); if the execution policy cannot be bypassed, the script **shall** print a manual instruction suggesting `powershell -ExecutionPolicy Bypass -File install.ps1`. **[SUPERSEDED by amendment-v0.2 §3 — 2026-05-15: Windows = WSL2 only 정책. install.ps1 전면 OUT scope.]**
 
-**REQ-CP-003 [Ubiquitous]** — The system **shall** provide `winget install ai-mink.mink` as a Windows package manager installation option.
+**REQ-CP-003 [Ubiquitous]** — The system **shall** provide `winget install ai-mink.mink` as a Windows package manager installation option. **[SUPERSEDED by amendment-v0.2 §3 — 2026-05-15: winget pipeline 전면 OUT scope.]**
 
 **REQ-CP-004 [Ubiquitous]** — The install script **shall** detect the operating system (macOS, Linux, Windows) and CPU architecture (x86_64, arm64) and report both values to the user before proceeding with download.
 
@@ -221,6 +239,8 @@ MINK는 개발자뿐 아니라 비개발자(가족, 친지)도 사용할 수 있
 - macOS: `sysctl -n hw.memsize`
 - Windows (PowerShell): `(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory`
 
+> **TODO (amendment-v0.2 §6.1 — 2026-05-15)**: Ollama 모델 namespace `ai-mink/gemma4-*` 는 GitHub org (`ai-mink/*`) 와 별개의 Ollama Hub account namespace (`ollama.com/library/ai-mink/...`). GitHub org 명과 Ollama Hub account 명을 동일하게 유지할지 별도 namespace 로 분리할지는 SPEC-GOOSE-GEMMA4-001 (모델 배포 SPEC) 의 별도 결정 사항. 본 amendment-v0.2 의 범위 밖.
+
 **REQ-CP-011 [State-Driven]** — **While** selecting the model to download, the script **shall** choose based on detected system RAM:
 - < 8 GB: `ai-mink/gemma4-e2b-rl-v1` (~1.5 GB, 2B parameter, Q4_K_M)
 - 8-16 GB: `ai-mink/gemma4-e4b-rl-v1:q4_k_m` (~3 GB, 4B parameter, Q4_K_M)
@@ -241,9 +261,9 @@ MINK는 개발자뿐 아니라 비개발자(가족, 친지)도 사용할 수 있
 
 ### 4.5 Optional
 
-**REQ-CP-018 [Optional]** — **Where** a Homebrew tap is maintained at `ai-mink/tap/mink`, the system **shall** support `brew install ai-mink/tap/mink` as an alternative installation method on macOS and Linux.
+**REQ-CP-018 [Optional]** — **Where** a Homebrew tap is maintained at `ai-mink/tap/mink`, the system **shall** support `brew install ai-mink/tap/mink` as an alternative installation method on macOS and Linux. **[SUPERSEDED by amendment-v0.2 §3 — 2026-05-15: Homebrew tap 전면 OUT scope. curl-single 진입.]**
 
-**REQ-CP-019 [Optional]** — **Where** Debian and RPM package generation is configured in goreleaser, the system **shall** produce `.deb` and `.rpm` artifacts for Linux distribution.
+**REQ-CP-019 [Optional]** — **Where** Debian and RPM package generation is configured in goreleaser, the system **shall** produce `.deb` and `.rpm` artifacts for Linux distribution. **[SUPERSEDED by amendment-v0.2 §3 — 2026-05-15: nfpms `.deb`/`.rpm` 전면 OUT scope. curl-single 진입.]**
 
 ---
 
@@ -254,12 +274,19 @@ MINK는 개발자뿐 아니라 비개발자(가족, 친지)도 사용할 수 있
 - **When** `curl -fsSL https://mink.ai/install | sh` 실행
 - **Then** OS="macOS", ARCH="arm64" 감지 후 `goose_darwin_arm64` 바이너리 다운로드, `~/.local/bin/mink`에 설치, SHA256 체크섬 검증 통과
 
-### AC-CP-002 — PowerShell 설치 스크립트 동작 (verifies REQ-CP-002)
+### AC-CP-002 — WSL2 bash 설치 시나리오 (verifies REQ-CP-001 on WSL2 surface)
+> **[REDEFINED by amendment-v0.2 §3 — 2026-05-15]**: 기존 PowerShell native (install.ps1 + irm/iex) 시나리오는 amendment-v0.2 정책에 따라 SUPERSEDED. 본 AC 는 WSL2 bash 시나리오로 재정의됨.
+
+- **Given** Windows 11 + WSL2 (Ubuntu 22.04) 환경, WSL2 내부에 `curl` 사용 가능
+- **When** Windows 호스트에서 `wsl bash -c "curl -fsSL https://mink.ai/install | sh"` 실행
+- **Then** WSL2 내부의 install.sh 가 OS="Linux", ARCH="amd64" 감지 후 `mink_linux_amd64` 바이너리 다운로드, WSL2 의 `~/.local/bin/mink` 에 설치, SHA256 체크섬 검증 통과, `wsl bash -c "mink --version"` 응답
+
+### AC-CP-002-original — PowerShell 설치 스크립트 동작 (verifies REQ-CP-002) **[SUPERSEDED by amendment-v0.2 §3 — 2026-05-15]**
 - **Given** Windows 11, PowerShell 5.1 환경
 - **When** `irm https://mink.ai/install.ps1 | iex` 실행
 - **Then** OS="Windows", ARCH="amd64" 감지 후 `goose_windows_amd64.exe` 다운로드, `%USERPROFILE%\bin\mink.exe`에 설치
 
-### AC-CP-003 — winget 설치 (verifies REQ-CP-003)
+### AC-CP-003 — winget 설치 (verifies REQ-CP-003) **[SUPERSEDED by amendment-v0.2 §3 — 2026-05-15: REQ-CP-003 SUPERSEDED 에 종속]**
 - **Given** Windows 11, winget 설치됨
 - **When** `winget install ai-mink.mink` 실행
 - **Then** 최신 버전 mink 설치, `mink --version` 응답 확인
@@ -304,7 +331,7 @@ MINK는 개발자뿐 아니라 비개발자(가족, 친지)도 사용할 수 있
 - **When** GitHub Actions release workflow 실행
 - **Then** 6개 플랫폼 바이너리 생성, `checksums.txt` 생성, SBOM(spdx) 생성, GitHub Release에 업로드
 
-### AC-CP-012 — Homebrew 설치 (verifies REQ-CP-018)
+### AC-CP-012 — Homebrew 설치 (verifies REQ-CP-018) **[SUPERSEDED by amendment-v0.2 §3 — 2026-05-15: REQ-CP-018 SUPERSEDED 에 종속]**
 - **Given** macOS, Homebrew 설치됨
 - **When** `brew install ai-mink/tap/mink` 실행
 - **Then** mink 바이너리 설치, `mink --version` 응답
@@ -318,7 +345,7 @@ MINK는 개발자뿐 아니라 비개발자(가족, 친지)도 사용할 수 있
 - **When** 설치 스크립트 실행
 - **Then** "Unsupported platform: FreeBSD. Supported: macOS, Linux, Windows" 에러 메시지, exit code 1
 
-### AC-CP-014 — .deb/.rpm 패키지 생성 (verifies REQ-CP-019)
+### AC-CP-014 — .deb/.rpm 패키지 생성 (verifies REQ-CP-019) **[SUPERSEDED by amendment-v0.2 §3 — 2026-05-15: REQ-CP-019 SUPERSEDED 에 종속]**
 - **Given** goreleaser config에 `nfpms` 섹션이 `.deb` + `.rpm` 형식으로 설정됨
 - **When** GitHub Actions release workflow 실행
 - **Then** `goose_0.1.0_linux_amd64.deb` 및 `goose_0.1.0_linux_amd64.rpm` 아티팩트가 생성되어 GitHub Release에 업로드됨
