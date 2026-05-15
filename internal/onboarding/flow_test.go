@@ -8,7 +8,10 @@ package onboarding
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"regexp"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -395,4 +398,518 @@ func submitAllSteps(t *testing.T) *OnboardingFlow {
 		}
 	}
 	return f
+}
+
+// submitAllStepsForPersist submits all 7 steps and is suitable for CompleteAndPersist tests
+// that need a hermetic environment. Non-GDPR locale avoids consent complexity.
+func submitAllStepsForPersist(t *testing.T, opts ...FlowOption) *OnboardingFlow {
+	t.Helper()
+	f, err := StartFlow(context.Background(), nil, opts...)
+	if err != nil {
+		t.Fatalf("StartFlow: %v", err)
+	}
+	steps := []struct {
+		step int
+		data any
+	}{
+		{1, LocaleChoice{Country: "US", Language: "en"}},
+		{2, ModelSetup{}},
+		{3, CLIToolsDetection{}},
+		{4, PersonaProfile{Name: "TestUser", HonorificLevel: HonorificFormal}},
+		{5, ProviderChoice{Provider: ProviderUnset}},
+		{6, MessengerChannel{Type: MessengerLocalTerminal}},
+		{7, ConsentFlags{ConversationStorageLocal: true}},
+	}
+	for _, s := range steps {
+		if err := f.SubmitStep(s.step, s.data); err != nil {
+			t.Fatalf("SubmitStep(%d): %v", s.step, err)
+		}
+	}
+	return f
+}
+
+// --- Phase 1F — FlowOption and WithKeyring ---
+
+// TestStartFlow_VariadicNoOptions_BackwardCompat verifies that StartFlow(ctx, nil)
+// with no options compiles and behaves identically to Phase 1A (regression guard).
+func TestStartFlow_VariadicNoOptions_BackwardCompat(t *testing.T) {
+	f, err := StartFlow(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("StartFlow(ctx, nil) returned error: %v", err)
+	}
+	if f.CurrentStep != 1 {
+		t.Errorf("CurrentStep = %d, want 1", f.CurrentStep)
+	}
+	if !hexPattern.MatchString(f.SessionID) {
+		t.Errorf("SessionID %q does not match 32-hex pattern", f.SessionID)
+	}
+}
+
+// TestStartFlow_WithKeyring_StoresClient verifies that WithKeyring injects the client
+// by observing its effect: step 5 with AuthMethodAPIKey and a valid key results in
+// APIKeyStored == true, which only happens when the keyring client is present.
+func TestStartFlow_WithKeyring_StoresClient(t *testing.T) {
+	kr := NewInMemoryKeyring()
+	f, err := StartFlow(context.Background(), nil, WithKeyring(kr))
+	if err != nil {
+		t.Fatalf("StartFlow with WithKeyring: %v", err)
+	}
+
+	// Advance to step 5 via skips.
+	for i := 1; i <= 4; i++ {
+		if err := f.SkipStep(i); err != nil {
+			t.Fatalf("SkipStep(%d): %v", i, err)
+		}
+	}
+
+	// Submit step 5 via ProviderStepInput with a valid anthropic key.
+	const validKey = "sk-ant-api03-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+	input := ProviderStepInput{
+		Choice: ProviderChoice{
+			Provider:   ProviderAnthropic,
+			AuthMethod: AuthMethodAPIKey,
+		},
+		APIKey: validKey,
+	}
+	if err := f.SubmitStep(5, input); err != nil {
+		t.Fatalf("SubmitStep(5, ProviderStepInput): %v", err)
+	}
+
+	if !f.Data.Provider.APIKeyStored {
+		t.Error("Provider.APIKeyStored = false, want true (keyring client was injected)")
+	}
+}
+
+// --- Phase 1F — Step 4 persona validation ---
+
+// TestSubmitStep_Step4_ValidatesPersonaName_Empty verifies that an empty Name returns
+// a wrapped ErrNameEmpty.
+func TestSubmitStep_Step4_ValidatesPersonaName_Empty(t *testing.T) {
+	f := newFlowAt(t, 3)
+	err := f.SubmitStep(4, PersonaProfile{Name: "", HonorificLevel: HonorificFormal})
+	if !errors.Is(err, ErrNameEmpty) {
+		t.Errorf("SubmitStep(4, empty name) = %v, want errors.Is ErrNameEmpty", err)
+	}
+}
+
+// TestSubmitStep_Step4_ValidatesPersonaName_Injection verifies that a name containing
+// injection characters returns a wrapped ErrNameInjection.
+func TestSubmitStep_Step4_ValidatesPersonaName_Injection(t *testing.T) {
+	f := newFlowAt(t, 3)
+	err := f.SubmitStep(4, PersonaProfile{Name: "<script>alert(1)</script>", HonorificLevel: HonorificFormal})
+	if !errors.Is(err, ErrNameInjection) {
+		t.Errorf("SubmitStep(4, injection name) = %v, want errors.Is ErrNameInjection", err)
+	}
+}
+
+// TestSubmitStep_Step4_AcceptsEmptyHonorificLevel verifies that a valid name with an
+// empty HonorificLevel returns nil (the default is applied at completion time).
+func TestSubmitStep_Step4_AcceptsEmptyHonorificLevel(t *testing.T) {
+	f := newFlowAt(t, 3)
+	err := f.SubmitStep(4, PersonaProfile{Name: "Alice", HonorificLevel: ""})
+	if err != nil {
+		t.Errorf("SubmitStep(4, empty honorific) = %v, want nil", err)
+	}
+}
+
+// TestSubmitStep_Step4_RejectsInvalidHonorificLevel verifies that a non-empty but
+// invalid HonorificLevel value returns a wrapped ErrInvalidHonorificLevel.
+func TestSubmitStep_Step4_RejectsInvalidHonorificLevel(t *testing.T) {
+	f := newFlowAt(t, 3)
+	err := f.SubmitStep(4, PersonaProfile{Name: "Alice", HonorificLevel: "rude"})
+	if !errors.Is(err, ErrInvalidHonorificLevel) {
+		t.Errorf("SubmitStep(4, invalid honorific) = %v, want errors.Is ErrInvalidHonorificLevel", err)
+	}
+}
+
+// --- Phase 1F — Step 5 ProviderStepInput ---
+
+// TestSubmitStep_Step5_ProviderStepInput_ValidatesAPIKey_Invalid verifies that an
+// anthropic key with wrong format returns a wrapped ErrInvalidAPIKeyFormat.
+func TestSubmitStep_Step5_ProviderStepInput_ValidatesAPIKey_Invalid(t *testing.T) {
+	f := newFlowAt(t, 4)
+	input := ProviderStepInput{
+		Choice: ProviderChoice{
+			Provider:   ProviderAnthropic,
+			AuthMethod: AuthMethodAPIKey,
+		},
+		APIKey: "wrong",
+	}
+	err := f.SubmitStep(5, input)
+	if !errors.Is(err, ErrInvalidAPIKeyFormat) {
+		t.Errorf("SubmitStep(5, bad key) = %v, want errors.Is ErrInvalidAPIKeyFormat", err)
+	}
+}
+
+// TestSubmitStep_Step5_ProviderStepInput_StoresToKeyring_AuthMethodAPIKey verifies
+// the happy path: valid key + InMemoryKeyring + AuthMethodAPIKey → keyring has entry,
+// Provider.APIKeyStored == true.
+func TestSubmitStep_Step5_ProviderStepInput_StoresToKeyring_AuthMethodAPIKey(t *testing.T) {
+	kr := NewInMemoryKeyring()
+	f, err := StartFlow(context.Background(), nil, WithKeyring(kr))
+	if err != nil {
+		t.Fatalf("StartFlow: %v", err)
+	}
+	for i := 1; i <= 4; i++ {
+		if err := f.SkipStep(i); err != nil {
+			t.Fatalf("SkipStep(%d): %v", i, err)
+		}
+	}
+
+	const validKey = "sk-ant-api03-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+	input := ProviderStepInput{
+		Choice: ProviderChoice{
+			Provider:   ProviderAnthropic,
+			AuthMethod: AuthMethodAPIKey,
+		},
+		APIKey: validKey,
+	}
+	if err := f.SubmitStep(5, input); err != nil {
+		t.Fatalf("SubmitStep(5): %v", err)
+	}
+
+	if !f.Data.Provider.APIKeyStored {
+		t.Error("Provider.APIKeyStored = false, want true")
+	}
+
+	// Verify the key is actually in the keyring.
+	stored, err := GetProviderAPIKey(kr, "anthropic")
+	if err != nil {
+		t.Fatalf("GetProviderAPIKey: %v", err)
+	}
+	if stored != validKey {
+		t.Errorf("keyring stored %q, want %q", stored, validKey)
+	}
+}
+
+// TestSubmitStep_Step5_ProviderStepInput_SkipsKeyringWhenAuthMethodEnv verifies that
+// when AuthMethod is "env", the keyring is NOT written even if a valid key is provided,
+// and APIKeyStored remains false.
+func TestSubmitStep_Step5_ProviderStepInput_SkipsKeyringWhenAuthMethodEnv(t *testing.T) {
+	kr := NewInMemoryKeyring()
+	f, err := StartFlow(context.Background(), nil, WithKeyring(kr))
+	if err != nil {
+		t.Fatalf("StartFlow: %v", err)
+	}
+	for i := 1; i <= 4; i++ {
+		if err := f.SkipStep(i); err != nil {
+			t.Fatalf("SkipStep(%d): %v", i, err)
+		}
+	}
+
+	const validKey = "sk-ant-api03-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+	input := ProviderStepInput{
+		Choice: ProviderChoice{
+			Provider:   ProviderAnthropic,
+			AuthMethod: AuthMethodEnv,
+		},
+		APIKey: validKey,
+	}
+	if err := f.SubmitStep(5, input); err != nil {
+		t.Fatalf("SubmitStep(5, env auth): %v", err)
+	}
+
+	if f.Data.Provider.APIKeyStored {
+		t.Error("Provider.APIKeyStored = true, want false (env path skips keyring)")
+	}
+
+	// Keyring must not have any entry for anthropic.
+	_, keyErr := GetProviderAPIKey(kr, "anthropic")
+	if !errors.Is(keyErr, ErrKeyNotFound) {
+		t.Errorf("keyring entry should be absent for env path, got err=%v", keyErr)
+	}
+}
+
+// TestSubmitStep_Step5_ProviderStepInput_SkipsKeyringWhenNilKeyring verifies that
+// when no keyring is injected, valid key + AuthMethodAPIKey proceeds without panic
+// and APIKeyStored remains false (key validation still runs).
+func TestSubmitStep_Step5_ProviderStepInput_SkipsKeyringWhenNilKeyring(t *testing.T) {
+	f, err := StartFlow(context.Background(), nil) // no WithKeyring
+	if err != nil {
+		t.Fatalf("StartFlow: %v", err)
+	}
+	for i := 1; i <= 4; i++ {
+		if err := f.SkipStep(i); err != nil {
+			t.Fatalf("SkipStep(%d): %v", i, err)
+		}
+	}
+
+	const validKey = "sk-ant-api03-DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD"
+	input := ProviderStepInput{
+		Choice: ProviderChoice{
+			Provider:   ProviderAnthropic,
+			AuthMethod: AuthMethodAPIKey,
+		},
+		APIKey: validKey,
+	}
+	if err := f.SubmitStep(5, input); err != nil {
+		t.Fatalf("SubmitStep(5, no keyring): %v", err)
+	}
+
+	if f.Data.Provider.APIKeyStored {
+		t.Error("Provider.APIKeyStored = true, want false (nil keyring path)")
+	}
+}
+
+// TestSubmitStep_Step5_ProviderStepInput_OllamaNoKeyRequired verifies that ollama
+// with an empty key returns nil (ollama has no key requirement per validator).
+func TestSubmitStep_Step5_ProviderStepInput_OllamaNoKeyRequired(t *testing.T) {
+	f := newFlowAt(t, 4)
+	input := ProviderStepInput{
+		Choice: ProviderChoice{
+			Provider:   ProviderOllama,
+			AuthMethod: AuthMethodAPIKey,
+		},
+		APIKey: "",
+	}
+	if err := f.SubmitStep(5, input); err != nil {
+		t.Errorf("SubmitStep(5, ollama empty key) = %v, want nil", err)
+	}
+}
+
+// TestSubmitStep_Step5_LegacyProviderChoice_BackwardCompat verifies that passing
+// a bare ProviderChoice (no APIKey) assigns it directly without validation and without
+// calling the keyring (Phase 1A regression guard).
+func TestSubmitStep_Step5_LegacyProviderChoice_BackwardCompat(t *testing.T) {
+	kr := NewInMemoryKeyring()
+	f, err := StartFlow(context.Background(), nil, WithKeyring(kr))
+	if err != nil {
+		t.Fatalf("StartFlow: %v", err)
+	}
+	for i := 1; i <= 4; i++ {
+		if err := f.SkipStep(i); err != nil {
+			t.Fatalf("SkipStep(%d): %v", i, err)
+		}
+	}
+
+	pc := ProviderChoice{Provider: ProviderAnthropic, AuthMethod: AuthMethodAPIKey}
+	if err := f.SubmitStep(5, pc); err != nil {
+		t.Fatalf("SubmitStep(5, legacy ProviderChoice): %v", err)
+	}
+
+	if f.Data.Provider.Provider != ProviderAnthropic {
+		t.Errorf("Provider.Provider = %q, want %q", f.Data.Provider.Provider, ProviderAnthropic)
+	}
+	// APIKeyStored must remain false — legacy path does not touch keyring.
+	if f.Data.Provider.APIKeyStored {
+		t.Error("Provider.APIKeyStored = true, want false (legacy path)")
+	}
+	// Keyring must be untouched.
+	_, keyErr := GetProviderAPIKey(kr, "anthropic")
+	if !errors.Is(keyErr, ErrKeyNotFound) {
+		t.Errorf("keyring should be empty for legacy path, got err=%v", keyErr)
+	}
+}
+
+// --- Phase 1F — Step 7 GDPR consent validation ---
+
+// TestSubmitStep_Step7_GDPRConsentRequired_Blocks_NilExplicitConsent verifies that
+// submitting step 7 with GDPR locale but nil GDPRExplicitConsent returns ErrGDPRConsentRequired.
+func TestSubmitStep_Step7_GDPRConsentRequired_Blocks_NilExplicitConsent(t *testing.T) {
+	f, err := StartFlow(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("StartFlow: %v", err)
+	}
+	// Step 1 with GDPR locale.
+	if err := f.SubmitStep(1, LocaleChoice{Country: "DE", Language: "de", LegalFlags: []string{"GDPR"}}); err != nil {
+		t.Fatalf("SubmitStep(1): %v", err)
+	}
+	for i := 2; i <= 6; i++ {
+		if err := f.SkipStep(i); err != nil {
+			t.Fatalf("SkipStep(%d): %v", i, err)
+		}
+	}
+
+	err = f.SubmitStep(7, ConsentFlags{GDPRExplicitConsent: nil})
+	if !errors.Is(err, ErrGDPRConsentRequired) {
+		t.Errorf("SubmitStep(7, nil GDPR consent) = %v, want errors.Is ErrGDPRConsentRequired", err)
+	}
+}
+
+// TestSubmitStep_Step7_GDPRConsentRequired_Allows_True verifies that a GDPR locale
+// with GDPRExplicitConsent set to true passes step 7 validation.
+func TestSubmitStep_Step7_GDPRConsentRequired_Allows_True(t *testing.T) {
+	f, err := StartFlow(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("StartFlow: %v", err)
+	}
+	if err := f.SubmitStep(1, LocaleChoice{Country: "FR", Language: "fr", LegalFlags: []string{"GDPR"}}); err != nil {
+		t.Fatalf("SubmitStep(1): %v", err)
+	}
+	for i := 2; i <= 6; i++ {
+		if err := f.SkipStep(i); err != nil {
+			t.Fatalf("SkipStep(%d): %v", i, err)
+		}
+	}
+
+	trueVal := true
+	if err := f.SubmitStep(7, ConsentFlags{GDPRExplicitConsent: &trueVal}); err != nil {
+		t.Errorf("SubmitStep(7, GDPR=true) = %v, want nil", err)
+	}
+}
+
+// TestSubmitStep_Step7_NonGDPR_AllowsNilExplicitConsent verifies that a non-GDPR locale
+// with nil GDPRExplicitConsent passes step 7 validation.
+func TestSubmitStep_Step7_NonGDPR_AllowsNilExplicitConsent(t *testing.T) {
+	f, err := StartFlow(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("StartFlow: %v", err)
+	}
+	if err := f.SubmitStep(1, LocaleChoice{Country: "US", Language: "en", LegalFlags: []string{}}); err != nil {
+		t.Fatalf("SubmitStep(1): %v", err)
+	}
+	for i := 2; i <= 6; i++ {
+		if err := f.SkipStep(i); err != nil {
+			t.Fatalf("SkipStep(%d): %v", i, err)
+		}
+	}
+
+	if err := f.SubmitStep(7, ConsentFlags{GDPRExplicitConsent: nil}); err != nil {
+		t.Errorf("SubmitStep(7, non-GDPR nil consent) = %v, want nil", err)
+	}
+}
+
+// --- Phase 1F — SkipStep GDPR enforcement ---
+
+// TestSkipStep_Step7_GDPRRegion_Blocked verifies that SkipStep(7) in a GDPR region
+// returns ErrGDPRConsentRequired.
+func TestSkipStep_Step7_GDPRRegion_Blocked(t *testing.T) {
+	f, err := StartFlow(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("StartFlow: %v", err)
+	}
+	if err := f.SubmitStep(1, LocaleChoice{Country: "DE", Language: "de", LegalFlags: []string{"GDPR"}}); err != nil {
+		t.Fatalf("SubmitStep(1): %v", err)
+	}
+	for i := 2; i <= 6; i++ {
+		if err := f.SkipStep(i); err != nil {
+			t.Fatalf("SkipStep(%d): %v", i, err)
+		}
+	}
+
+	err = f.SkipStep(7)
+	if !errors.Is(err, ErrGDPRConsentRequired) {
+		t.Errorf("SkipStep(7) in GDPR region = %v, want errors.Is ErrGDPRConsentRequired", err)
+	}
+}
+
+// TestSkipStep_Step7_NonGDPRRegion_Allowed verifies that SkipStep(7) with no GDPR
+// legal flag succeeds and CurrentStep advances to 8.
+func TestSkipStep_Step7_NonGDPRRegion_Allowed(t *testing.T) {
+	f, err := StartFlow(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("StartFlow: %v", err)
+	}
+	if err := f.SubmitStep(1, LocaleChoice{Country: "US", Language: "en"}); err != nil {
+		t.Fatalf("SubmitStep(1): %v", err)
+	}
+	for i := 2; i <= 6; i++ {
+		if err := f.SkipStep(i); err != nil {
+			t.Fatalf("SkipStep(%d): %v", i, err)
+		}
+	}
+
+	if err := f.SkipStep(7); err != nil {
+		t.Errorf("SkipStep(7) non-GDPR = %v, want nil", err)
+	}
+	if f.CurrentStep != 8 {
+		t.Errorf("CurrentStep = %d, want 8 after SkipStep(7)", f.CurrentStep)
+	}
+}
+
+// --- Phase 1F — CompleteAndPersist ---
+
+// TestCompleteAndPersist_HappyPath verifies that CompleteAndPersist writes the global
+// config, project config, and the onboarding-completed marker to a hermetic temp directory.
+func TestCompleteAndPersist_HappyPath(t *testing.T) {
+	tempHome := t.TempDir()
+	tempProject := t.TempDir()
+
+	globalPath := filepath.Join(tempHome, ".mink", "config.yaml")
+	projectPath := filepath.Join(tempProject, ".mink", "config.yaml")
+	markerPath := filepath.Join(tempHome, ".mink", "onboarding-completed")
+
+	fixedTime := time.Date(2026, 5, 16, 12, 0, 0, 0, time.UTC)
+	opts := CompletionOptions{
+		GlobalConfigPathOverride:  globalPath,
+		ProjectConfigPathOverride: projectPath,
+		CompletedMarkerOverride:   markerPath,
+		Now:                       func() time.Time { return fixedTime },
+	}
+
+	kr := NewInMemoryKeyring()
+	f := submitAllStepsForPersist(t, WithKeyring(kr), WithCompletionOptions(opts))
+
+	data, err := f.CompleteAndPersist()
+	if err != nil {
+		t.Fatalf("CompleteAndPersist() error: %v", err)
+	}
+	if data == nil {
+		t.Fatal("CompleteAndPersist() returned nil data")
+	}
+
+	// Verify global config file exists.
+	if _, statErr := os.Stat(globalPath); statErr != nil {
+		t.Errorf("global config file not created: %v", statErr)
+	}
+	// Verify project config file exists.
+	if _, statErr := os.Stat(projectPath); statErr != nil {
+		t.Errorf("project config file not created: %v", statErr)
+	}
+	// Verify onboarding marker exists and contains an RFC3339 timestamp.
+	markerBytes, readErr := os.ReadFile(markerPath)
+	if readErr != nil {
+		t.Fatalf("marker file not readable: %v", readErr)
+	}
+	markerContent := string(markerBytes)
+	if len(markerContent) < 20 {
+		t.Errorf("marker content looks wrong: %q", markerContent)
+	}
+	// Ensure CompletedAt is set on the flow.
+	if f.CompletedAt == nil {
+		t.Error("CompletedAt is nil after CompleteAndPersist")
+	}
+}
+
+// TestCompleteAndPersist_NotReady_ReturnsErrNotReadyToComplete verifies that calling
+// CompleteAndPersist without finishing all 7 steps returns ErrNotReadyToComplete.
+func TestCompleteAndPersist_NotReady_ReturnsErrNotReadyToComplete(t *testing.T) {
+	f, err := StartFlow(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("StartFlow: %v", err)
+	}
+	// Only submit 3 steps.
+	for i := 1; i <= 3; i++ {
+		if err := f.SkipStep(i); err != nil {
+			t.Fatalf("SkipStep(%d): %v", i, err)
+		}
+	}
+
+	_, err = f.CompleteAndPersist()
+	if !errors.Is(err, ErrNotReadyToComplete) {
+		t.Errorf("CompleteAndPersist() not-ready = %v, want errors.Is ErrNotReadyToComplete", err)
+	}
+}
+
+// TestCompleteAndPersist_PersistFailureWrapsErrPersistFailed verifies that a write
+// failure in WriteCompletionConfig results in an error wrapping ErrPersistFailed.
+// Skipped on Windows because /dev/null semantics differ.
+func TestCompleteAndPersist_PersistFailureWrapsErrPersistFailed(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping on Windows: /dev/null directory semantics differ")
+	}
+
+	opts := CompletionOptions{
+		// This path has a non-existent parent component that cannot be created.
+		GlobalConfigPathOverride:  "/dev/null/impossible/x.yaml",
+		ProjectConfigPathOverride: filepath.Join(t.TempDir(), "project.yaml"),
+		CompletedMarkerOverride:   filepath.Join(t.TempDir(), "marker"),
+	}
+
+	f := submitAllStepsForPersist(t, WithCompletionOptions(opts))
+
+	_, err := f.CompleteAndPersist()
+	if !errors.Is(err, ErrPersistFailed) {
+		t.Errorf("CompleteAndPersist() persist fail = %v, want errors.Is ErrPersistFailed", err)
+	}
 }
