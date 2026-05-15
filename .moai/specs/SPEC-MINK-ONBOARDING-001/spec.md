@@ -720,7 +720,7 @@ LOCALE-001 `legal_flags` 기반 Step 5 UI 조건부 분기.
 13. **RED #13** — `TestPrefersReducedMotion_DisablesAnimation` → AC-OB-020 (NEW, REQ-OB-019)
 14. **GREEN** — 최소 구현
 15. **REFACTOR** — step validator를 선언적 테이블로
-16. **E2E (Playwright + CLI speedrun)** — 3분/2분 완주 검증 → AC-OB-016
+16. **E2E (Playwright + CLI speedrun)** — Web 4분 / CLI 3분 완주 검증 → AC-OB-016 (v0.3.1 7-Step 기준)
 
 ---
 
@@ -751,7 +751,7 @@ LOCALE-001 `legal_flags` 기반 Step 5 UI 조건부 분기.
 
 | # | 리스크 | 가능성 | 영향 | 완화 |
 |---|------|------|-----|------|
-| R1 | 5단계가 여전히 길게 느껴져 중도 이탈 | 중 | 고 | Skip 적극 강조, 3분 내 완료 보장, 각 단계 평균 30초 목표, CLI `--yes`로 완전 비대화 가능 |
+| R1 | 7단계가 여전히 길게 느껴져 중도 이탈 | 중 | 고 | Skip 적극 강조, Web 4분 / CLI 3분 내 완료 보장 (v0.3.1), 각 단계 평균 ~30초 목표, CLI `--yes`로 완전 비대화 가능 |
 | R2 | GDPR 명시적 동의 미준수 시 법적 리스크 | 중 | 고 | 외부 법률 검토 + LOCALE-001 `legal_flags` 조건부 분기 + audit 로그 |
 | R3 | LLM provider 스킵 후 영영 미설정 | 중 | 중 | 메인 앱 첫 실행 시 persistent notice + `mink config provider` 단축 명령 |
 | R4 | API key 검증이 provider별로 다름 | 중 | 중 | provider별 prefix regex 테이블 + "Test connection" 선택 가능 (opt-in, 1 request 소비) |
