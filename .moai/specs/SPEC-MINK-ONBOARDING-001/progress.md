@@ -1,10 +1,10 @@
 ## SPEC-MINK-ONBOARDING-001 Progress
 
-- **Status**: 🟡 draft — Phase 1A + 1B + 1C (paths + keyring) 완료, Phase 1D / 1E / 1F / 2 / 3 / 4 잔여
-- **Last update**: 2026-05-15
-- **Spec version**: v0.3.1 (amendment-v0.3 본문 병합 후)
-- **Doc commits**: SPEC 생성 (`a2b3551`) → MINK rebrand (`81d9fa4`) → amendment-v0.3 본문 병합 (본 PR)
-- **Implementation commits**: 4 (Phase 1A PR #200 / Phase 1B PR #201 / Phase 1C-paths PR #202 / Phase 1C-keyring PR #203)
+- **Status**: 🟡 draft — Phase 1A + 1B + 1C (paths + keyring) + 1E 완료, Phase 1D / 1F / 2 / 3 / 4 잔여
+- **Last update**: 2026-05-16
+- **Spec version**: v0.3.2 (Phase 1C canonical path policy 명문화)
+- **Doc commits**: SPEC 생성 (`a2b3551`) → MINK rebrand (`81d9fa4`) → amendment-v0.3 본문 병합 → v0.3.2 §6.0 canonical path policy
+- **Implementation commits**: 5 (Phase 1A PR #200 / Phase 1B PR #201 / Phase 1C-paths PR #202 / Phase 1C-keyring PR #203 / Phase 1E PR #204)
 
 ## 문서 진척 (Phase 0)
 
@@ -24,7 +24,7 @@
 | **Phase 1C-paths**: paths.go + progress.go (file I/O) + spec.md §6.0 Canonical Path Policy | 🟢 완료 (PR #202) | 989 LOC (4 files, 56 sub-tests + spec.md +43) | `internal/onboarding/{paths.go (152), progress.go (204), paths_test.go (168), progress_test.go (218)}`. GlobalConfigDir/ProjectConfigDir/DraftPath/SecurityEventsPath resolver + Draft struct + SaveDraft (atomic) + LogSecurityEvent (NDJSON). spec.md v0.3.1 → v0.3.2 + §6.0 신설 + AC-OB-007/012/018/027 정정 (~/.mink vs ./.mink canonical 결정). |
 | **Phase 1C-keyring**: keyring.go + zalando/go-keyring | 🟢 완료 (PR #203) | 552 LOC (2 files, 15 sub-tests) | `internal/onboarding/{keyring.go (259), keyring_test.go (293)}`. KeyringClient interface + SystemKeyring (zalando wrap) + InMemoryKeyring (RWMutex map, concurrent-safe) + 3 high-level helpers (SetProviderAPIKey / GetProviderAPIKey / DeleteProviderAPIKey, prefix `mink.provider.{name}.api_key`, service `"mink"`). 5 sentinel errors + zalando ErrNotFound → ErrKeyNotFound 번역. 신규 의존성 zalando/go-keyring v0.2.8 (direct). |
 | **Phase 1D**: Model Setup + CLI Tools (`model_setup.go` + `cli_detection.go`) | ⏸️ | 150-250 LOC | CROSSPLAT-001 의존 (완료) — install.sh 의 `~/.mink/config.yaml` 의 `delegation.available_tools` 읽기. Ollama detection, RAM 감지, ollama pull 호출. claude/gemini/codex `command -v` 스캔. |
-| **Phase 1E**: Completion (`completion.go`) | ⏸️ | 100-200 LOC | LOCALE/I18N/REGION-SKILLS 초기화 호출 + UserProfile 빌드 + 후속 SPEC 초기화 + onboarding-completed 기록 |
+| **Phase 1E**: Completion (`completion.go`) | 🟢 완료 (PR #204) | 1026 LOC (2 files, 19 Test 함수) | `internal/onboarding/{completion.go (377), completion_test.go (650)}`. WriteCompletionConfig (global half: model+delegation+providers / project half: persona+messenger+consent) + WriteOnboardingCompleted (RFC3339 idempotent marker) + CompletionOptions (DryRun + path overrides + Now 주입). install.sh merge 는 `map[string]any` round-trip 으로 unrelated key 보존. 5 sentinel errors + AuthMethodEnv → "env" / keyring 성공 → "keyring" / ErrKeyNotFound·nil-client → "none" 분기. ProviderUnset → providers 섹션 생략. 시크릿 disk 미기록 (defense-in-depth). 1차 push CLEAN. |
 | **Phase 2**: CLI `mink init` 7-step TUI | ⏸️ | 600-800 LOC | `cmd/mink/cmd/init.go` + `internal/cli/install/tui.go` — charmbracelet/huh 의존 추가 + 7-step TUI + `--resume` + tty echo off |
 | **Phase 3**: Web UI 7-step Wizard | ⏸️ | 800-1200 LOC | `internal/server/install/` + `web/install/` — React 19 + shadcn/ui + Vite + `/install` route + progress bar + fetch → Go server |
 | **Phase 4**: E2E (Playwright + CLI speedrun) | ⏸️ | 300-500 LOC | `e2e/install-wizard-speedrun.spec.ts` + `scripts/cli-install-speedrun.sh` + `.github/workflows/install-wizard-e2e.yml` — AC-OB-016 Web 4분 / CLI 3분 검증 |
