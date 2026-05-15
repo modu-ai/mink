@@ -71,12 +71,7 @@ func (c *WeatherCollector) Collect(ctx context.Context, location string) (*Weath
 	if forecast != nil {
 		days := make([]WeatherForecastDay, len(forecast.Days))
 		for i, d := range forecast.Days {
-			days[i] = WeatherForecastDay{
-				Date:      d.Date,
-				High:      d.High,
-				Low:       d.Low,
-				Condition: d.Condition,
-			}
+			days[i] = WeatherForecastDay(d)
 		}
 		module.Forecast = &WeatherForecast{Days: days}
 	}

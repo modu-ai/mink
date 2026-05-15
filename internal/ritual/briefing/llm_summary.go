@@ -127,26 +127,26 @@ func FormatLLMPrompt(req *LLMSummaryRequest) string {
 	var sb strings.Builder
 	sb.WriteString("아래 카테고리 신호를 바탕으로 한국어로 2~3줄의 따뜻한 아침 요약을 작성해주세요. ")
 	sb.WriteString("개인 정보(일기 내용, mantra 본문, 좌표, chat_id)는 포함되지 않았으며 작성 결과에도 포함하지 마세요.\n\n")
-	sb.WriteString(fmt.Sprintf("- date: %s (%s)\n", req.Date, req.DayOfWeek))
-	sb.WriteString(fmt.Sprintf("- weather: status=%s", req.WeatherStatus))
+	fmt.Fprintf(&sb, "- date: %s (%s)\n", req.Date, req.DayOfWeek)
+	fmt.Fprintf(&sb, "- weather: status=%s", req.WeatherStatus)
 	if req.WeatherCondition != "" {
-		sb.WriteString(fmt.Sprintf(", cond=%s, temp≈%d°C", req.WeatherCondition, req.WeatherTempInt))
+		fmt.Fprintf(&sb, ", cond=%s, temp≈%d°C", req.WeatherCondition, req.WeatherTempInt)
 	}
 	if req.WeatherLocation != "" {
-		sb.WriteString(fmt.Sprintf(", loc=%s", req.WeatherLocation))
+		fmt.Fprintf(&sb, ", loc=%s", req.WeatherLocation)
 	}
 	if req.AQILevel != "" {
-		sb.WriteString(fmt.Sprintf(", aqi=%s", req.AQILevel))
+		fmt.Fprintf(&sb, ", aqi=%s", req.AQILevel)
 	}
 	sb.WriteString("\n")
-	sb.WriteString(fmt.Sprintf("- journal: status=%s, anniversaries=%d", req.JournalStatus, req.AnniversaryCount))
+	fmt.Fprintf(&sb, "- journal: status=%s, anniversaries=%d", req.JournalStatus, req.AnniversaryCount)
 	if len(req.AnniversaryYears) > 0 {
-		sb.WriteString(fmt.Sprintf(", years=%v", req.AnniversaryYears))
+		fmt.Fprintf(&sb, ", years=%v", req.AnniversaryYears)
 	}
-	sb.WriteString(fmt.Sprintf(", mood_slope=%+d", req.MoodTrendSlope))
+	fmt.Fprintf(&sb, ", mood_slope=%+d", req.MoodTrendSlope)
 	sb.WriteString("\n")
-	sb.WriteString(fmt.Sprintf("- calendar: solar_term=%t, holiday=%t\n", req.SolarTermPresent, req.HolidayPresent))
-	sb.WriteString(fmt.Sprintf("- mantra: present=%t\n", req.MantraPresent))
+	fmt.Fprintf(&sb, "- calendar: solar_term=%t, holiday=%t\n", req.SolarTermPresent, req.HolidayPresent)
+	fmt.Fprintf(&sb, "- mantra: present=%t\n", req.MantraPresent)
 	sb.WriteString("\n응답은 분석/진단 어휘 없이 2~3 줄로만.")
 	return sb.String()
 }

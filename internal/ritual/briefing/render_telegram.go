@@ -72,14 +72,14 @@ func RenderTelegramText(payload *BriefingPayload) string {
 	default:
 		if payload.Weather.Current != nil {
 			c := payload.Weather.Current
-			sb.WriteString(fmt.Sprintf("- Temp: %.1f°C (feels %.1f°C)\n", c.Temp, c.FeelsLike))
-			sb.WriteString(fmt.Sprintf("- Cond: %s\n", c.Condition))
+			fmt.Fprintf(&sb, "- Temp: %.1f°C (feels %.1f°C)\n", c.Temp, c.FeelsLike)
+			fmt.Fprintf(&sb, "- Cond: %s\n", c.Condition)
 			if c.Location != "" {
-				sb.WriteString(fmt.Sprintf("- Loc: %s\n", c.Location))
+				fmt.Fprintf(&sb, "- Loc: %s\n", c.Location)
 			}
 		}
 		if payload.Weather.AirQuality != nil {
-			sb.WriteString(fmt.Sprintf("- AQI: %d (%s)\n", payload.Weather.AirQuality.AQI, payload.Weather.AirQuality.Level))
+			fmt.Fprintf(&sb, "- AQI: %d (%s)\n", payload.Weather.AirQuality.AQI, payload.Weather.AirQuality.Level)
 		}
 	}
 	sb.WriteString("\n")
@@ -98,35 +98,35 @@ func RenderTelegramText(payload *BriefingPayload) string {
 				if emoji == "" {
 					emoji = "📝"
 				}
-				sb.WriteString(fmt.Sprintf("- %s %dY: %s\n", emoji, a.YearsAgo, a.Date))
+				fmt.Fprintf(&sb, "- %s %dY: %s\n", emoji, a.YearsAgo, a.Date)
 			}
 		} else {
 			sb.WriteString("_no anniversaries today_\n")
 		}
 		if payload.JournalRecall.MoodTrend != nil {
-			sb.WriteString(fmt.Sprintf("- Mood: %s (%s)\n",
+			fmt.Fprintf(&sb, "- Mood: %s (%s)\n",
 				payload.JournalRecall.MoodTrend.Trend,
-				payload.JournalRecall.MoodTrend.Period))
+				payload.JournalRecall.MoodTrend.Period)
 		}
 	}
 	sb.WriteString("\n")
 
 	// Date
 	sb.WriteString("*📅 Date*\n")
-	sb.WriteString(fmt.Sprintf("- %s (%s)\n", payload.DateCalendar.Today, payload.DateCalendar.DayOfWeek))
+	fmt.Fprintf(&sb, "- %s (%s)\n", payload.DateCalendar.Today, payload.DateCalendar.DayOfWeek)
 	if payload.DateCalendar.SolarTerm != nil {
-		sb.WriteString(fmt.Sprintf("- Solar Term: %s (%s)\n",
-			payload.DateCalendar.SolarTerm.Name, payload.DateCalendar.SolarTerm.NameHanja))
+		fmt.Fprintf(&sb, "- Solar Term: %s (%s)\n",
+			payload.DateCalendar.SolarTerm.Name, payload.DateCalendar.SolarTerm.NameHanja)
 	}
 	if payload.DateCalendar.Holiday != nil {
-		sb.WriteString(fmt.Sprintf("- Holiday: %s\n", payload.DateCalendar.Holiday.Name))
+		fmt.Fprintf(&sb, "- Holiday: %s\n", payload.DateCalendar.Holiday.Name)
 	}
 	sb.WriteString("\n")
 
 	// Mantra
 	if payload.Mantra.Text != "" {
 		sb.WriteString("*✨ Mantra*\n")
-		sb.WriteString(fmt.Sprintf("_%s_\n", payload.Mantra.Text))
+		fmt.Fprintf(&sb, "_%s_\n", payload.Mantra.Text)
 	}
 
 	// T-305: Prepend crisis hotline response when rendered text contains a
