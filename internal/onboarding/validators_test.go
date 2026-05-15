@@ -10,11 +10,6 @@ import (
 	"testing"
 )
 
-// ptrBool is a helper that returns a pointer to the given bool value.
-func ptrBool(b bool) *bool {
-	return &b
-}
-
 // TestValidatePersonaName covers AC-OB-005 (empty), AC-OB-015 (injection), and
 // REQ-OB-017 (>500 bytes).
 // SPEC §6.8 #2 (EmptyName), #9 (NameInjection)
@@ -293,6 +288,11 @@ func TestValidateProviderAPIKey(t *testing.T) {
 // TestValidateGDPRConsent covers REQ-OB-008, AC-OB-008, and AC-OB-014.
 // SPEC §6.8 #6 (GDPR consent)
 func TestValidateGDPRConsent(t *testing.T) {
+	// Named bool values used by *bool fields below — addressable inline pattern
+	// is the Go-idiomatic alternative to a `func(b bool) *bool { return &b }`
+	// helper, which gopls modernize flags as inlinable into `new(expr)`.
+	truePtr, falsePtr := true, false
+
 	cases := []struct {
 		name    string
 		consent ConsentFlags
@@ -307,13 +307,13 @@ func TestValidateGDPRConsent(t *testing.T) {
 		},
 		{
 			name:    "EU locale GDPR flag with false consent",
-			consent: ConsentFlags{GDPRExplicitConsent: ptrBool(false)},
+			consent: ConsentFlags{GDPRExplicitConsent: &falsePtr},
 			locale:  LocaleChoice{LegalFlags: []string{"GDPR"}},
 			wantErr: ErrGDPRConsentRequired,
 		},
 		{
 			name:    "EU locale GDPR flag with true consent",
-			consent: ConsentFlags{GDPRExplicitConsent: ptrBool(true)},
+			consent: ConsentFlags{GDPRExplicitConsent: &truePtr},
 			locale:  LocaleChoice{LegalFlags: []string{"GDPR"}},
 			wantErr: nil,
 		},
@@ -325,7 +325,7 @@ func TestValidateGDPRConsent(t *testing.T) {
 		},
 		{
 			name:    "case-insensitive match: mixed case Gdpr with true consent",
-			consent: ConsentFlags{GDPRExplicitConsent: ptrBool(true)},
+			consent: ConsentFlags{GDPRExplicitConsent: &truePtr},
 			locale:  LocaleChoice{LegalFlags: []string{"Gdpr"}},
 			wantErr: nil,
 		},
@@ -356,7 +356,7 @@ func TestValidateGDPRConsent(t *testing.T) {
 		},
 		{
 			name:    "multiple flags including GDPR with true consent",
-			consent: ConsentFlags{GDPRExplicitConsent: ptrBool(true)},
+			consent: ConsentFlags{GDPRExplicitConsent: &truePtr},
 			locale:  LocaleChoice{LegalFlags: []string{"CCPA", "GDPR", "PIPL"}},
 			wantErr: nil,
 		},
