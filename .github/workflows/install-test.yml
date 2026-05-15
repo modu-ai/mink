@@ -12,11 +12,13 @@ on:
       - 'scripts/install.sh'
       - 'scripts/install.bats'
       - '.github/workflows/install-test.yml'
+      - '.gitattributes'
   pull_request:
     paths:
       - 'scripts/install.sh'
       - 'scripts/install.bats'
       - '.github/workflows/install-test.yml'
+      - '.gitattributes'
 
 jobs:
   bats:
