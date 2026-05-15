@@ -15,7 +15,7 @@ import (
 // a PermissionModel initialised with Active=true, ToolName="Bash" renders
 // and can be snapshot-tested.
 func TestPermission_Modal_OpensOnRequest(t *testing.T) {
-	snapshots.SetupAsciiTermenv()
+	snapshots.SetupASCIITermenv()
 
 	pm := PermissionModel{
 		Active:    true,

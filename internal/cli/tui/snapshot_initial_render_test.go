@@ -16,7 +16,7 @@ import (
 // AC-CLITUI-002
 func TestSnapshot_ChatREPL_InitialRender(t *testing.T) {
 	// Must be called first to strip all ANSI color codes.
-	snapshots.SetupAsciiTermenv()
+	snapshots.SetupASCIITermenv()
 
 	// Arrange: model with mock client and noColor=true for pure ASCII output.
 	mock := &mockDaemonClient{}

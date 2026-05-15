@@ -3,7 +3,7 @@
 // Usage:
 //
 //	func TestFoo(t *testing.T) {
-//	    snapshots.SetupAsciiTermenv()
+//	    snapshots.SetupASCIITermenv()
 //	    got := renderSomething()
 //	    snapshots.RequireSnapshot(t, "foo", got)
 //	}
@@ -36,11 +36,11 @@ func updateSnapshots() bool {
 	return os.Getenv("UPDATE_SNAPSHOTS") == "1"
 }
 
-// SetupAsciiTermenv forces ASCII color profile for deterministic snapshots.
+// SetupASCIITermenv forces ASCII color profile for deterministic snapshots.
 // Must be called before any lipgloss rendering in test.
 //
 // @MX:NOTE Snapshot determinism — forces termenv.Ascii, called before any lipgloss render. REQ-CLITUI-001
-func SetupAsciiTermenv() {
+func SetupASCIITermenv() {
 	lipgloss.SetColorProfile(termenv.Ascii)
 }
 

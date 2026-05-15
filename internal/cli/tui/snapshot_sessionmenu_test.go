@@ -15,7 +15,7 @@ import (
 // AC-CLITUI3-004
 func TestSnapshot_SessionMenuOpen(t *testing.T) {
 	// Force ASCII profile for deterministic snapshot output.
-	snapshots.SetupAsciiTermenv()
+	snapshots.SetupASCIITermenv()
 
 	m := NewModel(nil, "test-session", true /* noColor */)
 	m.clock = snapshots.FixedClock(time.Date(2026, 5, 5, 12, 0, 0, 0, time.UTC))

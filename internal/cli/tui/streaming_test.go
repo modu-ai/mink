@@ -14,7 +14,7 @@ import (
 // TestStatusbar_Streaming_Throughput verifies the streaming statusbar shows
 // spinner, token count, throughput, elapsed, and abort hint. AC-CLITUI-007
 func TestStatusbar_Streaming_Throughput(t *testing.T) {
-	snapshots.SetupAsciiTermenv()
+	snapshots.SetupASCIITermenv()
 
 	model := NewModel(nil, "test-session", true /* noColor */)
 	model.width = 80
@@ -62,7 +62,7 @@ func TestStatusbar_Streaming_Throughput(t *testing.T) {
 // TestStatusbar_Streaming_Aborted verifies Ctrl-C during streaming sets confirmQuit
 // and the snapshot matches. AC-CLITUI-008
 func TestStatusbar_Streaming_Aborted(t *testing.T) {
-	snapshots.SetupAsciiTermenv()
+	snapshots.SetupASCIITermenv()
 
 	model := NewModel(nil, "test-session", true)
 	model.width = 80
@@ -96,7 +96,7 @@ func TestStreamProgressMsg_TypeExists(t *testing.T) {
 
 // TestCostEstimate_FromUsage verifies cost calculation from usage data. AC-CLITUI-016
 func TestStatusbar_CostEstimate_FromUsage(t *testing.T) {
-	snapshots.SetupAsciiTermenv()
+	snapshots.SetupASCIITermenv()
 
 	model := NewModel(nil, "test-session", true)
 	model.width = 80

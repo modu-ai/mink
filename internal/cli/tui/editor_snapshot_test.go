@@ -11,7 +11,7 @@ import (
 // TestSnapshot_EditorMultiline verifies the multi-line editor view snapshot.
 // AC-CLITUI-009
 func TestSnapshot_EditorMultiline(t *testing.T) {
-	snapshots.SetupAsciiTermenv()
+	snapshots.SetupASCIITermenv()
 
 	model := NewModel(nil, "test-session", true)
 	model.width = 80

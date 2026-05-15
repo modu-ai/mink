@@ -43,7 +43,7 @@ func (m *mockPermClient) ResolvePermission(_ context.Context, _, toolName, decis
 // TestPermission_Modal_OpensOnRequest verifies AC-CLITUI-003:
 // mock client injects permission_request payload → permissionState.active=true + ToolName="Bash".
 func TestPermission_Modal_OpensOnRequest(t *testing.T) {
-	snapshots.SetupAsciiTermenv()
+	snapshots.SetupASCIITermenv()
 
 	model := NewModel(nil, "test-session", true /* noColor */)
 	model.width = 80
