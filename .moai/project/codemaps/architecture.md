@@ -9,7 +9,7 @@ MINK Go 코드베이스의 계층식 구조.
 ```
 ┌────────────────────────────────────────────────┐
 │ Layer 5: Entry Points (cmd/)                   │
-│  cmd/goose (CLI) ↔ cmd/goosed (gRPC daemon)  │
+│  cmd/mink (CLI) ↔ cmd/minkd (gRPC daemon)  │
 └──────────────────┬──────────────────────────────┘
                    │ gRPC/WebSocket/SSE
 ┌──────────────────▼──────────────────────────────┐
@@ -59,9 +59,8 @@ MINK Go 코드베이스의 계층식 구조.
 ```mermaid
 graph TB
     subgraph "cmd (Entry Points)"
-        CLI["🖥️ goose<br/>CLI client"]
-        DAEMON["🖧 goosed<br/>gRPC daemon"]
-        RELAY["🔗 goose-relay<br/>E2EE relay"]
+        CLI["🖥️ mink<br/>CLI client"]
+        DAEMON["🖧 minkd<br/>gRPC daemon"]
     end
     
     subgraph "L4: Core"
@@ -138,8 +137,8 @@ graph TB
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant CLI as goose CLI
-    participant DAEMON as goosed
+    participant CLI as mink CLI
+    participant DAEMON as minkd
     participant QUERY as QueryEngine
     participant CMD as Dispatcher
     participant AGENT as Agent

@@ -25,7 +25,7 @@
 - AI 에이전트 개발자: 10만+
 - **타깃**: Year 1에 10,000 contributors
 
-### 1.3 GOOSE 생태계 철학
+### 1.3 MINK 생태계 철학
 
 - **Apache License 2.0**: 완전 자유 (상업, 수정, 재배포, 특허 grant 포함)
 - **Meritocratic**: 기여 = 영향력
@@ -76,7 +76,7 @@ When user greets in the morning:
 ## Example dialogue
 
 User: "Good morning"
-GOOSE: "Good morning, Alex! Today you have 3 meetings (first at 10 AM with John).
+MINK: "Good morning, Alex! Today you have 3 meetings (first at 10 AM with John).
 Weather is sunny, 22°C - nice day for a walk.
 Top news: [Tech stock up 5%, New AI release]
 You seem more energetic than last week - great momentum!"
@@ -97,7 +97,7 @@ pub fn translate_document(input: String) -> FnResult<String> {
 
 **TS Plugin 예시**:
 ```typescript
-import { definePlugin } from '@gooseagent/sdk';
+import { definePlugin } from '@minkagent/sdk';
 
 export default definePlugin({
   name: 'notion-sync',
@@ -122,7 +122,7 @@ export default definePlugin({
 
 **Agent Card 예시**:
 ```yaml
-id: "urn:goose:agent:legal-review-global"
+id: "urn:mink:agent:legal-review-global"
 name: "Legal Review Pro"
 version: "2.1.0"
 author:
@@ -150,7 +150,7 @@ sla:
 
 endpoint:
   type: "https"
-  url: "https://agents.legalai.com/goose"
+  url: "https://agents.legalai.com/mink"
   auth: "oauth2_pkce"
 
 a2a_version: "0.3"
@@ -209,19 +209,19 @@ graph TD
 
 ---
 
-## 4. Goose SDK (Goose SDK)
+## 4. MINK SDK (MINK SDK)
 
 ### 4.1 Go SDK
 
 ```bash
-go get github.com/gooseagent/goose-sdk-go
+go get github.com/modu-ai/mink-sdk-go
 ```
 
 ```go
-import "github.com/gooseagent/goose-sdk-go"
+import "github.com/modu-ai/mink-sdk-go"
 
 func main() {
-    plugin := goose.NewPlugin("my-plugin")
+    plugin := mink.NewPlugin("my-plugin")
     plugin.AddTool(&MyTool{})
     plugin.Run()
 }
@@ -230,12 +230,12 @@ func main() {
 ### 4.2 TypeScript SDK
 
 ```bash
-npm install -g @gooseagent/cli
-goose init my-plugin
+npm install -g @minkagent/cli
+mink init my-plugin
 cd my-plugin
-goose dev       # Hot reload
-goose test
-goose publish
+mink dev       # Hot reload
+mink test
+mink publish
 ```
 
 ### 4.3 SDK 기능
@@ -309,7 +309,7 @@ goose publish
 ### 6.1 공식 채널
 
 **Discord** (메인 실시간 채널):
-- Server: "GOOSE Community"
+- Server: "MINK Community"
 - 채널 (다국어):
   - `#general` (영어)
   - `#korean` (한국어)
@@ -372,7 +372,7 @@ goose publish
 
 ## 7. 개발자 인센티브
 
-### 7.1 GOOSE Dev Program
+### 7.1 MINK Dev Program
 
 | 마일스톤 | 보상 |
 |---------|------|
@@ -464,7 +464,7 @@ goose publish
 sequenceDiagram
     participant P as Plugin (WASM)
     participant S as Sandbox
-    participant G as GOOSE Core
+    participant G as MINK Core
     participant U as User
     
     U->>G: "Use my-plugin"
@@ -486,7 +486,7 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    participant G as GOOSE
+    participant G as MINK
     participant R as Registry
     participant E as External Agent
     
@@ -520,7 +520,7 @@ sequenceDiagram
 
 ### 10.3 비디오
 
-- YouTube: "GOOSE Agent"
+- YouTube: "MINK Agent"
 - Weekly dev updates
 - Tutorial playlists (다국어)
 - Conference talks
@@ -604,7 +604,7 @@ sequenceDiagram
 
 ## 14. 결론
 
-GOOSE 생태계의 약속:
+MINK 생태계의 약속:
 1. **Open Source Forever**: Apache-2.0, 인수 X
 2. **Fair Revenue**: 70/30 개발자 우대
 3. **Transparent Governance**: RFC, 공개 결정
@@ -616,6 +616,6 @@ GOOSE 생태계의 약속:
 Version: 5.0.0 ETERNAL EDITION
 Created: 2026-04-21
 License: Apache-2.0
-Community: github.com/modu-ai/goose
+Community: github.com/modu-ai/mink
 
 > **"An Assembly of developers, building the future together."**

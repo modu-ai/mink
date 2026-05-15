@@ -14,7 +14,7 @@
 **→ `architecture.md`** 계층식 아키텍처 + mermaid 다이어그램
 - 5계층: cmd → core → agent → learning → bridge
 - 핵심 모듈 의존성 맵
-- 진입점 (goose CLI, goosed gRPC) 확인
+- 진입점 (mink CLI, minkd gRPC) 확인
 
 ### 2단계: 의존성 분석 (10분)
 **→ `dependency-graph.md`** 패키지 간 import 관계
@@ -24,8 +24,8 @@
 
 ### 3단계: 진입점 추적 (5분)
 **→ `entry-points.md`** 생명주기 추적
-- cmd/goose CLI 부트스트랩
-- cmd/goosed 데몬 13단계 시작
+- cmd/mink CLI 부트스트랩
+- cmd/minkd 데몬 13단계 시작
 - WebSocket 핸드셰이크 흐름
 
 ### 4단계: 모듈 깊이 (모듈별)
@@ -102,7 +102,7 @@
 
 ### ✅ 포함 (In Scope)
 - `internal/` 32개 패키지 (28개 매뉴얼 스캔, 4개 deferred)
-- `cmd/goose/`, `cmd/goosed/` 진입점
+- `cmd/mink/`, `cmd/minkd/` 진입점
 - 공개 API surface 모든 exported type/func
 - 대형 패키지 (bridge 43파일, agent 24파일, llm 16파일 등)
 - @MX:ANCHOR 후보 (fan_in >= 3)
@@ -110,7 +110,7 @@
 - 최근 변경 이력 (PR #82~#98 merge)
 
 ### ⏸️ Deferred (Out of Scope — Next Cycle)
-- `internal/cli/` — CLI 클라이언트 상세 (covered via cmd/goose entry-point)
+- `internal/cli/` — CLI 클라이언트 상세 (covered via cmd/mink entry-point)
 - `internal/observability/` — observability 통합
 - `internal/evolve/` — learning evolution 세부
 - `internal/fsaccess/` — filesystem 추상화
