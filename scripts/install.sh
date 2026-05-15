@@ -1,9 +1,12 @@
 #!/bin/sh
 # install.sh — MINK Unix installer
 #
-# SPEC: SPEC-MINK-CROSSPLAT-001 M2
-# REQ:  REQ-CP-001, REQ-CP-004, REQ-CP-005, REQ-CP-020 ~ REQ-CP-025
-# AC:   AC-CP-001, AC-CP-009, AC-CP-010, AC-CP-013, AC-CP-016
+# SPEC: SPEC-MINK-CROSSPLAT-001 M2 + M4 + M5
+# REQ:  REQ-CP-001, REQ-CP-004, REQ-CP-005, REQ-CP-006, REQ-CP-007, REQ-CP-008,
+#       REQ-CP-009, REQ-CP-010, REQ-CP-011, REQ-CP-012, REQ-CP-013, REQ-CP-014,
+#       REQ-CP-020 ~ REQ-CP-026
+# AC:   AC-CP-001, AC-CP-004, AC-CP-005, AC-CP-006, AC-CP-007, AC-CP-008,
+#       AC-CP-009, AC-CP-010, AC-CP-013, AC-CP-015, AC-CP-016
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/modu-ai/mink/main/scripts/install.sh | sh
@@ -350,6 +353,183 @@ error_unsupported_platform() {
     exit 1
 }
 
+# ── M4: Ollama runtime management ─────────────────────────────────────────────
+
+# detect_ollama: check whether Ollama is installed and responding.
+# Prints "installed <version>" to stdout when found.
+# Returns 1 (exit non-zero) when Ollama is not installed or not responding.
+detect_ollama() {
+    if ! command -v ollama >/dev/null 2>&1; then
+        return 1
+    fi
+    _ver="$(ollama --version 2>/dev/null || true)"
+    printf 'installed %s' "${_ver}"
+}
+
+# install_ollama: install Ollama using the platform-appropriate method.
+# macOS: prefers Homebrew; falls back to manual download guidance.
+# Linux: uses the official install.sh script (3 curl retries).
+# Other platforms: graceful failure (log_warn, return 1 — never exit 1).
+install_ollama() {
+    _ollama_os="$(detect_os 2>/dev/null || true)"
+    case "${_ollama_os}" in
+        darwin)
+            if command -v brew >/dev/null 2>&1; then
+                log_info "Installing Ollama via Homebrew..."
+                if brew install ollama; then
+                    return 0
+                fi
+                log_warn "Homebrew install of Ollama failed. Install manually: https://ollama.com/download"
+                return 1
+            else
+                log_warn "Homebrew not found. Install Ollama manually: https://ollama.com/download"
+                return 1
+            fi
+            ;;
+        linux)
+            log_info "Installing Ollama via official installer..."
+            _attempt=0
+            _delay=1
+            while [ "${_attempt}" -lt 3 ]; do
+                _attempt=$((_attempt + 1))
+                log_info "Ollama install attempt ${_attempt}/3..."
+                if curl -fsSL https://ollama.com/install.sh | sh; then
+                    return 0
+                fi
+                if [ "${_attempt}" -lt 3 ]; then
+                    log_warn "Ollama installer failed, retrying in ${_delay}s..."
+                    sleep "${_delay}"
+                    _delay=$((_delay * 2))
+                fi
+            done
+            log_warn "Ollama installation failed. Install manually: https://ollama.com"
+            return 1
+            ;;
+        *)
+            log_warn "Ollama auto-install not supported on this platform."
+            log_warn "Install manually: https://ollama.com"
+            return 1
+            ;;
+    esac
+}
+
+# start_ollama_service: start the Ollama background service.
+# macOS: attempts Ollama.app launch first, falls back to `ollama serve`.
+# Linux: starts `ollama serve` in background (disowned).
+# Idempotent: does nothing if service is already running.
+start_ollama_service() {
+    # Check if service is already responding — idempotent path
+    if ollama list >/dev/null 2>&1; then
+        log_info "Ollama service already running"
+        return 0
+    fi
+
+    _svc_os="$(detect_os 2>/dev/null || true)"
+    case "${_svc_os}" in
+        darwin)
+            # Try the Ollama.app bundle first (silent if absent)
+            if command -v open >/dev/null 2>&1; then
+                open -a Ollama 2>/dev/null || true
+            fi
+            # Always also attempt `ollama serve` as fallback
+            if command -v ollama >/dev/null 2>&1; then
+                ollama serve >/dev/null 2>&1 &
+                disown 2>/dev/null || true
+            fi
+            ;;
+        *)
+            # Linux and others: serve in background
+            if command -v ollama >/dev/null 2>&1; then
+                ollama serve >/dev/null 2>&1 &
+                disown 2>/dev/null || true
+            fi
+            ;;
+    esac
+}
+
+# wait_for_ollama: poll until Ollama service responds or timeout is reached.
+# Polls every 1 second for up to 30 seconds.
+# Returns 0 on success, 1 on timeout.
+wait_for_ollama() {
+    _retries=30
+    _count=0
+    while [ "${_count}" -lt "${_retries}" ]; do
+        if ollama list >/dev/null 2>&1; then
+            return 0
+        fi
+        _count=$((_count + 1))
+        sleep 1
+    done
+    return 1
+}
+
+# ── M5: RAM detection and model selection ──────────────────────────────────────
+
+# detect_ram_gb: detect total system RAM in gigabytes (integer, floored).
+# Linux: reads /proc/meminfo (MemTotal in kB → GB).
+# macOS: uses sysctl hw.memsize (bytes → GB).
+# Returns 0 with GB count on stdout. Returns 1 and prints "0" on failure.
+detect_ram_gb() {
+    if [ -f /proc/meminfo ]; then
+        # Linux: MemTotal is in kB; divide by 1024*1024 = 1048576 to get GB
+        _gb="$(awk '/^MemTotal:/ {print int($2/1048576)}' /proc/meminfo 2>/dev/null)"
+        if [ -n "${_gb}" ] && [ "${_gb}" -gt 0 ] 2>/dev/null; then
+            printf '%s' "${_gb}"
+            return 0
+        fi
+    fi
+
+    _hw_memsize="$(sysctl -n hw.memsize 2>/dev/null || true)"
+    if [ -n "${_hw_memsize}" ] && [ "${_hw_memsize}" -gt 0 ] 2>/dev/null; then
+        _gb="$(printf '%s' "${_hw_memsize}" | awk '{print int($1/1073741824)}')"
+        printf '%s' "${_gb}"
+        return 0
+    fi
+
+    printf '0'
+    return 1
+}
+
+# select_model: select the appropriate Ollama model based on RAM (GB).
+# Mapping per REQ-CP-011:
+#   < 8 GB  → ai-mink/gemma4-e2b-rl-v1
+#   8-15 GB → ai-mink/gemma4-e4b-rl-v1:q4_k_m
+#   16-31 GB → ai-mink/gemma4-e4b-rl-v1:q5_k_m
+#   32+ GB  → ai-mink/gemma4-e4b-rl-v1:q8_0
+# Arguments: $1 = RAM in GB (integer)
+# Prints model name to stdout.
+select_model() {
+    _ram="$1"
+    if [ "${_ram}" -lt 8 ] 2>/dev/null; then
+        printf 'ai-mink/gemma4-e2b-rl-v1'
+    elif [ "${_ram}" -lt 16 ] 2>/dev/null; then
+        printf 'ai-mink/gemma4-e4b-rl-v1:q4_k_m'
+    elif [ "${_ram}" -lt 32 ] 2>/dev/null; then
+        printf 'ai-mink/gemma4-e4b-rl-v1:q5_k_m'
+    else
+        printf 'ai-mink/gemma4-e4b-rl-v1:q8_0'
+    fi
+}
+
+# pull_model: download an Ollama model, streaming progress to the terminal.
+# Arguments: $1 = full model name (e.g. ai-mink/gemma4-e4b-rl-v1:q4_k_m)
+# Returns 0 on success, non-zero on failure.
+pull_model() {
+    _model="$1"
+    ollama pull "${_model}"
+}
+
+# verify_model: confirm that a model appears in `ollama list`.
+# Uses the base model name without the :tag suffix for matching.
+# Arguments: $1 = full model name (may include :tag)
+# Returns 0 if found, 1 if not found.
+verify_model() {
+    _model="$1"
+    # Extract the name portion before the colon (strip :tag)
+    _model_short="$(printf '%s' "${_model}" | cut -d: -f1)"
+    ollama list 2>/dev/null | grep -qF "${_model_short}"
+}
+
 # ── Main installer entry point ────────────────────────────────────────────────
 
 main() {
@@ -426,6 +606,52 @@ main() {
     write_config "${_tools}"
 
     # Cleanup runs automatically via the EXIT trap registered earlier.
+
+    # ── Ollama auto-install + model setup (M4 + M5) ───────────────────────────
+    # All failures below are graceful per REQ-CP-026.
+    # Binary installation is always successful regardless of Ollama/model status.
+    log_info ""
+    log_info "Setting up Ollama runtime..."
+
+    _ollama_ok=0
+    if detect_ollama >/dev/null 2>&1; then
+        log_info "Ollama already installed (skipping install)"
+        _ollama_ok=1
+    else
+        log_info "Ollama not found. Installing..."
+        if install_ollama; then
+            _ollama_ok=1
+        else
+            log_warn "Ollama installation failed. Skipping model setup."
+            log_warn "Install manually: https://ollama.com"
+        fi
+    fi
+
+    if [ "${_ollama_ok}" = "1" ]; then
+        log_info "Starting Ollama service..."
+        start_ollama_service
+        if wait_for_ollama; then
+            log_info "Ollama service responding"
+            _ram_gb="$(detect_ram_gb 2>/dev/null || printf '0')"
+            if [ "${_ram_gb}" -gt 0 ] 2>/dev/null; then
+                _model="$(select_model "${_ram_gb}")"
+                log_info "System RAM: ${_ram_gb} GB -> Model: ${_model}"
+                if pull_model "${_model}"; then
+                    if verify_model "${_model}"; then
+                        log_info "Model ready: ${_model}"
+                    else
+                        log_warn "Model verification failed (ollama list missing entry)"
+                    fi
+                else
+                    log_warn "Model download failed. Pull manually: ollama pull ${_model}"
+                fi
+            else
+                log_warn "RAM detection failed. Skipping model auto-selection."
+            fi
+        else
+            log_warn "Ollama service did not respond within 30s. Start manually."
+        fi
+    fi
 
     log_info ""
     log_info "MINK ${_version} installed successfully!"
