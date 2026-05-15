@@ -177,11 +177,14 @@ make_stub() {
 # ── configure_path ────────────────────────────────────────────────────────────
 
 @test "configure_path appends to .bashrc only, not /etc/profile" {
-    # Use a temp /etc/profile-like file to verify it is never touched
+    # Use a temp /etc/profile-like file to verify it is never touched.
+    # Use content comparison instead of mtime — `stat -f '%m'` means file
+    # modification time on macOS but filesystem status mode on Linux GNU
+    # coreutils, making cross-platform mtime comparison unreliable.
+    # Content equality is a stronger, portable invariant.
     local fake_etc_profile="${TEST_TMPDIR}/etc_profile"
-    printf '# system profile\n' > "${fake_etc_profile}"
-    local mtime_before
-    mtime_before="$(stat -f '%m' "${fake_etc_profile}" 2>/dev/null || stat -c '%Y' "${fake_etc_profile}")"
+    local original_content="# system profile marker"
+    printf '%s\n' "${original_content}" > "${fake_etc_profile}"
 
     # Create a .bashrc for the test
     touch "${HOME}/.bashrc"
@@ -190,10 +193,8 @@ make_stub() {
     # Configure PATH using the installer function
     configure_path "${HOME}/.local/bin"
 
-    # Verify /etc/profile equivalent was NOT modified
-    local mtime_after
-    mtime_after="$(stat -f '%m' "${fake_etc_profile}" 2>/dev/null || stat -c '%Y' "${fake_etc_profile}")"
-    [ "${mtime_before}" = "${mtime_after}" ]
+    # Verify /etc/profile equivalent content unchanged (AC-CP-016)
+    [ "$(cat "${fake_etc_profile}")" = "${original_content}" ]
 
     # Verify .bashrc was updated with the install dir
     grep -q "${HOME}/.local/bin" "${HOME}/.bashrc"
