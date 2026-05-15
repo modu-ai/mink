@@ -158,9 +158,6 @@ func TestFormatLLMPrompt_StructureAndAbsence(t *testing.T) {
 	p := sampleBriefingForLLM()
 	prompt := FormatLLMPrompt(BuildLLMSummaryRequest(p))
 
-	if !strings.Contains(prompt, "categorical") || strings.Contains(prompt, "categorical") {
-		// just ensure prompt is non-empty
-	}
 	if prompt == "" {
 		t.Fatal("prompt empty")
 	}

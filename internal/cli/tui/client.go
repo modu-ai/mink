@@ -15,7 +15,7 @@ type daemonClientAdapter struct {
 	transport *transport.DaemonClient
 }
 
-// NewDaemonClientAdapter creates a new TUI daemon client from a transport client factory.
+// NewDaemonClientFactory creates a new TUI daemon client from a transport client factory.
 // @MX:ANCHOR This is the primary factory function for creating TUI clients.
 func NewDaemonClientFactory(transportClient func(addr string, timeout int) (*transport.DaemonClient, error)) DaemonClient {
 	return &clientFactory{

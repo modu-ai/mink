@@ -99,7 +99,6 @@ type Model struct {
 	// streaming state
 	streamStartTime   time.Time // When streaming started
 	tokenCount        int       // Cumulative tokens received
-	lastTickTime      time.Time // Last throughput calculation time
 	currentThroughput float64   // Tokens per second (rolling estimate)
 
 	// cost tracking (optional — graceful no-op when nil)
