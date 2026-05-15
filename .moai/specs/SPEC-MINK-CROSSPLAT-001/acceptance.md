@@ -14,24 +14,24 @@ spec: SPEC-MINK-CROSSPLAT-001
 
 ### 필수 기준 (Must Pass)
 
-- [ ] `curl -fsSL https://mink.ai/install | sh`가 macOS, Linux 에서 정상 동작
-- [ ] **(amendment-v0.2)** Windows + WSL2 환경에서 `wsl bash -c "curl -fsSL https://mink.ai/install | sh"` 실행 시 install.sh 정상 동작 + `mink --version` 응답
+- [x] `curl -fsSL https://mink.ai/install | sh`가 macOS, Linux 에서 정상 동작
+- [x] **(amendment-v0.2)** Windows + WSL2 환경에서 `wsl bash -c "curl -fsSL https://mink.ai/install | sh"` 실행 시 install.sh 정상 동작 + `mink --version` 응답
 - [ ] ~~`irm https://mink.ai/install.ps1 | iex`가 Windows PowerShell에서 정상 동작~~ **[SUPERSEDED by amendment-v0.2 §3 — 2026-05-15]**
 - [ ] ~~`winget install ai-mink.mink`가 Windows에서 정상 동작~~ **[SUPERSEDED by amendment-v0.2 §3 — 2026-05-15]**
-- [ ] OS + CPU 아키텍처 자동 감지 (6개 타겟 플랫폼)
-- [ ] GitHub Release에서 올바른 바이너리 자동 다운로드 + SHA256 검증
-- [ ] Ollama 미설치 시 자동 설치 (macOS/Linux/WSL2)
-- [ ] Ollama 서비스 시작 후 30초 이내 응답 확인
-- [ ] RAM 기반 모델 자동 선택 (4가지 RAM 범주)
-- [ ] `ollama pull` 모델 다운로드 + 진행률 표시
-- [ ] 모델 다운로드 재개(resume) 지원
-- [ ] CLI 도구(claude, gemini, codex) 감지 + config 기록
-- [ ] CLI 도구 미설치 시 설치 차단 없음
-- [ ] goreleaser 6플랫폼 빌드 + checksums + SBOM 생성
+- [x] OS + CPU 아키텍처 자동 감지 (6개 타겟 플랫폼)
+- [x] GitHub Release에서 올바른 바이너리 자동 다운로드 + SHA256 검증
+- [x] Ollama 미설치 시 자동 설치 (macOS/Linux/WSL2)
+- [x] Ollama 서비스 시작 후 30초 이내 응답 확인
+- [x] RAM 기반 모델 자동 선택 (4가지 RAM 범주)
+- [x] `ollama pull` 모델 다운로드 + 진행률 표시
+- [x] 모델 다운로드 재개(resume) 지원
+- [x] CLI 도구(claude, gemini, codex) 감지 + config 기록
+- [x] CLI 도구 미설치 시 설치 차단 없음
+- [x] goreleaser 6플랫폼 빌드 + checksums + SBOM 생성
 - [ ] ~~Homebrew tap (`brew install ai-mink/tap/mink`) 동작~~ **[SUPERSEDED by amendment-v0.2 §3 — 2026-05-15]**
-- [ ] 미지원 플랫폼에서 명확한 에러 메시지 + exit code 1
-- [ ] Ollama 설치 실패 시 바이너리 설치 계속 진행
-- [ ] 시스템 전역 설정 미수정 (사용자 프로필만 수정)
+- [x] 미지원 플랫폼에서 명확한 에러 메시지 + exit code 1
+- [x] Ollama 설치 실패 시 바이너리 설치 계속 진행
+- [x] 시스템 전역 설정 미수정 (사용자 프로필만 수정)
 
 ---
 
