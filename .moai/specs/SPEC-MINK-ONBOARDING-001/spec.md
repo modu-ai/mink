@@ -1,10 +1,10 @@
 ---
 id: SPEC-MINK-ONBOARDING-001
-version: 0.3.0
+version: 0.3.1
 status: draft
 supersedes: SPEC-GOOSE-ONBOARDING-001
 created_at: 2026-05-14
-updated_at: 2026-05-14
+updated_at: 2026-05-15
 author: manager-spec
 priority: critical
 issue_number: null
@@ -35,6 +35,7 @@ labels: [onboarding, cli, web-ui, installer, wizard, localization, mink-rebrand]
 | 0.2.1 | 2026-05-14 | (선행 SPEC) POST-BRAND-RENAME marker 추가. labels 에 `post-brand-rename` 추가. | manager-spec |
 | 0.3.0 | 2026-05-14 | SPEC-MINK-BRAND-RENAME-001 + ENV-MIGRATE-001 + USERDATA-MIGRATE-001 rebrand 정책 적용. 본문 GOOSE/Goose/goose 명칭을 MINK/Mink/mink 로 치환 + CLI `goose init` → `mink init` + workspace path `./.goose/` → `./.mink/`. id `SPEC-GOOSE-ONBOARDING-001` → `SPEC-MINK-ONBOARDING-001` 신설, 선행 SPEC supersede. 다른 SPEC 의 cross-reference (SPEC-GOOSE-CONFIG-001 / SPEC-GOOSE-LOCALE-001 / SPEC-GOOSE-I18N-001 / SPEC-GOOSE-REGION-SKILLS-001 / SPEC-GOOSE-ARCH-REDESIGN-v0.2) 는 immutable 보존. labels 에 `mink-rebrand` 추가. | manager-spec |
 | 0.2.0 | 2026-04-25 | SPEC-GOOSE-ARCH-REDESIGN-v0.2 Amendment를 본문 전반에 전파. 스코프를 Desktop Tauri 8-step → CLI(`mink init`) + Web UI 설치 마법사로 축소. REQ-OB-013(Ritual soft notice)와 REQ-OB-018(Mobile QR 페어링)는 `[DEPRECATED v0.2]`로 표시(번호 보존). §1~§3 및 §6 본문 재작성, §5를 "Test Scenarios"로 재명명 + 각 AC에 REQ 명시 참조 추가. AC-OB-014 로케일 문자열 프랑스어로 수정(REQ-OB-003 정합). 5개 미커버 REQ(014/015-invalid/016/019)에 대응하는 AC 신설(AC-OB-017~020). D8(수동 측정) → Playwright 자동화 참조로 수정. Exclusions L657(CLI 온보딩 금지)을 CLI IN SCOPE로 교체(D11 해소). | manager-spec |
+| 0.3.1 | 2026-05-15 | amendment-v0.3 본문 병합. §1.1 5-Step → 7-Step 확장 (Model Setup + CLI Tools 추가). §3.1 IN SCOPE 갱신. §4 REQ-OB-021~027 신설. §5 AC-OB-021~027 신설 + 기존 AC 진행 표시 [N/5] → [N/7] 수정. §6.1 model_setup.go + cli_detection.go 추가. §6.2 OnboardingData 에 Model + CLITools 필드 추가. §7 SPEC-MINK-CROSSPLAT-001 의존성 추가. §8 R13~R15 추가. §10 기존 REQ/AC 영향 적용. 목표 소요 시간 갱신 (Web UI 4분/CLI 3분). | manager-spec |
 
 ---
 
@@ -50,17 +51,19 @@ v0.2 Amendment 반영(2026-04-24):
 
 본 SPEC은 **MINK 첫 설치 시 사용자를 맞이하는 CLI + Web UI 온보딩 마법사**를 정의한다. 두 경로는 동일한 backend 상태 머신(`internal/onboarding`)을 공유하며, 동일한 최종 산출물(`./.mink/` 디렉터리 트리)을 생성한다.
 
-### 1.1 공통 수집 대상 (5-Step 축소)
+### 1.1 공통 수집 대상 (7-Step)
 
 | Step | 데이터 | 소비 SPEC |
 |------|-------|----------|
 | 1. Welcome + Locale | country/language/timezone | LOCALE-001, I18N-001, REGION-SKILLS-001 |
-| 2. Persona | name, honorific_level, soul.md 본문 | IDENTITY-001, ADAPTER-001 |
-| 3. Provider | llm_provider, api key (OS keyring) | CREDPOOL-001, ROUTER-001 |
-| 4. Messenger Channel | 첫 채널 선택 (local/terminal, slack, telegram 등) | MESSENGER-*, BRIDGE-001 |
-| 5. Privacy & Consent | consent flags | MEMORY-001, LORA-001 (opt-in) |
+| 2. Model Setup | ollama_status, selected_model, model_size | LLM-001, CROSSPLAT-001 |
+| 3. CLI Tools | detected_tools[], delegation_rules | ROUTER-001, SUBAGENT-001 |
+| 4. Persona | name, honorific_level, soul.md 본문 | IDENTITY-001, ADAPTER-001 |
+| 5. Provider | llm_provider, api key (OS keyring) | CREDPOOL-001, ROUTER-001 |
+| 6. Messenger Channel | 첫 채널 선택 (local/terminal, slack, telegram 등) | MESSENGER-*, BRIDGE-001 |
+| 7. Privacy & Consent | consent flags | MEMORY-001, LORA-001 (opt-in) |
 
-목표 소요 시간: **3분 이하** (CLI 경로 ≤ 2분, Web UI 경로 ≤ 3분). 각 단계는 **스킵 가능**(기본값 적용) + **뒤로 가기** + **진행 표시** 제공.
+목표 소요 시간: **4분 이하** (CLI 경로 ≤ 3분, Web UI 경로 ≤ 4분). 각 단계는 **스킵 가능**(기본값 적용) + **뒤로 가기** + **진행 표시** 제공.
 
 ### 1.2 두 경로 대비
 
@@ -69,7 +72,7 @@ v0.2 Amendment 반영(2026-04-24):
 | 진입점 | 쉘에서 `mink init` 실행 | `mink serve --install-wizard` 실행 후 브라우저 열림 (`http://localhost:5173/install`) |
 | UI 렌더러 | `charmbracelet/huh` 기반 TUI 폼 | React + shadcn/ui |
 | 대상 사용자 | 개발자, 엔지니어 | 비개발자, 가족/친지에게 배포 | 
-| progress 표시 | "[2/5]" 텍스트 진행도 | 상단 progress bar (5 단계) |
+| progress 표시 | "[2/7]" 텍스트 진행도 | 상단 progress bar (7 단계) |
 | API key 입력 | stdin 숨김 입력(tty echo off) + OS keyring | HTML password input + fetch → Go server → OS keyring |
 | 비정상 종료 재개 | `mink init --resume` | `/install?resume=1` |
 
@@ -135,20 +138,20 @@ Amendment가 설정한 scope("`./.mink/` 생성 → persona → provider key →
 ### 3.1 IN SCOPE
 
 1. **CLI 경로 (`mink init`)** — `cmd/mink/cmd/init.go`:
-   - `charmbracelet/huh` 기반 TUI 폼 (5-Step)
+   - `charmbracelet/huh` 기반 TUI 폼 (7-Step)
    - tty echo off 상태에서 API key 입력
    - `--resume` 플래그로 draft 재개
    - `--yes` 플래그로 완전 비대화(모든 기본값 수용 — CI/Docker 환경)
    - 키보드 단축키: Tab(다음 필드), Shift+Tab(이전), Esc(스킵), Ctrl+C(중단 및 draft 저장)
 2. **Web UI 경로** — `cmd/mink/cmd/serve.go --install-wizard` + `web/install/`:
    - React + Vite + shadcn/ui (경량, 추가 컴파일 옵션 없이 Go embed)
-   - 5개 React 컴포넌트 (Step1Welcome, Step2Persona, Step3Provider, Step4Messenger, Step5Privacy)
+   - 7개 React 컴포넌트 (Step1Welcome, Step2ModelSetup, Step3CLITools, Step4Persona, Step5Provider, Step6Messenger, Step7Privacy)
    - Zustand store로 수집 데이터 임시 보관 (클라이언트 측)
-   - 상단 progress bar (5 단계), 뒤로 가기 / 스킵 / 다음 버튼
+   - 상단 progress bar (7 단계), 뒤로 가기 / 스킵 / 다음 버튼
    - 완료 시 서버가 종료 신호 수신 → 브라우저에 "설정 완료, 터미널로 돌아가세요" 표시
 3. **Backend (Go, 공통)** — `internal/onboarding/`:
    - `flow.go` — `OnboardingFlow` 상태 머신 (CLI/Web UI 공유)
-   - `steps.go` — 5-Step 정의 + validation
+   - `steps.go` — 7-Step 정의 + validation
    - `progress.go` — draft `./.mink/onboarding-draft.yaml` 저장/로드
    - `completion.go` — 완료 처리 (후속 SPEC 초기화 호출)
    - `keyring.go` — OS keyring 추상 (`zalando/go-keyring` 래핑)
@@ -164,37 +167,56 @@ Amendment가 설정한 scope("`./.mink/` 생성 → persona → provider key →
    - Dropdown 또는 텍스트 입력(CLI)으로 override 가능
    - Conflict 존재 시(OS vs IP) 명시 표시 + 사용자 선택 강제
    - "Apply and continue" 시 `LocaleContext` 저장 + I18N 즉시 적용
-6. **Step 2 (Persona)** 상세:
+6. **Step 2 (Model Setup)** 상세 (NEW v0.3):
+   - Ollama 설치 여부 감지 (`which ollama` + `GET /api/tags`)
+   - Ollama 설치됨 + 모델 존재 → 감지된 모델명 + 크기 표시, "Use this model" / "Change model" 선택지
+   - Ollama 설치됨 + 모델 없음 → 시스템 RAM 감지(REQ-CP-010) → 추천 모델 결정(REQ-CP-011) → `ollama pull {model}` 실행 + 진행률 표시
+   - Ollama 미설치 → OS별 설치 안내 표시 + "Re-check" 버튼 (CLI: `r` 키)
+     - macOS: `brew install ollama` 안내 또는 직접 다운로드 링크
+     - Linux: `curl -fsSL https://ollama.com/install.sh | sh` 안내
+     - Windows: https://ollama.com/download 또는 `winget install Ollama.Ollama` 안내
+   - "Already available" 판정: `ai-mink/` prefix 모델 검색
+   - "Skip" 시 RAM 감지 기반 추천 모델 자동 선택 (또는 Ollama 미설치 시 "no model")
+7. **Step 3 (CLI Tools Detection)** 상세 (NEW v0.3):
+   - PATH 스캔: `claude`, `gemini`, `codex` 바이너리 감지
+   - 감지된 도구는 버전 번호와 함께 표시 (예: "claude v1.2.3 (detected)")
+   - 미감지 도구는 "(not found)" 표시
+   - 위임 라우팅 규칙 기본값 제안 (사용자 편집 가능)
+   - `~/.mink/config.yaml`에 `delegation.available_tools[]` 기록
+   - "Skip" 시 설치 스크립트가 이미 기록한 결과 사용 (또는 빈 리스트)
+   - CROSSPLAT-001 설치 스크립트가 이미 감지한 경우 결과만 표시 (재스캔 불필요)
+8. **Step 4 (Persona)** 상세 (기존 Step 2):
    - Name (필수), Preferred Honorific Level (한국어/일본어일 때: 존댓말/해요체/반말)
    - `soul.md` 본문 (CLI: `$EDITOR` 기동 / Web UI: `<textarea>` multi-line, 템플릿 prefill)
    - LOCALE-001의 `CulturalContext.formality_default`를 기본값으로 제안
-7. **Step 3 (Provider)** 상세:
+9. **Step 5 (Provider)** 상세 (기존 Step 3):
    - 리스트 UI: Anthropic / OpenAI / Google / Ollama / DeepSeek / Custom
    - Anthropic / OpenAI: OAuth 버튼(Web UI: 브라우저 새 탭 / CLI: URL 복사 + pastebin) + API key 대안
    - Ollama: localhost 감지, 모델 자동 나열
    - Custom: URL + API key + model name
    - API key 저장: OS keyring (`zalando/go-keyring` — macOS Keychain / Windows Credential Manager / Linux Secret Service)
    - "Skip and configure later" 옵션 → `llm.default_provider: "unset"`
-8. **Step 4 (Messenger Channel)** 상세:
-   - 첫 채널 선택: Local Terminal / Slack / Telegram / Discord / Custom
-   - Local Terminal은 즉시 활성화(추가 입력 없음).
-   - 외부 messenger는 bot token 입력 (OS keyring 저장).
-   - "Skip" 시 Local Terminal만 활성.
-9. **Step 5 (Privacy & Consent)** 상세:
-   - 체크박스:
-     - [x] 대화 기록 로컬 저장 (필수, 기본 ON)
-     - [ ] LoRA 개인 모델 훈련에 사용 (opt-in, 기본 OFF)
-     - [ ] Anonymous telemetry (opt-in, 기본 OFF)
-     - [ ] 오류 보고 자동 전송 (opt-in, 기본 OFF)
-   - GDPR 국가이면 "I explicitly consent" 명시적 체크 강제
-   - Submit 시 `ConsentFlags`를 `./.mink/config.yaml`에 저장
-10. **완료 처리**:
+10. **Step 6 (Messenger Channel)** 상세 (기존 Step 4):
+    - 첫 채널 선택: Local Terminal / Slack / Telegram / Discord / Custom
+    - Local Terminal은 즉시 활성화(추가 입력 없음).
+    - 외부 messenger는 bot token 입력 (OS keyring 저장).
+    - "Skip" 시 Local Terminal만 활성.
+11. **Step 7 (Privacy & Consent)** 상세 (기존 Step 5):
+    - 체크박스:
+      - [x] 대화 기록 로컬 저장 (필수, 기본 ON)
+      - [ ] LoRA 개인 모델 훈련에 사용 (opt-in, 기본 OFF)
+      - [ ] Anonymous telemetry (opt-in, 기본 OFF)
+      - [ ] 오류 보고 자동 전송 (opt-in, 기본 OFF)
+    - GDPR 국가이면 "I explicitly consent" 명시적 체크 강제
+    - Submit 시 `ConsentFlags`를 `./.mink/config.yaml`에 저장
+12. **완료 처리**:
     - CLI: ASCII "🐣 → 🐥" 아트 전환 + "Mink is ready. Run `mink start`." 메시지
     - Web UI: 간단한 egg→mink transition (prefers-reduced-motion 존중), "터미널로 돌아가세요" 메시지
     - REGION-SKILLS-001 `ActivateForCountry(country)` 호출
     - Identity Graph 초기 노드 seed (IDENTITY-001 public API)
     - `./.mink/onboarding-completed` 타임스탬프 기록
-11. **3분 목표 수행 측정**:
+    - `~/.mink/config.yaml`에 7-Step 모든 데이터 통합 (model, delegation, persona, providers, messenger, consent)
+13. **4분 목표 수행 측정**:
     - 각 단계 소요 시간 이벤트 로깅 (telemetry opt-in 후에만)
     - 완료율, 중도 이탈율 추적
 
@@ -220,7 +242,7 @@ Amendment가 설정한 scope("`./.mink/` 생성 → persona → provider key →
 
 ### 4.1 Ubiquitous
 
-**REQ-OB-001 [Ubiquitous]** — The onboarding flow **shall** complete in 5 steps (CLI and Web UI identically) and **shall** present a progress indicator (CLI: "[n/5]" text, Web UI: top progress bar) at all times.
+**REQ-OB-001 [Ubiquitous]** — The onboarding flow **shall** complete in 7 steps (CLI and Web UI identically) and **shall** present a progress indicator (CLI: "[n/7]" text, Web UI: top progress bar) at all times.
 
 **REQ-OB-002 [Ubiquitous]** — Every onboarding step **shall** provide three actions: `Next` (submit + advance), `Back` (return to previous step, disabled on Step 1), and `Skip` (apply default values + advance).
 
@@ -266,6 +288,46 @@ Amendment가 설정한 scope("`./.mink/` 생성 → persona → provider key →
 
 **REQ-OB-019 [Optional]** — **Where** accessibility features are enabled (Web UI: `prefers-reduced-motion` media query true, or OS high-contrast setting / CLI: `NO_COLOR` env var set or `$TERM=dumb`), the onboarding UI **shall** respect those preferences: no autoplay animations, WCAG 2.1 AA contrast (Web UI), plain text output without ANSI escapes (CLI).
 
+### 4.6 v0.3 신규 요구사항 (Model Setup + CLI Tools Detection)
+
+> v0.3 Amendment(2026-04-29)로 추가된 요구사항. 번호 보존 원칙에 따라 기존 REQ-OB-001~019 번호는 변경하지 않고 REQ-OB-021부터 추가한다. (REQ-OB-020 번호는 의도적 결번.)
+
+### REQ-OB-021 [Event-Driven]
+
+**When** the user reaches the "Model Setup" step (new Step 2), the onboarding flow **shall** detect whether Ollama is installed and whether a MINK model is available, and:
+- (a) **If** Ollama is installed and a model is available, display the detected model name and size, and allow the user to proceed or change the model. "Already available" **shall** be determined by querying `ollama list` (or `GET /api/tags`) and checking for any model whose name starts with `ai-mink/`.
+- (b) **If** Ollama is installed but no model is available, detect system RAM (per REQ-CP-010 logic), recommend the appropriate model (per REQ-CP-011 logic), and execute `ollama pull {model}` with progress display.
+- (c) **If** Ollama is not installed, display OS-specific installation instructions and a "Re-check" button (CLI: `r` key) that re-runs the Ollama detection after the user completes manual installation.
+
+### REQ-OB-022 [Ubiquitous]
+
+The Model Setup step **shall** display model download progress with an estimated remaining time derived from download speed and remaining bytes, using Ollama's stdout parsing for real-time progress.
+
+### REQ-OB-023 [Event-Driven]
+
+**When** the user reaches the "CLI Tools" step (new Step 3), the onboarding flow **shall** scan the system PATH for `claude`, `gemini`, and `codex` CLI tools, display detected tools with their version numbers, and configure delegation routing rules in `~/.mink/config.yaml`.
+
+### REQ-OB-024 [Ubiquitous]
+
+The onboarding flow **shall** be a 7-step sequence: Step 1 (Welcome + Locale) → Step 2 (Model Setup) → Step 3 (CLI Tools) → Step 4 (Persona) → Step 5 (Provider) → Step 6 (Messenger Channel) → Step 7 (Privacy & Consent).
+
+### REQ-OB-025 [Optional]
+
+**Where** the user wishes to skip Model Setup or CLI Tools Detection steps, the onboarding flow **shall** accept a Skip action and apply auto-detected defaults:
+- Model Setup Skip: Use the model recommended by RAM detection, or "no model" if Ollama is unavailable.
+- CLI Tools Skip: Use the tools already recorded by the install script, or empty list if not recorded.
+
+### REQ-OB-026 [Event-Driven]
+
+**When** the Model Setup step detects that Ollama is not installed, the step **shall** guide installation per OS:
+- macOS: Display "Run in terminal: `brew install ollama`" or provide direct download link.
+- Linux: Display "Run in terminal: `curl -fsSL https://ollama.com/install.sh | sh`".
+- Windows: Display "Download from https://ollama.com/download or run: `winget install Ollama.Ollama`".
+
+### REQ-OB-027 [Event-Driven]
+
+**When** the onboarding completes (Step 7 Submit), the backend **shall** auto-generate `~/.mink/config.yaml` incorporating all collected settings including: model selection (from Step 2), CLI tool availability (from Step 3), persona (from Step 4), provider configuration (from Step 5), messenger channel (from Step 6), and consent flags (from Step 7).
+
 ---
 
 ## 5. Test Scenarios (Given-When-Then)
@@ -279,8 +341,8 @@ Amendment가 설정한 scope("`./.mink/` 생성 → persona → provider key →
 
 **AC-OB-002 — 진행 표시 (verifies REQ-OB-001, REQ-OB-002)**
 - **Given** 온보딩 진행 중
-- **When** Step 2 (Persona) 도착
-- **Then** CLI는 "[2/5]" 텍스트 표시, Web UI는 progress bar가 40% 위치로 이동, Back/Skip/Next 3 버튼이 활성 (Step 1에서는 Back 비활성)
+- **When** Step 2 (Model Setup) 도착
+- **Then** CLI는 "[2/7]" 텍스트 표시, Web UI는 progress bar가 29% 위치로 이동(round(2/7 * 100) = 29%, 반올림), Back/Skip/Next 3 버튼이 활성 (Step 1에서는 Back 비활성)
 
 **AC-OB-003 — Locale 감지 + 수정 (verifies REQ-OB-006, REQ-OB-003)**
 - **Given** LOCALE-001이 `country="KR"` 감지
@@ -297,10 +359,10 @@ Amendment가 설정한 scope("`./.mink/` 생성 → persona → provider key →
 - **When** Next 실행
 - **Then** 인라인 에러 "이름을 입력해주세요"(사용자 언어 적용), 전진 불가
 
-**AC-OB-006 — Skip 기본값 적용 (Step 4 Messenger) (verifies REQ-OB-002)**
-- **Given** Step 4, 사용자가 messenger 선택 안 함
+**AC-OB-006 — Skip 기본값 적용 (Step 6 Messenger) (verifies REQ-OB-002)**
+- **Given** Step 6 (Messenger), 사용자가 messenger 선택 안 함
 - **When** Skip 실행
-- **Then** default `local_terminal` 채널만 활성, Step 5로 진행
+- **Then** default `local_terminal` 채널만 활성, Step 7로 진행
 
 **AC-OB-007 — API key 키링 저장 (valid key path) (verifies REQ-OB-007)**
 - **Given** Step 3, 사용자가 Anthropic 선택 + 유효한 `sk-ant-xxxx` 입력
@@ -344,10 +406,10 @@ Amendment가 설정한 scope("`./.mink/` 생성 → persona → provider key →
 - **When** Next 실행
 - **Then** 정규식 검증 실패, 에러 표시, 저장 안 됨, `./.mink/security-events.log`에 security event 기록
 
-**AC-OB-016 — 3분 이내 완료 가능성 (Playwright 자동화) (verifies REQ-OB-001)**
-- **Given** 모든 Skip 사용 + 기본값 수용 (Step 2 name은 필수이므로 "TestUser" 입력)
-- **When** Playwright 스크립트 `e2e/install-wizard-speedrun.spec.ts`가 Web UI Step 1 → Step 5 전체를 자동 진행하고, 별도 `scripts/cli-install-speedrun.sh`가 `mink init --yes` 경로를 실행
-- **Then** Playwright가 측정한 Web UI 총 소요 시간 ≤ 3분, `scripts/cli-install-speedrun.sh` 측정한 CLI 총 소요 시간 ≤ 2분. CI 파이프라인(`.github/workflows/install-wizard-e2e.yml`)에서 양 측정 모두 통과해야 PR merge 가능
+**AC-OB-016 — 4분 이내 완료 가능성 (Playwright 자동화) (verifies REQ-OB-001)**
+- **Given** 모든 Skip 사용 + 기본값 수용 (Step 4 name은 필수이므로 "TestUser" 입력)
+- **When** Playwright 스크립트 `e2e/install-wizard-speedrun.spec.ts`가 Web UI Step 1 → Step 7 전체를 자동 진행하고, 별도 `scripts/cli-install-speedrun.sh`가 `mink init --yes` 경로를 실행
+- **Then** Playwright가 측정한 Web UI 총 소요 시간 ≤ 4분, `scripts/cli-install-speedrun.sh` 측정한 CLI 총 소요 시간 ≤ 3분. CI 파이프라인(`.github/workflows/install-wizard-e2e.yml`)에서 양 측정 모두 통과해야 PR merge 가능
 
 **AC-OB-017 — 외부 전송 차단 invariant (verifies REQ-OB-014)**
 - **Given** onboarding 진행 중, Step 5에서 telemetry opt-in 비선택, Step 3에서 OAuth 버튼 미클릭
@@ -371,6 +433,75 @@ Amendment가 설정한 scope("`./.mink/` 생성 → persona → provider key →
 - **Then-1** Web UI: Framer Motion 전환이 `initial={false}` + `transition={{ duration: 0 }}` 로 축소됨 (DOM snapshot 비교). 모든 텍스트/배경 조합이 WCAG AA contrast (>= 4.5:1) 통과 (axe-core 자동 검사)
 - **Then-2** CLI: ANSI escape 시퀀스가 출력되지 않음 (stdout capture 후 regex `\x1b\[` match 없음)
 
+### 5.1 v0.3 신규 Test Scenarios (Model Setup + CLI Tools)
+
+### AC-OB-021 — Model Setup: Ollama + 모델 이미 설치됨 (verifies REQ-OB-021)
+
+- **Given** Ollama 설치됨, `ai-mink/gemma4-e4b-rl-v1:q5_k_m` 모델 존재
+- **When** Step 2 (Model Setup) 표시
+- **Then** "Ollama: installed" + "Model: gemma4-e4b-rl-v1 Q5_K_M (~4 GB)" 표시, "Use this model" / "Change model" 선택지 제공
+
+### AC-OB-022 — Model Setup: 모델 다운로드 진행률 (verifies REQ-OB-022)
+
+- **Given** Ollama 설치됨, 모델 미설치, RAM 16 GB
+- **When** Step 2에서 추천 모델 "gemma4-e4b-rl-v1 Q5_K_M" 다운로드 시작
+- **Then** 진행률 바(CLI: 텍스트 percentage / Web UI: progress bar) + "Downloading... 45% (~1.8 GB / ~4 GB), ETA ~2 min" 표시
+- **Then** 다운로드 완료 후 "Model ready: gemma4-e4b-rl-v1 Q5_K_M (~4 GB)" 메시지 표시, "Next" 버튼 활성화
+
+### AC-OB-023 — Model Setup: Ollama 미설치 안내 (verifies REQ-OB-026)
+
+- **Given** macOS, Ollama 미설치
+- **When** Step 2 표시
+- **Then** "Ollama is required for local AI. Install it:" + "brew install ollama" 명령어 표시 + "Re-check" 버튼. Re-check 후 Ollama 감지 시 모델 선택 단계로 전환
+
+### AC-OB-024 — CLI Tools: 부분 감지 (verifies REQ-OB-023)
+
+- **Given** PATH에 `claude` (v1.2.3) + `codex` (v0.5.0) 존재, `gemini` 부재
+- **When** Step 3 (CLI Tools) 표시
+- **Then** "claude v1.2.3 (detected)" + "codex v0.5.0 (detected)" + "gemini (not found)" 표시, 위임 규칙 기본값 제안 (사용자 편집 가능)
+
+### AC-OB-025 — 7-Step 진행 표시 (verifies REQ-OB-024)
+
+- **Given** 온보딩 진행 중
+- **When** Step 4 (Persona) 도착
+- **Then** CLI는 "[4/7]" 텍스트 표시, Web UI는 progress bar 57% 위치 (round(4/7 * 100) = 57%, 반올림)
+
+### AC-OB-026 — Model Setup Skip (verifies REQ-OB-025)
+
+- **Given** Step 2 (Model Setup)
+- **When** Skip 실행
+- **Then** RAM 감지 결과 기반 추천 모델 자동 선택 (또는 Ollama 미설치 시 "no model") + Step 3으로 진행
+
+### AC-OB-027 — 완료 시 config.yaml 통합 생성 (verifies REQ-OB-027)
+
+- **Given** 전체 7-Step 완료
+- **When** Step 7 Submit
+- **Then** `~/.mink/config.yaml`에 다음 항목 모두 포함:
+  ```yaml
+  model:
+    selected: "ai-mink/gemma4-e4b-rl-v1:q5_k_m"
+    provider: "ollama"
+  delegation:
+    available_tools:
+      - name: claude
+        version: "1.2.3"
+      - name: codex
+        version: "0.5.0"
+  persona:
+    name: "User"
+    honorific_level: "formal"
+  providers:
+    anthropic:
+      api_key_source: keyring
+  messenger:
+    type: local_terminal
+  consent:
+    conversation_storage_local: true
+    lora_training: false
+    telemetry: false
+    crash_reporting: false
+  ```
+
 ---
 
 ## 6. 기술적 접근 (Technical Approach)
@@ -384,11 +515,15 @@ cmd/mink/cmd/
 
 internal/onboarding/                # Backend 공통 상태 머신 (CLI + Web UI)
 ├── flow.go                         # OnboardingFlow 상태 머신
-├── steps.go                        # 5-Step 정의 + validators
+├── steps.go                        # 7-Step 정의 + validators
 ├── progress.go                     # draft 저장/로드 (atomic write)
 ├── completion.go                   # 완료 처리 + 후속 SPEC 초기화 호출
 ├── keyring.go                      # OS keyring 추상 (zalando/go-keyring)
 ├── validators.go                   # API key prefix 검증 등
+├── model_setup.go                  # Step 2: Ollama detection + model selection (v0.3 NEW)
+├── model_setup_test.go             # Step 2 tests (v0.3 NEW)
+├── cli_detection.go                # Step 3: CLI tool scanning (v0.3 NEW)
+├── cli_detection_test.go           # Step 3 tests (v0.3 NEW)
 └── *_test.go
 
 internal/cli/install/               # CLI TUI 레이어
@@ -405,10 +540,12 @@ web/install/                        # Web UI 프런트
 │   ├── OnboardingApp.tsx
 │   ├── steps/
 │   │   ├── Step1WelcomeLocale.tsx
-│   │   ├── Step2Persona.tsx
-│   │   ├── Step3Provider.tsx
-│   │   ├── Step4Messenger.tsx
-│   │   └── Step5Privacy.tsx
+│   │   ├── Step2ModelSetup.tsx     # v0.3 NEW
+│   │   ├── Step3CLITools.tsx       # v0.3 NEW
+│   │   ├── Step4Persona.tsx        # v0.3 RENAMED (was Step2Persona.tsx)
+│   │   ├── Step5Provider.tsx       # v0.3 RENAMED (was Step3Provider.tsx)
+│   │   ├── Step6Messenger.tsx      # v0.3 RENAMED (was Step4Messenger.tsx)
+│   │   └── Step7Privacy.tsx        # v0.3 RENAMED (was Step5Privacy.tsx)
 │   ├── ProgressBar.tsx
 │   ├── store.ts                    # zustand
 │   └── types.ts
@@ -423,18 +560,43 @@ web/install/                        # Web UI 프런트
 
 type OnboardingFlow struct {
     SessionID   string
-    CurrentStep int              // 1..5
+    CurrentStep int              // 1..7 (v0.3: extended from 1..5)
     Data        OnboardingData
     StartedAt   time.Time
     CompletedAt *time.Time
 }
 
+// v0.3: 7-Step OnboardingData. Step 2 (Model Setup) + Step 3 (CLI Tools) added.
+// 기존 Step 2~5 (Persona/Provider/Messenger/Consent) 는 Step 4~7 으로 이동.
+
 type OnboardingData struct {
     Locale    LocaleChoice       // Step 1
-    Persona   PersonaProfile     // Step 2
-    Provider  ProviderChoice     // Step 3
-    Messenger MessengerChannel   // Step 4
-    Consent   ConsentFlags       // Step 5
+    Model     ModelSetup         // Step 2 (v0.3 NEW)
+    CLITools  CLIToolsDetection  // Step 3 (v0.3 NEW)
+    Persona   PersonaProfile     // Step 4 (was Step 2)
+    Provider  ProviderChoice     // Step 5 (was Step 3)
+    Messenger MessengerChannel   // Step 6 (was Step 4)
+    Consent   ConsentFlags       // Step 7 (was Step 5)
+}
+
+// v0.3 NEW: Model Setup data
+type ModelSetup struct {
+    OllamaInstalled bool   // detected
+    DetectedModel   string // e.g., "ai-mink/gemma4-e4b-rl-v1:q5_k_m"
+    SelectedModel   string // user choice (defaults to detected)
+    ModelSizeBytes  int64  // estimated download size
+    RAMBytes        int64  // detected system RAM
+}
+
+// v0.3 NEW: CLI Tools Detection data
+type CLIToolsDetection struct {
+    DetectedTools []CLITool // detected from PATH
+}
+
+type CLITool struct {
+    Name    string // "claude" | "gemini" | "codex"
+    Version string // parsed from --version output
+    Path    string // full path to binary
 }
 
 type PersonaProfile struct {
@@ -569,8 +731,10 @@ LOCALE-001 `legal_flags` 기반 Step 5 UI 조건부 분기.
 | 선행 SPEC | **SPEC-GOOSE-LOCALE-001** | Detect() 결과 + override API + CulturalContext |
 | 선행 SPEC | **SPEC-GOOSE-I18N-001** | UI 번역 + RTL + 국가별 consent 문구 |
 | 선행 SPEC | **SPEC-GOOSE-CONFIG-001** | 최종 UserProfile 저장소 (`./.mink/config.yaml`) |
+| 선행 SPEC | **SPEC-MINK-CROSSPLAT-001** | 설치 스크립트에서 감지한 모델/CLI 도구 결과를 온보딩(Step 2, Step 3)이 읽음 (v0.3 NEW) |
 | 동시 | SPEC-GOOSE-REGION-SKILLS-001 | 완료 시 자동 활성화 호출 |
 | 동시 | SPEC-GOOSE-IDENTITY-001 (최소) | Initial node seed (이름 + persona) |
+| 동시 | SPEC-GOOSE-LLM-001 | Ollama 어댑터 (Step 2 Model Setup) (v0.3 NEW) |
 | 후속 SPEC | SPEC-GOOSE-CREDPOOL-001 | ProviderChoice + API key 이관 |
 | 후속 SPEC | SPEC-MESSENGER-* | 첫 messenger 채널 연결 이관 |
 | 외부 | `charmbracelet/huh` | CLI TUI 폼 |
@@ -599,6 +763,9 @@ LOCALE-001 `legal_flags` 기반 Step 5 UI 조건부 분기.
 | R10 | 온보딩 반복 버그 (완료 후에도 다시 실행) | 낮 | 고 | `./.mink/onboarding-completed` 타임스탬프 + 파일 존재 검증, Force-reset은 `mink init --force`에서만 |
 | R11 | CLI TUI가 특정 터미널(cmd.exe, dumb term)에서 깨짐 | 중 | 중 | `$TERM=dumb` / `NO_COLOR=1` 감지 → 단순 prompt 모드 fallback, AC-OB-020으로 검증 |
 | R12 | OS keyring 접근 불가 환경 (Linux headless, WSL without libsecret) | 중 | 중 | `keyring.Set` 실패 시 폴백 `~/.mink/.keyring-fallback.yaml`(0600) + 보안 경고 표시 |
+| R13 | 7-Step이 5-Step보다 이탈률 증가 (v0.3 NEW) | 중 | 중 | Step 2,3은 Skip 가능 + 설치 스크립트가 이미 처리한 경우 "detected, press Next" 즉시 통과 |
+| R14 | 모델 다운로드 중 온보딩 블로킹 (v0.3 NEW) | 중 | 중 | 비동기 다운로드 + "다운로드 중 다음 단계로" 옵션 (또는 백그라운드 다운로드) |
+| R15 | Ollama 설치 안내가 비개발자에게 불친절 (v0.3 NEW) | 중 | 중 | "1-click install" 링크 제공 + 설치 완료 후 자동 re-check |
 
 ---
 
@@ -652,4 +819,4 @@ LOCALE-001 `legal_flags` 기반 Step 5 UI 조건부 분기.
 
 ---
 
-**End of SPEC-MINK-ONBOARDING-001 v0.2.0**
+**End of SPEC-MINK-ONBOARDING-001 v0.3.1**
