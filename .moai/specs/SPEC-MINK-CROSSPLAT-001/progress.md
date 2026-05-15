@@ -1,6 +1,6 @@
 ## SPEC-MINK-CROSSPLAT-001 Progress
 
-- **Status**: 🟡 PARTIAL — M1 + M2 + M4 + M5 + M6 (sh) 완료, M1.A + M3 = SUPERSEDED by amendment-v0.2, M7 잔여
+- **Status**: 🟢 COMPLETE — M1 + M2 + M4 + M5 + M6 (sh) + M7 완료, M1.A + M3 = SUPERSEDED by amendment-v0.2
 - **Last update**: 2026-05-15
 - **Milestones completed**: M1 (PR #189), M2 (PR #194), M4+M5 (PR #195), M6 install.sh (M2 PR 에 포함)
 - **Amendment applied**: amendment-v0.2 (curl-single + WSL-only, 2026-05-15)
@@ -16,7 +16,7 @@
 | M4 | Ollama 자동 설치 + 서비스 시작 | 🟢 완료 (Unix/WSL2) | PR #195 (`948fdfc`). install.sh 측 완료. install.ps1 측은 amendment-v0.2 로 OUT scope |
 | M5 | 모델 자동 선택 + 다운로드 | 🟢 완료 (Unix/WSL2) | PR #195 (`948fdfc`). RAM 감지 + ollama pull + verify. install.ps1 측은 amendment-v0.2 로 OUT scope |
 | M6 | CLI 도구 감지 + 설정 기록 | 🟢 완료 (install.sh 측) | M2 PR #194 에 포함 (claude/gemini/codex 감지 + ~/.mink/config.yaml 기록). install.ps1 측은 amendment-v0.2 로 OUT scope |
-| M7 | 통합 테스트 + 문서 (curl + WSL2) | ⏸️ 잔여 | install-test.yml 의 unit 매트릭스는 M2 에 포함. WSL2 매트릭스 + end-to-end (실 GitHub Release 다운로드) 는 v0.1.0 태그 이후. amendment-v0.2 §4.2 로 축소 |
+| M7 | 통합 테스트 + 문서 (curl + WSL2) | 🟢 완료 | PR #<N>. install-test.yml WSL2 매트릭스 추가 (Vampire/setup-wsl@v3, Ubuntu-22.04). README Quick Start curl one-liner + WSL2 안내 추가. amendment-v0.2 §4.2 적용 |
 
 ## REQ/AC 충족 현황
 
@@ -83,14 +83,19 @@
 
 AC-CP-002 는 WSL2 bash 시나리오로 재정의되었다.
 
-### 잔여 REQ/AC (M7)
+### M7 완료 (PR #<N>)
 
-- M7 통합 테스트 + 문서 작성 (curl + WSL2 시나리오) — amendment-v0.2 §4.2 로 축소
-- (선택) install.sh 의 non-WSL Windows 감지 (MINGW/CYGWIN/MSYS) + 친절한 거부 메시지 — amendment-v0.2 §5.1, 별도 PR 가능
+- install-test.yml: WSL2 매트릭스 추가 (Vampire/setup-wsl@v3, Ubuntu-22.04, bats + dash)
+- README.md: Quick Start에 curl one-liner (macOS/Linux) + WSL2 설치 안내 (Windows) 추가
+- progress.md / acceptance.md: M7 GREEN 처리
+
+### 잔여 항목 (별도 PR)
+
+- (선택) install.sh 의 non-WSL Windows 감지 (MINGW/CYGWIN/MSYS) + 친절한 거부 메시지 — amendment-v0.2 §5.1
 
 ## 운영 노트
 
 본 SPEC은 milestone 별 분할 PR 전략으로 점진적 종결. amendment-v0.2 (2026-05-15) 적용으로 M1.A + M3 가 전면 OUT scope 전환되어 잔여 작업이 M7 (curl + WSL2 E2E + 문서) 로 축소되었다. paste-ready prompt 잔여 (M7 + 선택적 install.sh non-WSL 가드) 는 hand-off 메모리에 적재되어 후속 세션에서 진입 가능.
 
 ---
-Last Updated: 2026-05-15 (amendment-v0.2 — curl-single + WSL-only 정책 적용. M1.A + M3 SUPERSEDED)
+Last Updated: 2026-05-15 (M7 완료 — WSL2 CI 매트릭스 + README curl one-liner + acceptance.md 체크 완료. amendment-v0.2 §4.2 + §5.2 적용)

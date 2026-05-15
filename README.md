@@ -44,6 +44,33 @@
 
 > **Heads up**: MINK is in pre-alpha. M0 (Agentic Core) and most of M1/M2 are merged on `main`; CLI / Web UI are next milestones. Star and watch the repo to follow the hatching.
 
+### Install (recommended)
+
+**macOS / Linux:**
+
+```sh
+curl -fsSL https://mink.ai/install | sh
+```
+
+**Windows (WSL2 required):**
+
+MINK on Windows runs inside WSL2. After installing WSL2, open an Ubuntu shell:
+
+```sh
+wsl bash -c "curl -fsSL https://mink.ai/install | sh"
+```
+
+To install WSL2, see Microsoft's official guide:
+https://learn.microsoft.com/en-us/windows/wsl/install
+
+The installer auto-detects your OS and CPU, downloads the matching binary from
+GitHub Releases (SHA256-verified), installs Ollama if missing, picks a model
+size based on system RAM, and detects optional CLI tools (claude / gemini /
+codex).
+
+> Note: the `https://mink.ai/install` redirect points to the raw
+> `scripts/install.sh` until v0.1.0 is published. Until then, run from source.
+
 ### Prerequisites
 
 - **Go** 1.26 or later

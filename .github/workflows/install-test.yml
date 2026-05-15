@@ -1,7 +1,9 @@
 name: Install Script Test
 
 # Triggered when the installer script or its tests change.
-# Runs POSIX syntax checks and the bats unit test suite on both ubuntu and macOS.
+# Runs POSIX syntax checks and the bats unit test suite on ubuntu and macOS,
+# plus WSL2 (Ubuntu-22.04) syntax check and bats suite on a Windows runner.
+# Per amendment-v0.2 §4.2: Windows support is WSL2-only; native PowerShell installer is SUPERSEDED.
 # Note: No end-to-end GitHub Releases download tests — v0.1.0 tag does not exist yet.
 
 on:
@@ -46,4 +48,25 @@ jobs:
         run: sh -n scripts/install.sh
 
       - name: Run bats unit test suite
+        run: bats scripts/install.bats
+
+  bats-wsl2:
+    name: bats tests (WSL2 / Ubuntu-22.04)
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up WSL2 with Ubuntu-22.04
+        uses: Vampire/setup-wsl@v3
+        with:
+          distribution: Ubuntu-22.04
+          additional-packages: bats dash
+
+      - name: POSIX syntax check with dash inside WSL2
+        shell: wsl-bash {0}
+        run: dash -n scripts/install.sh
+
+      - name: Run bats unit test suite inside WSL2
+        shell: wsl-bash {0}
         run: bats scripts/install.bats
