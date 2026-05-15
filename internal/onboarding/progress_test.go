@@ -307,7 +307,7 @@ func TestLogSecurityEvent_AppendOnlyNeverTruncates(t *testing.T) {
 	logPath := filepath.Join(tmp, SecurityEventsFile)
 
 	var prevSize int64 = -1
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		if err := LogSecurityEvent("event", "detail"); err != nil {
 			t.Fatalf("LogSecurityEvent %d: %v", i, err)
 		}
