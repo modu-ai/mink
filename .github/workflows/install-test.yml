@@ -1,0 +1,49 @@
+name: Install Script Test
+
+# Triggered when the installer script or its tests change.
+# Runs POSIX syntax checks and the bats unit test suite on both ubuntu and macOS.
+# Note: No end-to-end GitHub Releases download tests — v0.1.0 tag does not exist yet.
+
+on:
+  push:
+    paths:
+      - 'scripts/install.sh'
+      - 'scripts/install.bats'
+      - '.github/workflows/install-test.yml'
+  pull_request:
+    paths:
+      - 'scripts/install.sh'
+      - 'scripts/install.bats'
+      - '.github/workflows/install-test.yml'
+
+jobs:
+  bats:
+    name: bats tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install bats-core and dash (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y bats dash
+
+      - name: Install bats-core (macOS)
+        if: matrix.os == 'macos-latest'
+        run: brew install bats-core
+
+      - name: POSIX syntax check with dash (Ubuntu only)
+        if: matrix.os == 'ubuntu-latest'
+        run: dash -n scripts/install.sh
+
+      - name: POSIX syntax check with sh
+        run: sh -n scripts/install.sh
+
+      - name: Run bats unit test suite
+        run: bats scripts/install.bats
