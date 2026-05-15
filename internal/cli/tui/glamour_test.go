@@ -13,7 +13,7 @@ import (
 // containing code blocks are rendered through glamour (raw ``` markers are absent).
 // AC-CLITUI-011
 func TestRender_MarkdownCodeBlock_GlamourEscapes(t *testing.T) {
-	snapshots.SetupAsciiTermenv()
+	snapshots.SetupASCIITermenv()
 
 	model := NewModel(nil, "test-session", true)
 	model.width = 80
@@ -40,7 +40,7 @@ func TestRender_MarkdownCodeBlock_GlamourEscapes(t *testing.T) {
 
 // TestRender_InlineCode_GlamourEscapes verifies inline code rendering.
 func TestRender_InlineCode_GlamourEscapes(t *testing.T) {
-	snapshots.SetupAsciiTermenv()
+	snapshots.SetupASCIITermenv()
 
 	model := NewModel(nil, "test-session", true)
 	model.width = 80

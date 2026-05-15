@@ -16,7 +16,7 @@ import (
 // (without any ChatStream call) and that the output contains at least 6
 // slash commands. AC-CLITUI-017
 func TestSlashHelp_LocalNoNetwork_Snapshot(t *testing.T) {
-	snapshots.SetupAsciiTermenv()
+	snapshots.SetupASCIITermenv()
 
 	// Arrange: track ChatStream calls — there must be zero.
 	callCount := 0
@@ -81,7 +81,7 @@ func TestSlashHelp_LocalNoNetwork_Snapshot(t *testing.T) {
 // TestSlashHelp_TeatestProgram verifies /help via full teatest program run.
 // This is a complementary test that exercises the tea.Program path.
 func TestSlashHelp_TeatestProgram(t *testing.T) {
-	snapshots.SetupAsciiTermenv()
+	snapshots.SetupASCIITermenv()
 
 	mock := &mockDaemonClient{}
 	model := NewModel(mock, "session", true)

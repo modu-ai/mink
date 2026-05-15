@@ -15,7 +15,7 @@ import (
 // two calls with the same input produce identical golden output.
 // AC-CLITUI-001
 func TestSnapshot_Helper_RequireSnapshot_Determinism(t *testing.T) {
-	snapshots.SetupAsciiTermenv()
+	snapshots.SetupASCIITermenv()
 
 	// Render something using lipgloss — output must be deterministic.
 	style := lipgloss.NewStyle().Bold(true)
@@ -28,11 +28,11 @@ func TestSnapshot_Helper_RequireSnapshot_Determinism(t *testing.T) {
 }
 
 // TestSnapshot_Helper_Determinism_AcrossOSes verifies that
-// SetupAsciiTermenv produces the same output regardless of platform
+// SetupASCIITermenv produces the same output regardless of platform
 // color capabilities. AC-CLITUI-001
 func TestSnapshot_Helper_Determinism_AcrossOSes(t *testing.T) {
 	// Force ASCII profile as if running on a minimal OS.
-	snapshots.SetupAsciiTermenv()
+	snapshots.SetupASCIITermenv()
 
 	style := lipgloss.NewStyle().Foreground(lipgloss.Color("86"))
 	got := style.Render("test output")
@@ -44,11 +44,11 @@ func TestSnapshot_Helper_Determinism_AcrossOSes(t *testing.T) {
 		}
 	}
 
-	// Calling SetupAsciiTermenv again must not change behaviour.
-	snapshots.SetupAsciiTermenv()
+	// Calling SetupASCIITermenv again must not change behaviour.
+	snapshots.SetupASCIITermenv()
 	got2 := style.Render("test output")
 	if got != got2 {
-		t.Fatalf("second SetupAsciiTermenv call changed output: %q != %q", got, got2)
+		t.Fatalf("second SetupASCIITermenv call changed output: %q != %q", got, got2)
 	}
 }
 
@@ -69,7 +69,7 @@ func TestSnapshot_Helper_FixedClock(t *testing.T) {
 // TestSnapshot_Helper_RequireSnapshot_Write verifies that RequireSnapshot
 // writes a golden file when the -update flag is set and reads it back.
 func TestSnapshot_Helper_RequireSnapshot_Write(t *testing.T) {
-	snapshots.SetupAsciiTermenv()
+	snapshots.SetupASCIITermenv()
 
 	got := []byte("golden content\n")
 
@@ -86,7 +86,7 @@ func TestSnapshot_Helper_RequireSnapshot_Write(t *testing.T) {
 // TestSnapshot_Helper_RequireSnapshot_Mismatch verifies that RequireSnapshot
 // fails when content does not match the golden file.
 func TestSnapshot_Helper_RequireSnapshot_Mismatch(t *testing.T) {
-	snapshots.SetupAsciiTermenv()
+	snapshots.SetupASCIITermenv()
 
 	// Ensure the golden file exists with one content.
 	name := "helper_test_mismatch"

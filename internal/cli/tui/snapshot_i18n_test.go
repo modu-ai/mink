@@ -31,7 +31,7 @@ func newI18NModel(lang string) *Model {
 // TestSnapshot_I18N_StatusbarIdle_Ko verifies the statusbar idle string in Korean.
 // AC-CLITUI3-009
 func TestSnapshot_I18N_StatusbarIdle_Ko(t *testing.T) {
-	snapshots.SetupAsciiTermenv()
+	snapshots.SetupASCIITermenv()
 	m := newI18NModel("ko")
 	snapshots.RequireSnapshot(t, "statusbar_idle_ko", []byte(m.View()))
 }
@@ -39,7 +39,7 @@ func TestSnapshot_I18N_StatusbarIdle_Ko(t *testing.T) {
 // TestSnapshot_I18N_StatusbarIdle_En verifies the statusbar idle string in English.
 // AC-CLITUI3-010
 func TestSnapshot_I18N_StatusbarIdle_En(t *testing.T) {
-	snapshots.SetupAsciiTermenv()
+	snapshots.SetupASCIITermenv()
 	m := newI18NModel("en")
 	snapshots.RequireSnapshot(t, "statusbar_idle_en", []byte(m.View()))
 }
@@ -49,7 +49,7 @@ func TestSnapshot_I18N_StatusbarIdle_En(t *testing.T) {
 // TestSnapshot_I18N_SlashHelp_Ko verifies the /help output header in Korean.
 // AC-CLITUI3-009
 func TestSnapshot_I18N_SlashHelp_Ko(t *testing.T) {
-	snapshots.SetupAsciiTermenv()
+	snapshots.SetupASCIITermenv()
 	m := newI18NModel("ko")
 
 	// Execute /help via Update so slash handling uses the Korean catalog.
@@ -63,7 +63,7 @@ func TestSnapshot_I18N_SlashHelp_Ko(t *testing.T) {
 // TestSnapshot_I18N_SlashHelp_En verifies the /help output header in English.
 // AC-CLITUI3-010
 func TestSnapshot_I18N_SlashHelp_En(t *testing.T) {
-	snapshots.SetupAsciiTermenv()
+	snapshots.SetupASCIITermenv()
 	m := newI18NModel("en")
 
 	// Execute /help via Update so slash handling uses the English catalog.
@@ -79,7 +79,7 @@ func TestSnapshot_I18N_SlashHelp_En(t *testing.T) {
 // TestSnapshot_I18N_PermissionModal_Ko verifies the permission modal in Korean.
 // AC-CLITUI3-009
 func TestSnapshot_I18N_PermissionModal_Ko(t *testing.T) {
-	snapshots.SetupAsciiTermenv()
+	snapshots.SetupASCIITermenv()
 	m := newI18NModel("ko")
 	m.permissionState = permission.PermissionModel{
 		Active:    true,
@@ -92,7 +92,7 @@ func TestSnapshot_I18N_PermissionModal_Ko(t *testing.T) {
 // TestSnapshot_I18N_PermissionModal_En verifies the permission modal in English.
 // AC-CLITUI3-010
 func TestSnapshot_I18N_PermissionModal_En(t *testing.T) {
-	snapshots.SetupAsciiTermenv()
+	snapshots.SetupASCIITermenv()
 	m := newI18NModel("en")
 	m.permissionState = permission.PermissionModel{
 		Active:    true,
@@ -107,7 +107,7 @@ func TestSnapshot_I18N_PermissionModal_En(t *testing.T) {
 // TestSnapshot_I18N_SessionMenuOpen_Ko verifies the sessionmenu overlay header in Korean.
 // AC-CLITUI3-009
 func TestSnapshot_I18N_SessionMenuOpen_Ko(t *testing.T) {
-	snapshots.SetupAsciiTermenv()
+	snapshots.SetupASCIITermenv()
 	m := newI18NModel("ko")
 	m.sessionMenuState = sessionmenu.Open([]sessionmenu.Entry{
 		{Name: "session-c"},
@@ -120,7 +120,7 @@ func TestSnapshot_I18N_SessionMenuOpen_Ko(t *testing.T) {
 // TestSnapshot_I18N_SessionMenuOpen_En verifies the sessionmenu overlay header in English.
 // AC-CLITUI3-010
 func TestSnapshot_I18N_SessionMenuOpen_En(t *testing.T) {
-	snapshots.SetupAsciiTermenv()
+	snapshots.SetupASCIITermenv()
 	m := newI18NModel("en")
 	m.sessionMenuState = sessionmenu.Open([]sessionmenu.Entry{
 		{Name: "session-c"},
