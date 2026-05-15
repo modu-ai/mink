@@ -10,13 +10,17 @@
 //     from the current working directory. Determined by $MINK_PROJECT_DIR override
 //     → upward traversal from os.Getwd() → cwd/.mink fallback.
 //
-// All functions in this file are pure path resolvers — no file I/O is performed.
+// Most functions are pure path resolvers. The single exception is
+// ProjectConfigDir's upward-traversal lookup, which calls os.Stat on candidate
+// parents to detect an existing .mink/ directory before falling back to
+// cwd/.mink. No writes are performed by any function in this file.
 // SPEC: SPEC-MINK-ONBOARDING-001 §6.0, §6.1
 // REQ: REQ-OB-009, REQ-OB-011, REQ-OB-017, REQ-OB-027
 package onboarding
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -112,7 +116,9 @@ func ProjectConfigDir() (string, error) {
 	}
 	cwd, err := os.Getwd()
 	if err != nil {
-		return "", ErrCWDNotFound
+		// Wrap the underlying os error so callers can introspect (permission
+		// denied, symlink cycle, deleted cwd, etc.) via errors.Is.
+		return "", fmt.Errorf("%w: %v", ErrCWDNotFound, err)
 	}
 	// Upward traversal: walk from cwd toward filesystem root.
 	dir := cwd

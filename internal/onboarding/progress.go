@@ -72,9 +72,10 @@ type Draft struct {
 
 // SaveDraft writes d atomically to <project>/.mink/onboarding-draft.yaml.
 //
-// Atomic guarantee: the YAML payload is first written to a temporary file
-// ("<draft>.tmp.<pid>") and then renamed into place. A pre-existing draft is
-// overwritten only when the rename succeeds.
+// Atomic guarantee: the YAML payload is first written to a unique temporary
+// file in the same directory (via os.CreateTemp — random suffix avoids
+// collisions across concurrent goroutines / processes) and then renamed into
+// place. A pre-existing draft is overwritten only when the rename succeeds.
 //
 // File permissions: 0644 (draft contains no secrets — API keys live in the OS
 // keyring, not here).
@@ -92,8 +93,8 @@ func SaveDraft(d *Draft) error {
 	}
 
 	// Ensure parent directory exists.
-	dir := filepath.Dir(draftPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	projectDir := filepath.Dir(draftPath)
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
 		return fmt.Errorf("onboarding: create .mink dir: %w", err)
 	}
 
@@ -102,17 +103,34 @@ func SaveDraft(d *Draft) error {
 		return fmt.Errorf("onboarding: marshal draft: %w", err)
 	}
 
-	// Write to a temporary file next to the final path to ensure the rename
-	// is atomic on POSIX systems (same filesystem).
-	tmpPath := fmt.Sprintf("%s.tmp.%d", draftPath, os.Getpid())
-	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
+	// Write to a unique temporary file in the same directory, then rename
+	// onto the final path. os.CreateTemp generates a random suffix so two
+	// concurrent SaveDraft calls (CLI / Web UI / completion fan-in) never
+	// share a tmp path. The rename is atomic on POSIX (same filesystem
+	// guaranteed because tmp lives in the project dir).
+	tmpFile, err := os.CreateTemp(projectDir, ProjectDirName+"-draft-*.tmp")
+	if err != nil {
+		return fmt.Errorf("onboarding: create draft tmp: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+	// Defer best-effort cleanup; harmless after a successful rename because
+	// the path no longer exists.
+	defer func() { _ = os.Remove(tmpPath) }()
+
+	if _, err := tmpFile.Write(data); err != nil {
+		_ = tmpFile.Close()
 		return fmt.Errorf("onboarding: write draft tmp: %w", err)
 	}
+	if err := tmpFile.Close(); err != nil {
+		return fmt.Errorf("onboarding: close draft tmp: %w", err)
+	}
+	// os.CreateTemp opens with 0600 by default; relax to 0644 to match the
+	// draft file's documented permission (non-secret project workspace).
+	if err := os.Chmod(tmpPath, 0644); err != nil {
+		return fmt.Errorf("onboarding: chmod draft tmp: %w", err)
+	}
 
-	// Rename is atomic on POSIX (same mount point guaranteed above).
 	if err := os.Rename(tmpPath, draftPath); err != nil {
-		// Best-effort cleanup of the tmp file.
-		_ = os.Remove(tmpPath)
 		return fmt.Errorf("onboarding: rename draft: %w", err)
 	}
 	return nil
