@@ -2,6 +2,8 @@
 
 > **문서 목적:** 5번의 피벗을 거쳐 GOOSE에 도착한 여정을 기록. 새 팀원, 기여자, 이해관계자를 위한 프로젝트 스토리.
 
+> **2026-05-15 NOTICE (POST-MINK-REBRAND)**: 본 문서는 v0.2 ~ v6.0 시대의 피벗 여정을 기록한 **historical 문서**이다. 2026-05-13 SPEC-MINK-BRAND-RENAME-001 (commit f0f02e4) 으로 프로젝트는 GOOSE → MINK 로 전체 rebrand 되었으며, repo `modu-ai/goose` → `modu-ai/mink` 로 이전 완료. 본 문서 안의 모든 **GOOSE / Goose / goose** 표기는 **해당 시점의 실제 브랜드명**이므로, historical fidelity 보존을 위해 의도적으로 유지된다 (rebrand sweep OUT-of-scope). 현재 활성 브랜드는 **MINK** 이고, 본 문서 자체 헤더(`MINK - Migration Guide`)는 갱신된 상태이지만 본문의 과거 브랜드 표기는 보존된다. 따라서 본 문서를 읽을 때 "현재"라는 표현은 작성 시점(v6.0)의 컨텍스트로 해석해야 한다.
+
 ---
 
 ## 0. 문서 개요
@@ -762,8 +764,11 @@ v4.0은 다음에 바뀌지 않는다.
 
 ---
 
-Version: 4.0.0
+Version: 4.0.0 (document version, v0.2 ~ v6.0 6번 피벗 기록)
 Created: 2026-04-21
-Status: Final (v4.0은 변하지 않는다)
+Last Pivot: 2026-05-13 (v7.0 MINK rebrand, SPEC-MINK-BRAND-RENAME-001, commit f0f02e4)
+Status: Historical (GOOSE 시대 기록 + MINK rebrand 이후 notice 추가)
 
-> **"5 pivots. 1 destination. GOOSE."**
+> **"5 pivots. 1 destination. GOOSE."** → 이후 v7.0 MINK rebrand 로 brand identity 진화
+>
+> Naming policy: 본 문서 내 GOOSE / Goose / goose 표기는 **해당 시점의 실제 브랜드명**으로 의도적으로 보존됨. 현재 활성 브랜드는 **MINK** (modu-ai/mink).
