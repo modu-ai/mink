@@ -1,10 +1,10 @@
-# MINK 코드맵 (Codemaps) — v0.1.0
+# MINK 코드맵 (Codemaps) — v0.2.0
 
 완벽한 코드 수준의 아키텍처 문서. 미래의 MoAI 에이전트와 개발자를 위한 파일 레벨 인식.
 
-**스캔 날짜**: 2026-05-04  
-**커버리지**: 681 Go 파일 + 5 cmd 파일, internal/ 32개 패키지  
-**생성 도구**: manager-docs Phase 1-2 코드맵 워크플로우
+**스캔 날짜**: 2026-05-04 (v0.1.0) → 2026-05-15 (v0.2.0 incremental — ritual/briefing v0.3.1 + cli/tui briefing wiring 추가)
+**커버리지**: 681+ Go 파일, internal/ 32+ 패키지 (ritual/briefing + cli/tui 신규 매핑)
+**생성 도구**: manager-docs Phase 1-2 + `/moai codemaps` 증분 갱신
 
 ---
 
@@ -30,7 +30,7 @@
 
 ### 4단계: 모듈 깊이 (모듈별)
 **→ `modules/*`** 각 패키지 상세 문서
-- bridge.md: BRIDGE-001 + AMEND-001 (최신)
+- bridge.md: BRIDGE-001 + AMEND-001
 - llm-credential.md: Zero-Knowledge 크레덴셜
 - llm-provider.md: 6개 프로바이더 라우팅
 - query.md: QueryEngine 상태 머신
@@ -42,9 +42,10 @@
 - core.md: Runtime → Session → Drain
 - router.md: 라우팅 로직
 - permission-sandbox.md: 3-layer permission 시스템
-- skills-plugins.md: Skill/Plugin/Subagent/Hook
 - transport-config.md: gRPC/WS/SSE 통합
 - mcp.md: MCP Server/Client
+- **ritual-briefing.md**: SPEC-MINK-BRIEFING-001 v0.3.1 (4 module fanout + 3 channel render + crisis prepend) — 최신
+- **cli-tui-briefing.md**: TUI `/briefing` slash wiring (M4) — 최신
 
 ---
 
@@ -89,9 +90,10 @@
     ├── core.md                  (Runtime/Session/Drain)
     ├── router.md                (라우팅)
     ├── permission-sandbox.md    (3-layer permission)
-    ├── skills-plugins.md        (Skill/Plugin/Subagent/Hook)
     ├── transport-config.md      (gRPC/WS/SSE)
-    └── mcp.md                   (MCP Server/Client)
+    ├── mcp.md                   (MCP Server/Client)
+    ├── ritual-briefing.md       (BRIEFING-001 v0.3.1 — 4 module + 3 channel + crisis)
+    └── cli-tui-briefing.md      (TUI /briefing slash wiring M4)
 ```
 
 ---
@@ -156,6 +158,12 @@
 - **M4**: resumer LogicalID lookup + multi-tab integration (PR #97)
 - **Status**: completed + 5 PRs mapped (PR #98 종결)
 
+### 최근 변경 (BRIEFING-001 v0.3.1)
+- **M1+M2**: 4 collectors + orchestrator + CLI/Telegram/Archive (PR commits 8f8e8e5/1f32a68/574d5f0)
+- **M3**: LLM categorical-only summary + 3 channel crisis prepend (PR #183)
+- **M4**: full wiring — Mock→Real factory / Orchestrator Options / LLM error path / `/briefing` slash / Module Status order (PR #182 + #186)
+- **Status**: implemented (v0.3.1, AC 21/21 GREEN, coverage 88.1%)
+
 ---
 
 ## 토큰 비용
@@ -186,7 +194,7 @@
 
 ---
 
-**Version**: 0.1.0 codemap  
-**Generated**: 2026-05-04 by manager-docs  
-**Source**: SPEC-CODEMAPS-001 Phase 1-2  
+**Version**: 0.2.0 codemap (incremental — briefing/tui 추가)
+**Generated**: 2026-05-04 by manager-docs → 2026-05-15 increment by /moai codemaps
+**Source**: SPEC-CODEMAPS-001 Phase 1-2 + SPEC-MINK-BRIEFING-001 v0.3.1
 **Quality**: TRUST 5 Readable + @MX:ANCHOR candidates identified
