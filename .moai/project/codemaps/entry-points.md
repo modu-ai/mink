@@ -1,27 +1,27 @@
 # 진입점 (Entry Points) — CLI & Daemon 부트스트랩
 
-cli/goose (클라이언트) 및 cmd/goosed (gRPC 데몬) 시작 흐름.
+cli/mink (클라이언트) 및 cmd/minkd (gRPC 데몬) 시작 흐름.
 
 ---
 
-## CLI 진입점: cmd/goose
+## CLI 진입점: cmd/mink
 
 ### 초기화 단계 (1-3단계)
 
 ```
-main()  [cmd/goose/main.go]
+main()  [cmd/mink/main.go]
   │
   ├─ Step 1: Parse CLI flags
   │   └─ cobra.Command (args parsing)
   │
   ├─ Step 2: Load config
-  │   └─ config.Loader → .moai/config, ~/.goose/config
+  │   └─ config.Loader → .moai/config, ~/.mink/config
   │
   └─ Step 3: Create CLI client
       └─ cli.NewClient(cfg) → grpc.ClientConn
 ```
 
-**파일**: cmd/goose/main.go, cmd/goose/version.go, cmd/goose/help.go
+**파일**: cmd/mink/main.go, cmd/mink/version.go, cmd/mink/help.go
 
 **진입 지점**:
 ```go
@@ -38,13 +38,13 @@ func main() {
 
 ```
 Step 4: Connect to daemon
-  goose → localhost:5050 (gRPC)
+  mink → localhost:5050 (gRPC)
     └─ Wait for daemon start (retry 3x)
 
 Step 5: Submit message
   cli.Execute(prompt)
     └─ client.SubmitMessage(ctx, prompt)
-        └─ gRPC call to goosed.SubmitMessage
+        └─ gRPC call to minkd.SubmitMessage
 
 Step 6: Stream response
   for msg := range <-chan SDKMessage {
@@ -66,12 +66,12 @@ Step 7: Exit
 
 ---
 
-## Daemon 진입점: cmd/goosed
+## Daemon 진입점: cmd/minkd
 
 ### 부트스트랩 (Step 1-3)
 
 ```
-main()  [cmd/goosed/main.go]
+main()  [cmd/minkd/main.go]
   │
   ├─ Step 1: Setup signals
   │   └─ signal.Notify(SIGINT, SIGTERM)
@@ -137,7 +137,7 @@ Step 13: Cleanup
   └─ os.Exit(0)
 ```
 
-**파일**: cmd/goosed/main.go, cmd/goosed/server.go, cmd/goosed/signals.go
+**파일**: cmd/minkd/main.go, cmd/minkd/server.go, cmd/minkd/signals.go
 
 ---
 
@@ -146,7 +146,7 @@ Step 13: Cleanup
 ### 새 연결 (1-3단계)
 
 ```
-Client connects to goosed:5050 (gRPC)
+Client connects to minkd:5050 (gRPC)
   │
   ├─ Step 1: Authentication
   │   └─ bridge.AuthHandler.Authenticate(ctx, credentials)
@@ -370,19 +370,19 @@ If any session still active after 20s:
 
 | 변수 | 기본값 | 설명 |
 |------|--------|------|
-| `GOOSE_LISTEN` | `:5050` | gRPC 수신 주소 |
-| `GOOSE_LLM_PROVIDER` | `ollama` | 기본 LLM (ollama/openai/claude) |
-| `GOOSE_LOG_LEVEL` | `info` | 로그 레벨 (debug/info/warn/error) |
+| `MINK_LISTEN` | `:5050` | gRPC 수신 주소 |
+| `MINK_LLM_PROVIDER` | `ollama` | 기본 LLM (ollama/openai/claude) |
+| `MINK_LOG_LEVEL` | `info` | 로그 레벨 (debug/info/warn/error) |
 
 ### Optional
 
 | 변수 | 기본값 | 설명 |
 |------|--------|------|
-| `GOOSE_MEMORY_DB` | `~/.goose/memory.db` | SQLite 경로 |
-| `GOOSE_QDRANT_URL` | `http://localhost:6333` | Qdrant 벡터 DB |
-| `GOOSE_PERMISSION_DB` | `~/.goose/permission.db` | Permission store |
-| `GOOSE_SESSION_TTL` | `7d` | 세션 만료 |
-| `GOOSE_BUFFER_TTL` | `24h` | 버퍼 TTL (BRIDGE-001) |
+| `MINK_MEMORY_DB` | `~/.mink/memory.db` | SQLite 경로 |
+| `MINK_QDRANT_URL` | `http://localhost:6333` | Qdrant 벡터 DB |
+| `MINK_PERMISSION_DB` | `~/.mink/permission.db` | Permission store |
+| `MINK_SESSION_TTL` | `7d` | 세션 만료 |
+| `MINK_BUFFER_TTL` | `24h` | 버퍼 TTL (BRIDGE-001) |
 
 ---
 

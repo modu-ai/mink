@@ -29,7 +29,7 @@
 | **Google ADK** | Go 에이전트 SDK | 에이전트 협업 = Go |
 | **$50K → $35K/월** | Hot path 3개만 Rust | 30% 비용 절감 |
 
-### 0.3 GOOSE의 선택 근거
+### 0.3 MINK의 선택 근거
 
 - **MoAI-ADK-Go 38,700줄 직접 재사용** → Go 오케스트레이션 70%
 - **2026 벤치마크**: Rust 2-12x 빠른 CPU, 40% 낮은 레이턴시
@@ -45,23 +45,23 @@
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │  📘 TypeScript Layer (Client Edge - 10% LOC)                 │
-│  goose-cli (Ink) │ goose-desktop (Tauri) │                   │
-│  goose-mobile (RN) │ goose-web (Next.js)                     │
+│  mink-cli (Ink) │ mink-desktop (Tauri) │                     │
+│  mink-mobile (RN) │ mink-web (Next.js)                       │
 ├──────────────────────────────────────────────────────────────┤
 │  Bridge: gRPC (.proto contracts, cross-language)             │
 ├──────────────────────────────────────────────────────────────┤
 │  🐹 Go Layer (Orchestration Majority - 70% LOC)              │
-│  goosed daemon │ Agent Runtime │ Learning Coord              │
+│  minkd daemon │ Agent Runtime │ Learning Coord               │
 │  LLM Router │ Tools │ Memory │ Transport │ Gateway           │
 ├──────────────────────────────────────────────────────────────┤
 │  Bridge: gRPC + CGO (hot paths only)                         │
 ├──────────────────────────────────────────────────────────────┤
 │  🦀 Rust Layer (Performance & Security Critical - 20% LOC)   │
-│  goose-ml (LoRA 훈련, Vector 연산)                            │
-│  goose-wasm (Extism/Wasmtime 샌드박스)                        │
-│  goose-crypto (E2EE Relay, Noise Protocol)                   │
-│  goose-desktop (OS Accessibility API)                        │
-│  goose-graph (Identity Graph 최적화)                          │
+│  mink-ml (LoRA 훈련, Vector 연산)                             │
+│  mink-wasm (Extism/Wasmtime 샌드박스)                         │
+│  mink-crypto (E2EE Relay, Noise Protocol)                    │
+│  mink-desktop (OS Accessibility API)                         │
+│  mink-graph (Identity Graph 최적화)                           │
 ├──────────────────────────────────────────────────────────────┤
 │  Infrastructure                                               │
 │  SQLite/FTS5 │ Qdrant │ Graphiti │ Ollama │ WASI            │
@@ -72,7 +72,7 @@
 
 | # | 레이어 | 언어 | 근거 | 참조 |
 |---|-------|-----|------|------|
-| 1 | **Daemon 오케스트레이터** (goosed) | 🐹 **Go** | MoAI-ADK-Go 계승, goroutines | MoAI-ADK |
+| 1 | **Daemon 오케스트레이터** (minkd) | 🐹 **Go** | MoAI-ADK-Go 계승, goroutines | MoAI-ADK |
 | 2 | **Agent Runtime** | 🐹 Go | Google ADK, goroutines | ADK-Go |
 | 3 | **Learning Engine 코어** | 🐹 Go | SPEC-REFLECT 계승 | MoAI-ADK |
 | 4 | **ML/LoRA 훈련 엔진** | 🦀 **Rust** | Candle/Burn, SIMD, GPU | Agentor |
@@ -106,7 +106,7 @@
 
 ### 2.1 Rust 적용 영역 (5개 크레이트)
 
-**goose-ml** (ML/LoRA 훈련):
+**mink-ml** (ML/LoRA 훈련):
 | 의존성 | 용도 |
 |-------|------|
 | **candle-core** | Huggingface의 Rust ML 프레임워크 |
@@ -117,7 +117,7 @@
 | **ndarray** | NumPy-like 배열 |
 | **rayon** | 데이터 병렬 처리 |
 
-**goose-wasm** (WASM 샌드박스):
+**mink-wasm** (WASM 샌드박스):
 | 의존성 | 용도 |
 |-------|------|
 | **wasmtime** | Microsoft Wassette 기반 |
@@ -125,7 +125,7 @@
 | **wit-bindgen** | Component Model |
 | **cap-std** | Capability-based std |
 
-**goose-crypto** (E2EE & Relay):
+**mink-crypto** (E2EE & Relay):
 | 의존성 | 용도 |
 |-------|------|
 | **snow** | Noise Protocol (WireGuard 동일) |
@@ -135,7 +135,7 @@
 | **chacha20poly1305** | AEAD |
 | **argon2** | 패스워드 해싱 |
 
-**goose-desktop** (OS Accessibility):
+**mink-desktop** (OS Accessibility):
 | 의존성 | 용도 |
 |-------|------|
 | **accessibility-ng** | macOS AXUIElement |
@@ -145,7 +145,7 @@
 | **windows-rs** | Windows UIA |
 | **atspi** | Linux AT-SPI2 |
 
-**goose-vector** (Vector 연산):
+**mink-vector** (Vector 연산):
 | 의존성 | 용도 |
 |-------|------|
 | **hnsw_rs** | HNSW 근사 최근접 |
@@ -159,11 +159,11 @@
 ```toml
 [workspace]
 members = [
-    "crates/goose-ml",
-    "crates/goose-wasm",
-    "crates/goose-crypto",
-    "crates/goose-desktop",
-    "crates/goose-vector",
+    "crates/mink-ml",
+    "crates/mink-wasm",
+    "crates/mink-crypto",
+    "crates/mink-desktop",
+    "crates/mink-vector",
 ]
 ```
 
@@ -222,7 +222,7 @@ members = [
 |-------|------|
 | **cgo** (stdlib) | C 인터페이스 |
 | **purego** | Pure Go dlopen (CGO 없이) |
-| `crates/goose-ml/goose_ml.h` | Rust → C 헤더 |
+| `crates/mink-ml/mink_ml.h` | Rust → C 헤더 |
 
 ### 3.5 데이터베이스
 
@@ -269,23 +269,23 @@ members = [
 
 ## 4. TypeScript 기술 스택 (Client UI - 10%)
 
-### 4.1 goose-cli (Terminal)
+### 4.1 mink-cli (Terminal)
 - ink 6.x (ESM), react 19.x, @inkjs/ui 3.x, commander 12.x
 - @connectrpc/connect 2.x (gRPC 클라이언트)
 
-### 4.2 goose-desktop (Tauri v2)
+### 4.2 mink-desktop (Tauri v2)
 - tauri 2.x (Rust backend 자체적)
 - react 19.x, zustand 5.x, tailwindcss 4.x
 - shadcn/ui, framer-motion 11.x
 
-### 4.3 goose-mobile (React Native)
+### 4.3 mink-mobile (React Native)
 - react-native 0.76+ (New Architecture)
 - @picovoice/porcupine-react-native 3.x
 - whisper.rn 0.4+
 - react-native-executorch 0.2+ (LoRA)
 - react-native-stripe
 
-### 4.4 goose-web (Next.js 15)
+### 4.4 mink-web (Next.js 15)
 - next 15.x, react 19.x
 - @connectrpc/connect-web 2.x
 
@@ -296,22 +296,22 @@ members = [
 ### 5.1 통합 빌드 파이프라인
 
 ```bash
-# 1. Rust 크레이트 빌드 (goose-ml, goose-wasm 등)
+# 1. Rust 크레이트 빌드 (mink-ml, mink-wasm 등)
 cd crates
 cargo build --release
-cbindgen --crate goose-ml --output goose_ml.h  # C 헤더 생성
+cbindgen --crate mink-ml --output mink_ml.h  # C 헤더 생성
 
 # 2. Go 바이너리 빌드 (Rust 의존성 link)
 cd ..
-go build -o bin/goosed ./cmd/goosed/
-go build -o bin/goose ./cmd/goose/
+go build -o bin/minkd ./cmd/minkd/
+go build -o bin/mink ./cmd/mink/
 
 # 3. TypeScript 빌드 (Turborepo)
 cd packages
 turbo build
 
 # 4. Tauri 데스크톱 (Rust + TS)
-cd packages/goose-desktop
+cd packages/mink-desktop
 bun tauri build
 ```
 
@@ -342,7 +342,7 @@ jobs:
 
 ## 6. 보안 모델 (Rust 크리티컬 영역)
 
-### 6.1 E2EE (Rust goose-crypto)
+### 6.1 E2EE (Rust mink-crypto)
 
 **Noise Protocol + WireGuard 영감**:
 - X25519 (키 교환)
@@ -356,7 +356,7 @@ jobs:
 - 메모리 제어 + 비밀 누출 방지
 - 배터리 수명 향상
 
-### 6.2 WASM Sandbox (Rust goose-wasm)
+### 6.2 WASM Sandbox (Rust mink-wasm)
 
 **Wasmtime 기반 (Microsoft Wassette 패턴)**:
 - 메모리 격리
@@ -368,7 +368,7 @@ jobs:
 - Rust, Go, C, AssemblyScript, Zig 지원
 - OCI 레지스트리 + OSV 스캔
 
-### 6.3 OS Accessibility (Rust goose-desktop)
+### 6.3 OS Accessibility (Rust mink-desktop)
 
 **네이티브 OS API 안전 접근**:
 - macOS: AXUIElement, ScreenCaptureKit
@@ -458,11 +458,11 @@ Rust 크리티컬 영역이 L4 (WASM), L7 (E2EE)을 강화:
 
 ### ADR-012: User-specific LoRA Adapters
 
-**Update:** LoRA 훈련 = **Rust goose-ml**. On-device QLoRA 성능 극대화.
+**Update:** LoRA 훈련 = **Rust mink-ml**. On-device QLoRA 성능 극대화.
 
 ### ADR-013: Privacy-preserving Stack
 
-**Update:** E2EE Relay = **Rust goose-crypto** (Mullvad GotaTun 패턴).
+**Update:** E2EE Relay = **Rust mink-crypto** (Mullvad GotaTun 패턴).
 
 ### ADR-014: Identity Graph with POLE+O (유지)
 
@@ -660,7 +660,7 @@ Lock states:
 
 **Rules:**
 - 모든 user-facing prose에 "MINK" 사용 (대문자, 마침표 후)
-- 코드 식별자는 `goose` (소문자, 영어만)
+- 코드 식별자는 `mink` (소문자, 영어만)
 - 제외: `.moai/specs/SPEC-GOOSE-BRAND-RENAME-001/` (원본 보존)
 - Fallback: SPEC 파일의 HISTORY 섹션은 lint 제외
 
@@ -675,7 +675,7 @@ Lock states:
 
 ## 9. LLM Provider 생태계 (SPEC-GOOSE-ADAPTER-001, SPEC-GOOSE-ADAPTER-002)
 
-GOOSE는 `internal/llm/provider/` 하위에 복수 LLM provider 어댑터를 통합한다. 모두 공통 `Provider` 인터페이스를 구현하며 `ProviderRegistry`에 등록된다. SPEC-001 (6 provider) + SPEC-002 (9 provider) 병합으로 총 **15 provider adapter-ready**.
+MINK는 `internal/llm/provider/` 하위에 복수 LLM provider 어댑터를 통합한다. 모두 공통 `Provider` 인터페이스를 구현하며 `ProviderRegistry`에 등록된다. SPEC-001 (6 provider) + SPEC-002 (9 provider) 병합으로 총 **15 provider adapter-ready**.
 
 ### 9.1 현재 지원 (15 provider adapter-ready)
 
@@ -790,7 +790,7 @@ type ProviderCapabilities struct {
 
 ### 9.6 온디바이스 추론
 
-**Rust goose-ml** (ML/LoRA 훈련):
+**Rust mink-ml** (ML/LoRA 훈련):
 - Candle (Huggingface) → 고속 추론
 - Burn (Rust ML) → GPU 지원
 - tch-rs (PyTorch binding)
@@ -810,7 +810,7 @@ type ProviderCapabilities struct {
 
 ---
 
-**온디바이스 추론**: Rust **goose-ml** (candle, ort)
+**온디바이스 추론**: Rust **mink-ml** (candle, ort)
 
 ---
 
@@ -851,8 +851,8 @@ Go 기반 harness (MoAI 계승):
 
 ```bash
 # 필수
-GOOSE_HOME=~/.goose
-GOOSE_LOCALE=en|ko|ja|zh
+MINK_HOME=~/.mink
+MINK_LOCALE=en|ko|ja|zh
 
 # Rust build
 CARGO_BUILD_JOBS=8
@@ -871,13 +871,13 @@ ANTHROPIC_API_KEY=...
 OLLAMA_HOST=http://localhost:11434
 
 # Learning Engine
-GOOSE_LEARNING_ENABLED=true
-GOOSE_LORA_TRAINING=true  # Rust goose-ml
-GOOSE_FEDERATED_LEARNING=false
+MINK_LEARNING_ENABLED=true
+MINK_LORA_TRAINING=true  # Rust mink-ml
+MINK_FEDERATED_LEARNING=false
 
 # Privacy
-GOOSE_ENCRYPTION=true  # Rust goose-crypto
-GOOSE_RELAY_URL=wss://relay.gooseagent.org
+MINK_ENCRYPTION=true  # Rust mink-crypto
+MINK_RELAY_URL=wss://relay.mink.dev
 ```
 
 ---
@@ -940,9 +940,9 @@ RUN cargo build --release
 # Stage 2: Go 빌드 (Rust 링크)
 FROM golang:1.26-alpine AS go-builder
 WORKDIR /app
-COPY --from=rust-builder /app/crates/target/release/libgoose_ml.a /usr/lib/
+COPY --from=rust-builder /app/crates/target/release/libmink_ml.a /usr/lib/
 COPY . .
-RUN CGO_ENABLED=1 go build -o goosed ./cmd/goosed/
+RUN CGO_ENABLED=1 go build -o minkd ./cmd/minkd/
 
 # Stage 3: TS 빌드 (필요시)
 FROM node:22-alpine AS ts-builder
@@ -953,9 +953,9 @@ RUN cd packages && bun install && turbo build
 # Stage 4: 최종 이미지
 FROM alpine:3.20
 RUN apk --no-cache add ca-certificates
-COPY --from=go-builder /app/goosed /usr/local/bin/
+COPY --from=go-builder /app/minkd /usr/local/bin/
 EXPOSE 50051
-ENTRYPOINT ["goosed"]
+ENTRYPOINT ["minkd"]
 ```
 
 ---
@@ -1031,14 +1031,14 @@ ENTRYPOINT ["goosed"]
 
 ```
 🦀 Rust (20% - Critical)
-  ├─ ML/LoRA 훈련 (goose-ml)
-  ├─ WASM 샌드박스 (goose-wasm)
-  ├─ E2EE 암호화 (goose-crypto)
-  ├─ Desktop OS API (goose-desktop)
-  └─ Vector 연산 (goose-vector)
+  ├─ ML/LoRA 훈련 (mink-ml)
+  ├─ WASM 샌드박스 (mink-wasm)
+  ├─ E2EE 암호화 (mink-crypto)
+  ├─ Desktop OS API (mink-desktop)
+  └─ Vector 연산 (mink-vector)
 
 🐹 Go (70% - Orchestration)
-  ├─ goosed daemon (MoAI-ADK-Go 계승)
+  ├─ minkd daemon (MoAI-ADK-Go 계승)
   ├─ Agent Runtime
   ├─ Learning Engine Core
   ├─ LLM Router
@@ -1046,10 +1046,10 @@ ENTRYPOINT ["goosed"]
   └─ Gateway + MCP
 
 📘 TypeScript (10% - UI)
-  ├─ goose-cli (Ink)
-  ├─ goose-desktop (Tauri)
-  ├─ goose-mobile (React Native)
-  └─ goose-web (Next.js 15)
+  ├─ mink-cli (Ink)
+  ├─ mink-desktop (Tauri)
+  ├─ mink-mobile (React Native)
+  └─ mink-web (Next.js 15)
 ```
 
 **원칙**:

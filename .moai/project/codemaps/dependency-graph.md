@@ -8,8 +8,8 @@
 
 ### 진입점 (Entry)
 ```
-cmd/goose → internal/cli → internal/command
-cmd/goosed → internal/core → internal/agent → internal/query
+cmd/mink → internal/cli → internal/command
+cmd/minkd → internal/core → internal/agent → internal/query
 ```
 
 ### 중심 패키지 (Hub)
@@ -114,7 +114,7 @@ Layer 1 (foundation)
 
 **Import Into**:
 - core/session.go (session state 관리)
-- cmd/goosed/main.go (daemon 진입점)
+- cmd/minkd/main.go (daemon 진입점)
 - cli/client.go (CLI 클라이언트)
 
 **Imports From**:
@@ -301,7 +301,7 @@ Layer 1 (foundation)
 ### core (Daemon Core)
 
 **Import Into**:
-- cmd/goosed (main entry)
+- cmd/minkd (main entry)
 
 **Imports From**:
 - internal/query

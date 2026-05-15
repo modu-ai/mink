@@ -53,7 +53,7 @@ language: ko
 ## 1. 프로젝트 디렉토리 구조 (v4.0)
 
 ```
-goose-agent/
+mink/
 ├── go.mod                      # Go module definition (go 1.26+)
 ├── go.sum                      # Dependency checksums
 ├── package.json                # TypeScript workspace root
@@ -81,25 +81,15 @@ goose-agent/
 │       └── release.yml
 │
 ├── cmd/                        # ⭐ Go CLI 진입점 (MoAI 패턴)
-│   ├── goose/                  # 메인 CLI 클라이언트
+│   ├── mink/                   # 메인 CLI 클라이언트
 │   │   ├── main.go
 │   │   ├── version.go
 │   │   └── help.go
 │   │
-│   ├── goosed/                 # 데몬 서버 (gRPC)
-│   │   ├── main.go
-│   │   ├── server.go
-│   │   └── signals.go
-│   │
-│   ├── goose-relay/            # E2EE 릴레이 서비스
-│   │   ├── main.go
-│   │   ├── relay.go
-│   │   └── crypto.go
-│   │
-│   └── goose-learner/          # 학습 엔진 실행기 (스케줄러)
+│   └── minkd/                  # 데몬 서버 (gRPC)
 │       ├── main.go
-│       ├── scheduler.go
-│       └── checkpoint.go
+│       ├── server.go
+│       └── signals.go
 │
 ├── internal/                   # ⭐ Go 내부 패키지 (38+)
 │   │
@@ -479,7 +469,7 @@ goose-agent/
 │           └── testdata/            # 테스트 픽스처
 │
 ├── pkg/                        # Go Public API (export)
-│   ├── goose/                  # Main SDK
+│   ├── mink/                   # Main SDK
 │   │   ├── agent.go            # Agent SDK
 │   │   ├── tool.go             # Tool SDK
 │   │   ├── learning.go         # Learning SDK
@@ -498,37 +488,37 @@ goose-agent/
 │
 ├── packages/                   # ⭐ TypeScript Packages (7개)
 │   │
-│   ├── goose-cli/              # Terminal CLI (Ink v6)
+│   ├── mink-cli/               # Terminal CLI (Ink v6)
 │   │   ├── src/
 │   │   ├── package.json
 │   │   └── README.md
 │   │
-│   ├── goose-desktop/          # Desktop App (Tauri v2)
+│   ├── mink-desktop/           # Desktop App (Tauri v2)
 │   │   ├── src-tauri/          # Rust 바인딩
 │   │   ├── src/
 │   │   ├── package.json
 │   │   └── README.md
 │   │
-│   ├── goose-mobile/           # Mobile App (React Native)
+│   ├── mink-mobile/            # Mobile App (React Native)
 │   │   ├── ios/
 │   │   ├── android/
 │   │   ├── src/
 │   │   ├── package.json
 │   │   └── README.md
 │   │
-│   ├── goose-web/              # Web UI (Next.js 15)
+│   ├── mink-web/               # Web UI (Next.js 15)
 │   │   ├── app/                # App Router
 │   │   ├── components/
 │   │   ├── package.json
 │   │   └── README.md
 │   │
-│   ├── goose-developer-portal/ # Developer Portal (Nextra)
+│   ├── mink-developer-portal/  # Developer Portal (Nextra)
 │   │   ├── pages/              # 문서 페이지
 │   │   ├── public/
 │   │   ├── package.json
 │   │   └── README.md
 │   │
-│   ├── goose-sdk/              # TypeScript SDK
+│   ├── mink-sdk/               # TypeScript SDK
 │   │   ├── src/
 │   │   │   ├── agent/
 │   │   │   ├── tools/
@@ -536,7 +526,7 @@ goose-agent/
 │   │   ├── package.json
 │   │   └── README.md
 │   │
-│   └── goose-skills/           # Skill Loader
+│   └── mink-skills/            # Skill Loader
 │       ├── src/
 │       ├── package.json
 │       └── README.md
@@ -579,10 +569,10 @@ goose-agent/
 │   │   ├── moai-workflow-gan-loop/         # 신규: Builder-Evaluator GAN 루프
 │   │   ├── moai-workflow-pencil-integration/ # 신규: Pencil .pen 파일 통합
 │   │   │
-│   │   ├── goose-learning-engine/
-│   │   ├── goose-identity-graph/
-│   │   ├── goose-lora-trainer/
-│   │   ├── goose-agent-builder/
+│   │   ├── mink-learning-engine/
+│   │   ├── mink-identity-graph/
+│   │   ├── mink-lora-trainer/
+│   │   ├── mink-agent-builder/
 │   │   └── ... (더 많음)
 │   │
 │   ├── agents/                 # 27+ Agent Definitions
@@ -705,10 +695,8 @@ goose-agent/
 ```mermaid
 graph TB
     subgraph "cmd/ (Entry Points)"
-        goose["🖥️ goose<br/>CLI 클라이언트"]
-        goosed["🖧 goosed<br/>gRPC 서버"]
-        relay["🔗 goose-relay<br/>E2EE 릴레이"]
-        learner["🧠 goose-learner<br/>학습 스케줄러"]
+        mink["🖥️ mink<br/>CLI 클라이언트"]
+        minkd["🖧 minkd<br/>gRPC 서버"]
     end
     
     subgraph "internal/core"
@@ -734,8 +722,8 @@ graph TB
         transport["transport<br/>gRPC/WS"]
     end
     
-    goose -->|gRPC| goosed
-    goosed -->|use| core
+    mink -->|gRPC| minkd
+    minkd -->|use| core
     core -->|use| agent
     agent -->|learn| engine
     engine -->|track| identity
@@ -747,7 +735,7 @@ graph TB
     agent -->|execute| tools
     agent -->|recall| memory
     identity -->|store| memory
-    goosed -->|expose| world
+    minkd -->|expose| world
     world -->|transport| mcp
     mcp -->|protocol| transport
     
@@ -764,11 +752,11 @@ graph TB
 graph TD
     User["👤 사용자<br/>(User Input)"]
     
-    User -->|wish: '날씨 어때?'| GOOSE["⭐ <b>GOOSE</b><br/>Personal AI<br/>Claude Opus 4.7 / GPT-4o"]
+    User -->|wish: '날씨 어때?'| MINK["⭐ <b>MINK</b><br/>Personal AI<br/>Claude Opus 4.7 / GPT-4o"]
     
-    GOOSE -->|delegate| PersonalAgents["Tier 1: Personal<br/>(개인용 에이전트)"]
-    GOOSE -->|delegate| OrgAgents["Tier 2: Organization<br/>(조직용 에이전트)"]
-    GOOSE -->|delegate| BazaarAgents["Tier 3: Bazaar<br/>(마켓 에이전트)"]
+    MINK -->|delegate| PersonalAgents["Tier 1: Personal<br/>(개인용 에이전트)"]
+    MINK -->|delegate| OrgAgents["Tier 2: Organization<br/>(조직용 에이전트)"]
+    MINK -->|delegate| BazaarAgents["Tier 3: Bazaar<br/>(마켓 에이전트)"]
     
     PersonalAgents -->|include| Secretary["Secretary<br/>일정, 이메일"]
     PersonalAgents -->|include| HealthTracker["Health Tracker<br/>운동, 식단"]
@@ -786,7 +774,7 @@ graph TD
     HealthTracker -->|spawn_worker| W2["Worker 2<br/>Gemma 7B<br/>로컬 실행"]
     DevAgent -->|spawn_worker| W3["Worker 3<br/>Claude Haiku<br/>비용 최적"]
     
-    style GOOSE fill:#FFD700,stroke:#333,stroke-width:3px
+    style MINK fill:#FFD700,stroke:#333,stroke-width:3px
     style PersonalAgents fill:#87CEEB,stroke:#333
     style OrgAgents fill:#90EE90,stroke:#333
     style BazaarAgents fill:#FFB6C1,stroke:#333
@@ -883,8 +871,8 @@ graph TB
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant C as goose CLI
-    participant D as goosed<br/>(gRPC)
+    participant C as mink CLI
+    participant D as minkd<br/>(gRPC)
     participant A as Agent
     participant L as Learning<br/>Engine
     participant LLM as LLM<br/>(Ollama/OpenAI)
@@ -959,14 +947,14 @@ type MemoryProvider interface {
 ```mermaid
 graph LR
     subgraph "TS Clients"
-        CLI["goose-cli<br/>(Ink)"]
-        WEB["goose-web<br/>(Next.js)"]
-        DESKTOP["goose-desktop<br/>(Tauri)"]
-        MOBILE["goose-mobile<br/>(RN)"]
+        CLI["mink-cli<br/>(Ink)"]
+        WEB["mink-web<br/>(Next.js)"]
+        DESKTOP["mink-desktop<br/>(Tauri)"]
+        MOBILE["mink-mobile<br/>(RN)"]
     end
     
     subgraph "gRPC Boundary"
-        GRPC["gRPC Server<br/>(goosed)<br/>:5050"]
+        GRPC["gRPC Server<br/>(minkd)<br/>:5050"]
     end
     
     subgraph "Go Services"
@@ -1004,7 +992,7 @@ graph LR
 
 ### 9.1 직접 재사용 (Copy-Paste)
 
-| MoAI | GOOSE | 변경 |
+| MoAI | MINK | 변경 |
 |---|---|---|
 | `internal/evolution/observe/` | `internal/learning/engine/observer.go` | 컨텍스트 추가 |
 | `internal/research/patterns/` | `internal/learning/patterns/` | 확장 |
@@ -1027,7 +1015,7 @@ graph LR
 
 ## 10. Hermes Agent에서 가져오는 것
 
-| Hermes | GOOSE | 위치 |
+| Hermes | MINK | 위치 |
 |---|---|---|
 | Tool auto-registry | Tool inventory | `internal/tools/registry.go` |
 | Memory abstraction | MemoryProvider | `internal/memory/provider.go` |
@@ -1039,10 +1027,10 @@ graph LR
 
 ## 11. Claude Code에서 가져오는 것
 
-| Claude Code | GOOSE | 적용 |
+| Claude Code | MINK | 적용 |
 |---|---|---|
-| Ink v6 components | goose-cli | 터미널 UI |
-| React hooks | goose-web | 웹 UI |
+| Ink v6 components | mink-cli | 터미널 UI |
+| React hooks | mink-web | 웹 UI |
 | Zustand | 상태관리 | 모든 TS 패키지 |
 | Bridge/Transport | Transport interface | `internal/transport/` |
 | Tool + Permission | Tool registry | `internal/tools/` |
@@ -1055,13 +1043,13 @@ graph LR
 
 ```bash
 # 단일 바이너리
-go build -o goose ./cmd/goose/
-go build -o goosed ./cmd/goosed/
+go build -o mink ./cmd/mink/
+go build -o minkd ./cmd/minkd/
 
 # 크로스 컴파일 (8 platforms)
-GOOS=darwin GOARCH=arm64 go build -o goose-macos-arm64 ./cmd/goose/
-GOOS=linux GOARCH=amd64 go build -o goose-linux-amd64 ./cmd/goose/
-GOOS=windows GOARCH=amd64 go build -o goose-windows-amd64.exe ./cmd/goose/
+GOOS=darwin GOARCH=arm64 go build -o mink-macos-arm64 ./cmd/mink/
+GOOS=linux GOARCH=amd64 go build -o mink-linux-amd64 ./cmd/mink/
+GOOS=windows GOARCH=amd64 go build -o mink-windows-amd64.exe ./cmd/mink/
 ```
 
 ### 12.2 TypeScript 빌드
@@ -1076,11 +1064,11 @@ turbo build  # 7 packages 병렬
 FROM golang:1.26 AS builder
 WORKDIR /app
 COPY . .
-RUN go build -o goosed ./cmd/goosed/
+RUN go build -o minkd ./cmd/minkd/
 
 FROM alpine:3.20
-COPY --from=builder /app/goosed /usr/local/bin/
-CMD ["goosed"]
+COPY --from=builder /app/minkd /usr/local/bin/
+CMD ["minkd"]
 ```
 
 ---
@@ -1099,7 +1087,7 @@ CMD ["goosed"]
 
 ```bash
 # 1. Clone
-git clone https://github.com/goose-ai/goose-agent.git
+git clone https://github.com/modu-ai/mink.git
 
 # 2. Go deps
 go mod download && go mod tidy
@@ -1111,13 +1099,13 @@ pnpm install
 make build-go
 
 # 5. Start daemon
-./goosed &
+./minkd &
 
 # 6. Test CLI
-./goose help
+./mink help
 
 # 7. Web
-pnpm --filter goose-web dev
+pnpm --filter mink-web dev
 ```
 
 ---

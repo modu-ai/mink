@@ -667,7 +667,7 @@ v4.0 이후 모든 중대 변경은 RFC 필요:
 "안녕하세요, MINK 커뮤니티에 오신 것을 환영합니다.
 Apache License 2.0의 완전 오픈소스 AI 에이전트입니다.
 자기진화 + 100% 개인화 = 평생 동반자 AI.
-참여 방법은 github.com/modu-ai/goose."
+참여 방법은 github.com/modu-ai/mink."
 
 ### 10.3 코드 기여자
 

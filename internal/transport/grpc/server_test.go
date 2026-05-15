@@ -571,7 +571,7 @@ func TestMaxRecvMsgSize_EnvOverride(t *testing.T) {
 // The original test dialled "0.0.0.0:<port>" and expected the call to fail,
 // but on Linux the kernel rewrites a client-side 0.0.0.0 to 127.0.0.1, so the
 // connection succeeds against a loopback-bound listener. We therefore assert
-// the bind address directly instead. See modu-ai/goose#40.
+// the bind address directly instead. See modu-ai/mink#40.
 func TestNonLoopbackBind_Rejected(t *testing.T) {
 	t.Parallel()
 
