@@ -2,7 +2,9 @@ package locale
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -10,6 +12,40 @@ import (
 
 	"golang.org/x/text/language"
 )
+
+// CLINoticeText is the stderr notice printed once per `mink init` auto-detect run.
+// Must match the regex specified by AC-LC-022 exactly.
+const CLINoticeText = "Detecting your location for personalisation. Use --no-auto-detect to skip. (locally stored only)"
+
+// DetectOptions configures the behaviour of DetectWithOptions.
+type DetectOptions struct {
+	// AutoDetectIP enables IP geolocation lookup (ipapi.co) when true.
+	// When false, only OS environment detection is performed (equivalent to Phase 1 Detect()).
+	AutoDetectIP bool
+
+	// ClientIP is the caller's public IP address forwarded to LookupIP.
+	// Empty string causes LookupIP to return ErrPrivateIP — a graceful no-op for
+	// CLI callers whose public IP is not known. The web /probe endpoint passes the
+	// real remote IP; the CLI passes "" to let ipapi.co infer from the origin.
+	ClientIP string
+
+	// NoticeWriter is the writer that receives the one-line privacy notice
+	// (CLINoticeText) when AutoDetectIP is true. If nil, no notice is written.
+	// Production code passes cmd.ErrOrStderr(); tests pass a *bytes.Buffer.
+	NoticeWriter io.Writer
+}
+
+// DetectWithOptions resolves the user's LocaleContext with explicit options.
+// When opts.AutoDetectIP is true and opts.NoticeWriter is non-nil, it writes
+// the privacy notice (CLINoticeText) to NoticeWriter exactly once before any
+// external probe. Falls back to OS env detect when IP probe fails or is disabled.
+//
+// @MX:ANCHOR: [AUTO] DetectWithOptions is the auto-detect entry point invoked by mink init.
+// @MX:REASON: Behaviour is shared with the web /probe endpoint via this single source of truth;
+// both the CLI (--no-auto-detect) and the web handler route through this function.
+func DetectWithOptions(ctx context.Context, opts DetectOptions) (LocaleContext, error) {
+	return detectWithOptions(ctx, nil, opts)
+}
 
 // Injectable indirections for testing. Production code uses the real OS functions;
 // tests substitute fakes to avoid relying on real environment state.
@@ -33,7 +69,7 @@ var localeEnvRegex = regexp.MustCompile(
 //
 //  1. User override stored in config (SourceUserOverride) — not wired in Phase 1; stub.
 //  2. OS environment variables and OS-specific APIs (SourceOS).
-//  3. IP geolocation — stub interface in Phase 1; real implementation is a follow-up PR.
+//  3. IP geolocation — calls DetectWithOptions with AutoDetectIP:true, NoticeWriter:os.Stderr.
 //  4. Default en-US with warn log (SourceDefault).
 //
 // Detect never mutates process-level environment variables (REQ-LC-014).
@@ -42,17 +78,29 @@ var localeEnvRegex = regexp.MustCompile(
 // @MX:REASON: ONBOARDING-001, REGION-SKILLS-001, and SCHEDULER-001 consume the result;
 // signature changes break the entire localization dependency chain.
 func Detect(ctx context.Context) (LocaleContext, error) {
-	return detect(ctx, nil)
+	return detectWithOptions(ctx, nil, DetectOptions{
+		AutoDetectIP: true,
+		NoticeWriter: os.Stderr,
+	})
 }
 
 // DetectWithOverride returns the override verbatim when it is non-nil and has a
 // non-empty Country field (REQ-LC-006, AC-LC-004). Otherwise it falls through to
 // the normal detection path.
 func DetectWithOverride(ctx context.Context, override *LocaleContext) (LocaleContext, error) {
-	return detect(ctx, override)
+	return detectWithOptions(ctx, override, DetectOptions{
+		AutoDetectIP: true,
+		NoticeWriter: os.Stderr,
+	})
 }
 
-func detect(ctx context.Context, override *LocaleContext) (LocaleContext, error) {
+// detectWithOptions is the internal implementation for Detect, DetectWithOverride,
+// and DetectWithOptions. It handles override resolution, OS detection, IP geolocation
+// (when opts.AutoDetectIP is true), merge logic, and the default fallback.
+//
+// @MX:WARN: [AUTO] Merge logic depends on OS and IP result availability; both paths must be tested.
+// @MX:REASON: Silent accuracy downgrade when only one source is available can mask misconfiguration.
+func detectWithOptions(ctx context.Context, override *LocaleContext, opts DetectOptions) (LocaleContext, error) {
 	// Step 1: user override wins unconditionally (REQ-LC-006).
 	if override != nil && override.Country != "" {
 		lc := *override
@@ -63,17 +111,99 @@ func detect(ctx context.Context, override *LocaleContext) (LocaleContext, error)
 		return lc, nil
 	}
 
-	// Step 2: OS-level detection.
-	lc, err := detectFromOS(ctx)
-	if err == nil && lc.Country != "" {
-		return lc, nil
+	// Step 2: OS-level detection (always attempted).
+	osLC, osErr := detectFromOS(ctx)
+	osAvail := osErr == nil && osLC.Country != ""
+
+	// Step 3: IP geolocation (optional, enabled via DetectOptions).
+	var ipResult LookupIPResult
+	var ipAvail bool
+
+	if opts.AutoDetectIP {
+		// Print the privacy notice exactly once before any external probe.
+		if opts.NoticeWriter != nil {
+			fmt.Fprintln(opts.NoticeWriter, CLINoticeText)
+		}
+
+		ipRes, ipErr := LookupIP(ctx, LookupIPInput{ClientIP: opts.ClientIP})
+		if ipErr == nil && ipRes.Country != "" {
+			ipResult = ipRes
+			ipAvail = true
+		} else if ipErr != nil && !errors.Is(ipErr, ErrPrivateIP) && !errors.Is(ipErr, ErrLookupTimeout) {
+			// Non-fatal: fall through to OS or default. Timeout and private IP are expected.
+			_ = ipErr
+		}
 	}
 
-	// Step 3: IP geolocation — Phase 1 stub. A future PR will wire MaxMind + ipapi.co.
-	// TODO: Phase 2 — implement IPGeolocator and call it here when OS detection fails.
+	// Step 4: Merge OS and IP results.
+	return mergeLocaleResults(osLC, osAvail, ipResult, ipAvail), nil
+}
 
-	// Step 4: default fallback (SourceDefault).
-	return defaultLocaleContext(), nil
+// mergeLocaleResults combines OS and IP detection results according to the spec merge rules
+// (SPEC-MINK-LOCALE-001 amendment-v0.2 §6.11.2):
+//
+//   - Both OS and IP available, same country → take IP result, accuracy="medium".
+//   - Both available, different country → record conflict, take IP result, accuracy="medium".
+//   - Only OS available → use OS result, accuracy="" (Phase 1 backward compat).
+//   - Only IP available → use IP result, accuracy="medium".
+//   - Neither available → return defaultLocaleContext with accuracy="manual".
+func mergeLocaleResults(osLC LocaleContext, osAvail bool, ip LookupIPResult, ipAvail bool) LocaleContext {
+	switch {
+	case osAvail && ipAvail:
+		// Use the OS result as base (it has full field set) and overlay IP fields.
+		lc := osLC
+		lc.Accuracy = AccuracyMedium
+		lc.DetectedMethod = SourceIPGeolocation
+
+		if osLC.Country != ip.Country {
+			// Country mismatch — record conflict, still take IP as authoritative.
+			lc.Conflict = &LocaleConflict{
+				OSCountry: osLC.Country,
+				IPCountry: ip.Country,
+			}
+		}
+
+		// Overlay IP country and timezone (IP is more accurate for country-level).
+		lc.Country = ip.Country
+		if ip.Timezone != "" {
+			lc.Timezone = ip.Timezone
+		}
+		// Recalculate derived fields for the potentially new country.
+		if lc.Country != osLC.Country {
+			lc.Currency, _ = CountryToCurrency(lc.Country)
+			lc.MeasurementSystem = detectMeasurementSystem(lc.Country)
+			lc.CalendarSystem = detectCalendarSystem(lc.Country, ip.Language)
+			lc.TimezoneAlternatives = TimezoneAlternatives(lc.Country)
+		}
+		lc.DetectedAt = time.Now()
+		return lc
+
+	case osAvail:
+		// OS only — preserve Phase 1 behavior (Accuracy stays "").
+		return osLC
+
+	case ipAvail:
+		// IP only — build a minimal LocaleContext from IP result.
+		lc := LocaleContext{
+			Country:         ip.Country,
+			PrimaryLanguage: ip.Language,
+			Timezone:        ip.Timezone,
+			DetectedMethod:  SourceIPGeolocation,
+			Accuracy:        AccuracyMedium,
+			DetectedAt:      time.Now(),
+		}
+		currency, _ := CountryToCurrency(lc.Country)
+		lc.Currency = currency
+		lc.MeasurementSystem = detectMeasurementSystem(lc.Country)
+		lc.CalendarSystem = detectCalendarSystem(lc.Country, lc.PrimaryLanguage)
+		return lc
+
+	default:
+		// Neither OS nor IP — use default (SourceDefault) with accuracy="manual".
+		lc := defaultLocaleContext()
+		lc.Accuracy = AccuracyManual
+		return lc
+	}
 }
 
 // detectFromOS orchestrates OS-specific locale detection and derives derived fields
