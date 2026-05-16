@@ -46,12 +46,17 @@ type errorBody struct {
 }
 
 // sessionStartResponse is returned by POST /install/api/session/start.
+//
+// CompletedAt is always nil on a freshly started session, but the field is
+// included so that frontend consumers can rely on `completed_at` being present
+// in every response shape — otherwise `undefined` slips past `!== null` checks.
 type sessionStartResponse struct {
 	SessionID   string                    `json:"session_id"`
 	CSRFToken   string                    `json:"csrf_token"`
 	CurrentStep int                       `json:"current_step"`
 	TotalSteps  int                       `json:"total_steps"`
 	Data        onboarding.OnboardingData `json:"data"`
+	CompletedAt *time.Time                `json:"completed_at"`
 }
 
 // sessionStateResponse is returned by GET /install/api/session/{id}/state.
@@ -64,25 +69,49 @@ type sessionStateResponse struct {
 }
 
 // stepSubmitResponse is returned by POST /install/api/session/{id}/step/{n}/submit.
+//
+// Shape mirrors sessionStateResponse so the frontend can replace the whole state
+// without losing fields like total_steps or completed_at — every endpoint that
+// advances the wizard returns the same envelope.
 type stepSubmitResponse struct {
+	SessionID   string                    `json:"session_id"`
 	CurrentStep int                       `json:"current_step"`
+	TotalSteps  int                       `json:"total_steps"`
 	Data        onboarding.OnboardingData `json:"data"`
+	CompletedAt *time.Time                `json:"completed_at"`
 }
 
 // stepSkipResponse is returned by POST /install/api/session/{id}/step/{n}/skip.
+//
+// Same envelope shape as stepSubmitResponse — see note there.
 type stepSkipResponse struct {
-	CurrentStep int `json:"current_step"`
+	SessionID   string                    `json:"session_id"`
+	CurrentStep int                       `json:"current_step"`
+	TotalSteps  int                       `json:"total_steps"`
+	Data        onboarding.OnboardingData `json:"data"`
+	CompletedAt *time.Time                `json:"completed_at"`
 }
 
 // backResponse is returned by POST /install/api/session/{id}/back.
+//
+// Same envelope shape as stepSubmitResponse — see note there.
 type backResponse struct {
-	CurrentStep int `json:"current_step"`
+	SessionID   string                    `json:"session_id"`
+	CurrentStep int                       `json:"current_step"`
+	TotalSteps  int                       `json:"total_steps"`
+	Data        onboarding.OnboardingData `json:"data"`
+	CompletedAt *time.Time                `json:"completed_at"`
 }
 
 // completeResponse is returned by POST /install/api/session/{id}/complete.
+//
+// Same envelope shape as sessionStateResponse — see note there.
 type completeResponse struct {
-	CompletedAt *time.Time                `json:"completed_at"`
+	SessionID   string                    `json:"session_id"`
+	CurrentStep int                       `json:"current_step"`
+	TotalSteps  int                       `json:"total_steps"`
 	Data        onboarding.OnboardingData `json:"data"`
+	CompletedAt *time.Time                `json:"completed_at"`
 }
 
 // ---------------------------------------------------------------------------
@@ -371,6 +400,7 @@ func (h *Handler) startSession(w http.ResponseWriter, r *http.Request) {
 		CurrentStep: flow.CurrentStep,
 		TotalSteps:  onboarding.TotalSteps(),
 		Data:        flow.Data,
+		CompletedAt: nil,
 	})
 }
 
@@ -437,8 +467,11 @@ func (h *Handler) submitStep(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, stepSubmitResponse{
+		SessionID:   entry.flow.SessionID,
 		CurrentStep: entry.flow.CurrentStep,
+		TotalSteps:  onboarding.TotalSteps(),
 		Data:        entry.flow.Data,
+		CompletedAt: entry.flow.CompletedAt,
 	})
 }
 
@@ -474,7 +507,13 @@ func (h *Handler) skipStep(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, stepSkipResponse{CurrentStep: entry.flow.CurrentStep})
+	writeJSON(w, http.StatusOK, stepSkipResponse{
+		SessionID:   entry.flow.SessionID,
+		CurrentStep: entry.flow.CurrentStep,
+		TotalSteps:  onboarding.TotalSteps(),
+		Data:        entry.flow.Data,
+		CompletedAt: entry.flow.CompletedAt,
+	})
 }
 
 // back decrements CurrentStep by 1.
@@ -502,7 +541,13 @@ func (h *Handler) back(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, backResponse{CurrentStep: entry.flow.CurrentStep})
+	writeJSON(w, http.StatusOK, backResponse{
+		SessionID:   entry.flow.SessionID,
+		CurrentStep: entry.flow.CurrentStep,
+		TotalSteps:  onboarding.TotalSteps(),
+		Data:        entry.flow.Data,
+		CompletedAt: entry.flow.CompletedAt,
+	})
 }
 
 // complete_ finalises the session, calls CompleteAndPersist, and GCs the store entry.
@@ -536,8 +581,11 @@ func (h *Handler) complete_(w http.ResponseWriter, r *http.Request) {
 	h.store.Delete(id)
 
 	writeJSON(w, http.StatusOK, completeResponse{
-		CompletedAt: entry.flow.CompletedAt,
+		SessionID:   entry.flow.SessionID,
+		CurrentStep: entry.flow.CurrentStep,
+		TotalSteps:  onboarding.TotalSteps(),
 		Data:        *data,
+		CompletedAt: entry.flow.CompletedAt,
 	})
 }
 

@@ -59,7 +59,10 @@ export default function App() {
   const { current_step, total_steps } = state;
 
   // Completion screen — shown when current_step > total_steps.
-  const isComplete = current_step > total_steps || state.completed_at !== null;
+  // Use loose `!= null` so undefined (when backend omits the key, e.g., on /session/start)
+  // is not mistakenly treated as a completed session — undefined !== null is true and
+  // would otherwise short-circuit straight into the completion screen before Step 1 renders.
+  const isComplete = current_step > total_steps || state.completed_at != null;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -191,8 +194,9 @@ function CompletionScreen({
   error,
   onComplete,
 }: CompletionScreenProps) {
-  if (completedAt !== null) {
+  if (completedAt != null) {
     // Session already persisted — show final screen.
+    // Loose `!= null` guards against undefined when the backend omits the key.
     return (
       <Card className="w-full max-w-lg mx-auto text-center">
         <CardHeader>

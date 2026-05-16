@@ -504,6 +504,34 @@ func TestGetState_ReturnsCurrentData(t *testing.T) {
 	assert.Nil(t, resp.CompletedAt)
 }
 
+// TestStartSession_ResponseContainsCompletedAtKey is a regression test for the
+// web-speedrun hotfix: the /install/api/session/start response must include the
+// `completed_at` JSON key (set to null) so the frontend's `!== null` (or `!= null`)
+// guards behave consistently across endpoints. Without the key, the frontend would
+// see `undefined`, which slips past `!== null` and short-circuits the user straight
+// into the CompletionScreen before Step 1 can render.
+//
+// SPEC: SPEC-MINK-ONBOARDING-001 Phase 4 (AC-OB-016 web-speedrun hotfix)
+func TestStartSession_ResponseContainsCompletedAtKey(t *testing.T) {
+	t.Parallel()
+	h, _, _ := newTestHandler(t)
+
+	req := httptest.NewRequest(http.MethodPost, "/install/api/session/start", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	// Decode into a raw map to assert the JSON key is present (typed struct decoding
+	// would tolerate a missing key by leaving the field zero-valued).
+	var raw map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &raw))
+
+	completedAt, ok := raw["completed_at"]
+	require.True(t, ok, "start response must include completed_at key for frontend !== null guards")
+	assert.Equal(t, "null", string(completedAt),
+		"completed_at must be JSON null on a freshly started session, got %q", string(completedAt))
+}
+
 // TestBackNavigationWorks verifies that Back correctly decrements CurrentStep.
 func TestBackNavigationWorks(t *testing.T) {
 	t.Parallel()
