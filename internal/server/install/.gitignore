@@ -1,0 +1,6 @@
+# Frontend build artifacts copied here from web/install/dist/ for go:embed.
+# The .gitkeep placeholder is required so //go:embed all:dist compiles on a
+# clean checkout. Actual bundle files are produced by `npm run build` in
+# web/install/ and copied into this directory by the developer or CI.
+/dist/*
+!/dist/.gitkeep

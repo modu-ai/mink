@@ -1,0 +1,7 @@
+node_modules
+*.local
+.DS_Store
+.vite
+# Exclude built assets but keep .gitkeep so Go embed compiles on clean checkout
+dist/*
+!dist/.gitkeep
