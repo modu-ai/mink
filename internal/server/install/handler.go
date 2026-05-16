@@ -364,6 +364,19 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mux.ServeHTTP(w, r)
 }
 
+// safeData returns a copy of data with nil slices replaced by empty slices so
+// that the JSON response never contains "null" for array fields. A null array
+// would cause a JavaScript TypeError when frontend code calls .map() or
+// .filter() on the field without a null guard.
+//
+// REQ: REQ-OB-031 (Step 3 CLI Tools — DetectedTools must be an array)
+func safeData(data onboarding.OnboardingData) onboarding.OnboardingData {
+	if data.CLITools.DetectedTools == nil {
+		data.CLITools.DetectedTools = []onboarding.CLITool{}
+	}
+	return data
+}
+
 // Close stops the session store's background sweep goroutine.
 func (h *Handler) Close() {
 	h.store.Close()
@@ -404,7 +417,7 @@ func (h *Handler) startSession(w http.ResponseWriter, r *http.Request) {
 		CSRFToken:   token,
 		CurrentStep: flow.CurrentStep,
 		TotalSteps:  onboarding.TotalSteps(),
-		Data:        flow.Data,
+		Data:        safeData(flow.Data),
 		CompletedAt: nil,
 	})
 }
@@ -428,7 +441,7 @@ func (h *Handler) getState(w http.ResponseWriter, r *http.Request) {
 		SessionID:   entry.flow.SessionID,
 		CurrentStep: entry.flow.CurrentStep,
 		TotalSteps:  onboarding.TotalSteps(),
-		Data:        entry.flow.Data,
+		Data:        safeData(entry.flow.Data),
 		CompletedAt: entry.flow.CompletedAt,
 	})
 }
@@ -475,7 +488,7 @@ func (h *Handler) submitStep(w http.ResponseWriter, r *http.Request) {
 		SessionID:   entry.flow.SessionID,
 		CurrentStep: entry.flow.CurrentStep,
 		TotalSteps:  onboarding.TotalSteps(),
-		Data:        entry.flow.Data,
+		Data:        safeData(entry.flow.Data),
 		CompletedAt: entry.flow.CompletedAt,
 	})
 }
@@ -516,7 +529,7 @@ func (h *Handler) skipStep(w http.ResponseWriter, r *http.Request) {
 		SessionID:   entry.flow.SessionID,
 		CurrentStep: entry.flow.CurrentStep,
 		TotalSteps:  onboarding.TotalSteps(),
-		Data:        entry.flow.Data,
+		Data:        safeData(entry.flow.Data),
 		CompletedAt: entry.flow.CompletedAt,
 	})
 }
@@ -550,7 +563,7 @@ func (h *Handler) back(w http.ResponseWriter, r *http.Request) {
 		SessionID:   entry.flow.SessionID,
 		CurrentStep: entry.flow.CurrentStep,
 		TotalSteps:  onboarding.TotalSteps(),
-		Data:        entry.flow.Data,
+		Data:        safeData(entry.flow.Data),
 		CompletedAt: entry.flow.CompletedAt,
 	})
 }
@@ -589,7 +602,7 @@ func (h *Handler) complete_(w http.ResponseWriter, r *http.Request) {
 		SessionID:   entry.flow.SessionID,
 		CurrentStep: entry.flow.CurrentStep,
 		TotalSteps:  onboarding.TotalSteps(),
-		Data:        *data,
+		Data:        safeData(*data),
 		CompletedAt: entry.flow.CompletedAt,
 	})
 }

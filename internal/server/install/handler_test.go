@@ -879,3 +879,64 @@ func TestLocaleProbe_LookupTimeout_FallbackManual(t *testing.T) {
 	assert.Equal(t, "manual", resp.Accuracy, "ErrLookupTimeout must produce accuracy=manual")
 	assert.Equal(t, "KR", resp.Country, "timeout fallback must use KR 4-preset default")
 }
+
+// TestStep2Skip_AdvancesToStep3 is a reproduction test for the Playwright E2E failure
+// where clicking "Skip" on Step 2 (Model Setup) did not render Step 3 (CLI Tools).
+// Exact sequence: POST /start -> POST step/1/submit (KR locale) -> POST step/2/skip.
+// Asserts that the skip response carries current_step=3 and that a subsequent
+// GET /state also returns current_step=3.
+//
+// SPEC: SPEC-MINK-ONBOARDING-001 Phase 4 (web-speedrun hotfix Step 2->3)
+func TestStep2Skip_AdvancesToStep3(t *testing.T) {
+	t.Parallel()
+	h, _, _ := newTestHandler(t)
+
+	sr := doStart(t, h)
+	sid := sr.sessionID
+
+	// Step 1 -- KR locale (matches Playwright E2E default selection).
+	rec := postWithCSRF(h, fmt.Sprintf("/install/api/session/%s/step/1/submit", sid),
+		onboarding.LocaleChoice{
+			Country:    "KR",
+			Language:   "ko",
+			Timezone:   "Asia/Seoul",
+			LegalFlags: []string{"PIPA"},
+		}, sr)
+	require.Equal(t, http.StatusOK, rec.Code, "step 1 submit: %s", rec.Body.String())
+
+	var step1Resp stepSubmitResponse
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&step1Resp))
+	assert.Equal(t, 2, step1Resp.CurrentStep, "after step 1 submit, current_step must be 2")
+
+	// Step 2 -- Skip (Ollama not available, mirrors Playwright CI environment).
+	rec = postWithCSRF(h, fmt.Sprintf("/install/api/session/%s/step/2/skip", sid), nil, sr)
+	require.Equal(t, http.StatusOK, rec.Code, "step 2 skip: %s", rec.Body.String())
+
+	// Decode into raw map to assert the JSON shape exactly (avoids zero-value tolerance).
+	var rawSkip map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &rawSkip))
+
+	// current_step must be 3 in the skip response.
+	rawStep, ok := rawSkip["current_step"]
+	require.True(t, ok, "skip response must include current_step key")
+	assert.Equal(t, "3", string(rawStep),
+		"step 2 skip must advance current_step to 3, got %s", string(rawStep))
+
+	// completed_at must be present and null (guards frontend != null checks).
+	rawCompleted, ok := rawSkip["completed_at"]
+	require.True(t, ok, "skip response must include completed_at key for frontend null guards")
+	assert.Equal(t, "null", string(rawCompleted),
+		"completed_at must be JSON null after skip, got %s", string(rawCompleted))
+
+	// GET /state must also return current_step=3 (session persisted correctly).
+	req := httptest.NewRequest(http.MethodGet,
+		fmt.Sprintf("/install/api/session/%s/state", sid), nil)
+	stateRec := httptest.NewRecorder()
+	h.ServeHTTP(stateRec, req)
+	require.Equal(t, http.StatusOK, stateRec.Code)
+
+	var stateResp sessionStateResponse
+	require.NoError(t, json.NewDecoder(stateRec.Body).Decode(&stateResp))
+	assert.Equal(t, 3, stateResp.CurrentStep,
+		"GET /state after step 2 skip must return current_step=3")
+}

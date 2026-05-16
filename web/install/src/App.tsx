@@ -204,9 +204,9 @@ function CompletionScreen({
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground text-sm">
-            온보딩이 완료되었습니다. <code>mink</code> 명령으로 시작하세요.
+            설정이 저장되었습니다. <code>mink</code> 명령으로 시작하세요.
             <br />
-            Onboarding complete. Run <code>mink</code> to get started.
+            Setup finished. Run <code>mink</code> to get started.
           </p>
         </CardContent>
       </Card>
@@ -234,7 +234,7 @@ function CompletionScreen({
       </CardContent>
       <CardFooter className="justify-center">
         <Button onClick={onComplete} disabled={loading}>
-          {loading ? "저장 중..." : "마법사 종료 / Finish"}
+          {loading ? "저장 중..." : "완료 / Complete"}
         </Button>
       </CardFooter>
     </Card>
