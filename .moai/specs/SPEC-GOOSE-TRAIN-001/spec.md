@@ -1,25 +1,31 @@
 ---
 id: SPEC-GOOSE-TRAIN-001
-version: 0.1.0
-status: planned
+version: 0.2.0
+status: deprecated
 created_at: 2026-04-29
-updated_at: 2026-04-29
+updated_at: 2026-05-16
+deprecated_at: 2026-05-16
 author: manager-spec
 priority: P1
 issue_number: null
 phase: 2
 size: 대(L)
 lifecycle: spec-first
-labels: [training, ml, mlx, lora, rl, gemma4, phase-2]
+labels: [deprecated, training, ml, mlx, lora, rl, gemma4, phase-2]
+supersedes: []
+superseded_by: [SPEC-MINK-MEMORY-QMD-001, SPEC-MINK-LLM-ROUTING-V2-AMEND-001]
 ---
 
-# SPEC-GOOSE-TRAIN-001 — MLX RL Training Pipeline for Gemma 4
+# SPEC-GOOSE-TRAIN-001 — MLX RL Training Pipeline for Gemma 4 [DEPRECATED]
+
+> **DEPRECATED 2026-05-16**: 사용자 결정으로 자체 Gemma 4 SFT/DPO/GRPO 학습 파이프라인 노선을 폐기한다. 대체 경로는 외부 GOAT LLM 5종 (Claude/DeepSeek/GPT/Codex/GLM-5-Turbo) 호출과 QMD 기반 사용자 메모리(SPEC-MINK-MEMORY-QMD-001) 의 조합으로, 모델 가중치 학습 부담 0. 근거: ADR-001 (`.moai/decisions/ADR-001-qlora-rl-training-deprecation.md`). 본 SPEC 본문은 역사 보존을 위해 유지하되 신규 구현 대상에서 제외된다.
 
 ## HISTORY
 
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-29 | 초안 작성 (ROADMAP Phase 2, AI.GOOSE Gemma 4 RL training pipeline) | manager-spec |
+| 0.2.0 | 2026-05-16 | **Deprecated**. 사용자 결정으로 자체 RL/SFT/DPO/GRPO 학습 노선 폐기, 외부 GOAT LLM + QMD 메모리로 대체. ADR-001 참조. | MoAI orchestrator |
 
 ---
 
