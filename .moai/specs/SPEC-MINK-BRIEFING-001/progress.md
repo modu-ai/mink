@@ -1,6 +1,8 @@
 ## SPEC-MINK-BRIEFING-001 Progress
 
-- **Current status (2026-05-15)**: implemented (M4 AC 5/5 GREEN, PR #186)
+- **Current status (2026-05-17)**: 🟢 completed — v0.3.1 sync 종결. 모든 AC (16 v0.3.0 + EC 4 + 5 v0.3.1 M4) GREEN. 후속 hygiene PR #187 (staticcheck QF1012) 까지 main 반영. 본 SPEC 의 IN SCOPE 종결.
+- **Sync trail (2026-05-17)**: status `implemented` → `completed`. spec.md frontmatter `updated_at: 2026-05-17`. 코드 변경 0 — doc-only sync (PR #186 M4 wiring + PR #187 hygiene 가 이미 main 에 반영됨). 후속 M5 (Telegram MarkdownV2 escape / TUI a11y / i18n) 은 새 SPEC ID 권장.
+- **Previous status (2026-05-15)**: implemented (M4 AC 5/5 GREEN, PR #186)
 - v0.3.0 종결물 (M1+M2+M3, AC 16/16 GREEN) 은 기존 그대로 유지.
 - Started: 2026-05-14T09:30+09:00
 - Phase 0.9: Language = Go (go.mod detected)
@@ -153,3 +155,20 @@ v0.3.0 종결 시점에서 식별된 5 wiring gap 을 닫는 amendment milestone
 
 - M5 (가능): Telegram MarkdownV2 escape 정합성 보강 + TUI accessibility 옵션 + 다국어 i18n 진입 (별도 SPEC)
 - BRIEFING-001 본 SPEC 의 IN SCOPE 는 v0.3.1 M4 로 종결 — M5 이상은 새 SPEC ID 권장
+
+---
+
+## Sync 종결 노트 (2026-05-17)
+
+- **Status transition**: `implemented` → `completed`
+- **Doc commits sequence**:
+  - `0cdd448` v0.3.0 M3 (LLM summary + crisis hotline, AC 16/16)
+  - `ffe98e2` BriefingPanel snapshot test (AC-008 GREEN)
+  - `c95a4f6` v0.3.1 M4 full wiring (5 gaps closed, AC 21/21)
+  - `ef8ff39` staticcheck QF1012 hygiene + 4 lint warnings
+  - (this PR) v0.3.1 status sync — spec.md status + progress.md sync trail
+- **No code changes in this sync** — 모든 implementation은 #182/#183/#186/#187 PR 시퀀스로 머지 완료. 본 sync PR 은 SPEC 메타데이터 정합성 복구만 수행.
+- **Coverage 최종**: 88.1% (target 85% 충족, v0.3.0 85.5% → v0.3.1 88.1% +2.6%)
+- **Quality gates 최종**: go build/vet/race-test PASS, gofmt clean, `make brand-lint` 0 violations
+- **AC 21/21 GREEN**: AC-001~012 (v0.3.0) + EC-001~004 (v0.3.0 edge) + AC-013~017 (v0.3.1 M4)
+- **No M5/post-completion work in scope** — IN SCOPE 종결. 추가 작업은 새 SPEC ID 권장.

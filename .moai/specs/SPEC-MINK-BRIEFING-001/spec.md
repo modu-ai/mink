@@ -1,10 +1,10 @@
 ---
 id: SPEC-MINK-BRIEFING-001
 version: 0.3.1
-status: implemented
+status: completed
 supersedes: SPEC-GOOSE-BRIEFING-001
 created_at: 2026-05-14
-updated_at: 2026-05-15
+updated_at: 2026-05-17
 author: manager-spec
 priority: P1
 labels:
