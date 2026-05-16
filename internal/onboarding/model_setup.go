@@ -180,9 +180,14 @@ func DetectMINKModel(ctx context.Context, status OllamaStatus) (DetectedModel, e
 }
 
 // detectMINKModelHTTP tries the Ollama HTTP API.
-// Returns (model, true, nil) on success with a MINK model found.
-// Returns ({}, false, nil) when daemon is unreachable (normal — no mink model or daemon down).
-// Returns ({}, false, err) only on JSON parse failure from a live daemon.
+// Returns (model, true, nil) when the daemon responded with a parseable list AND
+// a MINK model was found.
+// Returns ({}, true, nil) when the daemon responded with a parseable list but NO
+// MINK model is present — the daemon-alive signal suppresses the exec fallback.
+// Returns ({}, false, nil) when the daemon is unreachable or returns a non-200
+// status — the caller falls back to exec.
+// Returns ({}, false, err) only on JSON parse failure from a live daemon (200 OK
+// with malformed body) — an unrecoverable condition.
 func detectMINKModelHTTP(ctx context.Context) (DetectedModel, bool, error) {
 	httpCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
@@ -213,8 +218,9 @@ func detectMINKModelHTTP(ctx context.Context) (DetectedModel, bool, error) {
 			return DetectedModel{Name: m.Name, SizeBytes: m.Size}, true, nil
 		}
 	}
-	// No MINK model found — normal, not an error.
-	return DetectedModel{}, false, nil
+	// Daemon responded but no MINK model is installed. Return ok=true so the
+	// caller does NOT fall back to exec — the daemon is authoritative here.
+	return DetectedModel{}, true, nil
 }
 
 // detectMINKModelExec runs `ollama list` and parses stdout for ai-mink/ models.
