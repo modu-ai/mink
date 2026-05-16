@@ -243,7 +243,7 @@ export function Step7Consent({
             onClick={handleSubmit}
             disabled={!canContinue || isBusy}
           >
-            {isBusy ? "처리 중..." : "완료 / Finish"}
+            {isBusy ? "처리 중..." : "Continue / 다음"}
           </Button>
         </div>
       </CardFooter>

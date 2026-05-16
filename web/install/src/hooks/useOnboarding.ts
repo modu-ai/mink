@@ -40,6 +40,20 @@ export function useOnboarding(): UseOnboardingResult {
             ? { ...prev, ...next, csrf_token: prev.csrf_token }
             : next
         );
+        // Auto-complete: when all steps are done but persist hasn't happened yet,
+        // call /complete immediately so the completion card appears without requiring
+        // a separate user click. This keeps the E2E speedrun path synchronous.
+        if (
+          next.current_step > next.total_steps &&
+          next.completed_at == null
+        ) {
+          const completed = await installApi.complete(next.session_id);
+          setState((prev) =>
+            prev != null
+              ? { ...prev, ...completed, csrf_token: prev.csrf_token }
+              : completed
+          );
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Unknown error";
         setError(msg);

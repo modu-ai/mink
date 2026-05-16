@@ -28,8 +28,10 @@ export function Step3CLI({
   canSkip,
 }: StepProps) {
   // Build initial checked state from detected tools.
+  // Guard against null: Go serialises nil slices as JSON null, not [].
+  const detectedTools = data.CLITools.DetectedTools ?? [];
   const detectedMap = new Map<string, CLITool>(
-    data.CLITools.DetectedTools.map((t) => [t.Name, t])
+    detectedTools.map((t) => [t.Name, t])
   );
 
   const [checked, setChecked] = useState<Record<string, boolean>>(
@@ -47,7 +49,7 @@ export function Step3CLI({
     setLocalError(null);
     try {
       // Only include tools that the user kept checked AND were originally detected.
-      const selectedTools = data.CLITools.DetectedTools.filter(
+      const selectedTools = (data.CLITools.DetectedTools ?? []).filter(
         (t) => checked[t.Name]
       );
       const body: CLIToolsDetection = { DetectedTools: selectedTools };
@@ -131,7 +133,7 @@ export function Step3CLI({
           );
         })}
 
-        {data.CLITools.DetectedTools.length === 0 && (
+        {(data.CLITools.DetectedTools ?? []).length === 0 && (
           <p className="text-xs text-muted-foreground text-center py-2">
             감지된 CLI 도구가 없습니다. 건너뛰기를 눌러 계속하세요.
             <br />
