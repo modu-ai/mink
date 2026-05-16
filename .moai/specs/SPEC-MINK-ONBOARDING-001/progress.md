@@ -1,10 +1,10 @@
 ## SPEC-MINK-ONBOARDING-001 Progress
 
-- **Status**: 🟡 draft — Phase 1 backend 100% + Phase 2A/2B CLI 완료 (Skip+Back+Resume+LOCALE stub), Phase 2C polish / 3 (Web) / 4 (E2E) 잔여
+- **Status**: 🟡 draft — Phase 1 backend 100% + Phase 2 CLI 전체 완성 (2A happy + 2B Skip/Back/Resume/LOCALE + 2C brand polish), Phase 3 (Web) / 4 (E2E) 잔여
 - **Last update**: 2026-05-16
 - **Spec version**: v0.3.2 (Phase 1C canonical path policy 명문화)
 - **Doc commits**: SPEC 생성 (`a2b3551`) → MINK rebrand (`81d9fa4`) → amendment-v0.3 본문 병합 → v0.3.2 §6.0 canonical path policy
-- **Implementation commits**: 9 (Phase 1A PR #200 / Phase 1B PR #201 / Phase 1C-paths PR #202 / Phase 1C-keyring PR #203 / Phase 1E PR #204 / Phase 1F PR #205 / Phase 1D PR #206 / Phase 2A PR #207 / Phase 2B PR #209)
+- **Implementation commits**: 10 (Phase 1A PR #200 / Phase 1B PR #201 / Phase 1C-paths PR #202 / Phase 1C-keyring PR #203 / Phase 1E PR #204 / Phase 1F PR #205 / Phase 1D PR #206 / Phase 2A PR #207 / Phase 2B PR #209 / Phase 2C PR #210)
 
 ## 문서 진척 (Phase 0)
 
@@ -28,7 +28,7 @@
 | **Phase 1F**: validators + keyring + completion wiring (flow.go 확장) | 🟢 완료 (PR #205) | 657 LOC (2 files, 20 신규 Test 함수, 12 Phase 1A 테스트 보존) | `internal/onboarding/{flow.go +151/-11, flow_test.go +517}`. functional options 패턴 (FlowOption / WithKeyring / WithCompletionOptions) 으로 StartFlow variadic 확장 (backward compat). ProviderStepInput{Choice, APIKey} wrapper — secret 이 OnboardingData 에 잔류 안 함. step 4 ValidatePersonaName + ValidateHonorificLevel (empty 허용), step 5 ValidateProviderAPIKey + AuthMethodAPIKey/Env/nil-keyring 3-way 분기로 SetProviderAPIKey 호출, step 7 ValidateGDPRConsent. SkipStep(7) GDPR 차단 (AC-OB-014). CompleteAndPersist() 신설 (Complete + WriteCompletionConfig + WriteOnboardingCompleted) + ErrPersistFailed / ErrMarkerFailed 신규 sentinel 2종. Complete() 기존 동작 무변경. 1차 push CLEAN (3번째 연속). |
 | **Phase 2A**: CLI `mink init` 7-step TUI happy path | 🟢 완료 (PR #207) | 1063 LOC (3 신규 파일 + rootcmd +1, 10 TestXxx) | `internal/cli/commands/init.go (62)` + `internal/cli/install/tui.go (721)` + `tui_test.go (263)` + `rootcmd.go +1`. charmbracelet/huh v1.0.0 + 의존 추가. TTY 가드 + 7-step huh form (KR locale 하드코딩, Ollama 3-way 분기, MultiSelect tools, Persona Validate hook, EchoModePassword API key, Consent 4 confirm) + CompleteAndPersist + ErrWizardCancelled. 1회복 후 admin-bypass merge (CI insights timing regression 본 PR 무관 입증). Skip/Back/Resume/LOCALE wiring 은 Phase 2B 이월. |
 | **Phase 2B**: Skip + Back + --resume + LOCALE input | 🟢 완료 (PR #209) | +915/-148 LOC (5 파일, 12 신규 Test) | backend Option A: `internal/onboarding/flow.go (+50)` — StartFlowFromDraft + TotalSteps() + ErrInvalidDraft 1 함수 + 1 sentinel + 6 신규 test. frontend: `tui.go (+633/-149)` runNavChoice (huh.NewSelect[stepAction] Submit/Skip/Back) + dispatch loop + errStepBack 내부 sentinel + autoSaveDraft 베스트-에포트 + DeleteDraft on Complete + localePresets 4종 (KR/PIPA, US, FR/GDPR, DE/GDPR). `init.go (+11)` --resume flag. 이중 방어 GDPR Skip (backend + TUI). 1차 push CLEAN (4번째 연속). LOCALE-001 Detect() 실 wiring 은 internal/locale/ 미구현으로 stub 유지. |
-| **Phase 2C**: 통합 테스트 + polish | ⏸️ | 150-300 LOC | charmbracelet/x/exp/teatest 기반 전체 form 통합 테스트. 색상 테마 + ollama pull 진행률 UI. |
+| **Phase 2C**: brand theme + ollama pull progress UI | 🟢 완료 (PR #210) | +847/-47 LOC (4 신규 + tui.go mechanical, 12 신규 Test) | `internal/cli/install/style.go (146)` — MINKTheme() + MINKStyles + 6색 brand palette (primary #6B5BFF / accent #FFB347 / muted / surface / error #FF5C7C / success #4ADE80). `progress.go (302)` — RunPullWithProgress + pullProgressModel (bubbles/spinner + bubbles/progress + doneCh+waitForDone Cmd 패턴 race detector 통과). `style_test.go (138)` 5 Test + `progress_test.go (243)` 7 Test. tui.go 16개 huh.NewForm 에 .WithTheme(MINKTheme()) mechanical + runStep2 의 16-buffered drain → RunPullWithProgress 단순화. harmonica v0.2.0 transitive dep 추가. 1차 push CLEAN (5번째 연속). |
 | **Phase 3**: Web UI 7-step Wizard | ⏸️ | 800-1200 LOC | `internal/server/install/` + `web/install/` — React 19 + shadcn/ui + Vite + `/install` route + progress bar + fetch → Go server |
 | **Phase 4**: E2E (Playwright + CLI speedrun) | ⏸️ | 300-500 LOC | `e2e/install-wizard-speedrun.spec.ts` + `scripts/cli-install-speedrun.sh` + `.github/workflows/install-wizard-e2e.yml` — AC-OB-016 Web 4분 / CLI 3분 검증 |
 
