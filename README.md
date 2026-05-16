@@ -6,7 +6,7 @@
 
 *Most AI answers questions. **MINK shares your life.***
 
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=flat-square)](LICENSE)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg?style=flat-square)](LICENSE)
 [![Go Version](https://img.shields.io/badge/Go-1.26+-00ADD8.svg?style=flat-square&logo=go)](go.mod)
 [![Status: Pre-alpha](https://img.shields.io/badge/Status-Pre--alpha-orange.svg?style=flat-square)](#current-status)
 [![CI](https://img.shields.io/github/actions/workflow/status/modu-ai/mink/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/modu-ai/mink/actions/workflows/ci.yml)
@@ -34,7 +34,7 @@
 - 🪄 **100% personalized** — Identity Graph (POLE+O) + 768-dim Preference Vector + per-user on-device QLoRA adapter
 - 🔐 **Privacy-first** — local journals, project-local workspace (`./.mink/`), zero-knowledge credential proxy, optional E2EE
 - 🤝 **Any LLM** — Anthropic / OpenAI / Google / xAI / DeepSeek / Ollama via API or OAuth
-- 🌍 **Open source forever** — Apache License 2.0, self-host, own your data
+- 🌍 **Strong copyleft, forever yours** — GNU AGPL v3.0 only, self-host, own your data and your source
 
 > *"Good morning. Did you sleep well? Today's forecast is sunny, your 10 AM meeting is confirmed, and don't forget your vitamins."*
 
@@ -138,7 +138,7 @@ Discoverable via upward-traversal from any subdirectory of your project.
 | Waits for you to ask | **Morning / meal / evening rituals — proactive, unprompted** |
 | Your data powers their product | **Your data stays yours. Local-first. Forever.** |
 | Locked to one vendor | **ANY LLM via API or OAuth** |
-| Closed source | **Apache License 2.0. Self-host. Own it.** |
+| Closed source | **AGPL-3.0-only. Self-host. Own source even when others host.** |
 
 ---
 
@@ -251,7 +251,7 @@ Found a vulnerability? Please **do not** open a public issue. Email the maintain
 
 ## 📜 License
 
-Released under the **[Apache License 2.0](LICENSE)**. See [NOTICE](NOTICE) for attribution.
+Released under the **[GNU Affero General Public License v3.0 only](LICENSE)** (AGPL-3.0-only). See [NOTICE](NOTICE) for attribution and the 2026-05-16 transition note from Apache-2.0. Rationale: `.moai/decisions/ADR-002-license-agpl-transition.md`.
 
 MINK is open forever. Every MINK that hatches imprints on its own person. No two MINKs are alike.
 
