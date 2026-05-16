@@ -127,3 +127,21 @@ export interface ApiError {
     message: string;
   };
 }
+
+// SPEC-MINK-LOCALE-001 amendment-v0.2: locale probe types.
+
+// Request body for POST /install/api/locale/probe.
+// lat/lng are optional — omit for IP-only fallback, include for GPS-assisted detection.
+export interface LocaleProbeRequest {
+  lat?: number;
+  lng?: number;
+}
+
+// Response from POST /install/api/locale/probe.
+// accuracy: "high" = GPS + reverse geocode, "medium" = IP geolocation, "manual" = all failed.
+export interface LocaleProbeResponse {
+  country: string;
+  language: string;
+  timezone: string;
+  accuracy: "high" | "medium" | "manual";
+}

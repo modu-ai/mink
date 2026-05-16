@@ -154,6 +154,7 @@ function StepRouter({
         <Step1Locale
           loading={loading}
           error={error}
+          sessionId={sessionId}
           onSubmit={onSubmitLocale}
         />
       );
