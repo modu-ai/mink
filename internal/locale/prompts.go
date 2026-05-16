@@ -59,6 +59,12 @@ func BuildSystemPromptAddendum(loc LocaleContext, cul CulturalContext) string {
 		fmt.Fprintf(&sb, "- Legal framework: %s\n", strings.Join(cul.LegalFlags, ", "))
 	}
 
+	// Append Detection accuracy line when present (amendment-v0.2 REQ-LC-044).
+	// Omitted for legacy data (empty Accuracy) to preserve backward compatibility.
+	if loc.Accuracy != "" {
+		fmt.Fprintf(&sb, "\nDetection: %s", string(loc.Accuracy))
+	}
+
 	sb.WriteString("\nApply these conventions unless the user's conversational style overrides them.")
 
 	return sb.String()

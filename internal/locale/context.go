@@ -38,6 +38,25 @@ type LocaleConflict struct {
 	IPCountry string `yaml:"ip" json:"ip"`
 }
 
+// Accuracy indicates how a LocaleContext was sourced.
+//
+// - "high":   browser GPS + reverse geocoding (city-level)
+// - "medium": IP geolocation (country-level)
+// - "manual": user explicit override (4-preset radio or free-form)
+// - "":       legacy data (pre-amendment-v0.2) — treated as manual by readers
+//
+// SPEC: SPEC-MINK-LOCALE-001 amendment-v0.2 §6.11
+type Accuracy string
+
+const (
+	// AccuracyHigh indicates browser GPS + reverse geocoding was used (city-level).
+	AccuracyHigh Accuracy = "high"
+	// AccuracyMedium indicates IP geolocation was used (country-level).
+	AccuracyMedium Accuracy = "medium"
+	// AccuracyManual indicates a user explicit override was applied.
+	AccuracyManual Accuracy = "manual"
+)
+
 // LocaleContext is the canonical per-user locale state produced by Detect().
 // All fields are determined at detection time and persisted via the locale:
 // section of ~/.mink/config.yaml.
@@ -82,6 +101,10 @@ type LocaleContext struct {
 
 	// DetectedAt records when Detect() was called.
 	DetectedAt time.Time `yaml:"detected_at,omitempty" json:"detected_at,omitempty"`
+
+	// Accuracy indicates how the LocaleContext was sourced (amendment-v0.2 §6.11).
+	// Empty string means legacy data (pre-amendment-v0.2); readers treat it as manual.
+	Accuracy Accuracy `yaml:"accuracy,omitempty" json:"accuracy,omitempty"`
 }
 
 // CulturalContext is derived deterministically from a LocaleContext.Country value

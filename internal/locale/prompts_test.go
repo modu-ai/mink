@@ -137,6 +137,48 @@ func TestBuildSystemPromptAddendum_Deterministic(t *testing.T) {
 	assert.Equal(t, normalize(out1), normalize(out2), "output must be deterministic (excluding timestamp)")
 }
 
+// TestBuildSystemPromptAddendum_AccuracyHigh verifies that AccuracyHigh is rendered
+// in the Detection line (REQ-LC-044, AC-LC-023).
+func TestBuildSystemPromptAddendum_AccuracyHigh(t *testing.T) {
+	loc := makeKRLocale()
+	loc.Accuracy = AccuracyHigh
+	cul := makeKRCultural()
+
+	out := BuildSystemPromptAddendum(loc, cul)
+	assert.Contains(t, out, "Detection: high", "AccuracyHigh must appear in Detection line")
+}
+
+// TestBuildSystemPromptAddendum_AccuracyMedium verifies that AccuracyMedium is rendered.
+func TestBuildSystemPromptAddendum_AccuracyMedium(t *testing.T) {
+	loc := makeKRLocale()
+	loc.Accuracy = AccuracyMedium
+	cul := makeKRCultural()
+
+	out := BuildSystemPromptAddendum(loc, cul)
+	assert.Contains(t, out, "Detection: medium", "AccuracyMedium must appear in Detection line")
+}
+
+// TestBuildSystemPromptAddendum_AccuracyManual verifies that AccuracyManual is rendered.
+func TestBuildSystemPromptAddendum_AccuracyManual(t *testing.T) {
+	loc := makeKRLocale()
+	loc.Accuracy = AccuracyManual
+	cul := makeKRCultural()
+
+	out := BuildSystemPromptAddendum(loc, cul)
+	assert.Contains(t, out, "Detection: manual", "AccuracyManual must appear in Detection line")
+}
+
+// TestBuildSystemPromptAddendum_AccuracyEmpty_NoLine verifies backward compatibility:
+// legacy data with empty Accuracy must NOT include a Detection line.
+func TestBuildSystemPromptAddendum_AccuracyEmpty_NoLine(t *testing.T) {
+	loc := makeKRLocale()
+	// Accuracy is intentionally left as zero value ("").
+	cul := makeKRCultural()
+
+	out := BuildSystemPromptAddendum(loc, cul)
+	assert.NotContains(t, out, "Detection:", "empty Accuracy must not produce a Detection line")
+}
+
 // TestCurrentLocalTime_InvalidTZ verifies graceful handling of invalid TZ.
 func TestCurrentLocalTime_InvalidTZ(t *testing.T) {
 	result := currentLocalTime("Invalid/Zone")

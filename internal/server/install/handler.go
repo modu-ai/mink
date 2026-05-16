@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -27,6 +28,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/modu-ai/mink/internal/locale"
 	"github.com/modu-ai/mink/internal/onboarding"
 )
 
@@ -286,13 +288,14 @@ type HandlerOptions struct {
 // Origin is additionally checked against the 127.0.0.1 allowlist (or :5173 in
 // MINK_DEV=1) to defend against CORS preflights from off-host pages.
 type Handler struct {
-	store    *SessionStore
-	keyring  onboarding.KeyringClient
-	complete onboarding.CompletionOptions
-	devMode  bool
-	static   http.Handler
-	mux      *http.ServeMux
-	pullFn   func(ctx context.Context, modelName string, progress chan<- onboarding.ProgressUpdate) error
+	store      *SessionStore
+	keyring    onboarding.KeyringClient
+	complete   onboarding.CompletionOptions
+	devMode    bool
+	static     http.Handler
+	mux        *http.ServeMux
+	pullFn     func(ctx context.Context, modelName string, progress chan<- onboarding.ProgressUpdate) error
+	lookupIPFn func(ctx context.Context, in locale.LookupIPInput) (locale.LookupIPResult, error)
 }
 
 // NewHandler constructs a Handler, applies defaults, and registers all routes on mux.
@@ -319,12 +322,13 @@ func NewHandler(opts HandlerOptions) *Handler {
 	}
 
 	h := &Handler{
-		store:    NewSessionStore(opts.Clock, opts.TTL),
-		keyring:  opts.Keyring,
-		complete: opts.CompletionOptions,
-		devMode:  devMode,
-		static:   opts.StaticHandler,
-		pullFn:   pullFn,
+		store:      NewSessionStore(opts.Clock, opts.TTL),
+		keyring:    opts.Keyring,
+		complete:   opts.CompletionOptions,
+		devMode:    devMode,
+		static:     opts.StaticHandler,
+		pullFn:     pullFn,
+		lookupIPFn: locale.LookupIP,
 	}
 
 	// Vite builds the React bundle with base: "/install/", so all asset paths are
@@ -349,6 +353,7 @@ func NewHandler(opts HandlerOptions) *Handler {
 	mux.HandleFunc("POST /install/api/session/{id}/back", h.back)
 	mux.HandleFunc("POST /install/api/session/{id}/complete", h.complete_)
 	mux.HandleFunc("GET /install/api/session/{id}/pull/stream", h.pullStream)
+	mux.HandleFunc("POST /install/api/locale/probe", h.localeProbe)
 	h.mux = mux
 
 	return h
@@ -796,6 +801,109 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 // writeError writes a JSON error envelope with the given status, code, and message.
 func writeError(w http.ResponseWriter, status int, code, message string) {
 	writeJSON(w, status, errorResponse{Error: errorBody{Code: code, Message: message}})
+}
+
+// ---------------------------------------------------------------------------
+// Crypto helpers
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Locale probe endpoint
+// ---------------------------------------------------------------------------
+
+// localeProbeRequest is the optional request body for POST /install/api/locale/probe.
+// When lat/lng are present, the browser supplied GPS coordinates (Web Geolocation API).
+type localeProbeRequest struct {
+	Lat *float64 `json:"lat,omitempty"`
+	Lng *float64 `json:"lng,omitempty"`
+}
+
+// localeProbeResponse is returned by POST /install/api/locale/probe.
+type localeProbeResponse struct {
+	Country  string `json:"country"`
+	Language string `json:"language"`
+	Timezone string `json:"timezone"`
+	// Accuracy is "high" | "medium" | "manual".
+	Accuracy string `json:"accuracy"`
+}
+
+// localeProbeDefaults holds the KR 4-preset fallback values used when all
+// detection methods fail or are unavailable.
+var localeProbeDefaults = localeProbeResponse{
+	Country:  "KR",
+	Language: "ko",
+	Timezone: "Asia/Seoul",
+	Accuracy: string(locale.AccuracyManual),
+}
+
+// localeProbe handles POST /install/api/locale/probe.
+//
+// It accepts an optional JSON body with lat/lng (from the Web Geolocation API) or
+// an empty body (IP-only fallback). CSRF is required, matching all other POST routes.
+//
+// Detection priority:
+//  1. lat/lng present → reverse geocoding is a follow-up PR; returns manual + KR default.
+//  2. empty body → IP geolocation via LookupIP.
+//     - Success → accuracy "medium" + resolved country/language/timezone.
+//     - Any error (private IP, timeout, HTTP error, parse error) → accuracy "manual" + KR default.
+func (h *Handler) localeProbe(w http.ResponseWriter, r *http.Request) {
+	if !h.checkCSRF(w, r) {
+		return
+	}
+
+	// Decode optional body; tolerate empty body gracefully.
+	var req localeProbeRequest
+	if r.ContentLength > 0 {
+		dec := json.NewDecoder(r.Body)
+		if err := dec.Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid_body", "request body is not valid JSON")
+			return
+		}
+	}
+
+	// Branch 1: GPS coordinates present — reverse geocoding is not implemented yet.
+	// TODO: Reverse geocoding integration is a follow-up PR (SPEC-MINK-LOCALE-001 amendment-v0.2).
+	if req.Lat != nil && req.Lng != nil {
+		writeJSON(w, http.StatusOK, localeProbeDefaults)
+		return
+	}
+
+	// Branch 2: IP-only fallback — call ipapi.co via the injected lookupIPFn.
+	clientIP := extractClientIP(r)
+	result, err := h.lookupIPFn(r.Context(), locale.LookupIPInput{ClientIP: clientIP})
+	if err != nil {
+		// Any error (ErrPrivateIP, ErrLookupTimeout, ErrLookupHTTP, ErrLookupParse)
+		// falls back to manual preset. This includes dev-environment loopback addresses.
+		writeJSON(w, http.StatusOK, localeProbeDefaults)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, localeProbeResponse{
+		Country:  result.Country,
+		Language: result.Language,
+		Timezone: result.Timezone,
+		Accuracy: string(locale.AccuracyMedium),
+	})
+}
+
+// extractClientIP returns the best-effort public IP from the request.
+// It checks X-Forwarded-For first (first token, which is the client's own IP in a
+// trusted proxy chain) and falls back to the host part of r.RemoteAddr.
+// The returned string may still be a private IP; callers must check with LookupIP.
+func extractClientIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		// X-Forwarded-For: <client>, <proxy1>, <proxy2>
+		// The first token is the originating client IP (may be private in dev).
+		parts := strings.SplitN(xff, ",", 2)
+		return strings.TrimSpace(parts[0])
+	}
+	// Fall back to RemoteAddr (host:port or bare IP).
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		// RemoteAddr without port (unusual but handled gracefully).
+		return strings.TrimSpace(r.RemoteAddr)
+	}
+	return host
 }
 
 // ---------------------------------------------------------------------------

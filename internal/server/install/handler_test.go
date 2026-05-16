@@ -5,6 +5,7 @@ package install
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/modu-ai/mink/internal/locale"
 	"github.com/modu-ai/mink/internal/onboarding"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -761,4 +763,119 @@ func TestStatic_RootRedirectReturnsIndex(t *testing.T) {
 		"GET /install must return 200; body: %s", rec.Body.String())
 	assert.Contains(t, rec.Body.String(), "MINK",
 		"GET /install must return index.html content")
+}
+
+// ---------------------------------------------------------------------------
+// Locale probe tests — POST /install/api/locale/probe
+// ---------------------------------------------------------------------------
+
+// postLocaleProbe sends a POST /install/api/locale/probe with CSRF credentials.
+// body may be nil for an empty-body request.
+func postLocaleProbe(h *Handler, body any, sr startResult) *httptest.ResponseRecorder {
+	return postWithCSRF(h, "/install/api/locale/probe", body, sr)
+}
+
+// TestLocaleProbe_IPLookup_Success injects a fake lookupIPFn that returns a
+// successful KR result and verifies accuracy "medium".
+func TestLocaleProbe_IPLookup_Success(t *testing.T) {
+	t.Parallel()
+	h, _, _ := newTestHandler(t)
+	sr := doStart(t, h)
+
+	// Inject fake lookupIPFn.
+	h.lookupIPFn = func(_ context.Context, in locale.LookupIPInput) (locale.LookupIPResult, error) {
+		return locale.LookupIPResult{
+			Country:  "KR",
+			Language: "ko",
+			Timezone: "Asia/Seoul",
+		}, nil
+	}
+
+	rec := postLocaleProbe(h, nil, sr)
+	require.Equal(t, http.StatusOK, rec.Code, "probe must return 200: %s", rec.Body.String())
+
+	var resp localeProbeResponse
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&resp))
+	assert.Equal(t, "KR", resp.Country)
+	assert.Equal(t, "ko", resp.Language)
+	assert.Equal(t, "Asia/Seoul", resp.Timezone)
+	assert.Equal(t, "medium", resp.Accuracy, "successful IP lookup must report accuracy=medium")
+}
+
+// TestLocaleProbe_PrivateIP_FallbackManual verifies that a loopback RemoteAddr
+// causes LookupIP to return ErrPrivateIP, triggering manual fallback with KR default.
+func TestLocaleProbe_PrivateIP_FallbackManual(t *testing.T) {
+	t.Parallel()
+	h, _, _ := newTestHandler(t)
+	sr := doStart(t, h)
+
+	// Inject fake that always returns ErrPrivateIP.
+	h.lookupIPFn = func(_ context.Context, in locale.LookupIPInput) (locale.LookupIPResult, error) {
+		return locale.LookupIPResult{}, locale.ErrPrivateIP
+	}
+
+	rec := postLocaleProbe(h, nil, sr)
+	require.Equal(t, http.StatusOK, rec.Code, "probe must return 200 even on fallback: %s", rec.Body.String())
+
+	var resp localeProbeResponse
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&resp))
+	assert.Equal(t, "manual", resp.Accuracy, "ErrPrivateIP must produce accuracy=manual")
+	assert.Equal(t, "KR", resp.Country, "fallback country must be KR")
+}
+
+// TestLocaleProbe_GPSCoordinates_StillManual verifies that a body with lat/lng
+// returns accuracy "manual" with KR default (reverse geocoding is a follow-up PR).
+func TestLocaleProbe_GPSCoordinates_StillManual(t *testing.T) {
+	t.Parallel()
+	h, _, _ := newTestHandler(t)
+	sr := doStart(t, h)
+
+	lat := 37.5665
+	lng := 126.9780
+	body := map[string]float64{"lat": lat, "lng": lng}
+
+	rec := postLocaleProbe(h, body, sr)
+	require.Equal(t, http.StatusOK, rec.Code, "probe must return 200: %s", rec.Body.String())
+
+	var resp localeProbeResponse
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&resp))
+	// Reverse geocoding is not implemented; accuracy must be manual.
+	assert.Equal(t, "manual", resp.Accuracy, "GPS body must return manual (reverse geocoding follow-up PR)")
+	assert.Equal(t, "KR", resp.Country, "GPS fallback must use KR 4-preset default")
+}
+
+// TestLocaleProbe_CSRFRequired verifies that the endpoint rejects requests without
+// CSRF credentials.
+func TestLocaleProbe_CSRFRequired(t *testing.T) {
+	t.Parallel()
+	h, _, _ := newTestHandler(t)
+
+	// POST without CSRF headers/cookie.
+	req := httptest.NewRequest(http.MethodPost, "/install/api/locale/probe", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	assert.True(t,
+		rec.Code == http.StatusForbidden || rec.Code == http.StatusUnauthorized,
+		"locale probe without CSRF must be rejected with 401 or 403, got %d", rec.Code)
+}
+
+// TestLocaleProbe_LookupTimeout_FallbackManual verifies that ErrLookupTimeout
+// triggers the manual fallback rather than an error response.
+func TestLocaleProbe_LookupTimeout_FallbackManual(t *testing.T) {
+	t.Parallel()
+	h, _, _ := newTestHandler(t)
+	sr := doStart(t, h)
+
+	h.lookupIPFn = func(_ context.Context, in locale.LookupIPInput) (locale.LookupIPResult, error) {
+		return locale.LookupIPResult{}, locale.ErrLookupTimeout
+	}
+
+	rec := postLocaleProbe(h, nil, sr)
+	require.Equal(t, http.StatusOK, rec.Code, "probe must return 200 on timeout fallback: %s", rec.Body.String())
+
+	var resp localeProbeResponse
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&resp))
+	assert.Equal(t, "manual", resp.Accuracy, "ErrLookupTimeout must produce accuracy=manual")
+	assert.Equal(t, "KR", resp.Country, "timeout fallback must use KR 4-preset default")
 }
