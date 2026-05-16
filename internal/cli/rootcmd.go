@@ -90,6 +90,7 @@ func NewRootCommand(version, commit, builtAt string) *cobra.Command {
 
 	// Add subcommands
 	rootCmd.AddCommand(commands.NewVersionCommand(version, commit, builtAt))
+	rootCmd.AddCommand(commands.NewInitCommand())
 
 	// Ping command — Phase B1 wiring: PingClientAdapter delegates to
 	// ConnectClient.Ping (Phase A). The legacy NewGRPCPingClient remains
