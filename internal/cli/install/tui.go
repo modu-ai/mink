@@ -1,5 +1,6 @@
 // Package install implements the 7-step onboarding TUI built on charmbracelet/huh.
-// SPEC: SPEC-MINK-ONBOARDING-001 §6 (Phase 2A — happy path; Phase 2B — Skip/Back/Resume/LOCALE)
+// SPEC: SPEC-MINK-ONBOARDING-001 §6 (Phase 2A — happy path; Phase 2B — Skip/Back/Resume/LOCALE;
+// Phase 2D — teatest E2E)
 //
 // The package exposes RunWizard as its primary entry point. All TUI interaction
 // uses huh forms; each step runs a separate huh.Form so that SubmitStep can be
@@ -10,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -38,6 +40,37 @@ type WizardOptions struct {
 	// Resume loads an existing onboarding-draft.yaml and resumes from Draft.CurrentStep.
 	// When no draft is found, RunWizard returns a clear error (no panic, no fresh start).
 	Resume bool
+
+	// Input overrides os.Stdin for all huh forms. When nil, the default terminal
+	// stdin is used. Tests inject a strings.NewReader or io.Pipe writer here.
+	Input io.Reader
+
+	// Output overrides os.Stdout for all huh forms and fmt.Println progress lines.
+	// When nil, os.Stdout is used. Tests inject a bytes.Buffer or io.Pipe writer here.
+	Output io.Writer
+
+	// Accessible enables huh's accessible mode on every form, which reads from
+	// Input line-by-line instead of relying on ANSI terminal key sequences.
+	// Set to true in tests; leave false (default) for production TTY interaction.
+	Accessible bool
+
+	// SkipPreflight disables the synchronous DetectOllama / DetectRAM /
+	// DetectMINKModel / DetectCLITools probe that runs at RunWizard start.
+	// Tests use this to avoid spawning real subprocesses; they inject fixture
+	// data via the Pre callback instead.
+	SkipPreflight bool
+
+	// Pre is an optional callback invoked after StartFlow (or StartFlowFromDraft on
+	// Resume) succeeds and before the step-dispatch loop begins. Tests use it to
+	// seed flow.Data.Model, flow.Data.CLITools, or any other field that would
+	// normally be populated by the pre-flight detection step.
+	Pre func(flow *onboarding.OnboardingFlow)
+
+	// FlowOptions are forwarded verbatim to onboarding.StartFlow or
+	// onboarding.StartFlowFromDraft. Tests use this to inject an in-memory
+	// keyring (WithKeyring) and custom CompletionOptions (WithCompletionOptions).
+	// Production callers leave this nil; RunWizard supplies its own defaults.
+	FlowOptions []onboarding.FlowOption
 }
 
 // localeEntry is a predefined locale option shown in Step 1's Select form.
@@ -91,30 +124,52 @@ var localePresets = []localeEntry{
 // Returns ErrWizardCancelled when the user presses Ctrl+C during any huh form.
 // Returns a wrapped backend error on validation or persistence failure.
 //
-// @MX:ANCHOR: [AUTO] Primary public entry point for Phase 2A/2B TUI — called by init.go cobra command.
+// @MX:ANCHOR: [AUTO] Primary public entry point for Phase 2A/2B/2D TUI — called by init.go cobra command.
 // @MX:REASON: Signature change breaks the cobra command layer and any future test harnesses.
 func RunWizard(ctx context.Context, opts WizardOptions) error {
+	out := outWriter(opts)
+
 	// -----------------------------------------------------------------------
 	// Pre-flight detection (best-effort; errors are non-fatal for happy path)
+	// Skipped when opts.SkipPreflight is true (test mode).
 	// -----------------------------------------------------------------------
-	fmt.Println("Detecting system configuration...")
+	var (
+		ollamaStatus  onboarding.OllamaStatus
+		ramBytes      int64
+		detectedModel onboarding.DetectedModel
+		cliTools      []onboarding.CLITool
+	)
 
-	ollamaStatus, _ := onboarding.DetectOllama(ctx)
-	ramBytes, _ := onboarding.DetectRAM(ctx)
+	if !opts.SkipPreflight {
+		fmt.Fprintln(out, "Detecting system configuration...")
 
-	var detectedModel onboarding.DetectedModel
-	if ollamaStatus.Installed && ollamaStatus.DaemonAlive {
-		detectedModel, _ = onboarding.DetectMINKModel(ctx, ollamaStatus)
+		ollamaStatus, _ = onboarding.DetectOllama(ctx)
+		ramBytes, _ = onboarding.DetectRAM(ctx)
+
+		if ollamaStatus.Installed && ollamaStatus.DaemonAlive {
+			detectedModel, _ = onboarding.DetectMINKModel(ctx, ollamaStatus)
+		}
+
+		cliTools, _ = onboarding.DetectCLITools(ctx)
+
+		fmt.Fprintln(out, summarizeDetection(ollamaStatus, ramBytes, detectedModel, cliTools))
 	}
-
-	cliTools, _ := onboarding.DetectCLITools(ctx)
-
-	fmt.Println(summarizeDetection(ollamaStatus, ramBytes, detectedModel, cliTools))
 
 	// -----------------------------------------------------------------------
 	// Start or resume onboarding flow
 	// -----------------------------------------------------------------------
 	var flow *onboarding.OnboardingFlow
+
+	// Build flow options: start with caller-supplied overrides, then apply
+	// production defaults for any option not already covered.
+	flowOpts := opts.FlowOptions
+	if len(flowOpts) == 0 {
+		// Production default: system keyring + completion options from WizardOptions.
+		flowOpts = []onboarding.FlowOption{
+			onboarding.WithKeyring(onboarding.SystemKeyring{}),
+			onboarding.WithCompletionOptions(onboarding.CompletionOptions{DryRun: opts.DryRun}),
+		}
+	}
 
 	if opts.Resume {
 		draft, err := onboarding.LoadDraft()
@@ -126,25 +181,24 @@ func RunWizard(ctx context.Context, opts WizardOptions) error {
 		}
 
 		// Display a resume banner so the user knows they are continuing.
-		fmt.Printf("Resuming onboarding from step %d/7 (started %s)\n",
+		fmt.Fprintf(out, "Resuming onboarding from step %d/7 (started %s)\n",
 			draft.CurrentStep, draft.StartedAt.UTC().Format("2006-01-02 15:04 UTC"))
 
-		flow, err = onboarding.StartFlowFromDraft(ctx, draft,
-			onboarding.WithKeyring(onboarding.SystemKeyring{}),
-			onboarding.WithCompletionOptions(onboarding.CompletionOptions{DryRun: opts.DryRun}),
-		)
+		flow, err = onboarding.StartFlowFromDraft(ctx, draft, flowOpts...)
 		if err != nil {
 			return fmt.Errorf("resume draft: %w", err)
 		}
 	} else {
 		var err error
-		flow, err = onboarding.StartFlow(ctx, nil,
-			onboarding.WithKeyring(onboarding.SystemKeyring{}),
-			onboarding.WithCompletionOptions(onboarding.CompletionOptions{DryRun: opts.DryRun}),
-		)
+		flow, err = onboarding.StartFlow(ctx, nil, flowOpts...)
 		if err != nil {
 			return fmt.Errorf("failed to start onboarding flow: %w", err)
 		}
+	}
+
+	// Invoke the optional Pre callback (used by tests to seed flow.Data).
+	if opts.Pre != nil {
+		opts.Pre(flow)
 	}
 
 	// -----------------------------------------------------------------------
@@ -169,19 +223,19 @@ func RunWizard(ctx context.Context, opts WizardOptions) error {
 		var stepErr error
 		switch step {
 		case 1:
-			stepErr = runStep1Locale(ctx, flow)
+			stepErr = runStep1Locale(ctx, flow, opts)
 		case 2:
-			stepErr = runStep2Model(ctx, flow, ollamaStatus, detectedModel, ramBytes)
+			stepErr = runStep2Model(ctx, flow, ollamaStatus, detectedModel, ramBytes, opts)
 		case 3:
-			stepErr = runStep3CLITools(ctx, flow, cliTools)
+			stepErr = runStep3CLITools(ctx, flow, cliTools, opts)
 		case 4:
-			stepErr = runStep4Persona(ctx, flow)
+			stepErr = runStep4Persona(ctx, flow, opts)
 		case 5:
-			stepErr = runStep5Provider(ctx, flow)
+			stepErr = runStep5Provider(ctx, flow, opts)
 		case 6:
-			stepErr = runStep6Messenger(ctx, flow)
+			stepErr = runStep6Messenger(ctx, flow, opts)
 		case 7:
-			stepErr = runStep7Consent(ctx, flow)
+			stepErr = runStep7Consent(ctx, flow, opts)
 		}
 
 		// Handle special navigation sentinels before propagating real errors.
@@ -220,14 +274,14 @@ func RunWizard(ctx context.Context, opts WizardOptions) error {
 
 	// Display written paths.
 	if globalPath, pathErr := onboarding.GlobalConfigPath(); pathErr == nil {
-		fmt.Printf("Config written to: %s\n", globalPath)
+		fmt.Fprintf(out, "Config written to: %s\n", globalPath)
 	}
 	if projectPath, pathErr := onboarding.ProjectConfigPath(); pathErr == nil {
-		fmt.Printf("Project config:    %s\n", projectPath)
+		fmt.Fprintf(out, "Project config:    %s\n", projectPath)
 	}
 
 	// Confirm persona name for user reassurance.
-	fmt.Printf("\nWelcome, %s!\n", data.Persona.Name)
+	fmt.Fprintf(out, "\nWelcome, %s!\n", data.Persona.Name)
 
 	return nil
 }
@@ -295,6 +349,32 @@ func summarizeDetection(
 		ollamaField, ramField, modelField, toolsField)
 }
 
+// applyIO attaches optional Input, Output, and Accessible settings to a form.
+// When opts.Input is nil or opts.Output is nil, the form retains its defaults
+// (os.Stdin / os.Stderr). This function is a no-op for production callers that
+// leave WizardOptions at their zero values.
+func applyIO(form *huh.Form, opts WizardOptions) *huh.Form {
+	if opts.Input != nil {
+		form = form.WithInput(opts.Input)
+	}
+	if opts.Output != nil {
+		form = form.WithOutput(opts.Output)
+	}
+	if opts.Accessible {
+		form = form.WithAccessible(true)
+	}
+	return form
+}
+
+// outWriter returns the effective io.Writer for non-form progress output.
+// It returns opts.Output when set, otherwise os.Stdout.
+func outWriter(opts WizardOptions) io.Writer {
+	if opts.Output != nil {
+		return opts.Output
+	}
+	return os.Stdout
+}
+
 // runForm executes a huh.Form with context cancellation support.
 // Returns ErrWizardCancelled when the user presses Ctrl+C.
 func runForm(ctx context.Context, form *huh.Form) error {
@@ -323,7 +403,7 @@ const (
 
 // runStep1Locale presents a locale Select with 4 presets and submits Step 1.
 // Step 1 has no Back or Skip options (it is the first step).
-func runStep1Locale(ctx context.Context, flow *onboarding.OnboardingFlow) error {
+func runStep1Locale(ctx context.Context, flow *onboarding.OnboardingFlow, opts WizardOptions) error {
 	selectedIndex := 0
 
 	options := make([]huh.Option[int], len(localePresets))
@@ -331,14 +411,14 @@ func runStep1Locale(ctx context.Context, flow *onboarding.OnboardingFlow) error 
 		options[i] = huh.NewOption(p.Display, i)
 	}
 
-	form := huh.NewForm(
+	form := applyIO(huh.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[int]().
 				Title("Step 1 / 7 — Locale\n\nSelect your region and language:").
 				Options(options...).
 				Value(&selectedIndex),
 		),
-	).WithTheme(MINKTheme())
+	).WithTheme(MINKTheme()), opts)
 
 	if err := runForm(ctx, form); err != nil {
 		return err
@@ -362,9 +442,10 @@ func runStep2Model(
 	status onboarding.OllamaStatus,
 	detected onboarding.DetectedModel,
 	ramBytes int64,
+	opts WizardOptions,
 ) error {
 	// Navigation choice before the main form.
-	nav, err := runNavChoice(ctx, "Step 2 / 7 — Model Setup", true, true)
+	nav, err := runNavChoice(ctx, "Step 2 / 7 — Model Setup", true, true, opts)
 	if err != nil {
 		return err
 	}
@@ -392,7 +473,7 @@ func runStep2Model(
 	case status.Installed && status.DaemonAlive && detected.Name != "":
 		// Model already installed — offer to use it.
 		useDetected := true
-		form := huh.NewForm(
+		form := applyIO(huh.NewForm(
 			huh.NewGroup(
 				huh.NewConfirm().
 					Title(fmt.Sprintf(
@@ -403,7 +484,7 @@ func runStep2Model(
 					Negative("No, choose different").
 					Value(&useDetected),
 			),
-		).WithTheme(MINKTheme())
+		).WithTheme(MINKTheme()), opts)
 		if err := runForm(ctx, form); err != nil {
 			return err
 		}
@@ -414,7 +495,7 @@ func runStep2Model(
 			setup.ModelSizeBytes = detected.SizeBytes
 		} else {
 			// Let user pick from recommended or enter custom.
-			selected, err := pickModel(ctx, recommendedName)
+			selected, err := pickModel(ctx, recommendedName, opts)
 			if err != nil {
 				return err
 			}
@@ -425,7 +506,7 @@ func runStep2Model(
 	case status.Installed && status.DaemonAlive && detected.Name == "":
 		// Ollama running but no MINK model — offer to download recommended.
 		download := true
-		form := huh.NewForm(
+		form := applyIO(huh.NewForm(
 			huh.NewGroup(
 				huh.NewConfirm().
 					Title(fmt.Sprintf(
@@ -436,7 +517,7 @@ func runStep2Model(
 					Negative("Skip for now").
 					Value(&download),
 			),
-		).WithTheme(MINKTheme())
+		).WithTheme(MINKTheme()), opts)
 		if err := runForm(ctx, form); err != nil {
 			return err
 		}
@@ -463,7 +544,7 @@ func runStep2Model(
 				"Start it with: ollama serve"
 		}
 
-		form := huh.NewForm(
+		form := applyIO(huh.NewForm(
 			huh.NewGroup(
 				huh.NewConfirm().
 					Title(fmt.Sprintf(
@@ -474,7 +555,7 @@ func runStep2Model(
 					Negative("No, I'll install it first").
 					Value(&continueWithout),
 			),
-		).WithTheme(MINKTheme())
+		).WithTheme(MINKTheme()), opts)
 		if err := runForm(ctx, form); err != nil {
 			return err
 		}
@@ -489,8 +570,8 @@ func runStep2Model(
 
 // runStep3CLITools displays detected tools as a MultiSelect and submits Step 3.
 // Supports Skip and Back.
-func runStep3CLITools(ctx context.Context, flow *onboarding.OnboardingFlow, detected []onboarding.CLITool) error {
-	nav, err := runNavChoice(ctx, "Step 3 / 7 — CLI Delegation Tools", true, true)
+func runStep3CLITools(ctx context.Context, flow *onboarding.OnboardingFlow, detected []onboarding.CLITool, opts WizardOptions) error {
+	nav, err := runNavChoice(ctx, "Step 3 / 7 — CLI Delegation Tools", true, true, opts)
 	if err != nil {
 		return err
 	}
@@ -509,7 +590,7 @@ func runStep3CLITools(ctx context.Context, flow *onboarding.OnboardingFlow, dete
 
 	if len(detected) == 0 {
 		// No tools found — submit empty detection and continue.
-		fmt.Println("Step 3 / 7 — CLI Tools\n\nNo CLI delegation tools detected (claude / gemini / codex).")
+		fmt.Fprintln(outWriter(opts), "Step 3 / 7 — CLI Tools\n\nNo CLI delegation tools detected (claude / gemini / codex).")
 		return flow.SubmitStep(3, onboarding.CLIToolsDetection{DetectedTools: nil})
 	}
 
@@ -523,14 +604,14 @@ func runStep3CLITools(ctx context.Context, flow *onboarding.OnboardingFlow, dete
 	}
 
 	var selectedNames []string
-	form := huh.NewForm(
+	form := applyIO(huh.NewForm(
 		huh.NewGroup(
 			huh.NewMultiSelect[string]().
 				Title("Step 3 / 7 — CLI Delegation Tools\n\nSelect which tools MINK may delegate tasks to:").
 				Options(options...).
 				Value(&selectedNames),
 		),
-	).WithTheme(MINKTheme())
+	).WithTheme(MINKTheme()), opts)
 	if err := runForm(ctx, form); err != nil {
 		return err
 	}
@@ -569,8 +650,8 @@ MINK is my AI daily companion — thoughtful, direct, and genuinely helpful.
 
 // runStep4Persona collects persona settings and submits Step 4.
 // Supports Skip and Back. Pre-populates from existing flow.Data.Persona on re-entry.
-func runStep4Persona(ctx context.Context, flow *onboarding.OnboardingFlow) error {
-	nav, err := runNavChoice(ctx, "Step 4 / 7 — Persona", true, true)
+func runStep4Persona(ctx context.Context, flow *onboarding.OnboardingFlow, opts WizardOptions) error {
+	nav, err := runNavChoice(ctx, "Step 4 / 7 — Persona", true, true, opts)
 	if err != nil {
 		return err
 	}
@@ -602,7 +683,7 @@ func runStep4Persona(ctx context.Context, flow *onboarding.OnboardingFlow) error
 		soul = soulMarkdownTemplate
 	}
 
-	form := huh.NewForm(
+	form := applyIO(huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
 				Title("Step 4 / 7 — Persona\n\nPersona name (required):").
@@ -630,7 +711,7 @@ func runStep4Persona(ctx context.Context, flow *onboarding.OnboardingFlow) error
 				Value(&soul).
 				Lines(12),
 		),
-	).WithTheme(MINKTheme())
+	).WithTheme(MINKTheme()), opts)
 
 	if err := runForm(ctx, form); err != nil {
 		return err
@@ -646,8 +727,8 @@ func runStep4Persona(ctx context.Context, flow *onboarding.OnboardingFlow) error
 
 // runStep5Provider collects LLM provider settings and submits Step 5.
 // Supports Skip and Back.
-func runStep5Provider(ctx context.Context, flow *onboarding.OnboardingFlow) error {
-	nav, err := runNavChoice(ctx, "Step 5 / 7 — LLM Provider", true, true)
+func runStep5Provider(ctx context.Context, flow *onboarding.OnboardingFlow, opts WizardOptions) error {
+	nav, err := runNavChoice(ctx, "Step 5 / 7 — LLM Provider", true, true, opts)
 	if err != nil {
 		return err
 	}
@@ -684,7 +765,7 @@ func runStep5Provider(ctx context.Context, flow *onboarding.OnboardingFlow) erro
 	}
 
 	// Provider selection.
-	providerForm := huh.NewForm(
+	providerForm := applyIO(huh.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title("Step 5 / 7 — LLM Provider\n\nSelect your primary provider:").
@@ -699,7 +780,7 @@ func runStep5Provider(ctx context.Context, flow *onboarding.OnboardingFlow) erro
 				).
 				Value(&providerStr),
 		),
-	).WithTheme(MINKTheme())
+	).WithTheme(MINKTheme()), opts)
 	if err := runForm(ctx, providerForm); err != nil {
 		return err
 	}
@@ -710,7 +791,7 @@ func runStep5Provider(ctx context.Context, flow *onboarding.OnboardingFlow) erro
 	if provider != onboarding.ProviderOllama && provider != onboarding.ProviderUnset {
 		authStr = string(onboarding.AuthMethodAPIKey)
 
-		authForm := huh.NewForm(
+		authForm := applyIO(huh.NewForm(
 			huh.NewGroup(
 				huh.NewSelect[string]().
 					Title("Authentication method:").
@@ -720,13 +801,13 @@ func runStep5Provider(ctx context.Context, flow *onboarding.OnboardingFlow) erro
 					).
 					Value(&authStr),
 			),
-		).WithTheme(MINKTheme())
+		).WithTheme(MINKTheme()), opts)
 		if err := runForm(ctx, authForm); err != nil {
 			return err
 		}
 
 		if onboarding.AuthMethod(authStr) == onboarding.AuthMethodAPIKey {
-			apiKeyForm := huh.NewForm(
+			apiKeyForm := applyIO(huh.NewForm(
 				huh.NewGroup(
 					huh.NewInput().
 						Title(fmt.Sprintf("API key for %s:", providerStr)).
@@ -737,7 +818,7 @@ func runStep5Provider(ctx context.Context, flow *onboarding.OnboardingFlow) erro
 							return onboarding.ValidateProviderAPIKey(providerStr, s)
 						}),
 				),
-			).WithTheme(MINKTheme())
+			).WithTheme(MINKTheme()), opts)
 			if err := runForm(ctx, apiKeyForm); err != nil {
 				return err
 			}
@@ -746,7 +827,7 @@ func runStep5Provider(ctx context.Context, flow *onboarding.OnboardingFlow) erro
 
 	// Custom endpoint and preferred model (optional).
 	if provider == onboarding.ProviderCustom {
-		customForm := huh.NewForm(
+		customForm := applyIO(huh.NewForm(
 			huh.NewGroup(
 				huh.NewInput().
 					Title("Custom endpoint URL:").
@@ -757,7 +838,7 @@ func runStep5Provider(ctx context.Context, flow *onboarding.OnboardingFlow) erro
 					Placeholder("e.g., gpt-4o").
 					Value(&prefModel),
 			),
-		).WithTheme(MINKTheme())
+		).WithTheme(MINKTheme()), opts)
 		if err := runForm(ctx, customForm); err != nil {
 			return err
 		}
@@ -776,8 +857,8 @@ func runStep5Provider(ctx context.Context, flow *onboarding.OnboardingFlow) erro
 
 // runStep6Messenger collects the first messenger channel and submits Step 6.
 // Supports Skip and Back.
-func runStep6Messenger(ctx context.Context, flow *onboarding.OnboardingFlow) error {
-	nav, err := runNavChoice(ctx, "Step 6 / 7 — Messenger Channel", true, true)
+func runStep6Messenger(ctx context.Context, flow *onboarding.OnboardingFlow, opts WizardOptions) error {
+	nav, err := runNavChoice(ctx, "Step 6 / 7 — Messenger Channel", true, true, opts)
 	if err != nil {
 		return err
 	}
@@ -796,7 +877,7 @@ func runStep6Messenger(ctx context.Context, flow *onboarding.OnboardingFlow) err
 
 	messengerStr := string(onboarding.MessengerLocalTerminal)
 
-	form := huh.NewForm(
+	form := applyIO(huh.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title("Step 6 / 7 — Messenger Channel\n\nHow will you chat with MINK?").
@@ -809,7 +890,7 @@ func runStep6Messenger(ctx context.Context, flow *onboarding.OnboardingFlow) err
 				).
 				Value(&messengerStr),
 		),
-	).WithTheme(MINKTheme())
+	).WithTheme(MINKTheme()), opts)
 	if err := runForm(ctx, form); err != nil {
 		return err
 	}
@@ -828,11 +909,11 @@ func runStep6Messenger(ctx context.Context, flow *onboarding.OnboardingFlow) err
 // must account for both SkipStep(7) guard in flow.go and this TUI enforcement layer.
 // @MX:REASON: Two-layer enforcement (backend + TUI) ensures that even a buggy TUI cannot
 // accidentally bypass GDPR consent for EU/UK users.
-func runStep7Consent(ctx context.Context, flow *onboarding.OnboardingFlow) error {
+func runStep7Consent(ctx context.Context, flow *onboarding.OnboardingFlow, opts WizardOptions) error {
 	// Determine whether Skip is allowed for step 7 given the locale.
 	skipAllowed := !localeHasGDPR(flow)
 
-	nav, err := runNavChoice(ctx, "Step 7 / 7 — Privacy & Consent", skipAllowed, true)
+	nav, err := runNavChoice(ctx, "Step 7 / 7 — Privacy & Consent", skipAllowed, true, opts)
 	if err != nil {
 		return err
 	}
@@ -846,9 +927,9 @@ func runStep7Consent(ctx context.Context, flow *onboarding.OnboardingFlow) error
 		skipErr := flow.SkipStep(7)
 		if skipErr != nil {
 			// GDPR enforcement: explain and fall through to the consent form.
-			fmt.Println("GDPR jurisdiction requires explicit consent. Skip is not permitted.")
+			fmt.Fprintln(outWriter(opts), "GDPR jurisdiction requires explicit consent. Skip is not permitted.")
 			// Re-run navigation without the skip option.
-			nav2, navErr := runNavChoice(ctx, "Step 7 / 7 — Privacy & Consent (GDPR required)", false, true)
+			nav2, navErr := runNavChoice(ctx, "Step 7 / 7 — Privacy & Consent (GDPR required)", false, true, opts)
 			if navErr != nil {
 				return navErr
 			}
@@ -883,7 +964,7 @@ func runStep7Consent(ctx context.Context, flow *onboarding.OnboardingFlow) error
 	if gdprRequired {
 		// GDPR users: explicit consent checkbox must be shown and must be confirmed.
 		gdprAccepted := false
-		gdprForm := huh.NewForm(
+		gdprForm := applyIO(huh.NewForm(
 			huh.NewGroup(
 				huh.NewConfirm().
 					Title("Step 7 / 7 — GDPR Consent (required)\n\nI consent to the processing of my personal data as described in the Privacy Policy.").
@@ -891,7 +972,7 @@ func runStep7Consent(ctx context.Context, flow *onboarding.OnboardingFlow) error
 					Negative("I do not accept").
 					Value(&gdprAccepted),
 			),
-		).WithTheme(MINKTheme())
+		).WithTheme(MINKTheme()), opts)
 		if err := runForm(ctx, gdprForm); err != nil {
 			return err
 		}
@@ -900,7 +981,7 @@ func runStep7Consent(ctx context.Context, flow *onboarding.OnboardingFlow) error
 		}
 	}
 
-	form := huh.NewForm(
+	form := applyIO(huh.NewForm(
 		huh.NewGroup(
 			huh.NewConfirm().
 				Title("Step 7 / 7 — Privacy & Consent\n\nStore conversations locally only?\n(Recommended: Yes — your data stays on your machine)").
@@ -923,7 +1004,7 @@ func runStep7Consent(ctx context.Context, flow *onboarding.OnboardingFlow) error
 				Negative("No (default)").
 				Value(&loraTraining),
 		),
-	).WithTheme(MINKTheme())
+	).WithTheme(MINKTheme()), opts)
 	if err := runForm(ctx, form); err != nil {
 		return err
 	}
@@ -961,7 +1042,7 @@ func localeHasGDPR(flow *onboarding.OnboardingFlow) bool {
 //
 // When neither Skip nor Back is available, runNavChoice returns stepActionSubmit
 // immediately without showing any form.
-func runNavChoice(ctx context.Context, title string, showSkip, showBack bool) (stepAction, error) {
+func runNavChoice(ctx context.Context, title string, showSkip, showBack bool, opts WizardOptions) (stepAction, error) {
 	if !showSkip && !showBack {
 		return stepActionSubmit, nil
 	}
@@ -977,14 +1058,14 @@ func runNavChoice(ctx context.Context, title string, showSkip, showBack bool) (s
 	}
 
 	var action stepAction
-	form := huh.NewForm(
+	form := applyIO(huh.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[stepAction]().
 				Title(fmt.Sprintf("%s\n\nWhat would you like to do?", title)).
 				Options(options...).
 				Value(&action),
 		),
-	).WithTheme(MINKTheme())
+	).WithTheme(MINKTheme()), opts)
 
 	if err := runForm(ctx, form); err != nil {
 		return stepActionSubmit, err
@@ -993,11 +1074,11 @@ func runNavChoice(ctx context.Context, title string, showSkip, showBack bool) (s
 }
 
 // pickModel presents a select for recommended vs custom model name.
-func pickModel(ctx context.Context, recommended string) (string, error) {
+func pickModel(ctx context.Context, recommended string, opts WizardOptions) (string, error) {
 	const customSentinel = "__custom__"
 	selected := recommended
 
-	form := huh.NewForm(
+	form := applyIO(huh.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title("Choose a model").
@@ -1007,21 +1088,21 @@ func pickModel(ctx context.Context, recommended string) (string, error) {
 				).
 				Value(&selected),
 		),
-	).WithTheme(MINKTheme())
+	).WithTheme(MINKTheme()), opts)
 	if err := runForm(ctx, form); err != nil {
 		return "", err
 	}
 
 	if selected == customSentinel {
 		var customName string
-		customForm := huh.NewForm(
+		customForm := applyIO(huh.NewForm(
 			huh.NewGroup(
 				huh.NewInput().
 					Title("Custom model name (e.g., llama3:8b)").
 					Placeholder("model:tag").
 					Value(&customName),
 			),
-		).WithTheme(MINKTheme())
+		).WithTheme(MINKTheme()), opts)
 		if err := runForm(ctx, customForm); err != nil {
 			return "", err
 		}
