@@ -1,9 +1,9 @@
 ---
 id: SPEC-MINK-LOCALE-001
-version: 0.1.1
-status: planned
+version: 0.3.0
+status: in-progress
 created_at: 2026-04-22
-updated_at: 2026-04-25
+updated_at: 2026-05-16
 author: manager-spec
 priority: P0
 issue_number: null
@@ -22,6 +22,7 @@ labels: ["phase-6", "localization", "foundation", "locale-detection", "cultural-
 | 0.1.0 | 2026-04-22 | 초안 작성. v5.0 ROADMAP Phase 6 확장에 따른 Localization 4 SPEC 시리즈의 **기반층**. 사용자 최종 지시(2026-04-22): "한국뿐만 아니라 설치시 사용자의 국가와 정보를 수집해서 사용자에 맞게 각 현지화된 스킬들을 추가, hermes-agent 정도의 다국어" 반영. | manager-spec |
 | 0.1.1 | 2026-04-25 | Iteration 1 감사(mass-20260425/LOCALE-001-audit) Must-Pass + Major 결함 대응. (1) frontmatter `labels` 채움(D1, MP-3). (2) AC-LC-001~012에 `Covers REQ-LC-XXX` 트레이서빌리티 추가(D3). (3) 누락 REQ 6개(002/003/011/012/014/016)에 대해 AC-LC-013~018 신설(D4). (4) number/date/time format + collation 스코프 분기를 Exclusions 및 Technical Approach §6.7에 명시하여 I18N-001로 위임(D5). (5) Country→Currency 매핑을 "CLDR-inspired manual map, ~20개 우선 + ISO 3166↔4217 확장 240개"로 확정(D6, §6.8). (6) 다중 타임존 국가(US/RU/BR/CA/AU)의 기본 TZ 선택 정책을 `OS TZ env > CLDR primary zone > conflict 기록`으로 확정하고 AC-LC-018로 커버(D7, §6.9). TRUST 5는 §6.10으로 이동. REQ 번호 재배치 없음. research.md 변경 없음. | manager-spec |
 | 0.2.0 | 2026-05-16 | Phase 1 구현 완료. `internal/locale/` 패키지 신설 (7개 소스 파일 + 4개 테스트 파일). Detect()/DetectWithOverride()/ResolveCulturalContext()/CountryToCurrency()/PrimaryTimezone()/TimezoneAlternatives()/BuildSystemPromptAddendum()/Load()/Save() 구현. 30개 우선 국가 currency 맵, 5개 다중 타임존 국가 CLDR 테이블, 20+ 국가 cultural 매핑 테이블 인코딩. CLI wiring: `defaultLocaleIndex()` 헬퍼로 `runStep1Locale` 초기 선택값을 OS 감지 결과로 pre-select. 테스트 커버리지 92.7% (목표 85% 초과). 모든 기존 테스트 통과. IP geolocation HTTP 프로브(MaxMind/ipapi.co) 및 Web wiring은 Phase 2 follow-up PR로 위임. | expert-backend |
+| 0.3.0 | 2026-05-16 | **amendment-v0.2 — 자동 감지 (browser GPS + IP geolocation + 수동 폴백) 요구사항 증설**. ONBOARDING-001 Phase 4 web-speedrun hotfix 세션 (2026-05-16) 에서 사용자 결정 반영: "Step 1 지역 선택은 브라우저 GPS / IP geolocation 으로 자동 감지하고 수동 입력은 폴백" → 본 amendment 로 편입. 신규 REQ 6개 (REQ-LC-040~045: 자동 감지 entry / Web Geolocation API / IP fallback / 권한 거부 처리 / 정확도 표기 / 프라이버시 고지), 신규 AC 6개 (AC-LC-020~025, 모두 binary verifiable), §3.1 IN SCOPE 확장 (browser GPS 경로 명시), §6 Technical Approach 신규 §6.11 (자동 감지 흐름 + Web/CLI 분기 + 폴백 trees), §6.12 (프라이버시 고지 정책 — PIPA/GDPR/CCPA 부합 텍스트 가이드), §10 영향 범위 신설. 기존 REQ-LC-001~016 / AC-LC-001~018 변경 0 (Phase 1 종결물 보존). Web 구현 의존성: navigator.geolocation + IP geolocation HTTP 프로브 (ipapi.co 1차 / Nominatim 2차 / MaxMind GeoLite2 로컬 옵션 — §6.5 와 일치). CLI 구현은 IP geolocation only (TUI 환경, OS timezone 보조). 새 npm/Go 모듈 도입 0. frontmatter version 0.1.1 → 0.3.0, status planned → in-progress, updated_at 2026-04-25 → 2026-05-16 정합화. | manager-spec |
 
 ---
 
@@ -111,6 +112,19 @@ labels: ["phase-6", "localization", "foundation", "locale-detection", "cultural-
    - `locale:` 섹션을 `~/.goose/config.yaml`에 신설 (REQ-LC-011 참조).
 9. 다국적 사용자 지원:
    - `primary_language`(일상 대화) + `secondary_language`(기술 용어 혹은 이중언어) 모두 system prompt에 포함.
+10. **자동 감지 entry point (Web + CLI) — amendment-v0.2**:
+    - Web 측은 `navigator.geolocation.getCurrentPosition` + reverse geocoding (백엔드 hop) 을 1차로 사용. 권한 거부 / 실패 시 IP geolocation HTTP 프로브로 자동 전환.
+    - CLI 측은 IP geolocation HTTP 프로브 + OS timezone 을 1차로 사용 (browser GPS 는 TUI 환경 불가).
+    - 두 경로 모두 실패하면 수동 폴백 (Web: 4-preset radio / CLI: free-form text prompt) 으로 진입.
+11. **정확도 등급 표기 — amendment-v0.2**:
+    - GPS = city-level (`accuracy: "high"`)
+    - IP = country-level (`accuracy: "medium"`)
+    - 수동 = `accuracy: "manual"`
+    - `LocaleContext.accuracy` 필드로 영속화. LLM system prompt addendum 의 `Detection: {accuracy}` 라인으로 노출 (REQ-LC-044).
+12. **프라이버시 고지 — amendment-v0.2**:
+    - 자동 감지 호출 전 사용자 명시 동의 절차 (Web: Step 1 inline 텍스트 + Geolocation permission prompt / CLI: `--auto-detect` default-on + stderr 1-line 고지).
+    - GDPR Art. 13 / PIPA Art. 15 / CCPA §1798.100 의 데이터 수집 고지 의무를 충족.
+    - 사용자는 언제든 `--no-auto-detect` 또는 브라우저 권한 거부로 비활성화 가능 (REQ-LC-045).
 
 ### 3.2 OUT OF SCOPE
 
@@ -167,6 +181,22 @@ labels: ["phase-6", "localization", "foundation", "locale-detection", "cultural-
 ### 4.5 Optional (선택적)
 
 **REQ-LC-016 [Optional]** — **Where** `tz-mapped timezone` is ambiguous (e.g., `Asia/Shanghai` covers mainland China and parts of Xinjiang), the detector **may** expose `timezone_alternatives` for ONBOARDING-001 disambiguation.
+
+### 4.6 자동 감지 (Auto-Detection — amendment-v0.2)
+
+amendment-v0.2 (2026-05-16) 에서 신설된 자동 감지 entry 흐름. ONBOARDING-001 Phase 4 web-speedrun hotfix 세션의 사용자 결정 "Step 1 지역 선택은 브라우저 GPS / IP geolocation 으로 자동 감지하고 수동 입력은 폴백" 을 본 §에서 EARS 요구사항으로 확정한다. REQ 번호 042~ 가 아닌 040~ 로 점프하는 것은 향후 보조 detect 모듈 (017~039 예약 슬롯) 확장 여지를 보존하기 위함이다.
+
+**REQ-LC-040 [Event-Driven]** — **When** 사용자가 onboarding Step 1 에 진입하면 (Web UI: 컴포넌트 mount / CLI: `mink init` 진입), the system **shall** 자동 감지를 1차로 시도하고 결과를 4-preset 또는 free-form UI 에 pre-select 한다. 자동 감지 entry 는 default-on 이며, 사용자는 명시적 비활성화 경로 (Web: 권한 거부 / CLI: `--no-auto-detect`) 로만 우회할 수 있다.
+
+**REQ-LC-041 [State-Driven]** — **While** 사용자가 Web UI 에서 자동 감지를 활성화한 상태, the system **shall** 다음 순서로 시도한다: (1) `navigator.geolocation.getCurrentPosition` (city-level, `accuracy="high"`, timeout 5s), (2) IP geolocation HTTP 프로브 (country-level, `accuracy="medium"`, timeout 3s), (3) 모두 실패 시 수동 폴백 (`accuracy="manual"`). 각 단계는 비차단(non-blocking) 이며 사용자 진행을 막지 않는다.
+
+**REQ-LC-042 [State-Driven]** — **While** 사용자가 CLI 환경에서 `mink init --auto-detect` 또는 `mink init` (기본 default-on) 을 실행한 상태, the system **shall** IP geolocation HTTP 프로브 + OS timezone 을 1차로 시도하고, 실패 시 OS env 만으로 detect 한다 (browser GPS 는 CLI 에서 사용 불가, REQ-LC-001 의 기존 OS detect 경로와 통합된다). `--no-auto-detect` flag 가 set 이면 자동 감지를 건너뛰고 기존 OS env 경로만 사용한다.
+
+**REQ-LC-043 [Unwanted]** — **If** Web Geolocation API 권한이 거부되면, **then** the system **shall** 자동으로 IP geolocation 경로로 전환하고, 사용자에게 차단된 단계를 알리는 비차단 UI 메시지 (toast 또는 inline notice) 를 표시한다. **The system shall not** 사용자 진행을 차단하거나 modal dialog 로 응답을 강요한다.
+
+**REQ-LC-044 [Ubiquitous]** — The system **shall** 모든 `LocaleContext` 결과에 `accuracy` 필드 (`"high"` | `"medium"` | `"manual"`) 를 포함하고, 이를 `BuildSystemPromptAddendum` 출력의 `Detection: {accuracy}` 라인으로 노출한다. `accuracy` 필드는 CONFIG-001 의 `locale:` 섹션에 영속화되며, 사용자 override 가 적용된 경우 `accuracy="manual"` 로 기록된다.
+
+**REQ-LC-045 [Ubiquitous, Privacy]** — The system **shall** 자동 감지 호출 직전 사용자에게 명시적 고지를 제시한다: (a) Web — Step 1 진입 시 inline 텍스트 + Geolocation permission prompt 의 brower-native 동의 절차, (b) CLI — stderr 1-line 고지 (`"Detecting your location for personalisation. Use --no-auto-detect to skip."`). 고지 텍스트는 GDPR Art. 13 (데이터 수집 직전 고지) / PIPA Art. 15 (수집 동의) / CCPA §1798.100 (소비자 권리 고지) 의 의무를 충족하는 표현으로 작성한다. **The system shall not** 사용자 동의 없이 위치 정보를 외부 제3자에게 전송한다 (REQ-LC-012 와 결합).
 
 ---
 
@@ -279,6 +309,47 @@ labels: ["phase-6", "localization", "foundation", "locale-detection", "cultural-
 - **Given** 사용자 country=`US`, OS `TZ` 환경변수 미설정(ambiguous case)
 - **When** `Detect(ctx)` 호출
 - **Then** `LocaleContext.timezone`은 CLDR likelySubtags 기반 대표 존(미국=`America/New_York`)으로 결정되고, `LocaleContext.timezone_alternatives`에 `["America/New_York","America/Chicago","America/Denver","America/Los_Angeles","America/Anchorage","Pacific/Honolulu"]` 6개 IANA zone이 포함되며, `LocaleContext.conflict`에는 기록되지 않는다(다중존은 conflict가 아닌 ambiguity로 분류). 동일 케이스에서 OS `TZ=America/Los_Angeles`가 설정되어 있으면 `timezone="America/Los_Angeles"`가 우선하고 `timezone_alternatives`는 생략된다.
+
+> **참고**: AC-LC-019 는 차후 보조 detect 모듈 (REQ-LC-017~039 예약 슬롯) 용으로 예약되어 amendment-v0.2 에서는 의도적으로 빈 슬롯으로 둔다. AC-LC-020~025 는 amendment-v0.2 의 신규 자동 감지 요구사항 (REQ-LC-040~045) 을 검증한다.
+
+**AC-LC-020 — Web Step 1 진입 시 자동 감지 시도 (amendment-v0.2)**
+- **Covers**: REQ-LC-040, REQ-LC-041
+- **Given** Web UI Step 1 컴포넌트가 mount 되고, 브라우저가 Geolocation API 권한을 허용한 상태 (test fixture: `navigator.geolocation.getCurrentPosition` mock 이 `{coords: {latitude: 37.5665, longitude: 126.9780}}` 반환)
+- **When** `Step1Locale` 컴포넌트의 자동 감지 effect 가 실행되어 `InstallApi.probeLocale(sessionId)` 가 호출되고, 백엔드가 reverse geocoding 결과를 반환
+- **Then** `country="KR"`, `primary_language="ko-KR"`, `timezone="Asia/Seoul"` 이 pre-select 되고, `LocaleContext.accuracy="high"` 가 기록되며, UI 의 4-preset radio 가 자동 감지 결과 항목으로 표시된다. 백엔드 응답 시간이 `5s` 를 초과하면 timeout 으로 IP fallback 으로 전환 (AC-LC-021 참조).
+
+**AC-LC-021 — Web Geolocation 권한 거부 시 IP fallback (amendment-v0.2)**
+- **Covers**: REQ-LC-041, REQ-LC-043
+- **Given** Web UI Step 1 진입, Geolocation API 권한이 사용자에 의해 거부됨 (`navigator.geolocation.getCurrentPosition` mock 이 `PERMISSION_DENIED` error 콜백 호출)
+- **When** Step1Locale 의 fallback 로직이 IP geolocation HTTP 프로브를 트리거 (`POST /install/api/locale/probe` 가 IP fallback 분기를 응답)
+- **Then** country-level 결과로 pre-select, `LocaleContext.accuracy="medium"`, inline notice 가 DOM 에 렌더링됨 (예: `"위치 권한이 거부되어 IP 기반으로 감지했습니다"`). 사용자 진행을 차단하는 modal 은 표시되지 않는다 (REQ-LC-043). `data-testid="locale-fallback-notice"` 로 테스트가 검증 가능해야 한다.
+
+**AC-LC-022 — CLI 자동 감지 default + --no-auto-detect 비활성화 (amendment-v0.2)**
+- **Covers**: REQ-LC-042, REQ-LC-045
+- **Given** `mink init` 실행 (no flag, default-on)
+- **When** 자동 감지 entry point 가 호출됨
+- **Then** stderr 에 정확히 1줄의 고지가 출력됨 (`"Detecting your location for personalisation. Use --no-auto-detect to skip. (locally stored only)"` 정규식 매칭), IP geolocation HTTP 프로브 + OS timezone 시도. `mink init --no-auto-detect` 변형 실행 시에는 stderr 고지가 출력되지 않고 자동 감지가 건너뛰어지며 기존 OS env detect 경로만 실행된다 (REQ-LC-001 의 기존 동작 보존).
+
+**AC-LC-023 — accuracy 필드 LLM prompt 노출 (amendment-v0.2)**
+- **Covers**: REQ-LC-044
+- **Given** `LocaleContext.accuracy ∈ {"high", "medium", "manual"}` 중 하나가 설정됨
+- **When** `BuildSystemPromptAddendum(loc, cul)` 호출
+- **Then** 결과 UTF-8 문자열에 `Detection: high` (또는 `Detection: medium`, `Detection: manual`) 라인이 정확히 포함됨. `strings.Contains(addendum, "Detection: " + loc.Accuracy)` 단언이 PASS. accuracy 가 비어 있으면 (`""`) 해당 라인은 생략되고 backward compatibility 가 유지된다 (Phase 1 기존 호출자 보호).
+
+**AC-LC-024 — 자동 감지 모든 경로 실패 시 수동 폴백 진입 (amendment-v0.2)**
+- **Covers**: REQ-LC-040, REQ-LC-041
+- **Given** GPS 권한 거부 + IP 프로브 timeout (3s 경과) / 네트워크 차단 / VPN 의심 모두 발생 (Web: `geolocation` denied + `fetch` 가 timeout. CLI: HTTP probe 가 context.DeadlineExceeded 반환)
+- **When** 자동 감지 entry 흐름이 종료됨
+- **Then** Step 1 UI 가 4-preset radio (Web — KR/US/FR/DE) 또는 free-form text prompt (CLI) 폴백 모드로 전환되고, `LocaleContext.accuracy="manual"` 이 기록되며, 사용자가 명시적으로 선택할 때까지 다음 Step 으로 진행되지 않는다 (Step 1 의 "수동 입력" 요구사항). 폴백 전환 자체는 자동이며 사용자에게 별도 확인을 요구하지 않는다.
+
+**AC-LC-025 — 프라이버시 고지 텍스트 존재 + 사용자 동의 경로 (amendment-v0.2)**
+- **Covers**: REQ-LC-045
+- **Given** Web Step 1 mount 또는 CLI `mink init` 진입
+- **When** 자동 감지 호출 직전
+- **Then**:
+  - **Web** 측: inline 고지 텍스트가 DOM 에 렌더링됨 (`data-testid="locale-privacy-notice"`). 텍스트는 (1) 수집 대상 (위치/국가), (2) 수집 방법 (Geolocation API + IP), (3) 저장 위치 (locally only, no telemetry), (4) 거부 방법 (브라우저 권한 거부) 의 4 가지 핵심 정보를 모두 포함. Geolocation permission prompt 가 그 직후에 트리거된다.
+  - **CLI** 측: stderr 에 1줄 고지 (AC-LC-022 의 정규식과 동일) 가 출력됨.
+  - **두 경우 모두**: 사용자가 `--no-auto-detect` (CLI) 또는 브라우저 권한 거부 (Web) 로 자동 감지를 비활성화할 수 있어야 한다 (AC-LC-021, AC-LC-022 와 결합).
 
 ---
 
@@ -500,6 +571,140 @@ Apply these conventions unless the user's conversational style overrides them.
 | **S**ecured | env var injection 거부(REQ-LC-013), 중국 geolocation HTTP 차단(REQ-LC-015), telemetry OFF 기본 |
 | **T**rackable | `detected_method` 필드 + zap 구조화 로그(`locale.detect.completed` with source/country/lang) |
 
+### 6.11 자동 감지 흐름 + Web/CLI 분기 (amendment-v0.2)
+
+자동 감지는 두 entry point (Web onboarding Step 1 / CLI `mink init`) 에서 호출되며, 각 환경의 능력 차이를 반영한 분기 트리를 사용한다.
+
+#### 6.11.1 Web 흐름
+
+```
+1. Step 1 컴포넌트 mount
+   ├─ Privacy notice 렌더 (inline 텍스트, data-testid="locale-privacy-notice")
+   └─ probeLocale(sessionId) effect 실행
+
+2. navigator.geolocation.getCurrentPosition (timeout 5s)
+   ├─ 권한 허용 + 성공 → POST /install/api/locale/probe (body: {lat, lng})
+   │                  → backend reverse geocoding → {country, language, timezone}
+   │                  → LocaleContext.accuracy = "high"
+   │                  → 4-preset UI 에 자동 감지 결과 pre-select + 정확도 배지 표시
+   │
+   ├─ 권한 거부 (PERMISSION_DENIED) → IP fallback 분기로 자동 전환
+   ├─ Timeout (5s) → IP fallback 분기로 자동 전환
+   └─ 기타 error (POSITION_UNAVAILABLE 등) → IP fallback 분기로 자동 전환
+
+3. IP fallback 분기
+   ├─ POST /install/api/locale/probe (body: {}) → backend 가 X-Forwarded-For / RemoteAddr 로 IP 추출
+   ├─ backend → ipapi.co HTTPS (timeout 3s) → {country, language, timezone}
+   │            └─ rate-limit / outage → Nominatim 2차 fallback
+   │            └─ 둘 다 실패 → manual fallback 분기로 전환
+   ├─ 성공 → LocaleContext.accuracy = "medium"
+   │       → 4-preset UI 에 결과 pre-select + 정확도 배지 + inline notice ("위치 권한 거부됨, IP 기반 감지")
+   │       → data-testid="locale-fallback-notice" 로 검증 가능
+
+4. Manual fallback 분기
+   ├─ Step 1 UI 가 4-preset radio (KR/US/FR/DE) 만 표시
+   ├─ LocaleContext.accuracy = "manual"
+   └─ 사용자가 명시적으로 선택할 때까지 다음 Step 으로 진행 차단
+
+5. LocaleContext 영속화
+   └─ CONFIG-001 `locale:` 섹션에 country/language/timezone/accuracy 저장
+```
+
+#### 6.11.2 CLI 흐름 (`mink init`)
+
+```
+1. CLI 시작 (default = auto-detect on)
+   ├─ stderr 1-line 고지 출력 (REQ-LC-045 / AC-LC-025):
+   │   "Detecting your location for personalisation. Use --no-auto-detect to skip. (locally stored only)"
+   └─ --no-auto-detect 가 set 이면 OS env detect (REQ-LC-001) 만 실행 + 고지 미출력
+
+2. IP geolocation HTTP 프로브 (timeout 3s, internal/locale/iplookup.go 신규)
+   ├─ ipapi.co HTTPS GET https://ipapi.co/json/
+   │   ├─ 응답 정상 → {country, language, timezone}
+   │   ├─ 5xx / rate-limit (429) → Nominatim 2차 fallback (optional, 호스트 allow-list 등록 후)
+   │   └─ China 차단 (REQ-LC-015) → OS env detect 로 폴백 (해당 경로 자체 skip)
+   ├─ context.DeadlineExceeded (3s) → OS env detect 로 폴백
+   └─ 네트워크 오류 (DNS / connection refused 등) → OS env detect 로 폴백
+
+3. OS env detect 와 결과 병합
+   ├─ IP 결과의 country 가 OS env 결과 country 와 일치 → 그대로 채택, accuracy="medium"
+   ├─ 두 country 가 불일치 → REQ-LC-008 의 conflict 분기 (LocaleContext.conflict 기록)
+   └─ IP 만 가능 / OS 만 가능 → 가능한 쪽 채택
+
+4. LocaleContext 영속화
+   └─ accuracy 필드 = "medium" (IP) | "high" 는 CLI 에서 불가 (browser GPS 없음) | "manual" (override)
+```
+
+#### 6.11.3 라이브러리 결정 (§6.5 보강)
+
+amendment-v0.2 는 새 npm/Go 모듈을 도입하지 않는다. 자동 감지에 필요한 의존성은 모두 표준 라이브러리 또는 §6.5 에 이미 등록된 항목으로 충족된다.
+
+| 용도 | 라이브러리 | 환경 | 비고 |
+|------|----------|-----|------|
+| Web Geolocation API | `navigator.geolocation` | 브라우저 표준 | 추가 의존성 없음 |
+| Web reverse geocoding 백엔드 호출 | 표준 `fetch` | Web | 추가 의존성 없음 |
+| Web/CLI IP geolocation 1차 | `net/http` stdlib + ipapi.co HTTPS | 백엔드 | §6.5 항목 (기존) |
+| Web/CLI IP geolocation 2차 fallback | `net/http` stdlib + Nominatim (OpenStreetMap) | 백엔드 | 사용자 선택 (rate-limit 1/sec, attribution 의무). 기본 disabled. |
+| CLI offline DB (옵션) | `github.com/oschwald/maxminddb-golang` v2.x | CLI | §6.5 항목 (기존, GeoLite2 사용 시) |
+
+**vendor 우선순위 결정**: 1차 ipapi.co (단순, IP+reverse geocoding 통합, free tier 30/min). 2차 Nominatim (OpenStreetMap, rate-limit 1/sec + attribution 의무, opt-in). 3차 MaxMind GeoLite2 로컬 DB (오프라인, ~4MB, CLI 전용 옵션). 모든 vendor 는 §6.5 의 기존 의존성 범위에 포함되며 새 추가는 없음.
+
+### 6.12 프라이버시 고지 정책 (amendment-v0.2)
+
+자동 감지 호출 전 사용자 명시 동의를 위한 고지 텍스트 가이드. GDPR Art. 13 (정보 수집 직전 고지) / PIPA Art. 15 (수집 동의) / CCPA §1798.100 (소비자 권리 고지) 의 데이터 수집 고지 의무를 단일 텍스트로 충족한다.
+
+#### 6.12.1 4 핵심 원칙
+
+모든 고지 텍스트 변형은 다음 4 가지 정보를 명시적으로 포함해야 한다.
+
+1. **무엇을 수집하는가** — location / country / approximate position
+2. **어떻게 수집하는가** — browser Geolocation API / IP address lookup
+3. **어디에 저장하는가** — locally only (no external telemetry)
+4. **어떻게 거부하는가** — browser permission denial / `--no-auto-detect` flag
+
+#### 6.12.2 Web Step 1 inline 고지 텍스트 (예시)
+
+```
+영문 (canonical):
+  To personalise your experience, MINK detects your location.
+  You can decline the browser prompt or skip detection at any time.
+  Detection result is stored locally only. No external telemetry.
+
+한국어 병기 (옵션, I18N-001 catalog 소비 시):
+  지역 정보 자동 감지: 브라우저 권한 거부 또는 건너뛰기 가능.
+  결과는 로컬에만 저장됩니다.
+```
+
+- DOM 위치: Step 1 컴포넌트 상단 (`data-testid="locale-privacy-notice"`)
+- 시각적 강조: 본문 텍스트보다 작지만 가독성 보장 (font-size ≥ 12px, color contrast ratio ≥ 4.5:1 — WCAG AA)
+- I18N-001 통합 시 catalog 키 `locale.privacy.notice.web` 로 등록 (amendment-v0.2 범위 외, 후속 PR)
+
+#### 6.12.3 CLI stderr 고지 텍스트
+
+```
+canonical (영문):
+  Detecting your location for personalisation. Use --no-auto-detect to skip. (locally stored only)
+```
+
+- 출력 스트림: stderr (stdout 오염 방지, 파이프 친화)
+- 1 줄, 80 자 이내 (전형적 터미널 폭)
+- ANSI escape 없음 (NO_COLOR 환경 변수 준수)
+- 출력 타이밍: HTTP 프로브 호출 *직전* (사용자가 차단 결정 가능한 시점)
+
+#### 6.12.4 컴플라이언스 매핑
+
+| 법령 | 조항 | 요구사항 | 본 고지의 충족 방식 |
+|-----|-----|---------|------------------|
+| GDPR | Art. 13 | 수집 직전 정보 주체에게 (a) 데이터 controller, (b) 수집 목적, (c) 법적 근거, (d) 저장 기간 고지 | 본문 (a) MINK 명시, (b) personalisation, (c) consent (사용자 권한 허용 = lawful basis), (d) locally only |
+| PIPA | Art. 15 | 개인정보 수집 시 (a) 수집·이용 목적, (b) 수집 항목, (c) 보유·이용 기간, (d) 거부 권리 동의 | 본문 (a) personalisation, (b) location/country, (c) locally only, (d) `--no-auto-detect` / 권한 거부 |
+| CCPA | §1798.100 | 소비자의 (a) 알 권리, (b) 거부 권리 보장 | 본문 (a) "detects your location", (b) "skip" / "decline" |
+
+#### 6.12.5 사용자 거부 경로 (불가역적이지 않음)
+
+- Web: 권한 거부 후에도 사용자가 추후 브라우저 설정에서 권한을 재허용하면 다음 onboarding 진입 시 다시 감지 가능
+- CLI: `--no-auto-detect` 는 1회 실행 한정. 다음 `mink init` 호출 시 다시 default-on
+- 영속화된 자동 감지 결과는 사용자가 ONBOARDING-001 또는 `mink config locale set` 으로 언제든 manual override 가능 (REQ-LC-006 의 user override 경로와 통합)
+
 ---
 
 ## 7. 의존성 (Dependencies)
@@ -516,6 +721,11 @@ Apply these conventions unless the user's conversational style overrides them.
 | 외부 | `golang.org/x/text/language` v0.14+ | BCP 47 파싱 |
 | 외부 | `github.com/oschwald/maxminddb-golang` v2.x | GeoLite2 DB reader |
 | 외부 | MaxMind GeoLite2-Country.mmdb | ~4MB offline DB, 번들 또는 CLI로 다운로드 |
+| 외부 (Web, amendment-v0.2) | `navigator.geolocation` | 브라우저 표준 API. 새 npm 패키지 도입 없음. |
+| 외부 (Web/CLI, amendment-v0.2) | ipapi.co HTTPS | 1차 IP geolocation. 무료 tier 30 req/min. §6.5 기존 항목. |
+| 외부 (Web/CLI, amendment-v0.2, optional) | Nominatim (OpenStreetMap) | 2차 IP geolocation fallback. rate-limit 1/sec, attribution 의무. 기본 disabled. |
+
+> **amendment-v0.2 보강**: 자동 감지 entry 도입에도 불구하고 새 npm 또는 Go 모듈은 추가되지 않는다. 모든 의존성은 표준 `fetch` / `net/http` + 기존 §6.5 항목으로 충족된다.
 
 ---
 
@@ -530,6 +740,11 @@ Apply these conventions unless the user's conversational style overrides them.
 | R5 | `CulturalContext`에 담은 legal_flags가 법률 변경에 뒤처짐 | 중 | 고 | 플래그는 힌트(hint)이며 실제 준수 로직은 각 SPEC(예: JOURNAL-001 PIPA)에서 최종 결정 |
 | R6 | 이슬람 달력(hijri)/중국 음력 혼용 사용자(예: 말레이시아) | 중 | 낮 | `CalendarSystem`을 `gregorian+hijri` 복합 문자열 허용, REGION-SKILLS-001이 세부 처리 |
 | R7 | GeoLite2 DB의 90일 노후화 미감지 | 낮 | 중 | `goose locale update-db` CLI 명령 + 시작 시 WARN(REQ-LC-010) |
+| R8 (amendment-v0.2) | VPN / Tor 사용자에 대한 IP geolocation 부정확 | 고 | 낮 | `accuracy="medium"` 표기로 사용자에게 정확도 한계 노출 + manual override 수정 가능 (기존 R3 보강). LocaleContext.conflict 가 OS 결과와 IP 결과 불일치를 기록하므로 ONBOARDING-001 가 확인 UI 표시 |
+| R9 (amendment-v0.2) | 외부 HTTP 의존성 (ipapi.co) rate-limit / outage | 중 | 중 | 2차 fallback Nominatim (opt-in) + 최종 fallback OS env detect. timeout 3s + circuit-break 패턴으로 사용자 진행 차단 방지 |
+| R10 (amendment-v0.2) | GPS city-level 정확도가 프라이버시 위험 | 중 | 중 | lat/lng raw 값은 `LocaleContext` 에 저장하지 않음 (백엔드 reverse geocoding 직후 폐기). country/language/timezone 만 영속화. §6.12 4-원칙 고지로 사용자 명시 동의 보장 |
+| R11 (amendment-v0.2) | accuracy 필드 미설정 시 backward compatibility 손상 | 낮 | 중 | `BuildSystemPromptAddendum` 이 `accuracy == ""` 인 경우 `Detection:` 라인을 생략하여 Phase 1 기존 호출자 보호 (AC-LC-023 의 단언 포함) |
+| R12 (amendment-v0.2) | Web inline 고지가 권한 prompt 와 시각적으로 분리되어 사용자 혼동 | 낮 | 낮 | 고지 텍스트가 권한 prompt 직전에 렌더링되고, `data-testid="locale-privacy-notice"` 가 prompt 트리거 버튼과 동일 영역에 위치하도록 컴포넌트 설계 (REQ-LC-045) |
 
 ---
 
@@ -559,6 +774,61 @@ Apply these conventions unless the user's conversational style overrides them.
 - `../SPEC-MINK-I18N-001/spec.md` — UI 번역 소비자
 - `../SPEC-GOOSE-REGION-SKILLS-001/spec.md` — country 기반 Skill 활성화
 - `../SPEC-MINK-ONBOARDING-001/spec.md` — Detect() 결과 표시 + override 수집
+
+---
+
+## 10. 영향 범위 (Impact Analysis — amendment-v0.2)
+
+amendment-v0.2 에서 신설된 자동 감지 (browser GPS + IP fallback + 수동 폴백) 요구사항이 영향을 미치는 파일 목록. Phase 2 구현 PR 진행 시 본 표를 체크리스트로 활용한다.
+
+### 10.1 백엔드 영향 (Go)
+
+| 컴포넌트 | 변경 유형 | 비고 |
+|---------|----------|------|
+| `internal/server/install/handler.go` | 확장 | POST `/install/api/locale/probe` 엔드포인트 추가. Geolocation 결과 (lat/lng 수신) 또는 IP fallback (X-Forwarded-For / RemoteAddr) 분기 처리. CSRF / Origin allowlist 는 기존 install handler 패턴 재사용. |
+| `internal/locale/detect.go` | 확장 | `DetectWithGeolocation(ctx, lat, lng) (*LocaleContext, error)` + `DetectFromIP(ctx, remoteAddr string) (*LocaleContext, error)` helper 추가. `LocaleContext.Accuracy` 필드 영속화. |
+| `internal/locale/iplookup.go` | **신규** | ipapi.co (1차) + Nominatim (2차, opt-in) HTTP 클라이언트. timeout 3s. RFC 1918 / loopback / link-local 차단. 호스트 allow-list 강제 (REQ-LC-012 와 결합). |
+| `internal/locale/context.go` | 확장 | `LocaleContext` 구조체에 `Accuracy string` (`"high"` | `"medium"` | `"manual"`) 필드 추가. YAML `omitempty` 로 backward compat 보장. |
+| `internal/locale/prompts.go` | 확장 | `BuildSystemPromptAddendum` 에 `Detection: {accuracy}` 라인 조건부 포함 (accuracy 가 비어있으면 라인 생략). AC-LC-023 검증 대상. |
+| `internal/cli/commands/init.go` | 확장 | `--no-auto-detect` flag 추가 (default false). 자동 감지 default-on. stderr 1-line 고지 (`fmt.Fprintln(os.Stderr, ...)`). NO_COLOR 환경 변수 준수. |
+| `internal/server/install/handler_test.go` | 확장 | 신규 probe 엔드포인트 단위 테스트 (정상 / 권한 거부 / IP fallback / timeout 4 경로). |
+| `internal/locale/iplookup_test.go` | **신규** | httptest 기반 mock vendor 응답 단위 테스트. ipapi.co 정상 / 5xx / 429 / Nominatim fallback / 모두 실패 5 경로. |
+| `internal/locale/detect_test.go` | 확장 | `DetectWithGeolocation` / `DetectFromIP` 단위 테스트 + accuracy 필드 단언. |
+
+### 10.2 프런트엔드 영향 (TypeScript / React)
+
+| 컴포넌트 | 변경 유형 | 비고 |
+|---------|----------|------|
+| `web/install/src/components/steps/Step1Locale.tsx` | **재설계** | 기존 4-preset radio UI 를 "자동 감지 → 결과 표기 + 정확도 배지 + 수동 폴백 radio" 로 변경. PRESETS 4개는 폴백 경로로 유지. mount effect 에서 `probeLocale(sessionId)` 호출. |
+| `web/install/src/lib/api.ts` | 확장 | `InstallApi.probeLocale(sessionId: string): Promise<LocaleProbeResult>` 메서드 추가. CSRF token + sessionId 헤더 자동 첨부. |
+| `web/install/src/types/onboarding.ts` | 확장 | `LocaleChoice` 인터페이스에 `Accuracy: "high" \| "medium" \| "manual"` 필드 추가. `LocaleProbeResult` 신규 타입 (country/language/timezone/accuracy). |
+| `web/install/src/components/steps/Step1Locale.test.tsx` | **신규 또는 확장** | Vitest + Testing Library 기반. `navigator.geolocation` mock + fetch mock 으로 6 시나리오 (성공 / 거부 → IP fallback / timeout → IP fallback / 모두 실패 → manual / 정확도 배지 / privacy notice DOM) 검증. AC-LC-020~025 매핑. |
+| `web/install/src/lib/geolocation.ts` | **신규 (선택)** | `getCurrentPositionWithTimeout(timeoutMs: number)` 헬퍼. browser-native API 의 timeout 처리 + Promise 래핑. 단위 테스트 가능성을 위해 격리. |
+
+### 10.3 통합 측 영향
+
+| 컴포넌트 | 변경 유형 | 비고 |
+|---------|----------|------|
+| `internal/onboarding/types.go` | 확장 | `LocaleChoice` Go 측 동일 필드 (`Accuracy string`) 추가. JSON tag 로 web 측과 wire-compat. |
+| `internal/onboarding/state.go` | 확장 (검증) | Step 1 완료 조건이 `accuracy` 필드 set 까지 포함하도록 검증. manual fallback 시 사용자 명시 선택 필수. |
+| `.moai/specs/SPEC-MINK-ONBOARDING-001/spec.md` | 참조 갱신 (별도 PR 권장) | 본 SPEC 의 amendment-v0.2 결과를 소비. 별도 amendment 로 ONBOARDING-001 Step 1 acceptance criteria 갱신 필요. |
+| `.moai/specs/SPEC-MINK-I18N-001/spec.md` | 참조 (별도 PR 권장) | 6.12.2 의 catalog 키 `locale.privacy.notice.web` 등록 (amendment-v0.2 범위 외). |
+| `web/install/playwright/` (E2E) | 확장 (별도 PR) | 자동 감지 6 시나리오 E2E. amendment-v0.2 의 직접 산출물은 아니며, 후속 Phase 4 hotfix PR 에 포함 권장. |
+
+### 10.4 영향 받지 않는 컴포넌트 (보존)
+
+다음 컴포넌트는 amendment-v0.2 로 인해 *변경되지 않으며*, Phase 1 종결물의 동작이 그대로 보존된다. Phase 2 구현 PR 진행 시 본 컴포넌트들의 회귀를 차단하는 unit test 필수.
+
+- `internal/locale/cultural.go` — 20+ country cultural 매핑 테이블 (변경 없음)
+- `internal/locale/cultural_test.go` — 결정론 테스트 (변경 없음)
+- `internal/locale/os_linux.go` / `os_darwin.go` / `os_windows.go` — OS env detect 경로 (REQ-LC-001 보존)
+- `internal/locale/geo.go` — MaxMind GeoLite2 reader (변경 없음; iplookup.go 와는 별개 경로)
+- AC-LC-001 ~ AC-LC-018 — Phase 1 종결 AC 18 개 모두 그대로 PASS 유지 의무
+
+### 10.5 마이그레이션 / 데이터 호환성
+
+- 기존 사용자의 `~/.mink/config.yaml` 의 `locale:` 섹션에 `accuracy` 필드가 없는 경우, 로더는 `accuracy: ""` (빈 문자열) 로 역직렬화하고 `BuildSystemPromptAddendum` 은 `Detection:` 라인을 생략하여 backward compat 유지 (R11 완화).
+- 기존 onboarding flow 를 거친 사용자는 다음 `mink init --reset locale` 또는 `mink config locale set accuracy=manual` 으로 명시적 marker 부착 가능 (amendment-v0.2 의 직접 산출물 외).
 
 ---
 
