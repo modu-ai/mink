@@ -1,5 +1,5 @@
 ---
-id: SPEC-GOOSE-LOCALE-001
+id: SPEC-MINK-LOCALE-001
 version: 0.1.1
 status: planned
 created_at: 2026-04-22
@@ -13,7 +13,7 @@ lifecycle: spec-anchored
 labels: ["phase-6", "localization", "foundation", "locale-detection", "cultural-context"]
 ---
 
-# SPEC-GOOSE-LOCALE-001 — Locale Detection + Cultural Context Injection
+# SPEC-MINK-LOCALE-001 — Locale Detection + Cultural Context Injection
 
 ## HISTORY
 
@@ -21,6 +21,7 @@ labels: ["phase-6", "localization", "foundation", "locale-detection", "cultural-
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-22 | 초안 작성. v5.0 ROADMAP Phase 6 확장에 따른 Localization 4 SPEC 시리즈의 **기반층**. 사용자 최종 지시(2026-04-22): "한국뿐만 아니라 설치시 사용자의 국가와 정보를 수집해서 사용자에 맞게 각 현지화된 스킬들을 추가, hermes-agent 정도의 다국어" 반영. | manager-spec |
 | 0.1.1 | 2026-04-25 | Iteration 1 감사(mass-20260425/LOCALE-001-audit) Must-Pass + Major 결함 대응. (1) frontmatter `labels` 채움(D1, MP-3). (2) AC-LC-001~012에 `Covers REQ-LC-XXX` 트레이서빌리티 추가(D3). (3) 누락 REQ 6개(002/003/011/012/014/016)에 대해 AC-LC-013~018 신설(D4). (4) number/date/time format + collation 스코프 분기를 Exclusions 및 Technical Approach §6.7에 명시하여 I18N-001로 위임(D5). (5) Country→Currency 매핑을 "CLDR-inspired manual map, ~20개 우선 + ISO 3166↔4217 확장 240개"로 확정(D6, §6.8). (6) 다중 타임존 국가(US/RU/BR/CA/AU)의 기본 TZ 선택 정책을 `OS TZ env > CLDR primary zone > conflict 기록`으로 확정하고 AC-LC-018로 커버(D7, §6.9). TRUST 5는 §6.10으로 이동. REQ 번호 재배치 없음. research.md 변경 없음. | manager-spec |
+| 0.2.0 | 2026-05-16 | Phase 1 구현 완료. `internal/locale/` 패키지 신설 (7개 소스 파일 + 4개 테스트 파일). Detect()/DetectWithOverride()/ResolveCulturalContext()/CountryToCurrency()/PrimaryTimezone()/TimezoneAlternatives()/BuildSystemPromptAddendum()/Load()/Save() 구현. 30개 우선 국가 currency 맵, 5개 다중 타임존 국가 CLDR 테이블, 20+ 국가 cultural 매핑 테이블 인코딩. CLI wiring: `defaultLocaleIndex()` 헬퍼로 `runStep1Locale` 초기 선택값을 OS 감지 결과로 pre-select. 테스트 커버리지 92.7% (목표 85% 초과). 모든 기존 테스트 통과. IP geolocation HTTP 프로브(MaxMind/ipapi.co) 및 Web wiring은 Phase 2 follow-up PR로 위임. | expert-backend |
 
 ---
 
@@ -507,9 +508,9 @@ Apply these conventions unless the user's conversational style overrides them.
 |-----|------|------|
 | 선행 SPEC | SPEC-GOOSE-CORE-001 | zap logger, context 루트 |
 | 선행 SPEC | SPEC-GOOSE-CONFIG-001 | `locale:` 섹션 스키마 확장 대상 |
-| 후속 SPEC | SPEC-GOOSE-I18N-001 | LocaleContext.primary_language 소비 |
+| 후속 SPEC | SPEC-MINK-I18N-001 | LocaleContext.primary_language 소비 |
 | 후속 SPEC | SPEC-GOOSE-REGION-SKILLS-001 | LocaleContext.country 기반 Skill 활성화 |
-| 후속 SPEC | SPEC-GOOSE-ONBOARDING-001 | Detect() 결과를 초기 화면에 표시 + override 수집 |
+| 후속 SPEC | SPEC-MINK-ONBOARDING-001 | Detect() 결과를 초기 화면에 표시 + override 수집 |
 | 후속 SPEC | SPEC-GOOSE-SCHEDULER-001 | LocaleContext.timezone 소비, REGION-SKILLS-001 통해 공휴일 DB 선택 |
 | 외부 | Go 1.22+ | `//go:build` tag |
 | 외부 | `golang.org/x/text/language` v0.14+ | BCP 47 파싱 |
@@ -555,9 +556,9 @@ Apply these conventions unless the user's conversational style overrides them.
 ### 9.3 부속 문서
 
 - `./research.md` — OS API 비교 + country mapping 결정 근거 + Hermes gateway 다국어 패턴 분석
-- `../SPEC-GOOSE-I18N-001/spec.md` — UI 번역 소비자
+- `../SPEC-MINK-I18N-001/spec.md` — UI 번역 소비자
 - `../SPEC-GOOSE-REGION-SKILLS-001/spec.md` — country 기반 Skill 활성화
-- `../SPEC-GOOSE-ONBOARDING-001/spec.md` — Detect() 결과 표시 + override 수집
+- `../SPEC-MINK-ONBOARDING-001/spec.md` — Detect() 결과 표시 + override 수집
 
 ---
 
@@ -585,4 +586,4 @@ Apply these conventions unless the user's conversational style overrides them.
 
 ---
 
-**End of SPEC-GOOSE-LOCALE-001**
+**End of SPEC-MINK-LOCALE-001**

@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/huh"
+	"github.com/modu-ai/mink/internal/locale"
 	"github.com/modu-ai/mink/internal/onboarding"
 	"golang.org/x/term"
 )
@@ -401,10 +402,29 @@ const (
 	stepActionBack                     // go back to previous step
 )
 
+// defaultLocaleIndex attempts to detect the user's OS locale and returns the
+// index into localePresets that best matches it. Falls back to 0 (KR) on any
+// error or when no preset matches.
+//
+// This is a best-effort helper: it never blocks the wizard flow on failure.
+func defaultLocaleIndex(ctx context.Context) int {
+	lc, err := locale.Detect(ctx)
+	if err != nil || lc.Country == "" {
+		return 0
+	}
+	for i, p := range localePresets {
+		if p.Country == lc.Country {
+			return i
+		}
+	}
+	return 0
+}
+
 // runStep1Locale presents a locale Select with 4 presets and submits Step 1.
 // Step 1 has no Back or Skip options (it is the first step).
+// LOCALE-001 Phase 1: Detect() is called to pre-select the matching preset.
 func runStep1Locale(ctx context.Context, flow *onboarding.OnboardingFlow, opts WizardOptions) error {
-	selectedIndex := 0
+	selectedIndex := defaultLocaleIndex(ctx)
 
 	options := make([]huh.Option[int], len(localePresets))
 	for i, p := range localePresets {
