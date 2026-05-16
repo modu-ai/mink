@@ -2,7 +2,12 @@
 // SPEC: SPEC-MINK-ONBOARDING-001 §6.3 (Web UI HTTP API)
 // All POST requests send the X-MINK-CSRF header (double-submit pattern) and
 // credentials: 'include' so the SameSite=Strict cookie is forwarded.
-import type { OnboardingState, ApiError } from "@/types/onboarding";
+import type {
+  OnboardingState,
+  ApiError,
+  LocaleProbeRequest,
+  LocaleProbeResponse,
+} from "@/types/onboarding";
 
 // @MX:ANCHOR: [AUTO] Central API client consumed by useOnboarding hook and all step components — fan_in >= 5.
 // @MX:REASON: CSRF token lifecycle and session_id routing are managed here; changes break all callers.
@@ -98,6 +103,36 @@ export class InstallApi {
       credentials: "include",
     });
     return this.handleResponse(res);
+  }
+
+  // probeLocale calls POST /install/api/locale/probe to detect country/language/timezone.
+  // Pass { lat, lng } for GPS-assisted detection; omit body or pass {} for IP-only fallback.
+  // SPEC: SPEC-MINK-LOCALE-001 amendment-v0.2 (AC-LC-020, AC-LC-021)
+  async probeLocale(
+    sessionId: string,
+    body: LocaleProbeRequest
+  ): Promise<LocaleProbeResponse> {
+    const res = await fetch(`${this.baseUrl}/locale/probe`, {
+      method: "POST",
+      headers: {
+        ...this.postHeaders(),
+        "X-MINK-Session": sessionId,
+      },
+      credentials: "include",
+      body: JSON.stringify(body),
+    });
+    if (res.ok) {
+      return res.json() as Promise<LocaleProbeResponse>;
+    }
+    let errBody: ApiError | undefined;
+    try {
+      errBody = (await res.json()) as ApiError;
+    } catch {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    }
+    const code = errBody?.error?.code ?? "unknown";
+    const message = errBody?.error?.message ?? `HTTP ${res.status}`;
+    throw Object.assign(new Error(message), { code });
   }
 
   private postHeaders(): Record<string, string> {

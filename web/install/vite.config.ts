@@ -1,4 +1,6 @@
-import { defineConfig } from "vite";
+// vite.config.ts — Vite build config + Vitest test config.
+// Vitest's defineConfig is used to get the `test` field typed correctly.
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
@@ -24,4 +26,9 @@ export default defineConfig({
     emptyOutDir: true,
   },
   base: "/install/",
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: ["./src/test-setup.ts"],
+  },
 });

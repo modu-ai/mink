@@ -823,12 +823,21 @@ func TestLocaleProbe_PrivateIP_FallbackManual(t *testing.T) {
 	assert.Equal(t, "KR", resp.Country, "fallback country must be KR")
 }
 
-// TestLocaleProbe_GPSCoordinates_StillManual verifies that a body with lat/lng
-// returns accuracy "manual" with KR default (reverse geocoding is a follow-up PR).
-func TestLocaleProbe_GPSCoordinates_StillManual(t *testing.T) {
+// TestLocaleProbe_GPSCoordinates_HighAccuracy verifies that a body with lat/lng and a
+// successful reverseGeocodeFn returns accuracy "high" with the resolved locale.
+func TestLocaleProbe_GPSCoordinates_HighAccuracy(t *testing.T) {
 	t.Parallel()
 	h, _, _ := newTestHandler(t)
 	sr := doStart(t, h)
+
+	// Inject fake reverseGeocodeFn that returns a Seoul result.
+	h.reverseGeocodeFn = func(_ context.Context, in locale.ReverseGeocodeInput) (locale.ReverseGeocodeResult, error) {
+		return locale.ReverseGeocodeResult{
+			Country:  "KR",
+			Language: "ko",
+			Timezone: "Asia/Seoul",
+		}, nil
+	}
 
 	lat := 37.5665
 	lng := 126.9780
@@ -839,9 +848,35 @@ func TestLocaleProbe_GPSCoordinates_StillManual(t *testing.T) {
 
 	var resp localeProbeResponse
 	require.NoError(t, json.NewDecoder(rec.Body).Decode(&resp))
-	// Reverse geocoding is not implemented; accuracy must be manual.
-	assert.Equal(t, "manual", resp.Accuracy, "GPS body must return manual (reverse geocoding follow-up PR)")
-	assert.Equal(t, "KR", resp.Country, "GPS fallback must use KR 4-preset default")
+	assert.Equal(t, "high", resp.Accuracy, "successful GPS reverse geocode must report accuracy=high")
+	assert.Equal(t, "KR", resp.Country)
+	assert.Equal(t, "ko", resp.Language)
+	assert.Equal(t, "Asia/Seoul", resp.Timezone)
+}
+
+// TestLocaleProbe_GPSCoordinates_ErrorFallback verifies that a reverseGeocodeFn error
+// causes a graceful fallback to accuracy "manual" with KR defaults.
+func TestLocaleProbe_GPSCoordinates_ErrorFallback(t *testing.T) {
+	t.Parallel()
+	h, _, _ := newTestHandler(t)
+	sr := doStart(t, h)
+
+	// Inject fake reverseGeocodeFn that returns an error.
+	h.reverseGeocodeFn = func(_ context.Context, in locale.ReverseGeocodeInput) (locale.ReverseGeocodeResult, error) {
+		return locale.ReverseGeocodeResult{}, locale.ErrReverseTimeout
+	}
+
+	lat := 37.5665
+	lng := 126.9780
+	body := map[string]float64{"lat": lat, "lng": lng}
+
+	rec := postLocaleProbe(h, body, sr)
+	require.Equal(t, http.StatusOK, rec.Code, "probe must return 200 on reverse geocode error: %s", rec.Body.String())
+
+	var resp localeProbeResponse
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&resp))
+	assert.Equal(t, "manual", resp.Accuracy, "reverseGeocodeFn error must produce accuracy=manual")
+	assert.Equal(t, "KR", resp.Country, "error fallback must use KR 4-preset default")
 }
 
 // TestLocaleProbe_CSRFRequired verifies that the endpoint rejects requests without

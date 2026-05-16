@@ -288,14 +288,15 @@ type HandlerOptions struct {
 // Origin is additionally checked against the 127.0.0.1 allowlist (or :5173 in
 // MINK_DEV=1) to defend against CORS preflights from off-host pages.
 type Handler struct {
-	store      *SessionStore
-	keyring    onboarding.KeyringClient
-	complete   onboarding.CompletionOptions
-	devMode    bool
-	static     http.Handler
-	mux        *http.ServeMux
-	pullFn     func(ctx context.Context, modelName string, progress chan<- onboarding.ProgressUpdate) error
-	lookupIPFn func(ctx context.Context, in locale.LookupIPInput) (locale.LookupIPResult, error)
+	store            *SessionStore
+	keyring          onboarding.KeyringClient
+	complete         onboarding.CompletionOptions
+	devMode          bool
+	static           http.Handler
+	mux              *http.ServeMux
+	pullFn           func(ctx context.Context, modelName string, progress chan<- onboarding.ProgressUpdate) error
+	lookupIPFn       func(ctx context.Context, in locale.LookupIPInput) (locale.LookupIPResult, error)
+	reverseGeocodeFn func(ctx context.Context, in locale.ReverseGeocodeInput) (locale.ReverseGeocodeResult, error)
 }
 
 // NewHandler constructs a Handler, applies defaults, and registers all routes on mux.
@@ -322,13 +323,14 @@ func NewHandler(opts HandlerOptions) *Handler {
 	}
 
 	h := &Handler{
-		store:      NewSessionStore(opts.Clock, opts.TTL),
-		keyring:    opts.Keyring,
-		complete:   opts.CompletionOptions,
-		devMode:    devMode,
-		static:     opts.StaticHandler,
-		pullFn:     pullFn,
-		lookupIPFn: locale.LookupIP,
+		store:            NewSessionStore(opts.Clock, opts.TTL),
+		keyring:          opts.Keyring,
+		complete:         opts.CompletionOptions,
+		devMode:          devMode,
+		static:           opts.StaticHandler,
+		pullFn:           pullFn,
+		lookupIPFn:       locale.LookupIP,
+		reverseGeocodeFn: locale.ReverseGeocode,
 	}
 
 	// Vite builds the React bundle with base: "/install/", so all asset paths are
@@ -855,7 +857,9 @@ var localeProbeDefaults = localeProbeResponse{
 // an empty body (IP-only fallback). CSRF is required, matching all other POST routes.
 //
 // Detection priority:
-//  1. lat/lng present → reverse geocoding is a follow-up PR; returns manual + KR default.
+//  1. lat/lng present → reverse geocoding via Nominatim (OpenStreetMap).
+//     - Success → accuracy "high" + resolved country/language/timezone.
+//     - Any error → accuracy "manual" + KR default (graceful fallback).
 //  2. empty body → IP geolocation via LookupIP.
 //     - Success → accuracy "medium" + resolved country/language/timezone.
 //     - Any error (private IP, timeout, HTTP error, parse error) → accuracy "manual" + KR default.
@@ -874,10 +878,23 @@ func (h *Handler) localeProbe(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Branch 1: GPS coordinates present — reverse geocoding is not implemented yet.
-	// TODO: Reverse geocoding integration is a follow-up PR (SPEC-MINK-LOCALE-001 amendment-v0.2).
+	// Branch 1: GPS coordinates present — resolve via Nominatim reverse geocoding.
 	if req.Lat != nil && req.Lng != nil {
-		writeJSON(w, http.StatusOK, localeProbeDefaults)
+		result, err := h.reverseGeocodeFn(r.Context(), locale.ReverseGeocodeInput{
+			Lat: *req.Lat, Lng: *req.Lng,
+		})
+		if err != nil {
+			// Any error (invalid coords, timeout, HTTP error, parse error) falls
+			// back to the manual preset rather than surfacing an error to the UI.
+			writeJSON(w, http.StatusOK, localeProbeDefaults)
+			return
+		}
+		writeJSON(w, http.StatusOK, localeProbeResponse{
+			Country:  result.Country,
+			Language: result.Language,
+			Timezone: result.Timezone,
+			Accuracy: string(locale.AccuracyHigh),
+		})
 		return
 	}
 
