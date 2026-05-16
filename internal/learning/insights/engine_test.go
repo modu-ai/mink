@@ -37,7 +37,11 @@ func TestOverview_DeterministicAggregate(t *testing.T) {
 		MinkHome:         dir,
 	}
 	engine := New(cfg, nil)
-	period := Last(30)
+	// Use AllTime() instead of Last(30) so the test is wall-clock-independent.
+	// Fixed test data uses 2026-04-15 timestamps; once "today" drifts past
+	// 2026-05-15 a Last(30) window no longer contains the fixture data and
+	// the assertions silently see zero rows.
+	period := AllTime()
 
 	// Call twice for determinism check.
 	r1, err1 := engine.Extract(t.Context(), period)
@@ -103,7 +107,8 @@ func TestModels_TokenDescSort(t *testing.T) {
 	cfg := InsightsConfig{TelemetryEnabled: true, MinkHome: dir}
 	engine := New(cfg, nil)
 
-	report, err := engine.Extract(t.Context(), Last(30))
+	// AllTime() keeps the assertion wall-clock-independent against the fixed 2026-04 fixture data.
+	report, err := engine.Extract(t.Context(), AllTime())
 	require.NoError(t, err)
 
 	// AC-INSIGHTS-002: 15 models total, sorted by token count descending.
