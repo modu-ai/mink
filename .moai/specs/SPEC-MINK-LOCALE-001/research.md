@@ -1,4 +1,4 @@
-# SPEC-GOOSE-LOCALE-001 — Research Notes
+# SPEC-MINK-LOCALE-001 — Research Notes
 
 > Companion to `./spec.md`. Captures prior-art survey, library comparison, Hermes gateway pattern analysis, and edge-case catalog used to harden requirements.
 
@@ -302,4 +302,4 @@ SPEC 크기 `S` (500~1500 LoC) 범위 준수.
 
 ---
 
-**End of research.md for SPEC-GOOSE-LOCALE-001**
+**End of research.md for SPEC-MINK-LOCALE-001**
