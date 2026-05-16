@@ -4,6 +4,7 @@ package locale
 
 import (
 	"context"
+	"runtime"
 	"strings"
 	"syscall"
 	"unsafe"
@@ -37,6 +38,9 @@ func detectFromOSAPIs(_ context.Context) (country, lang string, err error) {
 
 // getUserLocaleName is the injectable indirection for GetUserDefaultLocaleName.
 // Tests substitute a fake; production calls the Win32 API via syscall.
+//
+// @MX:WARN: [AUTO] unsafe.Pointer passed via uintptr to proc.Call; GC may relocate buf mid-syscall.
+// @MX:REASON: unsafe.Pointer requires runtime.KeepAlive to prevent GC relocation mid-syscall.
 var getUserLocaleName = func() (string, error) {
 	// kernel32.GetUserDefaultLocaleName is exposed via golang.org/x/sys/windows
 	// (syscall.NewLazySystemDLL does not exist on the stdlib side).
@@ -53,6 +57,9 @@ var getUserLocaleName = func() (string, error) {
 		uintptr(unsafe.Pointer(&buf[0])),
 		uintptr(maxLen),
 	)
+	// Keep buf alive until after proc.Call returns to prevent GC from relocating
+	// the backing array while the Windows API is writing into it.
+	runtime.KeepAlive(buf)
 	if r == 0 {
 		if e != nil && e.(syscall.Errno) != 0 {
 			return "", e

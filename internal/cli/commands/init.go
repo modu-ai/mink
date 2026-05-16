@@ -27,8 +27,11 @@ import (
 // In TTY mode (default) it delegates to internal/cli/install.RunWizard.
 // With --web it starts the embedded HTTP server on a random localhost port.
 // With --yes it runs non-interactively using default values (CI/test convenience).
+// --yes implies dry-run unless --apply is also passed. --yes --apply requires
+// MINK_NONINTERACTIVE=1 to be set explicitly (GDPR Art. 4(11) safeguard).
 func NewInitCommand() *cobra.Command {
 	var dryRun bool
+	var apply bool
 	var resume bool
 	var web bool
 	var yes bool
@@ -72,8 +75,22 @@ starts a local HTTP server and opens the install wizard in your default browser.
 			}
 
 			// Non-interactive mode: --yes bypasses TTY check and uses defaults.
+			// --yes implies dry-run unless --apply is explicitly passed.
 			if yes {
-				return runNonInteractive(cmd, personaName, dryRun)
+				effectiveDryRun := dryRun
+				if !apply {
+					effectiveDryRun = true
+				}
+				// --yes --apply requires explicit opt-in via MINK_NONINTERACTIVE=1 to
+				// prevent accidental GDPR auto-consent in interactive shells (GDPR Art. 4(11)).
+				if apply && os.Getenv("MINK_NONINTERACTIVE") != "1" {
+					fmt.Fprintln(cmd.ErrOrStderr(),
+						"ERROR: --yes --apply requires MINK_NONINTERACTIVE=1 environment variable.\n"+
+							"This flag combination bypasses interactive consent flows. Set the env var\n"+
+							"explicitly to acknowledge you are running non-interactively (CI/test only).")
+					return errors.New("non-interactive mode requires MINK_NONINTERACTIVE=1")
+				}
+				return runNonInteractive(cmd, personaName, effectiveDryRun)
 			}
 
 			// TTY mode: require an interactive terminal.
@@ -105,6 +122,10 @@ starts a local HTTP server and opens the install wizard in your default browser.
 	// --dry-run: marshal config but skip file writes (passes DryRun:true to CompletionOptions).
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Validate configuration without writing files")
 
+	// --apply: when combined with --yes, actually write config files to disk.
+	// Without --apply, --yes defaults to dry-run mode. Requires MINK_NONINTERACTIVE=1.
+	cmd.Flags().BoolVar(&apply, "apply", false, "Write config files when used with --yes (requires MINK_NONINTERACTIVE=1; default is dry-run when --yes is set)")
+
 	// --resume: load an existing onboarding-draft.yaml and continue from the saved step.
 	cmd.Flags().BoolVar(&resume, "resume", false, "Resume a previously paused onboarding wizard")
 
@@ -112,8 +133,8 @@ starts a local HTTP server and opens the install wizard in your default browser.
 	cmd.Flags().BoolVar(&web, "web", false, "Launch the browser-based install wizard")
 
 	// --yes: non-interactive mode using defaults for every step (CI/test convenience).
-	// Implies --dry-run unless --apply is also passed.
-	cmd.Flags().BoolVar(&yes, "yes", false, "Non-interactive mode: accept defaults for all steps (CI/test convenience, implies --dry-run)")
+	// Implies dry-run unless --apply is also passed. --yes --apply requires MINK_NONINTERACTIVE=1.
+	cmd.Flags().BoolVar(&yes, "yes", false, "Non-interactive mode: accept defaults for all steps (implies --dry-run; use --apply to write files)")
 
 	// --persona-name: persona name used in --yes mode (default: "TestUser").
 	cmd.Flags().StringVar(&personaName, "persona-name", "TestUser", "Persona name to use in --yes mode")
@@ -214,10 +235,16 @@ func runNonInteractive(cmd *cobra.Command, personaName string, dryRun bool) erro
 	fmt.Fprintln(out, "  [6/7] Messenger: skipped (local terminal)")
 
 	// Step 7: Consent (submit defaults; set GDPRExplicitConsent for GDPR regions).
+	// Print a GDPR warning to stderr regardless of TTY — auto-consent in non-interactive
+	// mode must be visible in CI logs to satisfy GDPR Art. 4(11) audit trail requirements.
 	var gdprConsent *bool
 	if isGDPR {
 		v := true
 		gdprConsent = &v
+		fmt.Fprintln(cmd.ErrOrStderr(),
+			"WARNING: --yes auto-issued GDPR explicit consent for detected region.\n"+
+				"This is for CI/test only. Production users MUST consent interactively\n"+
+				"to satisfy GDPR Art. 4(11) (freely given, specific, informed, unambiguous).")
 	}
 	consent := onboarding.ConsentFlags{
 		ConversationStorageLocal: true,

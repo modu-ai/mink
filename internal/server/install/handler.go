@@ -298,9 +298,21 @@ func NewHandler(opts HandlerOptions) *Handler {
 		pullFn:   pullFn,
 	}
 
+	// Vite builds the React bundle with base: "/install/", so all asset paths are
+	// prefixed with /install/ (e.g. /install/assets/index-abc.js). StripPrefix
+	// removes the /install prefix before delegating to the spaHandler so that
+	// embed.FS can resolve paths relative to the dist/ sub-tree root.
+	//
+	// @MX:WARN: [AUTO] StripPrefix must cover both /install and /install/ to handle
+	// bare-path and trailing-slash requests; mux longest-match ensures /install/api/
+	// routes are never captured by the stripped static handler.
+	// @MX:REASON: Without StripPrefix, the spaHandler receives /install/assets/... and
+	// fs.Stat fails (no /install/ prefix inside dist/), returning HTML instead of JS/CSS.
+	stripped := http.StripPrefix("/install", h.static)
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /install", h.serveIndex)
-	mux.Handle("GET /install/assets/", h.static)
+	mux.Handle("GET /install", stripped)
+	mux.Handle("GET /install/", stripped)
+	mux.Handle("GET /install/assets/", stripped)
 	mux.HandleFunc("POST /install/api/session/start", h.startSession)
 	mux.HandleFunc("GET /install/api/session/{id}/state", h.getState)
 	mux.HandleFunc("POST /install/api/session/{id}/step/{n}/submit", h.submitStep)
@@ -326,11 +338,6 @@ func (h *Handler) Close() {
 // ---------------------------------------------------------------------------
 // Route handlers
 // ---------------------------------------------------------------------------
-
-// serveIndex delegates to the static handler for the SPA root.
-func (h *Handler) serveIndex(w http.ResponseWriter, r *http.Request) {
-	h.static.ServeHTTP(w, r)
-}
 
 // startSession creates a new OnboardingFlow, registers it in the SessionStore, and
 // returns the session metadata together with a fresh CSRF token.
