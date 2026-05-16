@@ -5,11 +5,14 @@
 //   - Model selection logic given fixed inputs
 //   - Provider step input construction (verifies secret not retained in OnboardingData)
 //   - Phase 2B: WizardOptions.Resume, localePresets, resume error path, DryRun draft suppression
+//   - AC-LC-022: AutoDetect flag + ErrOutput notice capture
 //
 // SPEC: SPEC-MINK-ONBOARDING-001 §6 (Phase 2A + 2B)
+// SPEC: SPEC-MINK-LOCALE-001 amendment-v0.2 (AC-LC-022)
 package install
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"strings"
@@ -397,5 +400,43 @@ func TestRunWizard_DryRunSkipsDraftSave(t *testing.T) {
 	}
 	if _, statErr := onboarding.LoadDraft(); !errors.Is(statErr, onboarding.ErrDraftNotFound) {
 		t.Errorf("DryRun=true still created draft at %s: loadErr=%v", draftPath, statErr)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// AC-LC-022: WizardOptions.AutoDetect + ErrOutput wiring
+// ---------------------------------------------------------------------------
+
+// TestWizardOptions_ErrWriter_Default verifies that errWriter() returns os.Stderr when
+// ErrOutput is nil.
+func TestWizardOptions_ErrWriter_Default(t *testing.T) {
+	opts := WizardOptions{ErrOutput: nil}
+	w := opts.errWriter()
+	if w == nil {
+		t.Fatal("errWriter() must never return nil")
+	}
+}
+
+// TestWizardOptions_ErrWriter_Injected verifies that errWriter() returns ErrOutput when set.
+func TestWizardOptions_ErrWriter_Injected(t *testing.T) {
+	var buf bytes.Buffer
+	opts := WizardOptions{ErrOutput: &buf}
+	w := opts.errWriter()
+	if w != &buf {
+		t.Fatal("errWriter() must return the injected ErrOutput writer")
+	}
+}
+
+// TestWizardOptions_AutoDetectField_ZeroValue verifies that the AutoDetect field can be
+// set and the struct is otherwise unchanged at its zero value.
+func TestWizardOptions_AutoDetectField_ZeroValue(t *testing.T) {
+	var opts WizardOptions
+	if opts.AutoDetect {
+		t.Fatal("AutoDetect zero value must be false")
+	}
+
+	opts.AutoDetect = true
+	if !opts.AutoDetect {
+		t.Fatal("AutoDetect must be settable to true")
 	}
 }

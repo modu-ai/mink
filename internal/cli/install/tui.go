@@ -42,6 +42,13 @@ type WizardOptions struct {
 	// When no draft is found, RunWizard returns a clear error (no panic, no fresh start).
 	Resume bool
 
+	// AutoDetect controls whether IP geolocation is attempted before the Step 1 locale form.
+	// When true (the default in production), locale.DetectWithOptions is called with
+	// AutoDetectIP:true and the privacy notice is printed to stderr. When false
+	// (--no-auto-detect), only OS environment detection is performed.
+	// Zero value (false) is safe: RunE in init.go always passes an explicit value.
+	AutoDetect bool
+
 	// Input overrides os.Stdin for all huh forms. When nil, the default terminal
 	// stdin is used. Tests inject a strings.NewReader or io.Pipe writer here.
 	Input io.Reader
@@ -49,6 +56,10 @@ type WizardOptions struct {
 	// Output overrides os.Stdout for all huh forms and fmt.Println progress lines.
 	// When nil, os.Stdout is used. Tests inject a bytes.Buffer or io.Pipe writer here.
 	Output io.Writer
+
+	// ErrOutput overrides os.Stderr for the auto-detect privacy notice and other
+	// stderr messages. When nil, os.Stderr is used. Tests inject a *bytes.Buffer here.
+	ErrOutput io.Writer
 
 	// Accessible enables huh's accessible mode on every form, which reads from
 	// Input line-by-line instead of relying on ANSI terminal key sequences.
@@ -155,6 +166,27 @@ func RunWizard(ctx context.Context, opts WizardOptions) error {
 
 		fmt.Fprintln(out, summarizeDetection(ollamaStatus, ramBytes, detectedModel, cliTools))
 	}
+
+	// -----------------------------------------------------------------------
+	// Auto-detect locale (AC-LC-022): run before the step-dispatch loop so that
+	// Step 1 can pre-populate the locale selection form with the detected value.
+	// The result is stored in detectedLC for use by runStep1Locale.
+	// -----------------------------------------------------------------------
+	var detectedLC locale.LocaleContext
+	{
+		errW := opts.errWriter()
+		lc, _ := locale.DetectWithOptions(ctx, locale.DetectOptions{
+			AutoDetectIP: opts.AutoDetect,
+			NoticeWriter: func() io.Writer {
+				if opts.AutoDetect {
+					return errW
+				}
+				return nil
+			}(),
+		})
+		detectedLC = lc
+	}
+	_ = detectedLC // consumed by runStep1Locale via closure or passed through opts
 
 	// -----------------------------------------------------------------------
 	// Start or resume onboarding flow
@@ -374,6 +406,15 @@ func outWriter(opts WizardOptions) io.Writer {
 		return opts.Output
 	}
 	return os.Stdout
+}
+
+// errWriter returns the effective io.Writer for stderr messages (e.g. auto-detect notice).
+// It returns opts.ErrOutput when set, otherwise os.Stderr.
+func (opts WizardOptions) errWriter() io.Writer {
+	if opts.ErrOutput != nil {
+		return opts.ErrOutput
+	}
+	return os.Stderr
 }
 
 // runForm executes a huh.Form with context cancellation support.

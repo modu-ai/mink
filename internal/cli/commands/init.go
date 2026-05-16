@@ -36,6 +36,7 @@ func NewInitCommand() *cobra.Command {
 	var web bool
 	var yes bool
 	var personaName string
+	var noAutoDetect bool
 
 	cmd := &cobra.Command{
 		Use:   "init",
@@ -90,7 +91,7 @@ starts a local HTTP server and opens the install wizard in your default browser.
 							"explicitly to acknowledge you are running non-interactively (CI/test only).")
 					return errors.New("non-interactive mode requires MINK_NONINTERACTIVE=1")
 				}
-				return runNonInteractive(cmd, personaName, effectiveDryRun)
+				return runNonInteractive(cmd, personaName, effectiveDryRun, !noAutoDetect)
 			}
 
 			// TTY mode: require an interactive terminal.
@@ -102,8 +103,9 @@ starts a local HTTP server and opens the install wizard in your default browser.
 
 			tr := i18n.DefaultFor(cmd.Context())
 			err := cliinstall.RunWizard(cmd.Context(), cliinstall.WizardOptions{
-				DryRun: dryRun,
-				Resume: resume,
+				DryRun:     dryRun,
+				Resume:     resume,
+				AutoDetect: !noAutoDetect,
 			})
 			if err != nil {
 				if errors.Is(err, cliinstall.ErrWizardCancelled) {
@@ -139,6 +141,10 @@ starts a local HTTP server and opens the install wizard in your default browser.
 	// --persona-name: persona name used in --yes mode (default: "TestUser").
 	cmd.Flags().StringVar(&personaName, "persona-name", "TestUser", "Persona name to use in --yes mode")
 
+	// --no-auto-detect: disable IP geolocation; use OS environment only (AC-LC-022).
+	cmd.Flags().BoolVar(&noAutoDetect, "no-auto-detect", false,
+		"Disable automatic locale detection via IP geolocation (use OS environment only)")
+
 	return cmd
 }
 
@@ -146,18 +152,22 @@ starts a local HTTP server and opens the install wizard in your default browser.
 // It uses locale detection for Step 1 and skips Steps 2, 3, 5, and 6.
 // Step 4 uses personaName; Step 7 uses safe-default ConsentFlags.
 // DryRun=true is the default (no disk writes) unless dryRun is explicitly false.
+// autoDetect controls whether IP geolocation is attempted (AC-LC-022).
 //
 // @MX:NOTE: [AUTO] Non-interactive path for CI speedrun tests (Phase 4, AC-OB-016).
 // @MX:SPEC: SPEC-MINK-ONBOARDING-001 §6 Phase 4
-func runNonInteractive(cmd *cobra.Command, personaName string, dryRun bool) error {
+func runNonInteractive(cmd *cobra.Command, personaName string, dryRun bool, autoDetect bool) error {
 	started := time.Now()
 	ctx := cmd.Context()
 	out := cmd.OutOrStdout()
 
 	fmt.Fprintln(out, "mink init --yes: running non-interactive onboarding...")
 
-	// Step 1: detect locale from OS, fall back to KR preset.
-	lc, err := locale.Detect(ctx)
+	// Step 1: detect locale from OS (and optionally IP), fall back to KR preset.
+	lc, err := locale.DetectWithOptions(ctx, locale.DetectOptions{
+		AutoDetectIP: autoDetect,
+		NoticeWriter: cmd.ErrOrStderr(),
+	})
 	if err != nil {
 		// Fall back silently — CI environments often lack full locale metadata.
 		lc = locale.LocaleContext{

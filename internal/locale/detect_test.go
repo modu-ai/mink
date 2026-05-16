@@ -1,8 +1,13 @@
 package locale
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"regexp"
 	"testing"
 	"time"
 
@@ -318,4 +323,171 @@ func TestDefaultLocaleContext(t *testing.T) {
 	assert.Equal(t, "imperial", lc.MeasurementSystem)
 	assert.Equal(t, "gregorian", lc.CalendarSystem)
 	assert.Equal(t, SourceDefault, lc.DetectedMethod)
+}
+
+// ---------------------------------------------------------------------------
+// DetectWithOptions tests (AC-LC-022, SPEC-MINK-LOCALE-001 amendment-v0.2)
+// ---------------------------------------------------------------------------
+
+// cliNoticeRegex is the AC-LC-022 compliance regex.
+var cliNoticeRegex = regexp.MustCompile(
+	`^Detecting your location for personalisation\. Use --no-auto-detect to skip\. \(locally stored only\)\n?$`,
+)
+
+// buildFakeIPAPIServer creates a test server that responds with the given country/timezone/language.
+func buildFakeIPAPIServer(t *testing.T, country, timezone, lang string) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		b, _ := json.Marshal(ipapiResponse{
+			CountryCode: country,
+			Timezone:    timezone,
+			Languages:   lang,
+		})
+		_, _ = w.Write(b)
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+// injectFakeIPAPI wires the given httptest.Server into LookupIP injection vars.
+func injectFakeIPAPI(t *testing.T, srv *httptest.Server) {
+	t.Helper()
+	origURL := ipAPIBaseURL
+	origClient := ipLookupHTTPClient
+	ipAPIBaseURL = srv.URL
+	ipLookupHTTPClient = srv.Client()
+	t.Cleanup(func() {
+		ipAPIBaseURL = origURL
+		ipLookupHTTPClient = origClient
+	})
+}
+
+// TestDetectWithOptions_AutoDetectOn_PrintsNotice verifies AC-LC-022: when AutoDetectIP is
+// true and NoticeWriter is non-nil, the privacy notice is written to the writer.
+func TestDetectWithOptions_AutoDetectOn_PrintsNotice(t *testing.T) {
+	// Use a fake IP API server to avoid real network calls.
+	srv := buildFakeIPAPIServer(t, "US", "America/New_York", "en")
+	injectFakeIPAPI(t, srv)
+
+	withFakeEnv(t, map[string]string{"LANG": "en_US.UTF-8"})
+
+	var buf bytes.Buffer
+	_, err := DetectWithOptions(context.Background(), DetectOptions{
+		AutoDetectIP: true,
+		ClientIP:     "8.8.8.8",
+		NoticeWriter: &buf,
+	})
+	require.NoError(t, err)
+
+	got := buf.String()
+	assert.True(t, cliNoticeRegex.MatchString(got),
+		"notice must match AC-LC-022 regex; got: %q", got)
+}
+
+// TestDetectWithOptions_AutoDetectOff_NoNotice verifies that when AutoDetectIP is false,
+// no notice is written even if NoticeWriter is provided.
+func TestDetectWithOptions_AutoDetectOff_NoNotice(t *testing.T) {
+	withFakeEnv(t, map[string]string{"LANG": "en_US.UTF-8"})
+
+	var buf bytes.Buffer
+	_, err := DetectWithOptions(context.Background(), DetectOptions{
+		AutoDetectIP: false,
+		NoticeWriter: &buf,
+	})
+	require.NoError(t, err)
+
+	assert.Empty(t, buf.String(), "no notice must be written when AutoDetectIP is false")
+}
+
+// TestDetectWithOptions_AutoDetectOn_AccuracyMedium verifies that a successful IP lookup
+// results in accuracy="medium" (AC-LC-022).
+func TestDetectWithOptions_AutoDetectOn_AccuracyMedium(t *testing.T) {
+	srv := buildFakeIPAPIServer(t, "KR", "Asia/Seoul", "ko")
+	injectFakeIPAPI(t, srv)
+
+	withFakeEnv(t, map[string]string{"LANG": "ko_KR.UTF-8"})
+
+	lc, err := DetectWithOptions(context.Background(), DetectOptions{
+		AutoDetectIP: true,
+		ClientIP:     "1.1.1.1",
+		NoticeWriter: nil, // notice suppressed in test
+	})
+	require.NoError(t, err)
+	assert.Equal(t, AccuracyMedium, lc.Accuracy, "IP lookup success must set accuracy=medium")
+	assert.Equal(t, "KR", lc.Country)
+}
+
+// TestDetectWithOptions_AutoDetectOff_OSOnly verifies that with AutoDetectIP=false the
+// result has accuracy="" (OS-only, Phase 1 backward compat path).
+func TestDetectWithOptions_AutoDetectOff_OSOnly(t *testing.T) {
+	withFakeEnv(t, map[string]string{"LANG": "en_US.UTF-8"})
+
+	lc, err := DetectWithOptions(context.Background(), DetectOptions{
+		AutoDetectIP: false,
+	})
+	require.NoError(t, err)
+	// OS-only path: Accuracy must be empty (backward compat).
+	assert.Equal(t, Accuracy(""), lc.Accuracy, "OS-only path must leave accuracy empty")
+}
+
+// TestDetectWithOptions_IPTimeout_FallsBackToOS verifies that when the IP lookup
+// times out, the result falls back to OS env and does not return an error.
+func TestDetectWithOptions_IPTimeout_FallsBackToOS(t *testing.T) {
+	// Build a stalling server.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(200 * time.Millisecond)
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+	injectFakeIPAPI(t, srv)
+
+	withFakeEnv(t, map[string]string{"LANG": "ko_KR.UTF-8"})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+
+	lc, err := DetectWithOptions(ctx, DetectOptions{
+		AutoDetectIP: true,
+		ClientIP:     "8.8.8.8",
+		NoticeWriter: nil,
+	})
+	// DetectWithOptions never returns an error for fallback cases.
+	require.NoError(t, err)
+	// Either OS or default result; must not be empty.
+	assert.NotEmpty(t, lc.Country)
+}
+
+// TestDetectWithOptions_NeitherOSNorIP_Manual verifies that when both env and IP fail,
+// the mergeLocaleResults helper produces the default context with accuracy="manual".
+// We test mergeLocaleResults directly to avoid dependency on OS-specific locale APIs
+// (e.g. Darwin `defaults read`, Linux XDG) that cannot be easily stubbed.
+func TestDetectWithOptions_NeitherOSNorIP_Manual(t *testing.T) {
+	lc := mergeLocaleResults(LocaleContext{}, false, LookupIPResult{}, false)
+	assert.Equal(t, AccuracyManual, lc.Accuracy, "neither source available must yield accuracy=manual")
+	assert.Equal(t, "US", lc.Country, "fallback country must be US (SourceDefault)")
+	assert.Equal(t, SourceDefault, lc.DetectedMethod)
+}
+
+// TestDetect_BackwardCompat verifies that the zero-arg Detect() still works correctly
+// and calls DetectWithOptions internally. We cannot observe the notice because
+// Detect() sends it to os.Stderr, but we can verify it does not panic or error.
+func TestDetect_BackwardCompat(t *testing.T) {
+	withFakeEnv(t, map[string]string{"LANG": "ko_KR.UTF-8"})
+
+	// Use a stalling server to prevent the real external call; timeout is 3s in
+	// ipLookupHTTPClient but our context has no deadline — OK for this smoke test.
+	srv := buildFakeIPAPIServer(t, "KR", "Asia/Seoul", "ko")
+	injectFakeIPAPI(t, srv)
+
+	lc, err := Detect(context.Background())
+	require.NoError(t, err)
+	assert.NotEmpty(t, lc.Country)
+}
+
+// TestCLINoticeText_ExactMatch verifies that the constant matches the AC-LC-022 regex.
+func TestCLINoticeText_ExactMatch(t *testing.T) {
+	line := CLINoticeText + "\n"
+	assert.True(t, cliNoticeRegex.MatchString(line),
+		"CLINoticeText must match the AC-LC-022 regex; got: %q", line)
 }

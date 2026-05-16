@@ -29,6 +29,7 @@ func TestInitCommand_FlagRegistration(t *testing.T) {
 		{"web", "false"},
 		{"yes", "false"},
 		{"persona-name", "TestUser"},
+		{"no-auto-detect", "false"}, // AC-LC-022
 	}
 	for _, tc := range tests {
 		t.Run(tc.flag, func(t *testing.T) {
@@ -37,6 +38,36 @@ func TestInitCommand_FlagRegistration(t *testing.T) {
 			assert.Equal(t, tc.defValue, f.DefValue, "--%s default value mismatch", tc.flag)
 		})
 	}
+}
+
+// ---------------------------------------------------------------------------
+// AC-LC-022: --no-auto-detect flag wiring
+// ---------------------------------------------------------------------------
+
+// TestNoAutoDetectFlag_DefaultFalse verifies that --no-auto-detect defaults to false
+// meaning auto-detect is ON by default.
+func TestNoAutoDetectFlag_DefaultFalse(t *testing.T) {
+	cmd := NewInitCommand()
+	f := cmd.Flags().Lookup("no-auto-detect")
+	require.NotNil(t, f, "--no-auto-detect flag must be registered")
+	assert.Equal(t, "false", f.DefValue, "--no-auto-detect must default to false (auto-detect on by default)")
+}
+
+// TestNoAutoDetectFlag_WithYes_NoNoticeOnStderr verifies that --yes --no-auto-detect
+// suppresses the auto-detect privacy notice on stderr (AC-LC-022).
+func TestNoAutoDetectFlag_WithYes_NoNoticeOnStderr(t *testing.T) {
+	cmd := NewInitCommand()
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"--yes", "--no-auto-detect"})
+
+	err := cmd.Execute()
+	require.NoError(t, err)
+
+	stderrStr := stderr.String()
+	assert.NotContains(t, stderrStr, "Detecting your location",
+		"--no-auto-detect must suppress the privacy notice; stderr was: %q", stderrStr)
 }
 
 // ---------------------------------------------------------------------------
