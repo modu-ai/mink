@@ -95,6 +95,7 @@ export default function App() {
         ) : (
           <StepRouter
             currentStep={current_step}
+            sessionId={state.session_id}
             data={state.data}
             loading={loading}
             error={error}
@@ -112,6 +113,7 @@ export default function App() {
 // StepRouter picks the right step component based on current_step.
 interface StepRouterProps {
   currentStep: number;
+  sessionId: string;
   data: OnboardingData;
   loading: boolean;
   error: string | null;
@@ -123,6 +125,7 @@ interface StepRouterProps {
 
 function StepRouter({
   currentStep,
+  sessionId,
   data,
   loading,
   error,
@@ -134,6 +137,7 @@ function StepRouter({
   // Shared props for step components 2-7.
   const sharedProps = {
     data,
+    sessionId,
     loading,
     submitStep: onSubmitStep,
     skipStep: onSkip,

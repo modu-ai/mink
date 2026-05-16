@@ -109,6 +109,17 @@ export interface OnboardingState {
   completed_at: string | null;
 }
 
+// SSE progress event from GET /install/api/session/{id}/pull/stream
+// Field names are PascalCase to match Go struct encoding (no json tags).
+export interface PullProgressUpdate {
+  Phase: string;
+  Layer: string;
+  BytesTotal: number;
+  BytesDone: number;
+  PercentDone: number; // -1 when unknown, 0-100 otherwise
+  Raw: string;
+}
+
 // Error shape returned by backend on non-200
 export interface ApiError {
   error: {

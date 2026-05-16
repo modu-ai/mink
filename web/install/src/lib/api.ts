@@ -80,6 +80,16 @@ export class InstallApi {
     return this.handleResponse(res);
   }
 
+  // pullStreamUrl returns the SSE endpoint URL for ollama pull progress.
+  // Used by usePullProgress; EventSource cannot set headers so no CSRF header is
+  // sent — the backend accepts cookie auth + Origin check for this endpoint.
+  pullStreamUrl(sessionId: string, model: string): string {
+    return (
+      `${this.baseUrl}/session/${encodeURIComponent(sessionId)}/pull/stream` +
+      `?model=${encodeURIComponent(model)}`
+    );
+  }
+
   // complete finalises the onboarding session.
   async complete(sessionId: string): Promise<OnboardingState> {
     const res = await fetch(`${this.baseUrl}/session/${sessionId}/complete`, {
