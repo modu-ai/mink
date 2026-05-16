@@ -28,9 +28,18 @@ export function useOnboarding(): UseOnboardingResult {
       setError(null);
       try {
         const next = await fn();
-        // Persist CSRF token whenever a new state arrives.
-        installApi.setCsrfToken(next.csrf_token);
-        setState(next);
+        // Persist CSRF token only when the response actually carries one (start endpoint).
+        // Mid-flow responses (submit / skip / back / complete / state) omit the field and
+        // would otherwise clobber the stored token with undefined, breaking every
+        // subsequent POST via the X-MINK-CSRF header mismatch.
+        if (next.csrf_token) {
+          installApi.setCsrfToken(next.csrf_token);
+        }
+        setState((prev) =>
+          prev != null
+            ? { ...prev, ...next, csrf_token: prev.csrf_token }
+            : next
+        );
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Unknown error";
         setError(msg);

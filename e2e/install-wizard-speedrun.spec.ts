@@ -45,7 +45,7 @@ test.describe("install wizard speedrun", () => {
     // Ollama is not available in CI — click "건너뛰기 / Skip".
     // -----------------------------------------------------------------------
     await expect(
-      page.getByText(/Step 2/i)
+      page.getByText(/Step 2:/i)
     ).toBeVisible({ timeout: 10_000 });
 
     await page.getByRole("button", { name: /Skip/i }).click();
@@ -55,7 +55,7 @@ test.describe("install wizard speedrun", () => {
     // No tools assumed in CI — click "건너뛰기 / Skip".
     // -----------------------------------------------------------------------
     await expect(
-      page.getByText(/Step 3/i)
+      page.getByText(/Step 3:/i)
     ).toBeVisible({ timeout: 10_000 });
 
     await page.getByRole("button", { name: /Skip/i }).click();
@@ -64,7 +64,7 @@ test.describe("install wizard speedrun", () => {
     // Step 4: Persona (required — must enter a name)
     // -----------------------------------------------------------------------
     await expect(
-      page.getByText(/Step 4/i)
+      page.getByText(/Step 4:/i)
     ).toBeVisible({ timeout: 10_000 });
 
     await page.locator("#persona-name").fill("SpeedrunTester");
@@ -76,7 +76,7 @@ test.describe("install wizard speedrun", () => {
     // Skip — most CI environments have no provider API key.
     // -----------------------------------------------------------------------
     await expect(
-      page.getByText(/Step 5/i)
+      page.getByText(/Step 5:/i)
     ).toBeVisible({ timeout: 10_000 });
 
     await page.getByRole("button", { name: /Skip/i }).click();
@@ -86,7 +86,7 @@ test.describe("install wizard speedrun", () => {
     // Skip — default is local_terminal.
     // -----------------------------------------------------------------------
     await expect(
-      page.getByText(/Step 6/i)
+      page.getByText(/Step 6:/i)
     ).toBeVisible({ timeout: 10_000 });
 
     await page.getByRole("button", { name: /Skip/i }).click();
@@ -97,7 +97,7 @@ test.describe("install wizard speedrun", () => {
     // Keep default checkboxes and click "Continue / 다음".
     // -----------------------------------------------------------------------
     await expect(
-      page.getByText(/Step 7/i)
+      page.getByText(/Step 7:/i)
     ).toBeVisible({ timeout: 10_000 });
 
     // For KR (PIPA region) there is no GDPR block, so we can proceed normally.
