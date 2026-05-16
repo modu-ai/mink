@@ -1,0 +1,103 @@
+name: Install Wizard E2E (Web + CLI Speedrun)
+
+# Trigger on changes to onboarding-related code, E2E tests, or the workflow itself.
+on:
+  pull_request:
+    paths:
+      - "internal/cli/install/**"
+      - "internal/cli/commands/init.go"
+      - "internal/server/install/**"
+      - "internal/onboarding/**"
+      - "web/install/**"
+      - "e2e/**"
+      - "scripts/cli-install-speedrun.sh"
+      - ".github/workflows/install-wizard-e2e.yml"
+  push:
+    branches:
+      - main
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Job 1: CLI speedrun — non-interactive `mink init --yes` path (SLA: 3 min)
+  # ---------------------------------------------------------------------------
+  cli-speedrun:
+    name: CLI Speedrun (≤ 3 min)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache: true
+
+      - name: Build mink binary
+        run: go build -o /tmp/mink ./cmd/mink
+
+      - name: Run CLI speedrun
+        env:
+          MINK_BIN: /tmp/mink
+        run: bash scripts/cli-install-speedrun.sh
+
+  # ---------------------------------------------------------------------------
+  # Job 2: Web UI Playwright speedrun (SLA: 4 min)
+  # ---------------------------------------------------------------------------
+  web-speedrun:
+    name: Web UI Playwright Speedrun (≤ 4 min)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: |
+            web/install/package-lock.json
+            e2e/package-lock.json
+
+      - name: Build web bundle
+        run: |
+          cd web/install
+          npm ci
+          npm run build
+          mkdir -p ../../internal/server/install/dist
+          cp -r dist/* ../../internal/server/install/dist/
+
+      - name: Build mink binary (with embedded web assets)
+        run: go build -o /tmp/mink ./cmd/mink
+
+      - name: Install Node dependencies for E2E
+        working-directory: e2e
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: e2e
+        run: npx playwright install chromium --with-deps
+
+      - name: Run Playwright speedrun
+        env:
+          MINK_BIN: /tmp/mink
+          CI: "true"
+        working-directory: e2e
+        run: npx playwright test --reporter=line
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/
+          retention-days: 7
