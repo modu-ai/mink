@@ -14,10 +14,11 @@ import (
 // Injectable indirections for testing. Production code uses the real OS functions;
 // tests substitute fakes to avoid relying on real environment state.
 // These variables must not be mutated outside of tests (REQ-LC-014).
-var (
-	getEnv   = os.Getenv
-	statFile = os.Stat
-)
+//
+// Platform-specific indirections (e.g. statFile) live next to their consumer in
+// os_<goos>.go so LSP does not flag them as unused on platforms that do not
+// reference them.
+var getEnv = os.Getenv
 
 // localeEnvRegex validates POSIX locale strings of the form:
 //

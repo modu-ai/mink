@@ -9,6 +9,12 @@ import (
 	"strings"
 )
 
+// statFile is an injectable indirection for os.Stat so Linux tests can simulate
+// the presence or absence of /etc/locale.conf / /etc/default/locale without
+// touching the real filesystem. It must not be mutated outside of tests
+// (REQ-LC-014).
+var statFile = os.Stat
+
 // detectFromOSAPIs performs Linux-specific locale detection.
 //
 // Detection order (per research.md §2.1):

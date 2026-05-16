@@ -100,7 +100,9 @@ type LocaleContext struct {
 	Conflict *LocaleConflict `yaml:"conflict,omitempty" json:"conflict,omitempty"`
 
 	// DetectedAt records when Detect() was called.
-	DetectedAt time.Time `yaml:"detected_at,omitempty" json:"detected_at,omitempty"`
+	// omitzero (Go 1.24+) is required because time.Time is a nested struct and
+	// omitempty alone has no effect on it.
+	DetectedAt time.Time `yaml:"detected_at,omitempty" json:"detected_at,omitzero"`
 
 	// Accuracy indicates how the LocaleContext was sourced (amendment-v0.2 §6.11).
 	// Empty string means legacy data (pre-amendment-v0.2); readers treat it as manual.
