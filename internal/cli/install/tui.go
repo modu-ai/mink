@@ -1,5 +1,5 @@
 // Package install implements the 7-step onboarding TUI built on charmbracelet/huh.
-// SPEC: SPEC-MINK-ONBOARDING-001 §6 (Phase 2A — happy path)
+// SPEC: SPEC-MINK-ONBOARDING-001 §6 (Phase 2A — happy path; Phase 2B — Skip/Back/Resume/LOCALE)
 //
 // The package exposes RunWizard as its primary entry point. All TUI interaction
 // uses huh forms; each step runs a separate huh.Form so that SubmitStep can be
@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/charmbracelet/huh"
@@ -33,15 +34,64 @@ var IsTTYFunc = func(fd uintptr) bool {
 type WizardOptions struct {
 	// DryRun passes DryRun:true to onboarding.CompletionOptions, suppressing file writes.
 	DryRun bool
+
+	// Resume loads an existing onboarding-draft.yaml and resumes from Draft.CurrentStep.
+	// When no draft is found, RunWizard returns a clear error (no panic, no fresh start).
+	Resume bool
 }
 
-// RunWizard executes the 7-step onboarding TUI happy path.
+// localeEntry is a predefined locale option shown in Step 1's Select form.
+// Country/Language/Timezone/LegalFlags are used to construct onboarding.LocaleChoice;
+// Display is the human-readable label shown in the TUI.
+type localeEntry struct {
+	Country    string   // ISO 3166-1 alpha-2, e.g., "KR"
+	Language   string   // BCP 47 primary tag, e.g., "ko"
+	Timezone   string   // IANA timezone ID, e.g., "Asia/Seoul"
+	LegalFlags []string // active legal-regime flags, e.g., ["GDPR"]
+	Display    string   // label shown in the huh Select widget
+}
+
+// localePresets is the ordered list of locale options offered in Step 1.
+// Index 0 is the default (KR). Additional entries cover the most common
+// GDPR jurisdictions (FR, DE) and the US as a no-flags baseline.
+var localePresets = []localeEntry{
+	{
+		Country:    "KR",
+		Language:   "ko",
+		Timezone:   "Asia/Seoul",
+		LegalFlags: []string{"PIPA"},
+		Display:    "Korea (한국어, Asia/Seoul)",
+	},
+	{
+		Country:    "US",
+		Language:   "en",
+		Timezone:   "America/New_York",
+		LegalFlags: nil,
+		Display:    "United States (English, America/New_York)",
+	},
+	{
+		Country:    "FR",
+		Language:   "fr",
+		Timezone:   "Europe/Paris",
+		LegalFlags: []string{"GDPR"},
+		Display:    "France (français, Europe/Paris)",
+	},
+	{
+		Country:    "DE",
+		Language:   "de",
+		Timezone:   "Europe/Berlin",
+		LegalFlags: []string{"GDPR"},
+		Display:    "Germany (Deutsch, Europe/Berlin)",
+	},
+}
+
+// RunWizard executes the 7-step onboarding TUI.
 //
 // Returns nil on successful completion.
 // Returns ErrWizardCancelled when the user presses Ctrl+C during any huh form.
 // Returns a wrapped backend error on validation or persistence failure.
 //
-// @MX:ANCHOR: [AUTO] Primary public entry point for Phase 2A TUI — called by init.go cobra command.
+// @MX:ANCHOR: [AUTO] Primary public entry point for Phase 2A/2B TUI — called by init.go cobra command.
 // @MX:REASON: Signature change breaks the cobra command layer and any future test harnesses.
 func RunWizard(ctx context.Context, opts WizardOptions) error {
 	// -----------------------------------------------------------------------
@@ -62,63 +112,95 @@ func RunWizard(ctx context.Context, opts WizardOptions) error {
 	fmt.Println(summarizeDetection(ollamaStatus, ramBytes, detectedModel, cliTools))
 
 	// -----------------------------------------------------------------------
-	// Start onboarding flow
+	// Start or resume onboarding flow
 	// -----------------------------------------------------------------------
-	flow, err := onboarding.StartFlow(ctx, nil,
-		onboarding.WithKeyring(onboarding.SystemKeyring{}),
-		onboarding.WithCompletionOptions(onboarding.CompletionOptions{DryRun: opts.DryRun}),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to start onboarding flow: %w", err)
+	var flow *onboarding.OnboardingFlow
+
+	if opts.Resume {
+		draft, err := onboarding.LoadDraft()
+		if err != nil {
+			if errors.Is(err, onboarding.ErrDraftNotFound) {
+				return fmt.Errorf("no paused onboarding draft found — run `mink init` without --resume")
+			}
+			return fmt.Errorf("load draft: %w", err)
+		}
+
+		// Display a resume banner so the user knows they are continuing.
+		fmt.Printf("Resuming onboarding from step %d/7 (started %s)\n",
+			draft.CurrentStep, draft.StartedAt.UTC().Format("2006-01-02 15:04 UTC"))
+
+		flow, err = onboarding.StartFlowFromDraft(ctx, draft,
+			onboarding.WithKeyring(onboarding.SystemKeyring{}),
+			onboarding.WithCompletionOptions(onboarding.CompletionOptions{DryRun: opts.DryRun}),
+		)
+		if err != nil {
+			return fmt.Errorf("resume draft: %w", err)
+		}
+	} else {
+		var err error
+		flow, err = onboarding.StartFlow(ctx, nil,
+			onboarding.WithKeyring(onboarding.SystemKeyring{}),
+			onboarding.WithCompletionOptions(onboarding.CompletionOptions{DryRun: opts.DryRun}),
+		)
+		if err != nil {
+			return fmt.Errorf("failed to start onboarding flow: %w", err)
+		}
 	}
 
 	// -----------------------------------------------------------------------
-	// Step 1 — Locale
+	// Step dispatch loop — starts at flow.CurrentStep (supports resume)
 	// -----------------------------------------------------------------------
-	if err := runStep1Locale(ctx, flow); err != nil {
-		return err
-	}
+	//
+	// Each step runner returns one of three sentinels:
+	//   nil            — step completed; advance normally
+	//   errStepBack    — user chose Back; decrement and re-run previous step
+	//   errStepSkipped — user chose Skip; SkipStep already called
+	//   any other err  — fatal (bubble up)
+	//
+	// After every mutation (submit / skip / back) the draft is auto-saved,
+	// unless DryRun is true.
+	//
+	// @MX:WARN: [AUTO] Loop modifies flow.CurrentStep via Back(), SkipStep(), SubmitStep().
+	// @MX:REASON: Loop re-entrancy relies on flow state machine invariants; any
+	// additional mutation inside a step runner can corrupt the step sequence.
+	for flow.CurrentStep <= onboarding.TotalSteps() {
+		step := flow.CurrentStep
 
-	// -----------------------------------------------------------------------
-	// Step 2 — Model Setup
-	// -----------------------------------------------------------------------
-	if err := runStep2Model(ctx, flow, ollamaStatus, detectedModel, ramBytes); err != nil {
-		return err
-	}
+		var stepErr error
+		switch step {
+		case 1:
+			stepErr = runStep1Locale(ctx, flow)
+		case 2:
+			stepErr = runStep2Model(ctx, flow, ollamaStatus, detectedModel, ramBytes)
+		case 3:
+			stepErr = runStep3CLITools(ctx, flow, cliTools)
+		case 4:
+			stepErr = runStep4Persona(ctx, flow)
+		case 5:
+			stepErr = runStep5Provider(ctx, flow)
+		case 6:
+			stepErr = runStep6Messenger(ctx, flow)
+		case 7:
+			stepErr = runStep7Consent(ctx, flow)
+		}
 
-	// -----------------------------------------------------------------------
-	// Step 3 — CLI Tools
-	// -----------------------------------------------------------------------
-	if err := runStep3CLITools(ctx, flow, cliTools); err != nil {
-		return err
-	}
+		// Handle special navigation sentinels before propagating real errors.
+		if stepErr != nil {
+			if errors.Is(stepErr, errStepBack) {
+				// Back already decremented CurrentStep inside the step runner.
+				autoSaveDraft(flow, opts.DryRun)
+				continue
+			}
+			if errors.Is(stepErr, errStepSkipped) {
+				// SkipStep already advanced CurrentStep inside the step runner.
+				autoSaveDraft(flow, opts.DryRun)
+				continue
+			}
+			return stepErr
+		}
 
-	// -----------------------------------------------------------------------
-	// Step 4 — Persona
-	// -----------------------------------------------------------------------
-	if err := runStep4Persona(ctx, flow); err != nil {
-		return err
-	}
-
-	// -----------------------------------------------------------------------
-	// Step 5 — Provider
-	// -----------------------------------------------------------------------
-	if err := runStep5Provider(ctx, flow); err != nil {
-		return err
-	}
-
-	// -----------------------------------------------------------------------
-	// Step 6 — Messenger
-	// -----------------------------------------------------------------------
-	if err := runStep6Messenger(ctx, flow); err != nil {
-		return err
-	}
-
-	// -----------------------------------------------------------------------
-	// Step 7 — Consent
-	// -----------------------------------------------------------------------
-	if err := runStep7Consent(ctx, flow); err != nil {
-		return err
+		// Successful submit — CurrentStep already advanced by SubmitStep.
+		autoSaveDraft(flow, opts.DryRun)
 	}
 
 	// -----------------------------------------------------------------------
@@ -127,6 +209,13 @@ func RunWizard(ctx context.Context, opts WizardOptions) error {
 	data, err := flow.CompleteAndPersist()
 	if err != nil {
 		return fmt.Errorf("failed to persist onboarding config: %w", err)
+	}
+
+	// Remove the draft file on successful completion (best-effort).
+	if !opts.DryRun {
+		if deleteErr := onboarding.DeleteDraft(); deleteErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: failed to delete onboarding draft: %v\n", deleteErr)
+		}
 	}
 
 	// Display written paths.
@@ -141,6 +230,26 @@ func RunWizard(ctx context.Context, opts WizardOptions) error {
 	fmt.Printf("\nWelcome, %s!\n", data.Persona.Name)
 
 	return nil
+}
+
+// errStepBack is an internal sentinel returned by step runners when the user
+// picks the "Back" navigation action. It is NOT surfaced to callers of RunWizard.
+var errStepBack = errors.New("step: navigate back")
+
+// errStepSkipped is an internal sentinel returned by step runners when the user
+// picks the "Skip" navigation action. It is NOT surfaced to callers of RunWizard.
+var errStepSkipped = errors.New("step: skipped")
+
+// autoSaveDraft saves the current flow state as a draft file.
+// Best-effort: a save failure logs a warning but does not abort the wizard.
+// When DryRun is true, no disk write is performed.
+func autoSaveDraft(flow *onboarding.OnboardingFlow, dryRun bool) {
+	if dryRun {
+		return
+	}
+	if saveErr := onboarding.SaveDraft(onboarding.DraftFromFlow(flow)); saveErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: failed to save onboarding draft: %v\n", saveErr)
+	}
 }
 
 // summarizeDetection builds the pre-flight detection summary line shown to the user.
@@ -203,26 +312,31 @@ func runForm(ctx context.Context, form *huh.Form) error {
 // Step implementations
 // -----------------------------------------------------------------------
 
-// runStep1Locale presents the locale confirmation dialog and submits Step 1.
-// Phase 2A hardcodes KR locale; Phase 2B will wire LOCALE-001 Detect().
+// stepAction represents the navigation choice a user makes at each step.
+type stepAction int
+
+const (
+	stepActionSubmit stepAction = iota // default: complete the step
+	stepActionSkip                     // skip this step
+	stepActionBack                     // go back to previous step
+)
+
+// runStep1Locale presents a locale Select with 4 presets and submits Step 1.
+// Step 1 has no Back or Skip options (it is the first step).
 func runStep1Locale(ctx context.Context, flow *onboarding.OnboardingFlow) error {
-	// Phase 2A default: Korean / South Korea / Asia/Seoul / PIPA.
-	locale := onboarding.LocaleChoice{
-		Country:    "KR",
-		Language:   "ko",
-		Timezone:   "Asia/Seoul",
-		LegalFlags: []string{"PIPA"},
+	selectedIndex := 0
+
+	options := make([]huh.Option[int], len(localePresets))
+	for i, p := range localePresets {
+		options[i] = huh.NewOption(p.Display, i)
 	}
 
-	confirmed := false
-	localeDisplay := "Korean (KR / Asia/Seoul)"
 	form := huh.NewForm(
 		huh.NewGroup(
-			huh.NewConfirm().
-				Title(fmt.Sprintf("Step 1 / 7 — Locale\n\nDetected locale: %s\nUse this locale?", localeDisplay)).
-				Affirmative("Yes, continue").
-				Negative("No (Phase 2B: manual selection)").
-				Value(&confirmed),
+			huh.NewSelect[int]().
+				Title("Step 1 / 7 — Locale\n\nSelect your region and language:").
+				Options(options...).
+				Value(&selectedIndex),
 		),
 	)
 
@@ -230,12 +344,18 @@ func runStep1Locale(ctx context.Context, flow *onboarding.OnboardingFlow) error 
 		return err
 	}
 
-	// Phase 2A only supports the default KR locale; if user declines, continue anyway
-	// with defaults (manual locale selection is Phase 2B scope).
+	preset := localePresets[selectedIndex]
+	locale := onboarding.LocaleChoice{
+		Country:    preset.Country,
+		Language:   preset.Language,
+		Timezone:   preset.Timezone,
+		LegalFlags: preset.LegalFlags,
+	}
 	return flow.SubmitStep(1, locale)
 }
 
 // runStep2Model handles Ollama and model setup for Step 2.
+// Supports Skip (leaves Data.Model zero-valued) and Back (returns to step 1).
 func runStep2Model(
 	ctx context.Context,
 	flow *onboarding.OnboardingFlow,
@@ -243,6 +363,24 @@ func runStep2Model(
 	detected onboarding.DetectedModel,
 	ramBytes int64,
 ) error {
+	// Navigation choice before the main form.
+	nav, err := runNavChoice(ctx, "Step 2 / 7 — Model Setup", true, true)
+	if err != nil {
+		return err
+	}
+	if nav == stepActionBack {
+		if backErr := flow.Back(); backErr != nil {
+			return backErr
+		}
+		return errStepBack
+	}
+	if nav == stepActionSkip {
+		if skipErr := flow.SkipStep(2); skipErr != nil {
+			return skipErr
+		}
+		return errStepSkipped
+	}
+
 	setup := onboarding.ModelSetup{
 		OllamaInstalled: status.Installed,
 		RAMBytes:        ramBytes,
@@ -349,78 +487,26 @@ func runStep2Model(
 	return flow.SubmitStep(2, setup)
 }
 
-// pickModel presents a select for recommended vs custom model name.
-func pickModel(ctx context.Context, recommended string) (string, error) {
-	const customSentinel = "__custom__"
-	selected := recommended
-
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("Choose a model").
-				Options(
-					huh.NewOption(fmt.Sprintf("Recommended: %s", recommended), recommended),
-					huh.NewOption("Enter custom model name", customSentinel),
-				).
-				Value(&selected),
-		),
-	)
-	if err := runForm(ctx, form); err != nil {
-		return "", err
-	}
-
-	if selected == customSentinel {
-		var customName string
-		customForm := huh.NewForm(
-			huh.NewGroup(
-				huh.NewInput().
-					Title("Custom model name (e.g., llama3:8b)").
-					Placeholder("model:tag").
-					Value(&customName),
-			),
-		)
-		if err := runForm(ctx, customForm); err != nil {
-			return "", err
-		}
-		return customName, nil
-	}
-
-	return selected, nil
-}
-
-// pullModelWithSpinner calls PullModel synchronously, draining progress into a spinner-like output.
-// PullModel requires a non-nil channel; we allocate a buffered channel and drain it in a goroutine.
-//
-// @MX:WARN: [AUTO] Goroutine launched to drain PullModel's progress channel.
-// @MX:REASON: PullModel panics on nil channel and blocks until the channel is consumed;
-// the drain goroutine must outlive the PullModel call to avoid deadlock.
-func pullModelWithSpinner(ctx context.Context, modelName string) error {
-	fmt.Printf("Downloading %s... (this may take a while)\n", modelName)
-
-	progress := make(chan onboarding.ProgressUpdate, 32)
-
-	// Drain the progress channel and print dots to indicate activity.
-	drainDone := make(chan struct{})
-	go func() {
-		defer close(drainDone)
-		for range progress {
-			// Phase 2A: consume silently; Phase 2C will wire a progress bar.
-		}
-	}()
-
-	err := onboarding.PullModel(ctx, modelName, progress)
-	<-drainDone // wait for drain goroutine before returning
-
-	if err != nil {
-		return fmt.Errorf("model download failed: %w", err)
-	}
-
-	fmt.Println("Download complete.")
-	return nil
-}
-
 // runStep3CLITools displays detected tools as a MultiSelect and submits Step 3.
+// Supports Skip and Back.
 func runStep3CLITools(ctx context.Context, flow *onboarding.OnboardingFlow, detected []onboarding.CLITool) error {
+	nav, err := runNavChoice(ctx, "Step 3 / 7 — CLI Delegation Tools", true, true)
+	if err != nil {
+		return err
+	}
+	if nav == stepActionBack {
+		if backErr := flow.Back(); backErr != nil {
+			return backErr
+		}
+		return errStepBack
+	}
+	if nav == stepActionSkip {
+		if skipErr := flow.SkipStep(3); skipErr != nil {
+			return skipErr
+		}
+		return errStepSkipped
+	}
+
 	if len(detected) == 0 {
 		// No tools found — submit empty detection and continue.
 		fmt.Println("Step 3 / 7 — CLI Tools\n\nNo CLI delegation tools detected (claude / gemini / codex).")
@@ -482,17 +568,39 @@ MINK is my AI daily companion — thoughtful, direct, and genuinely helpful.
 `
 
 // runStep4Persona collects persona settings and submits Step 4.
+// Supports Skip and Back. Pre-populates from existing flow.Data.Persona on re-entry.
 func runStep4Persona(ctx context.Context, flow *onboarding.OnboardingFlow) error {
-	var (
-		name     string
-		honorStr string
-		pronouns string
-		soul     string
-	)
+	nav, err := runNavChoice(ctx, "Step 4 / 7 — Persona", true, true)
+	if err != nil {
+		return err
+	}
+	if nav == stepActionBack {
+		if backErr := flow.Back(); backErr != nil {
+			return backErr
+		}
+		return errStepBack
+	}
+	if nav == stepActionSkip {
+		if skipErr := flow.SkipStep(4); skipErr != nil {
+			return skipErr
+		}
+		return errStepSkipped
+	}
 
-	name = "MINK"
-	honorStr = string(onboarding.HonorificFormal)
-	soul = soulMarkdownTemplate
+	// Pre-populate from previously entered data (Back → re-enter scenario).
+	name := flow.Data.Persona.Name
+	if name == "" {
+		name = "MINK"
+	}
+	honorStr := string(flow.Data.Persona.HonorificLevel)
+	if honorStr == "" {
+		honorStr = string(onboarding.HonorificFormal)
+	}
+	pronouns := flow.Data.Persona.Pronouns
+	soul := flow.Data.Persona.SoulMarkdown
+	if soul == "" {
+		soul = soulMarkdownTemplate
+	}
 
 	form := huh.NewForm(
 		huh.NewGroup(
@@ -537,7 +645,25 @@ func runStep4Persona(ctx context.Context, flow *onboarding.OnboardingFlow) error
 }
 
 // runStep5Provider collects LLM provider settings and submits Step 5.
+// Supports Skip and Back.
 func runStep5Provider(ctx context.Context, flow *onboarding.OnboardingFlow) error {
+	nav, err := runNavChoice(ctx, "Step 5 / 7 — LLM Provider", true, true)
+	if err != nil {
+		return err
+	}
+	if nav == stepActionBack {
+		if backErr := flow.Back(); backErr != nil {
+			return backErr
+		}
+		return errStepBack
+	}
+	if nav == stepActionSkip {
+		if skipErr := flow.SkipStep(5); skipErr != nil {
+			return skipErr
+		}
+		return errStepSkipped
+	}
+
 	var (
 		providerStr string
 		authStr     string
@@ -546,8 +672,16 @@ func runStep5Provider(ctx context.Context, flow *onboarding.OnboardingFlow) erro
 		prefModel   string
 	)
 
-	providerStr = string(onboarding.ProviderAnthropic)
-	authStr = string(onboarding.AuthMethodAPIKey)
+	// Pre-populate from existing data when re-entering after Back.
+	if flow.Data.Provider.Provider != "" {
+		providerStr = string(flow.Data.Provider.Provider)
+		authStr = string(flow.Data.Provider.AuthMethod)
+		customEP = flow.Data.Provider.CustomEndpoint
+		prefModel = flow.Data.Provider.PreferredModel
+	} else {
+		providerStr = string(onboarding.ProviderAnthropic)
+		authStr = string(onboarding.AuthMethodAPIKey)
+	}
 
 	// Provider selection.
 	providerForm := huh.NewForm(
@@ -641,7 +775,25 @@ func runStep5Provider(ctx context.Context, flow *onboarding.OnboardingFlow) erro
 }
 
 // runStep6Messenger collects the first messenger channel and submits Step 6.
+// Supports Skip and Back.
 func runStep6Messenger(ctx context.Context, flow *onboarding.OnboardingFlow) error {
+	nav, err := runNavChoice(ctx, "Step 6 / 7 — Messenger Channel", true, true)
+	if err != nil {
+		return err
+	}
+	if nav == stepActionBack {
+		if backErr := flow.Back(); backErr != nil {
+			return backErr
+		}
+		return errStepBack
+	}
+	if nav == stepActionSkip {
+		if skipErr := flow.SkipStep(6); skipErr != nil {
+			return skipErr
+		}
+		return errStepSkipped
+	}
+
 	messengerStr := string(onboarding.MessengerLocalTerminal)
 
 	form := huh.NewForm(
@@ -669,7 +821,49 @@ func runStep6Messenger(ctx context.Context, flow *onboarding.OnboardingFlow) err
 }
 
 // runStep7Consent collects privacy and consent choices and submits Step 7.
+// Supports Back. Skip is blocked when the locale carries a GDPR legal flag —
+// in that case an explanatory message is printed and the user is re-prompted.
+//
+// @MX:WARN: [AUTO] GDPR locale blocks the Skip path; any change to skip-blocking logic
+// must account for both SkipStep(7) guard in flow.go and this TUI enforcement layer.
+// @MX:REASON: Two-layer enforcement (backend + TUI) ensures that even a buggy TUI cannot
+// accidentally bypass GDPR consent for EU/UK users.
 func runStep7Consent(ctx context.Context, flow *onboarding.OnboardingFlow) error {
+	// Determine whether Skip is allowed for step 7 given the locale.
+	skipAllowed := !localeHasGDPR(flow)
+
+	nav, err := runNavChoice(ctx, "Step 7 / 7 — Privacy & Consent", skipAllowed, true)
+	if err != nil {
+		return err
+	}
+	if nav == stepActionBack {
+		if backErr := flow.Back(); backErr != nil {
+			return backErr
+		}
+		return errStepBack
+	}
+	if nav == stepActionSkip {
+		skipErr := flow.SkipStep(7)
+		if skipErr != nil {
+			// GDPR enforcement: explain and fall through to the consent form.
+			fmt.Println("GDPR jurisdiction requires explicit consent. Skip is not permitted.")
+			// Re-run navigation without the skip option.
+			nav2, navErr := runNavChoice(ctx, "Step 7 / 7 — Privacy & Consent (GDPR required)", false, true)
+			if navErr != nil {
+				return navErr
+			}
+			if nav2 == stepActionBack {
+				if backErr := flow.Back(); backErr != nil {
+					return backErr
+				}
+				return errStepBack
+			}
+			// Fall through to the consent form below.
+		} else {
+			return errStepSkipped
+		}
+	}
+
 	var (
 		localOnly    bool
 		telemetry    bool
@@ -682,6 +876,29 @@ func runStep7Consent(ctx context.Context, flow *onboarding.OnboardingFlow) error
 	telemetry = false
 	crashReport = false
 	loraTraining = false
+
+	// Determine whether explicit GDPR consent is required.
+	gdprRequired := localeHasGDPR(flow)
+
+	if gdprRequired {
+		// GDPR users: explicit consent checkbox must be shown and must be confirmed.
+		gdprAccepted := false
+		gdprForm := huh.NewForm(
+			huh.NewGroup(
+				huh.NewConfirm().
+					Title("Step 7 / 7 — GDPR Consent (required)\n\nI consent to the processing of my personal data as described in the Privacy Policy.").
+					Affirmative("I accept").
+					Negative("I do not accept").
+					Value(&gdprAccepted),
+			),
+		)
+		if err := runForm(ctx, gdprForm); err != nil {
+			return err
+		}
+		if !gdprAccepted {
+			return errors.New("onboarding: GDPR consent is required to continue in EU/UK regions")
+		}
+	}
 
 	form := huh.NewForm(
 		huh.NewGroup(
@@ -711,12 +928,136 @@ func runStep7Consent(ctx context.Context, flow *onboarding.OnboardingFlow) error
 		return err
 	}
 
-	// KR/PIPA locale does not require explicit GDPR consent; GDPRExplicitConsent = nil.
+	var gdprPtr *bool
+	if gdprRequired {
+		trueVal := true
+		gdprPtr = &trueVal
+	}
+
 	return flow.SubmitStep(7, onboarding.ConsentFlags{
 		ConversationStorageLocal: localOnly,
 		TelemetryEnabled:         telemetry,
 		CrashReportingEnabled:    crashReport,
 		LoRATrainingAllowed:      loraTraining,
-		GDPRExplicitConsent:      nil,
+		GDPRExplicitConsent:      gdprPtr,
 	})
+}
+
+// localeHasGDPR reports whether the flow's current locale carries a "GDPR" legal flag.
+func localeHasGDPR(flow *onboarding.OnboardingFlow) bool {
+	for _, flag := range flow.Data.Locale.LegalFlags {
+		if strings.EqualFold(flag, "GDPR") {
+			return true
+		}
+	}
+	return false
+}
+
+// runNavChoice presents a navigation selector before the main step form.
+// It returns the user's navigation intent without modifying flow state.
+//
+//   - showSkip: when false, the Skip option is hidden (e.g., step 1, GDPR step 7)
+//   - showBack: when false, the Back option is hidden (e.g., step 1)
+//
+// When neither Skip nor Back is available, runNavChoice returns stepActionSubmit
+// immediately without showing any form.
+func runNavChoice(ctx context.Context, title string, showSkip, showBack bool) (stepAction, error) {
+	if !showSkip && !showBack {
+		return stepActionSubmit, nil
+	}
+
+	options := []huh.Option[stepAction]{
+		huh.NewOption("Continue with this step", stepActionSubmit),
+	}
+	if showSkip {
+		options = append(options, huh.NewOption("Skip this step", stepActionSkip))
+	}
+	if showBack {
+		options = append(options, huh.NewOption("Go back to previous step", stepActionBack))
+	}
+
+	var action stepAction
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[stepAction]().
+				Title(fmt.Sprintf("%s\n\nWhat would you like to do?", title)).
+				Options(options...).
+				Value(&action),
+		),
+	)
+
+	if err := runForm(ctx, form); err != nil {
+		return stepActionSubmit, err
+	}
+	return action, nil
+}
+
+// pickModel presents a select for recommended vs custom model name.
+func pickModel(ctx context.Context, recommended string) (string, error) {
+	const customSentinel = "__custom__"
+	selected := recommended
+
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("Choose a model").
+				Options(
+					huh.NewOption(fmt.Sprintf("Recommended: %s", recommended), recommended),
+					huh.NewOption("Enter custom model name", customSentinel),
+				).
+				Value(&selected),
+		),
+	)
+	if err := runForm(ctx, form); err != nil {
+		return "", err
+	}
+
+	if selected == customSentinel {
+		var customName string
+		customForm := huh.NewForm(
+			huh.NewGroup(
+				huh.NewInput().
+					Title("Custom model name (e.g., llama3:8b)").
+					Placeholder("model:tag").
+					Value(&customName),
+			),
+		)
+		if err := runForm(ctx, customForm); err != nil {
+			return "", err
+		}
+		return customName, nil
+	}
+
+	return selected, nil
+}
+
+// pullModelWithSpinner calls PullModel synchronously, draining progress into a spinner-like output.
+// PullModel requires a non-nil channel; we allocate a buffered channel and drain it in a goroutine.
+//
+// @MX:WARN: [AUTO] Goroutine launched to drain PullModel's progress channel.
+// @MX:REASON: PullModel panics on nil channel and blocks until the channel is consumed;
+// the drain goroutine must outlive the PullModel call to avoid deadlock.
+func pullModelWithSpinner(ctx context.Context, modelName string) error {
+	fmt.Printf("Downloading %s... (this may take a while)\n", modelName)
+
+	progress := make(chan onboarding.ProgressUpdate, 32)
+
+	// Drain the progress channel and print dots to indicate activity.
+	drainDone := make(chan struct{})
+	go func() {
+		defer close(drainDone)
+		for range progress {
+			// Phase 2A: consume silently; Phase 2C will wire a progress bar.
+		}
+	}()
+
+	err := onboarding.PullModel(ctx, modelName, progress)
+	<-drainDone // wait for drain goroutine before returning
+
+	if err != nil {
+		return fmt.Errorf("model download failed: %w", err)
+	}
+
+	fmt.Println("Download complete.")
+	return nil
 }

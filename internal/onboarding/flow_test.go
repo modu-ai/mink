@@ -354,6 +354,235 @@ func TestFullHappyPath_AllSeven(t *testing.T) {
 	}
 }
 
+// --- Phase 2B — StartFlowFromDraft ---
+
+// TestStartFlowFromDraft_HappyPath verifies that a draft with CurrentStep=5 and
+// non-zero Locale/Persona is reconstructed with matching fields, visitedSteps={1..4:true},
+// and CurrentStep=5.
+func TestStartFlowFromDraft_HappyPath(t *testing.T) {
+	draft := &Draft{
+		SchemaVersion: currentDraftSchemaVersion,
+		SessionID:     "deadbeefdeadbeefdeadbeefdeadbeef",
+		CurrentStep:   5,
+		Data: OnboardingData{
+			Locale:  LocaleChoice{Country: "KR", Language: "ko", Timezone: "Asia/Seoul", LegalFlags: []string{"PIPA"}},
+			Persona: PersonaProfile{Name: "Alice", HonorificLevel: HonorificFormal},
+		},
+		StartedAt: time.Date(2026, 5, 1, 10, 0, 0, 0, time.UTC),
+		UpdatedAt: time.Date(2026, 5, 1, 10, 5, 0, 0, time.UTC),
+	}
+
+	f, err := StartFlowFromDraft(context.Background(), draft)
+	if err != nil {
+		t.Fatalf("StartFlowFromDraft: %v", err)
+	}
+
+	if f.SessionID != draft.SessionID {
+		t.Errorf("SessionID = %q, want %q", f.SessionID, draft.SessionID)
+	}
+	if f.CurrentStep != 5 {
+		t.Errorf("CurrentStep = %d, want 5", f.CurrentStep)
+	}
+	if f.StartedAt != draft.StartedAt {
+		t.Errorf("StartedAt = %v, want %v", f.StartedAt, draft.StartedAt)
+	}
+	if f.CompletedAt != nil {
+		t.Errorf("CompletedAt = %v, want nil", f.CompletedAt)
+	}
+	if f.Data.Locale.Country != "KR" {
+		t.Errorf("Data.Locale.Country = %q, want %q", f.Data.Locale.Country, "KR")
+	}
+	if f.Data.Persona.Name != "Alice" {
+		t.Errorf("Data.Persona.Name = %q, want %q", f.Data.Persona.Name, "Alice")
+	}
+
+	// Steps 1..4 must be visited; step 5 not yet.
+	for s := 1; s <= 4; s++ {
+		if !f.visitedSteps[s] {
+			t.Errorf("visitedSteps[%d] = false, want true", s)
+		}
+	}
+	if f.visitedSteps[5] {
+		t.Errorf("visitedSteps[5] = true, want false (current step not yet completed)")
+	}
+}
+
+// TestStartFlowFromDraft_NilDraft_ReturnsErrInvalidDraft verifies that a nil draft
+// returns ErrInvalidDraft.
+func TestStartFlowFromDraft_NilDraft_ReturnsErrInvalidDraft(t *testing.T) {
+	_, err := StartFlowFromDraft(context.Background(), nil)
+	if !errors.Is(err, ErrInvalidDraft) {
+		t.Errorf("StartFlowFromDraft(nil) = %v, want errors.Is ErrInvalidDraft", err)
+	}
+}
+
+// TestStartFlowFromDraft_OutOfRangeStep verifies that CurrentStep values outside
+// [1, completedSentinel] return a wrapped ErrInvalidDraft.
+func TestStartFlowFromDraft_OutOfRangeStep(t *testing.T) {
+	badSteps := []int{0, -1, completedSentinel + 1, 100}
+	for _, step := range badSteps {
+		draft := &Draft{
+			SchemaVersion: currentDraftSchemaVersion,
+			SessionID:     "aabbccddaabbccddaabbccddaabbccdd",
+			CurrentStep:   step,
+			StartedAt:     time.Now().UTC(),
+		}
+		_, err := StartFlowFromDraft(context.Background(), draft)
+		if !errors.Is(err, ErrInvalidDraft) {
+			t.Errorf("StartFlowFromDraft(step=%d) = %v, want errors.Is ErrInvalidDraft", step, err)
+		}
+	}
+}
+
+// TestStartFlowFromDraft_BackAfterResume verifies that a draft with CurrentStep=5
+// allows a successful Back(), which decrements CurrentStep to 4.
+func TestStartFlowFromDraft_BackAfterResume(t *testing.T) {
+	draft := &Draft{
+		SchemaVersion: currentDraftSchemaVersion,
+		SessionID:     "1234567890abcdef1234567890abcdef",
+		CurrentStep:   5,
+		Data:          OnboardingData{Locale: LocaleChoice{Country: "US", Language: "en"}},
+		StartedAt:     time.Now().UTC(),
+	}
+
+	f, err := StartFlowFromDraft(context.Background(), draft)
+	if err != nil {
+		t.Fatalf("StartFlowFromDraft: %v", err)
+	}
+
+	if err := f.Back(); err != nil {
+		t.Fatalf("Back() error: %v", err)
+	}
+	if f.CurrentStep != 4 {
+		t.Errorf("CurrentStep = %d after Back, want 4", f.CurrentStep)
+	}
+}
+
+// TestStartFlowFromDraft_AppliesOptions verifies that FlowOption arguments are applied
+// to the reconstructed flow. Specifically, WithKeyring injects the client so that
+// SubmitStep(5, ProviderStepInput{AuthMethodAPIKey, validKey}) results in APIKeyStored=true.
+func TestStartFlowFromDraft_AppliesOptions(t *testing.T) {
+	kr := NewInMemoryKeyring()
+
+	draft := &Draft{
+		SchemaVersion: currentDraftSchemaVersion,
+		SessionID:     "ffffffffffffffffffffffffffffffff",
+		CurrentStep:   5, // resume at step 5 (steps 1..4 already done)
+		Data: OnboardingData{
+			Locale:  LocaleChoice{Country: "US", Language: "en"},
+			Model:   ModelSetup{},
+			Persona: PersonaProfile{Name: "Resumee", HonorificLevel: HonorificFormal},
+		},
+		StartedAt: time.Now().UTC(),
+	}
+
+	f, err := StartFlowFromDraft(context.Background(), draft, WithKeyring(kr))
+	if err != nil {
+		t.Fatalf("StartFlowFromDraft: %v", err)
+	}
+
+	// Submit step 5 with a valid API key — keyring should be injected.
+	const validKey = "sk-ant-api03-EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"
+	input := ProviderStepInput{
+		Choice: ProviderChoice{
+			Provider:   ProviderAnthropic,
+			AuthMethod: AuthMethodAPIKey,
+		},
+		APIKey: validKey,
+	}
+	if err := f.SubmitStep(5, input); err != nil {
+		t.Fatalf("SubmitStep(5): %v", err)
+	}
+
+	if !f.Data.Provider.APIKeyStored {
+		t.Error("Provider.APIKeyStored = false, want true (keyring was injected via option)")
+	}
+}
+
+// TestStartFlowFromDraft_RoundTrip verifies that:
+//
+//	StartFlow → SubmitStep 1..3 → DraftFromFlow → StartFlowFromDraft
+//	→ SubmitStep 4..7 → CompleteAndPersist
+//
+// produces OnboardingData with all fields from both halves of the session.
+func TestStartFlowFromDraft_RoundTrip(t *testing.T) {
+	tempHome := t.TempDir()
+	tempProject := t.TempDir()
+
+	globalPath := filepath.Join(tempHome, ".mink", "config.yaml")
+	projectPath := filepath.Join(tempProject, ".mink", "config.yaml")
+	markerPath := filepath.Join(tempHome, ".mink", "onboarding-completed")
+
+	persistOpts := CompletionOptions{
+		GlobalConfigPathOverride:  globalPath,
+		ProjectConfigPathOverride: projectPath,
+		CompletedMarkerOverride:   markerPath,
+	}
+
+	// --- First half: steps 1..3 ---
+	f1, err := StartFlow(context.Background(), nil, WithCompletionOptions(persistOpts))
+	if err != nil {
+		t.Fatalf("StartFlow: %v", err)
+	}
+
+	if err := f1.SubmitStep(1, LocaleChoice{Country: "US", Language: "en"}); err != nil {
+		t.Fatalf("SubmitStep(1): %v", err)
+	}
+	if err := f1.SubmitStep(2, ModelSetup{OllamaInstalled: true, SelectedModel: "gemma4"}); err != nil {
+		t.Fatalf("SubmitStep(2): %v", err)
+	}
+	if err := f1.SubmitStep(3, CLIToolsDetection{DetectedTools: []CLITool{{Name: "claude", Version: "1.0"}}}); err != nil {
+		t.Fatalf("SubmitStep(3): %v", err)
+	}
+
+	// Snapshot the draft after step 3.
+	draft := DraftFromFlow(f1)
+
+	// --- Second half: resume from draft, steps 4..7 ---
+	f2, err := StartFlowFromDraft(context.Background(), draft, WithCompletionOptions(persistOpts))
+	if err != nil {
+		t.Fatalf("StartFlowFromDraft: %v", err)
+	}
+	if f2.CurrentStep != 4 {
+		t.Fatalf("resumed CurrentStep = %d, want 4", f2.CurrentStep)
+	}
+
+	if err := f2.SubmitStep(4, PersonaProfile{Name: "RoundTrip", HonorificLevel: HonorificFormal}); err != nil {
+		t.Fatalf("SubmitStep(4): %v", err)
+	}
+	if err := f2.SubmitStep(5, ProviderChoice{Provider: ProviderUnset}); err != nil {
+		t.Fatalf("SubmitStep(5): %v", err)
+	}
+	if err := f2.SubmitStep(6, MessengerChannel{Type: MessengerLocalTerminal}); err != nil {
+		t.Fatalf("SubmitStep(6): %v", err)
+	}
+	if err := f2.SubmitStep(7, ConsentFlags{ConversationStorageLocal: true}); err != nil {
+		t.Fatalf("SubmitStep(7): %v", err)
+	}
+
+	data, err := f2.CompleteAndPersist()
+	if err != nil {
+		t.Fatalf("CompleteAndPersist: %v", err)
+	}
+
+	// Verify fields from both halves are present.
+	if data.Locale.Country != "US" {
+		t.Errorf("Locale.Country = %q, want %q", data.Locale.Country, "US")
+	}
+	if !data.Model.OllamaInstalled || data.Model.SelectedModel != "gemma4" {
+		t.Errorf("Model = %+v, want OllamaInstalled=true SelectedModel=gemma4", data.Model)
+	}
+	if len(data.CLITools.DetectedTools) != 1 || data.CLITools.DetectedTools[0].Name != "claude" {
+		t.Errorf("CLITools = %+v, want 1 tool (claude)", data.CLITools)
+	}
+	if data.Persona.Name != "RoundTrip" {
+		t.Errorf("Persona.Name = %q, want %q", data.Persona.Name, "RoundTrip")
+	}
+	if !data.Consent.ConversationStorageLocal {
+		t.Error("Consent.ConversationStorageLocal = false, want true")
+	}
+}
+
 // --- Helpers ---
 
 // newFlowAt creates a flow and advances it by submitting n steps with zero-value data.

@@ -16,6 +16,7 @@ import (
 // The command requires a real TTY on stdin; non-TTY environments exit 1 with a clear message.
 func NewInitCommand() *cobra.Command {
 	var dryRun bool
+	var resume bool
 
 	cmd := &cobra.Command{
 		Use:   "init",
@@ -31,7 +32,11 @@ The wizard guides you through 7 steps:
   6. Messenger channel selection
   7. Privacy and consent settings
 
-Requires a real terminal (TTY). Use --dry-run to validate configuration without writing files.`,
+Requires a real terminal (TTY). Use --dry-run to validate configuration without writing files.
+
+Use --resume to continue a previously paused onboarding session. MINK saves your progress
+automatically; if you close the wizard mid-way, run 'mink init --resume' to pick up where
+you left off.`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// TTY check: mink init requires interactive terminal input.
@@ -43,6 +48,7 @@ Requires a real terminal (TTY). Use --dry-run to validate configuration without 
 
 			err := install.RunWizard(cmd.Context(), install.WizardOptions{
 				DryRun: dryRun,
+				Resume: resume,
 			})
 			if err != nil {
 				if errors.Is(err, install.ErrWizardCancelled) {
@@ -60,6 +66,9 @@ Requires a real terminal (TTY). Use --dry-run to validate configuration without 
 
 	// --dry-run: marshal config but skip file writes (passes DryRun:true to CompletionOptions).
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Validate configuration without writing files")
+
+	// --resume: load an existing onboarding-draft.yaml and continue from the saved step.
+	cmd.Flags().BoolVar(&resume, "resume", false, "Resume a previously paused onboarding wizard")
 
 	return cmd
 }
