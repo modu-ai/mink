@@ -49,6 +49,10 @@ const totalSteps = 7
 // indicating that Complete may be called.
 const completedSentinel = totalSteps + 1
 
+// TotalSteps returns the total number of onboarding wizard steps.
+// Exported for use by the TUI layer to bound its dispatch loop.
+func TotalSteps() int { return totalSteps }
+
 // FlowOption configures an OnboardingFlow during StartFlow.
 type FlowOption func(*OnboardingFlow)
 
@@ -238,6 +242,52 @@ func (f *OnboardingFlow) CompleteAndPersist() (*OnboardingData, error) {
 	}
 
 	return data, nil
+}
+
+// ErrInvalidDraft is returned by StartFlowFromDraft when the provided Draft fails
+// basic sanity checks (nil, or CurrentStep out of range [1, completedSentinel]).
+var ErrInvalidDraft = errors.New("onboarding: invalid draft for resume")
+
+// StartFlowFromDraft reconstructs an OnboardingFlow from a previously saved Draft.
+// CurrentStep must be in [1, completedSentinel] (1..8); steps 1..CurrentStep-1
+// are marked as visited so subsequent Back() works correctly.
+// Data, SessionID, StartedAt are copied verbatim from the draft.
+// CompletedAt is left nil (Resume always re-runs at least one step before completion).
+// FlowOption(s) are applied identically to StartFlow.
+//
+// Returns ErrInvalidDraft when d is nil or d.CurrentStep is outside [1, completedSentinel].
+//
+// @MX:ANCHOR: [AUTO] Entry point for resume path — called by CLI init --resume and tests.
+// @MX:REASON: Reconstructs unexported fields (visitedSteps, keyring, completionOpts);
+// any change to OnboardingFlow internal layout must be reflected here.
+// @MX:SPEC: SPEC-MINK-ONBOARDING-001 §6 (Phase 2B)
+func StartFlowFromDraft(_ context.Context, d *Draft, opts ...FlowOption) (*OnboardingFlow, error) {
+	if d == nil {
+		return nil, fmt.Errorf("%w: draft is nil", ErrInvalidDraft)
+	}
+	if d.CurrentStep < 1 || d.CurrentStep > completedSentinel {
+		return nil, fmt.Errorf("%w: current_step out of range [1, %d]: %d",
+			ErrInvalidDraft, completedSentinel, d.CurrentStep)
+	}
+
+	f := &OnboardingFlow{
+		SessionID:    d.SessionID,
+		CurrentStep:  d.CurrentStep,
+		Data:         d.Data,
+		StartedAt:    d.StartedAt,
+		visitedSteps: make(map[int]bool, d.CurrentStep),
+	}
+
+	// Mark steps 1..CurrentStep-1 as visited so Back() navigates them correctly.
+	for s := 1; s < d.CurrentStep; s++ {
+		f.visitedSteps[s] = true
+	}
+
+	for _, opt := range opts {
+		opt(f)
+	}
+
+	return f, nil
 }
 
 // validateStepNumber checks that step equals CurrentStep and is within [1, totalSteps].

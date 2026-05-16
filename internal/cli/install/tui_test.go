@@ -4,11 +4,14 @@
 //   - Pre-flight detection summary string builder
 //   - Model selection logic given fixed inputs
 //   - Provider step input construction (verifies secret not retained in OnboardingData)
+//   - Phase 2B: WizardOptions.Resume, localePresets, resume error path, DryRun draft suppression
 //
-// SPEC: SPEC-MINK-ONBOARDING-001 §6 (Phase 2A)
+// SPEC: SPEC-MINK-ONBOARDING-001 §6 (Phase 2A + 2B)
 package install
 
 import (
+	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -259,5 +262,140 @@ func TestSummarizeDetection_SingleTool(t *testing.T) {
 	}
 	if strings.Contains(got, "CLI tools=none") {
 		t.Errorf("unexpected 'none' for single tool, got: %s", got)
+	}
+}
+
+// -----------------------------------------------------------------------
+// Phase 2B tests — WizardOptions.Resume, localePresets, error paths
+// -----------------------------------------------------------------------
+
+// TestWizardOptions_ResumeField verifies (compile-time) that WizardOptions has a
+// Resume bool field, and that it defaults to false in a zero-value struct.
+func TestWizardOptions_ResumeField(t *testing.T) {
+	var opts WizardOptions
+	if opts.Resume {
+		t.Error("WizardOptions{}.Resume default = true, want false")
+	}
+	opts.Resume = true
+	if !opts.Resume {
+		t.Error("WizardOptions.Resume could not be set to true")
+	}
+}
+
+// TestLocalePresets_KRDefault verifies that the first localePresets entry is Korea
+// with the PIPA legal flag and no GDPR flag.
+func TestLocalePresets_KRDefault(t *testing.T) {
+	if len(localePresets) == 0 {
+		t.Fatal("localePresets is empty")
+	}
+	kr := localePresets[0]
+	if kr.Country != "KR" {
+		t.Errorf("localePresets[0].Country = %q, want %q", kr.Country, "KR")
+	}
+	if kr.Language != "ko" {
+		t.Errorf("localePresets[0].Language = %q, want %q", kr.Language, "ko")
+	}
+	if kr.Timezone != "Asia/Seoul" {
+		t.Errorf("localePresets[0].Timezone = %q, want %q", kr.Timezone, "Asia/Seoul")
+	}
+	hasPIPA := false
+	for _, f := range kr.LegalFlags {
+		if f == "PIPA" {
+			hasPIPA = true
+		}
+		if f == "GDPR" {
+			t.Errorf("KR preset unexpectedly has GDPR flag")
+		}
+	}
+	if !hasPIPA {
+		t.Error("KR preset is missing PIPA legal flag")
+	}
+}
+
+// TestLocalePresets_FRHasGDPR verifies that the France and Germany presets include
+// "GDPR" in their LegalFlags (critical for step 7 skip-blocking).
+func TestLocalePresets_FRHasGDPR(t *testing.T) {
+	gdprCountries := map[string]bool{"FR": false, "DE": false}
+	for _, p := range localePresets {
+		if _, want := gdprCountries[p.Country]; !want {
+			continue
+		}
+		for _, f := range p.LegalFlags {
+			if strings.EqualFold(f, "GDPR") {
+				gdprCountries[p.Country] = true
+			}
+		}
+	}
+	for country, found := range gdprCountries {
+		if !found {
+			t.Errorf("localePresets: country %q is missing GDPR legal flag", country)
+		}
+	}
+}
+
+// TestLocalePresets_AllRequiredFields verifies that every entry in localePresets
+// has non-empty Country, Language, Timezone, and Display.
+func TestLocalePresets_AllRequiredFields(t *testing.T) {
+	for i, p := range localePresets {
+		if p.Country == "" {
+			t.Errorf("localePresets[%d].Country is empty", i)
+		}
+		if p.Language == "" {
+			t.Errorf("localePresets[%d].Language is empty", i)
+		}
+		if p.Timezone == "" {
+			t.Errorf("localePresets[%d].Timezone is empty", i)
+		}
+		if p.Display == "" {
+			t.Errorf("localePresets[%d].Display is empty", i)
+		}
+	}
+}
+
+// TestRunWizard_ResumeWithoutDraft_ReturnsClearError verifies that calling RunWizard
+// with Resume=true when no draft file exists returns a user-friendly error mentioning
+// "no paused onboarding draft".
+func TestRunWizard_ResumeWithoutDraft_ReturnsClearError(t *testing.T) {
+	// Point the project dir at a fresh temp directory with no draft file.
+	t.Setenv("MINK_PROJECT_DIR", t.TempDir())
+
+	// Suppress TTY check: IsTTYFunc is not exercised here; RunWizard reaches draft
+	// loading before any form rendering. We also override IsTTYFunc to avoid the
+	// underlying term.IsTerminal call failing in a non-TTY test environment.
+	origIsTTY := IsTTYFunc
+	t.Cleanup(func() { IsTTYFunc = origIsTTY })
+	IsTTYFunc = func(_ uintptr) bool { return true }
+
+	err := RunWizard(context.Background(), WizardOptions{Resume: true})
+	if err == nil {
+		t.Fatal("RunWizard(Resume=true, no draft) returned nil, want error")
+	}
+	if !strings.Contains(err.Error(), "no paused onboarding draft") {
+		t.Errorf("error message = %q, want to contain 'no paused onboarding draft'", err.Error())
+	}
+}
+
+// TestRunWizard_DryRunSkipsDraftSave verifies that when DryRun=true, autoSaveDraft
+// does not create a draft file even when called explicitly with a valid flow.
+func TestRunWizard_DryRunSkipsDraftSave(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("MINK_PROJECT_DIR", tmpDir)
+
+	// Create a minimal flow to pass to autoSaveDraft.
+	flow, err := onboarding.StartFlow(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("StartFlow: %v", err)
+	}
+
+	// Call with DryRun=true — must NOT write anything to tmpDir.
+	autoSaveDraft(flow, true /* dryRun */)
+
+	// Verify no draft file was created.
+	draftPath, pathErr := onboarding.DraftPath()
+	if pathErr != nil {
+		t.Fatalf("DraftPath: %v", pathErr)
+	}
+	if _, statErr := onboarding.LoadDraft(); !errors.Is(statErr, onboarding.ErrDraftNotFound) {
+		t.Errorf("DryRun=true still created draft at %s: loadErr=%v", draftPath, statErr)
 	}
 }
