@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -555,4 +556,181 @@ func assertErrorCode(t *testing.T, rec *httptest.ResponseRecorder, want string) 
 	err := json.NewDecoder(rec.Body).Decode(&resp)
 	require.NoError(t, err, "response must be valid JSON error envelope")
 	assert.Equal(t, want, resp.Error.Code, "unexpected error code")
+}
+
+// ---------------------------------------------------------------------------
+// C4 regression tests: spaHandler path stripping + mux prefix strip
+// ---------------------------------------------------------------------------
+
+// newSPATestHandler builds a Handler with a real spaHandler backed by a
+// small in-memory FS that mimics a Vite dist/ tree.
+func newSPATestHandler(t *testing.T) *Handler {
+	t.Helper()
+	// Build a minimal fake dist tree: index.html + assets/index-abc.js
+	fakeFS := newFakeDistFS()
+
+	opts := HandlerOptions{
+		Clock:         time.Now,
+		TTL:           30 * time.Minute,
+		Keyring:       onboarding.NewInMemoryKeyring(),
+		DevMode:       false,
+		StaticHandler: newFakeSPAHandler(fakeFS),
+		CompletionOptions: onboarding.CompletionOptions{
+			DryRun: true,
+		},
+	}
+	h := NewHandler(opts)
+	t.Cleanup(h.Close)
+	return h
+}
+
+// fakeDistFS is an in-memory fs.FS that contains index.html and one asset.
+// The root "." must behave as a directory so http.FileServer can serve it correctly.
+type fakeDistFS struct{}
+
+func newFakeDistFS() *fakeDistFS { return &fakeDistFS{} }
+
+func (f *fakeDistFS) Open(name string) (fs.File, error) {
+	switch name {
+	case ".":
+		// Root directory — must report IsDir=true for http.FileServer to work.
+		return &fakeDir{name: "."}, nil
+	case "index.html":
+		return &fakeFile{name: "index.html", content: []byte(`<!DOCTYPE html><html><body><h1>MINK</h1></body></html>`)}, nil
+	case "assets/index-abc.js":
+		return &fakeFile{name: "index-abc.js", content: []byte(`// fake JS bundle`)}, nil
+	}
+	return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrNotExist}
+}
+
+// fakeDir is a minimal directory fs.File.
+type fakeDir struct{ name string }
+
+func (d *fakeDir) Read(_ []byte) (int, error)           { return 0, io.EOF }
+func (d *fakeDir) Close() error                         { return nil }
+func (d *fakeDir) Stat() (fs.FileInfo, error)           { return &fakeDirInfo{name: d.name}, nil }
+func (d *fakeDir) ReadDir(_ int) ([]fs.DirEntry, error) { return nil, nil }
+
+type fakeDirInfo struct{ name string }
+
+func (di *fakeDirInfo) Name() string       { return di.name }
+func (di *fakeDirInfo) Size() int64        { return 0 }
+func (di *fakeDirInfo) Mode() fs.FileMode  { return fs.ModeDir | 0o555 }
+func (di *fakeDirInfo) ModTime() time.Time { return time.Time{} }
+func (di *fakeDirInfo) IsDir() bool        { return true }
+func (di *fakeDirInfo) Sys() any           { return nil }
+
+// fakeFile is a minimal fs.File implementation for regular files.
+type fakeFile struct {
+	name    string
+	content []byte
+	offset  int
+}
+
+func (f *fakeFile) Read(p []byte) (n int, err error) {
+	if f.offset >= len(f.content) {
+		return 0, io.EOF
+	}
+	n = copy(p, f.content[f.offset:])
+	f.offset += n
+	return n, nil
+}
+
+func (f *fakeFile) Close() error { return nil }
+
+func (f *fakeFile) Stat() (fs.FileInfo, error) {
+	return &fakeFileInfo{name: f.name, size: int64(len(f.content))}, nil
+}
+
+// fakeFileInfo satisfies fs.FileInfo.
+type fakeFileInfo struct {
+	name string
+	size int64
+}
+
+func (fi *fakeFileInfo) Name() string       { return fi.name }
+func (fi *fakeFileInfo) Size() int64        { return fi.size }
+func (fi *fakeFileInfo) Mode() fs.FileMode  { return 0o444 }
+func (fi *fakeFileInfo) ModTime() time.Time { return time.Time{} }
+func (fi *fakeFileInfo) IsDir() bool        { return false }
+func (fi *fakeFileInfo) Sys() any           { return nil }
+
+// newFakeSPAHandler returns a spaHandler backed by fakeDistFS, using the same
+// logic as StaticHandler() in production.
+func newFakeSPAHandler(fsys fs.FS) http.Handler {
+	fileServer := http.FileServer(http.FS(fsys))
+	return &spaHandler{fileServer: fileServer, fsys: fsys}
+}
+
+// TestStatic_AssetPathStrip verifies that GET /install/assets/index-abc.js is
+// served with 200 and returns JS content (not HTML fallback).
+//
+// Root cause guard: without StripPrefix + spaHandler leading-slash strip, the
+// path /assets/index-abc.js after prefix removal was passed as-is to fs.Stat
+// (with leading slash), which embed.FS always rejects, causing fallback to
+// index.html and returning HTML Content-Type instead of application/javascript.
+func TestStatic_AssetPathStrip(t *testing.T) {
+	t.Parallel()
+	h := newSPATestHandler(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/install/assets/index-abc.js", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code,
+		"asset request must return 200; body: %s", rec.Body.String()[:min(200, rec.Body.Len())])
+	ct := rec.Header().Get("Content-Type")
+	// Content-Type for .js files served by http.FileServer is application/javascript or text/javascript.
+	assert.False(t, strings.HasPrefix(ct, "text/html"),
+		"asset response Content-Type must NOT be text/html; got: %s", ct)
+	assert.Contains(t, rec.Body.String(), "fake JS bundle",
+		"response body must contain JS content")
+}
+
+// TestStatic_IndexFallback verifies that GET /install/some/unknown returns
+// index.html (SPA fallback) rather than a 404.
+func TestStatic_IndexFallback(t *testing.T) {
+	t.Parallel()
+	h := newSPATestHandler(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/install/some/unknown-route", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code,
+		"unknown SPA route must fall back to 200 index.html")
+	assert.Contains(t, rec.Body.String(), "MINK",
+		"SPA fallback body must contain index.html content")
+}
+
+// TestStatic_BuildRequired verifies that when the dist/ bundle is absent
+// (simulated via an empty StaticHandler producing 503) the mux returns 503.
+func TestStatic_BuildRequired(t *testing.T) {
+	t.Parallel()
+	// Use the buildRequiredHandler directly.
+	h503 := buildRequiredHandler()
+	req := httptest.NewRequest(http.MethodGet, "/install", nil)
+	rec := httptest.NewRecorder()
+	h503.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusServiceUnavailable, rec.Code,
+		"buildRequiredHandler must return 503")
+	assert.Contains(t, rec.Body.String(), "Build Required",
+		"503 body must contain build instructions")
+}
+
+// TestStatic_RootRedirectReturnsIndex verifies that GET /install (bare path)
+// returns index.html content.
+func TestStatic_RootRedirectReturnsIndex(t *testing.T) {
+	t.Parallel()
+	h := newSPATestHandler(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/install", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code,
+		"GET /install must return 200; body: %s", rec.Body.String())
+	assert.Contains(t, rec.Body.String(), "MINK",
+		"GET /install must return index.html content")
 }

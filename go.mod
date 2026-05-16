@@ -1,6 +1,6 @@
 module github.com/modu-ai/mink
 
-go 1.26
+go 1.26.3
 
 require (
 	github.com/bufbuild/buf v1.68.4

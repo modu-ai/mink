@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
+	"strings"
 )
 
 //go:embed all:dist
@@ -62,13 +63,27 @@ type spaHandler struct {
 }
 
 // ServeHTTP serves static assets directly and falls back to index.html for SPA routes.
+//
+// Root-relative path stripping: http.FileServer (backed by embed.FS via fs.Sub) expects
+// paths without a leading slash (e.g. "assets/index-abc.js", not "/assets/index-abc.js").
+// We trim the leading slash before calling fs.Stat so the existence check is accurate.
+// An empty path (bare "/") maps to "index.html".
+//
+// @MX:WARN: [AUTO] Leading-slash stripping is required for embed.FS compatibility.
+// @MX:REASON: fs.Stat on an embed.FS sub-tree fails silently when given an absolute path,
+// causing all assets to fall back to index.html and returning HTML instead of JS/CSS.
 func (s *spaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Try the file first.
-	if _, err := fs.Stat(s.fsys, r.URL.Path); err == nil {
+	// Strip leading slash for embed.FS fs.Stat compatibility.
+	p := strings.TrimPrefix(r.URL.Path, "/")
+	if p == "" {
+		p = "index.html"
+	}
+	if _, err := fs.Stat(s.fsys, p); err == nil {
+		// File exists: serve it directly via the file server.
 		s.fileServer.ServeHTTP(w, r)
 		return
 	}
-	// Fall back to index.html for SPA routing.
+	// File not found: SPA fallback — return index.html and let React Router handle routing.
 	r2 := r.Clone(r.Context())
 	r2.URL.Path = "/"
 	s.fileServer.ServeHTTP(w, r2)
