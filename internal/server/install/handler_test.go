@@ -734,11 +734,3 @@ func TestStatic_RootRedirectReturnsIndex(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), "MINK",
 		"GET /install must return index.html content")
 }
-
-// min returns the smaller of a and b (for slice bound in test output truncation).
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}

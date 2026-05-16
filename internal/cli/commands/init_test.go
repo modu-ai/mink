@@ -31,7 +31,6 @@ func TestInitCommand_FlagRegistration(t *testing.T) {
 		{"persona-name", "TestUser"},
 	}
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.flag, func(t *testing.T) {
 			f := cmd.Flags().Lookup(tc.flag)
 			require.NotNil(t, f, "--%s flag not registered", tc.flag)
