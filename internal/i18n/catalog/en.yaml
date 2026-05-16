@@ -1,0 +1,23 @@
+# MINK English catalog — Tier 1 (native review).
+# Key naming convention: snake_case, dot-namespaced by context.
+# ICU MessageFormat is used for plurals: {Count, plural, one {…} other {…}}
+# SPEC: SPEC-MINK-I18N-001
+
+install.welcome: "Welcome to MINK"
+install.greeting: "Hello, {{.Name}}!"
+install.step_count:
+  description: "Number of onboarding steps remaining"
+  one: "1 step remaining"
+  other: "{{.Count}} steps remaining"
+install.cancelled: "Cancelled."
+install.completed: "Onboarding complete. Run mink to start."
+install.downloading:
+  description: "Number of model layers being pulled"
+  one: "Downloading 1 layer"
+  other: "Downloading {{.Count}} layers"
+
+error.required: "{{.Field}} is required"
+error.invalid_email: "Invalid email format"
+
+step.persona.name_too_long: "Name exceeds {{.Max}} characters (got {{.Got}})"
+step.consent.gdpr_required: "GDPR explicit consent is required in your region"

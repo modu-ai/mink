@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	cliinstall "github.com/modu-ai/mink/internal/cli/install"
+	"github.com/modu-ai/mink/internal/i18n"
 	webinstall "github.com/modu-ai/mink/internal/server/install"
 	"github.com/spf13/cobra"
 )
@@ -68,20 +69,21 @@ starts a local HTTP server and opens the install wizard in your default browser.
 				return errors.New("non-TTY environment")
 			}
 
+			tr := i18n.DefaultFor(cmd.Context())
 			err := cliinstall.RunWizard(cmd.Context(), cliinstall.WizardOptions{
 				DryRun: dryRun,
 				Resume: resume,
 			})
 			if err != nil {
 				if errors.Is(err, cliinstall.ErrWizardCancelled) {
-					fmt.Fprintln(cmd.ErrOrStderr(), "Cancelled.")
+					fmt.Fprintln(cmd.ErrOrStderr(), tr.Translate("install.cancelled", nil))
 					// Return special sentinel so the cobra layer can set exit code 130.
 					return err
 				}
 				return err
 			}
 
-			fmt.Fprintln(cmd.OutOrStdout(), "Onboarding complete. Run mink to start.")
+			fmt.Fprintln(cmd.OutOrStdout(), tr.Translate("install.completed", nil))
 			return nil
 		},
 	}

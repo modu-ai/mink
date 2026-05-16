@@ -1,0 +1,20 @@
+# MINK Korean catalog — Tier 1 (native review).
+# Korean has no plural distinction per CLDR: only "other" form is used.
+# SPEC: SPEC-MINK-I18N-001
+
+install.welcome: "MINK에 오신 것을 환영합니다"
+install.greeting: "안녕하세요, {{.Name}}님!"
+install.step_count:
+  description: "남은 온보딩 단계 수"
+  other: "{{.Count}}단계 남음"
+install.cancelled: "취소되었습니다."
+install.completed: "온보딩 완료. mink를 실행하여 시작하세요."
+install.downloading:
+  description: "다운로드 중인 모델 레이어 수"
+  other: "{{.Count}}개 레이어 다운로드 중"
+
+error.required: "{{.Field}}은(는) 필수입니다"
+error.invalid_email: "이메일 형식이 올바르지 않습니다"
+
+step.persona.name_too_long: "이름이 {{.Max}}자를 초과합니다 (현재 {{.Got}}자)"
+step.consent.gdpr_required: "귀하의 지역에서는 GDPR 명시적 동의가 필요합니다"
