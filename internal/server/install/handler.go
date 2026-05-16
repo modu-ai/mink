@@ -13,6 +13,7 @@
 package install
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/hex"
@@ -236,6 +237,10 @@ type HandlerOptions struct {
 
 	// StaticHandler serves the embedded React bundle. Defaults to StaticHandler().
 	StaticHandler http.Handler
+
+	// PullFn overrides the default onboarding.PullModel for test injection.
+	// When nil, onboarding.PullModel is used.
+	PullFn func(ctx context.Context, modelName string, progress chan<- onboarding.ProgressUpdate) error
 }
 
 // Handler is the HTTP handler for the MINK install wizard Web UI.
@@ -258,6 +263,7 @@ type Handler struct {
 	devMode  bool
 	static   http.Handler
 	mux      *http.ServeMux
+	pullFn   func(ctx context.Context, modelName string, progress chan<- onboarding.ProgressUpdate) error
 }
 
 // NewHandler constructs a Handler, applies defaults, and registers all routes on mux.
@@ -277,12 +283,19 @@ func NewHandler(opts HandlerOptions) *Handler {
 	// DevMode defaults to environment variable if not explicitly set.
 	devMode := opts.DevMode || os.Getenv("MINK_DEV") == "1"
 
+	// Default PullFn to the real onboarding.PullModel when not injected.
+	pullFn := opts.PullFn
+	if pullFn == nil {
+		pullFn = onboarding.PullModel
+	}
+
 	h := &Handler{
 		store:    NewSessionStore(opts.Clock, opts.TTL),
 		keyring:  opts.Keyring,
 		complete: opts.CompletionOptions,
 		devMode:  devMode,
 		static:   opts.StaticHandler,
+		pullFn:   pullFn,
 	}
 
 	mux := http.NewServeMux()
@@ -294,6 +307,7 @@ func NewHandler(opts HandlerOptions) *Handler {
 	mux.HandleFunc("POST /install/api/session/{id}/step/{n}/skip", h.skipStep)
 	mux.HandleFunc("POST /install/api/session/{id}/back", h.back)
 	mux.HandleFunc("POST /install/api/session/{id}/complete", h.complete_)
+	mux.HandleFunc("GET /install/api/session/{id}/pull/stream", h.pullStream)
 	h.mux = mux
 
 	return h
@@ -533,11 +547,9 @@ func (h *Handler) complete_(w http.ResponseWriter, r *http.Request) {
 // Returns true when all checks pass, false when a 403 has already been written.
 func (h *Handler) checkCSRF(w http.ResponseWriter, r *http.Request) bool {
 	// Origin check (defence-in-depth against CORS preflights from off-host pages).
-	if origin := r.Header.Get("Origin"); origin != "" {
-		if !h.originAllowed(origin) {
-			writeError(w, http.StatusForbidden, "csrf_failed", "origin not allowed")
-			return false
-		}
+	if err := h.verifyOrigin(r); err != nil {
+		writeError(w, http.StatusForbidden, "csrf_failed", err.Error())
+		return false
 	}
 
 	headerToken := r.Header.Get("X-MINK-CSRF")
@@ -559,6 +571,32 @@ func (h *Handler) checkCSRF(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	return true
+}
+
+// verifyOrigin checks the Origin header against the allowed list.
+// Returns nil when the origin is allowed (including empty/same-origin requests).
+func (h *Handler) verifyOrigin(r *http.Request) error {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return nil
+	}
+	if !h.originAllowed(origin) {
+		return fmt.Errorf("origin not allowed")
+	}
+	return nil
+}
+
+// verifyCsrfCookie checks that the mink_csrf cookie is present and matches expected.
+// Returns nil on success. Used by SSE endpoint (cookie-only, no X-MINK-CSRF header).
+func (h *Handler) verifyCsrfCookie(r *http.Request, expected string) error {
+	cookie, err := r.Cookie("mink_csrf")
+	if err != nil || cookie.Value == "" {
+		return fmt.Errorf("missing or empty mink_csrf cookie")
+	}
+	if subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(expected)) != 1 {
+		return fmt.Errorf("CSRF token mismatch")
+	}
+	return nil
 }
 
 // originAllowed returns true when the Origin header value is on the allowlist.
