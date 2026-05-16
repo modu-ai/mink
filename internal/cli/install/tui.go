@@ -338,7 +338,7 @@ func runStep1Locale(ctx context.Context, flow *onboarding.OnboardingFlow) error 
 				Options(options...).
 				Value(&selectedIndex),
 		),
-	)
+	).WithTheme(MINKTheme())
 
 	if err := runForm(ctx, form); err != nil {
 		return err
@@ -403,7 +403,7 @@ func runStep2Model(
 					Negative("No, choose different").
 					Value(&useDetected),
 			),
-		)
+		).WithTheme(MINKTheme())
 		if err := runForm(ctx, form); err != nil {
 			return err
 		}
@@ -436,13 +436,13 @@ func runStep2Model(
 					Negative("Skip for now").
 					Value(&download),
 			),
-		)
+		).WithTheme(MINKTheme())
 		if err := runForm(ctx, form); err != nil {
 			return err
 		}
 
 		if download {
-			if pullErr := pullModelWithSpinner(ctx, recommendedName); pullErr != nil {
+			if pullErr := RunPullWithProgress(ctx, recommendedName); pullErr != nil {
 				return pullErr
 			}
 			setup.SelectedModel = recommendedName
@@ -474,7 +474,7 @@ func runStep2Model(
 					Negative("No, I'll install it first").
 					Value(&continueWithout),
 			),
-		)
+		).WithTheme(MINKTheme())
 		if err := runForm(ctx, form); err != nil {
 			return err
 		}
@@ -530,7 +530,7 @@ func runStep3CLITools(ctx context.Context, flow *onboarding.OnboardingFlow, dete
 				Options(options...).
 				Value(&selectedNames),
 		),
-	)
+	).WithTheme(MINKTheme())
 	if err := runForm(ctx, form); err != nil {
 		return err
 	}
@@ -630,7 +630,7 @@ func runStep4Persona(ctx context.Context, flow *onboarding.OnboardingFlow) error
 				Value(&soul).
 				Lines(12),
 		),
-	)
+	).WithTheme(MINKTheme())
 
 	if err := runForm(ctx, form); err != nil {
 		return err
@@ -699,7 +699,7 @@ func runStep5Provider(ctx context.Context, flow *onboarding.OnboardingFlow) erro
 				).
 				Value(&providerStr),
 		),
-	)
+	).WithTheme(MINKTheme())
 	if err := runForm(ctx, providerForm); err != nil {
 		return err
 	}
@@ -720,7 +720,7 @@ func runStep5Provider(ctx context.Context, flow *onboarding.OnboardingFlow) erro
 					).
 					Value(&authStr),
 			),
-		)
+		).WithTheme(MINKTheme())
 		if err := runForm(ctx, authForm); err != nil {
 			return err
 		}
@@ -737,7 +737,7 @@ func runStep5Provider(ctx context.Context, flow *onboarding.OnboardingFlow) erro
 							return onboarding.ValidateProviderAPIKey(providerStr, s)
 						}),
 				),
-			)
+			).WithTheme(MINKTheme())
 			if err := runForm(ctx, apiKeyForm); err != nil {
 				return err
 			}
@@ -757,7 +757,7 @@ func runStep5Provider(ctx context.Context, flow *onboarding.OnboardingFlow) erro
 					Placeholder("e.g., gpt-4o").
 					Value(&prefModel),
 			),
-		)
+		).WithTheme(MINKTheme())
 		if err := runForm(ctx, customForm); err != nil {
 			return err
 		}
@@ -809,7 +809,7 @@ func runStep6Messenger(ctx context.Context, flow *onboarding.OnboardingFlow) err
 				).
 				Value(&messengerStr),
 		),
-	)
+	).WithTheme(MINKTheme())
 	if err := runForm(ctx, form); err != nil {
 		return err
 	}
@@ -891,7 +891,7 @@ func runStep7Consent(ctx context.Context, flow *onboarding.OnboardingFlow) error
 					Negative("I do not accept").
 					Value(&gdprAccepted),
 			),
-		)
+		).WithTheme(MINKTheme())
 		if err := runForm(ctx, gdprForm); err != nil {
 			return err
 		}
@@ -923,7 +923,7 @@ func runStep7Consent(ctx context.Context, flow *onboarding.OnboardingFlow) error
 				Negative("No (default)").
 				Value(&loraTraining),
 		),
-	)
+	).WithTheme(MINKTheme())
 	if err := runForm(ctx, form); err != nil {
 		return err
 	}
@@ -984,7 +984,7 @@ func runNavChoice(ctx context.Context, title string, showSkip, showBack bool) (s
 				Options(options...).
 				Value(&action),
 		),
-	)
+	).WithTheme(MINKTheme())
 
 	if err := runForm(ctx, form); err != nil {
 		return stepActionSubmit, err
@@ -1007,7 +1007,7 @@ func pickModel(ctx context.Context, recommended string) (string, error) {
 				).
 				Value(&selected),
 		),
-	)
+	).WithTheme(MINKTheme())
 	if err := runForm(ctx, form); err != nil {
 		return "", err
 	}
@@ -1021,7 +1021,7 @@ func pickModel(ctx context.Context, recommended string) (string, error) {
 					Placeholder("model:tag").
 					Value(&customName),
 			),
-		)
+		).WithTheme(MINKTheme())
 		if err := runForm(ctx, customForm); err != nil {
 			return "", err
 		}
@@ -1031,33 +1031,6 @@ func pickModel(ctx context.Context, recommended string) (string, error) {
 	return selected, nil
 }
 
-// pullModelWithSpinner calls PullModel synchronously, draining progress into a spinner-like output.
-// PullModel requires a non-nil channel; we allocate a buffered channel and drain it in a goroutine.
-//
-// @MX:WARN: [AUTO] Goroutine launched to drain PullModel's progress channel.
-// @MX:REASON: PullModel panics on nil channel and blocks until the channel is consumed;
-// the drain goroutine must outlive the PullModel call to avoid deadlock.
-func pullModelWithSpinner(ctx context.Context, modelName string) error {
-	fmt.Printf("Downloading %s... (this may take a while)\n", modelName)
-
-	progress := make(chan onboarding.ProgressUpdate, 32)
-
-	// Drain the progress channel and print dots to indicate activity.
-	drainDone := make(chan struct{})
-	go func() {
-		defer close(drainDone)
-		for range progress {
-			// Phase 2A: consume silently; Phase 2C will wire a progress bar.
-		}
-	}()
-
-	err := onboarding.PullModel(ctx, modelName, progress)
-	<-drainDone // wait for drain goroutine before returning
-
-	if err != nil {
-		return fmt.Errorf("model download failed: %w", err)
-	}
-
-	fmt.Println("Download complete.")
-	return nil
-}
+// pullModelWithSpinner was the Phase 2A silent drain implementation.
+// Replaced in Phase 2C by RunPullWithProgress (progress.go), which shows a
+// live bubbletea spinner + progress bar to the user.
