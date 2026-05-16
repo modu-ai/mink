@@ -4,6 +4,63 @@
 
 ---
 
+## 2026-05-16 — Phase 2 구현 완료 (expert-frontend + expert-backend)
+
+### 변경 요약
+
+- frontmatter: `version 0.3.0 → 0.4.0`, `status in-progress → implemented`
+- HISTORY: v0.4.0 entry 추가 (Phase 2 구현 종결, 3 PR 머지 기록)
+- status.txt: `in-progress → implemented`
+
+### 머지된 PR
+
+| PR | 제목 | 핵심 변경 |
+|----|------|----------|
+| #223 | LOCALE-001 Phase 2 backend — IP geolocation + Accuracy field + /locale/probe endpoint | `internal/server/install/handler.go` `localeProbe` 핸들러 + `internal/locale/iplookup.go` ipapi.co 어댑터 + `LocaleContext.Accuracy` 필드 |
+| #225 | LOCALE-001 Phase 2 CLI auto-detect + --no-auto-detect (Item 2) | `internal/locale/detect.go` `DetectOptions` + `DetectWithOptions` entry point + `CLINoticeText` 상수 (AC-LC-022 regex strict) |
+| #224 | LOCALE-001 Phase 2 frontend + reverse geocoding (Items 1+4) | `web/install/src/components/steps/Step1Locale.tsx` 자동 감지 흐름 + `useGeolocation` hook + `InstallApi.probeLocale` + `internal/locale/reverse.go` Nominatim 어댑터 |
+
+### AC 매핑 (Phase 2, 6/6 GREEN)
+
+| AC | 상태 | 검증 |
+|----|------|------|
+| AC-LC-020 (Web GPS → high) | ✅ | Step1Locale useEffect → probeLocale {lat,lng} → reverseGeocode → accuracy="high" |
+| AC-LC-021 (denied/timeout → IP medium) | ✅ | useGeolocation 5종 상태 → probeLocale {} → accuracy="medium" |
+| AC-LC-022 (CLI default auto-detect + --no-auto-detect 비활성화) | ✅ | TestCLINoticeText_ExactMatch + TestNoAutoDetectFlag_WithYes_NoNoticeOnStderr |
+| AC-LC-023 (accuracy 필드 LLM prompt 노출) | ✅ | BuildSystemPromptAddendum (#223) |
+| AC-LC-024 (모두 실패 → manual + KR default) | ✅ | accuracy="manual" → detect-failed-notice + KR preset |
+| AC-LC-025 (프라이버시 고지) | ✅ | data-testid="privacy-notice" + CLINoticeText stderr |
+
+### 검증
+
+- `go vet ./...` clean
+- `go test -race -count=1 ./internal/cli/... ./internal/locale/... ./internal/server/install/... ./internal/onboarding/...` PASS
+- `cd web/install && npm test -- --run` 6/6 PASS (570ms)
+- Playwright Web speedrun PASS (#226 ONBOARDING hotfix 와 결합 후)
+- gofmt -l clean
+
+### 새 모듈 도입 0 (amendment-v0.2 약속 준수)
+
+- npm: 0 새 dependency
+- Go: 0 새 module
+
+### Phase 1 보존 (회귀 0)
+
+- REQ-LC-001 ~ REQ-LC-016 변경 없음
+- AC-LC-001 ~ AC-LC-018 변경 없음
+- 기존 export 시그니처 모두 보존 (TestDetect_BackwardCompat 명시 검증)
+
+### Known Limitations (amendment-v0.3 후보)
+
+1. Web reverse geocoding 정확도 (성/시 단위) 검증
+2. 다국적 secondary language 자동 감지
+3. China GFW 실 device 검증
+4. iplookup.go RFC 1918 / loopback CIDR 리스트 감사
+5. Nominatim 글로벌 rate limit (≤ 1 req/sec) 도입
+6. countryToLanguage static map 동적화 (현재 34국)
+
+---
+
 ## 2026-05-16 — amendment-v0.2 작성 (manager-spec)
 
 ### 변경 요약
