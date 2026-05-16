@@ -1,7 +1,8 @@
 ## SPEC-MINK-CROSSPLAT-001 Progress
 
-- **Status**: 🟢 COMPLETE (100%) — M1 + M2 + M4 + M5 + M6 (sh) + M7 + amendment-v0.2 §5.1 가드 완료, M1.A + M3 = SUPERSEDED by amendment-v0.2
-- **Last update**: 2026-05-15
+- **Status**: 🟢 completed — M1 + M2 + M4 + M5 + M6 (sh) + M7 + amendment-v0.2 §5.1 가드 완료, M1.A + M3 = SUPERSEDED by amendment-v0.2
+- **Sync trail (2026-05-17)**: spec.md frontmatter status `draft` → `completed`, updated_at 2026-05-17. progress.md 는 이미 100% 종결 표기 — 본 sync 는 메타데이터 정합성 복구만 수행 (PR #189 M1, #194 M2, #195 M4+M5, #196 amendment-v0.2, #197 M7, #198 §5.1 가드 모두 main 반영 완료).
+- **Last update**: 2026-05-17
 - **Milestones completed**: M1 (PR #189), M2 (PR #194), M4+M5 (PR #195), M6 install.sh (M2 PR 에 포함)
 - **Amendment applied**: amendment-v0.2 (curl-single + WSL-only, 2026-05-15)
 

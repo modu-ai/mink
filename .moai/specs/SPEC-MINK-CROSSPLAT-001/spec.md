@@ -1,10 +1,10 @@
 ---
 id: SPEC-MINK-CROSSPLAT-001
 version: 0.2.0
-status: draft
+status: completed
 supersedes: SPEC-GOOSE-CROSSPLAT-001
 created_at: 2026-05-14
-updated_at: 2026-05-14
+updated_at: 2026-05-17
 author: manager-spec
 priority: P0
 issue_number: null
