@@ -5,20 +5,15 @@ import { useEffect } from "react";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { StepProgress } from "@/components/StepProgress";
 import { Step1Locale } from "@/components/steps/Step1Locale";
-import { StepPlaceholder } from "@/components/steps/StepPlaceholder";
+import { Step2Model } from "@/components/steps/Step2Model";
+import { Step3CLI } from "@/components/steps/Step3CLI";
+import { Step4Persona } from "@/components/steps/Step4Persona";
+import { Step5Provider } from "@/components/steps/Step5Provider";
+import { Step6Messenger } from "@/components/steps/Step6Messenger";
+import { Step7Consent } from "@/components/steps/Step7Consent";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import type { LocaleChoice } from "@/types/onboarding";
-
-// Step metadata for placeholders 2-7.
-const STEP_META: Record<number, { title: string; canSkip: boolean }> = {
-  2: { title: "Model Setup / 모델 설정", canSkip: true },
-  3: { title: "CLI Tools / CLI 도구", canSkip: true },
-  4: { title: "Persona / 페르소나", canSkip: true },
-  5: { title: "LLM Provider / LLM 공급자", canSkip: true },
-  6: { title: "Messenger Channel / 메신저 채널", canSkip: true },
-  7: { title: "Privacy & Consent / 개인정보 동의", canSkip: false },
-};
+import type { LocaleChoice, OnboardingData } from "@/types/onboarding";
 
 // @MX:ANCHOR: [AUTO] Root routing component — all step navigation flows through here; fan_in >= 7.
 // @MX:REASON: session_id, state.current_step, and hook callbacks are the central control plane.
@@ -100,11 +95,13 @@ export default function App() {
         ) : (
           <StepRouter
             currentStep={current_step}
+            data={state.data}
             loading={loading}
             error={error}
             onSubmitLocale={async (locale) => submitStep(1, locale)}
-            onSkip={async (n) => skipStep(n)}
-            onBack={async () => back()}
+            onSubmitStep={submitStep}
+            onSkip={skipStep}
+            onBack={back}
           />
         )}
       </main>
@@ -115,52 +112,65 @@ export default function App() {
 // StepRouter picks the right step component based on current_step.
 interface StepRouterProps {
   currentStep: number;
+  data: OnboardingData;
   loading: boolean;
   error: string | null;
   onSubmitLocale: (locale: LocaleChoice) => Promise<void>;
+  onSubmitStep: <T>(stepNumber: number, body: T) => Promise<void>;
   onSkip: (stepNumber: number) => Promise<void>;
   onBack: () => Promise<void>;
 }
 
 function StepRouter({
   currentStep,
+  data,
   loading,
   error,
   onSubmitLocale,
+  onSubmitStep,
   onSkip,
   onBack,
 }: StepRouterProps) {
-  if (currentStep === 1) {
-    return (
-      <Step1Locale
-        loading={loading}
-        error={error}
-        onSubmit={onSubmitLocale}
-      />
-    );
-  }
+  // Shared props for step components 2-7.
+  const sharedProps = {
+    data,
+    loading,
+    submitStep: onSubmitStep,
+    skipStep: onSkip,
+    back: onBack,
+    canBack: currentStep > 1,
+  };
 
-  const meta = STEP_META[currentStep];
-  if (meta != null) {
-    return (
-      <StepPlaceholder
-        stepNumber={currentStep}
-        title={meta.title}
-        loading={loading}
-        error={error}
-        canSkip={meta.canSkip}
-        onSkip={meta.canSkip ? async () => onSkip(currentStep) : undefined}
-        onBack={onBack}
-      />
-    );
+  switch (currentStep) {
+    case 1:
+      return (
+        <Step1Locale
+          loading={loading}
+          error={error}
+          onSubmit={onSubmitLocale}
+        />
+      );
+    case 2:
+      return <Step2Model {...sharedProps} canSkip={true} />;
+    case 3:
+      return <Step3CLI {...sharedProps} canSkip={true} />;
+    case 4:
+      // Persona is required — canSkip=false; backend will reject empty name.
+      return <Step4Persona {...sharedProps} canSkip={false} />;
+    case 5:
+      return <Step5Provider {...sharedProps} canSkip={true} />;
+    case 6:
+      return <Step6Messenger {...sharedProps} canSkip={true} />;
+    case 7:
+      // canSkip is conditionally false for GDPR regions (Step7Consent handles internally).
+      return <Step7Consent {...sharedProps} canSkip={true} />;
+    default:
+      return (
+        <div className="text-sm text-muted-foreground text-center py-8">
+          알 수 없는 단계 / Unknown step: {currentStep}
+        </div>
+      );
   }
-
-  // Fallback for unknown step numbers.
-  return (
-    <div className="text-sm text-muted-foreground text-center py-8">
-      알 수 없는 단계 / Unknown step: {currentStep}
-    </div>
-  );
 }
 
 // CompletionScreen — shown when all 7 steps are done.

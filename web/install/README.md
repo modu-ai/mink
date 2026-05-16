@@ -119,6 +119,27 @@ web/install/
 
 ---
 
+## Phase 3B — Step 2~7 완성
+
+Phase 3B에서 StepPlaceholder 스텁을 6개의 완전 구현 컴포넌트로 교체했습니다:
+
+- **Step2Model** — Ollama 감지 상태 표시 + 모델 선택 Input
+- **Step3CLI** — claude/gemini/codex 도구 감지 및 Checkbox 선택
+- **Step4Persona** — 이름/경어 수준(RadioGroup)/대명사/소울 마크다운 (이름 필수 검증 포함)
+- **Step5Provider** — 공급자 Select + 인증 방법 RadioGroup + API 키 password Input (show/hide)
+- **Step6Messenger** — 채널 유형 Select + 조건부 토큰/Webhook URL Input
+- **Step7Consent** — 4개 Checkbox + GDPR 지역 명시적 동의 RadioGroup (GDPR Skip 차단)
+
+추가된 shadcn/ui 프리미티브: `input.tsx`, `label.tsx`, `checkbox.tsx`, `radio-group.tsx`, `select.tsx`, `textarea.tsx`
+
+MINK 브랜드 테마 (`index.css`):
+- Primary: `#6B5BFF` (hsl 247 100% 68%)
+- Accent: `#FFB347` (hsl 31 100% 64%)
+- Destructive: `#FF5C7C` (hsl 348 100% 68%)
+- Success: `#4ADE80` (hsl 142 71% 58%)
+
+---
+
 ## 문제 해결
 
 **`npm run dev` 후 API 502**:
