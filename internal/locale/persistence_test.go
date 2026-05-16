@@ -151,6 +151,51 @@ locale:
 	assert.True(t, *cfg.GeolocationEnabled)
 }
 
+// TestLoad_LegacyData_EmptyAccuracy verifies that legacy data (without the accuracy
+// field) unmarshals without panic and leaves Accuracy as the zero value ("").
+// This ensures backward compatibility for pre-amendment-v0.2 installations.
+func TestLoad_LegacyData_EmptyAccuracy(t *testing.T) {
+	// Legacy YAML has no accuracy field at all.
+	yamlData := `
+locale:
+  override:
+    country: KR
+    primary_language: ko-KR
+    timezone: Asia/Seoul
+    currency: KRW
+    measurement_system: metric
+    calendar_system: gregorian
+    detected_method: user_override
+`
+	lc, err := Load(strings.NewReader(yamlData))
+	require.NoError(t, err)
+	assert.Equal(t, "KR", lc.Country)
+	// Legacy data must decode without panic and Accuracy must be the zero value.
+	assert.Equal(t, Accuracy(""), lc.Accuracy, "legacy data must have empty Accuracy, not panic")
+}
+
+// TestSave_RoundTrip_WithAccuracy verifies that Accuracy survives a Save→Load round-trip.
+func TestSave_RoundTrip_WithAccuracy(t *testing.T) {
+	original := LocaleContext{
+		Country:           "KR",
+		PrimaryLanguage:   "ko-KR",
+		Timezone:          "Asia/Seoul",
+		Currency:          "KRW",
+		MeasurementSystem: "metric",
+		CalendarSystem:    "gregorian",
+		DetectedMethod:    SourceOS,
+		Accuracy:          AccuracyMedium,
+	}
+
+	var buf bytes.Buffer
+	err := Save(&buf, original)
+	require.NoError(t, err)
+
+	loaded, err := Load(&buf)
+	require.NoError(t, err)
+	assert.Equal(t, AccuracyMedium, loaded.Accuracy, "Accuracy must survive Save→Load round-trip")
+}
+
 // TestLoad_WithTimezoneAlternatives verifies round-trip of timezone_alternatives.
 func TestLoad_WithTimezoneAlternatives(t *testing.T) {
 	lc := LocaleContext{

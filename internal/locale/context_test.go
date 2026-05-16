@@ -47,6 +47,7 @@ func TestLocaleConflict(t *testing.T) {
 		Country:  "KR",
 		Conflict: conflict,
 	}
+	assert.Equal(t, "KR", lc.Country)
 	assert.Equal(t, "KR", lc.Conflict.OSCountry)
 	assert.Equal(t, "US", lc.Conflict.IPCountry)
 }
@@ -73,6 +74,9 @@ func TestCulturalContextFields(t *testing.T) {
 	}
 	assert.Equal(t, FormalityFormal, cc.FormalityDefault)
 	assert.Equal(t, "korean_jondaetmal", cc.HonorificSystem)
+	assert.Equal(t, "family_first", cc.NameOrder)
+	assert.Equal(t, "east_asian", cc.AddressFormat)
 	assert.Equal(t, []string{"Sat", "Sun"}, cc.WeekendDays)
+	assert.Equal(t, "Monday", cc.FirstDayOfWeek)
 	assert.Equal(t, []string{"pipa"}, cc.LegalFlags)
 }
