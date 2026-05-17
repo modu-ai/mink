@@ -6,6 +6,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,17 +14,23 @@ import (
 	"text/tabwriter"
 
 	"github.com/mitchellh/go-homedir"
+	"github.com/modu-ai/mink/internal/memory/ollama"
 	"github.com/modu-ai/mink/internal/memory/qmd"
 	"github.com/modu-ai/mink/internal/memory/retrieval"
 	"github.com/modu-ai/mink/internal/memory/sqlite"
 	"github.com/spf13/cobra"
 )
 
+// defaultOllamaModel is the embedding model used for vsearch when --model is
+// not specified.
+const defaultOllamaModel = "mxbai-embed-large"
+
 // searchFlags holds the parsed flags for `mink memory search`.
 type searchFlags struct {
 	collection string
 	limit      int
 	mode       string
+	model      string
 	jsonOut    bool
 }
 
@@ -49,27 +56,28 @@ const hardCapLimit = 100
 //
 // Usage: mink memory search QUERY [--collection NAME] [--limit N] [--mode MODE] [--json]
 //
-// Mode "search" (BM25) is the only mode implemented in M2.
-// Modes "vsearch" and "query" return ErrModeNotImplementedM2 (M3/M4).
+// Mode "search" (BM25) and "vsearch" (vector, M3) are implemented.
+// Mode "query" returns ErrModeNotImplementedM2 (M4).
 //
 // Exit codes:
 //
-//	0 — success (including zero matches)
+//	0 — success (including zero matches, and BM25 fallback from vsearch)
 //	1 — user error (bad flag, bad mode)
 //	2 — infrastructure error (SQLite unavailable, FTS5 missing)
 //
-// SPEC: SPEC-MINK-MEMORY-QMD-001 T2.3
-// REQ:  REQ-MEM-015, REQ-MEM-016, REQ-MEM-017, REQ-MEM-018, REQ-MEM-030
+// SPEC: SPEC-MINK-MEMORY-QMD-001 T2.3, T3.6
+// REQ:  REQ-MEM-015, REQ-MEM-016, REQ-MEM-017, REQ-MEM-018, REQ-MEM-019, REQ-MEM-030
 func NewSearchCommand() *cobra.Command {
 	var f searchFlags
 
 	cmd := &cobra.Command{
 		Use:   "search QUERY",
-		Short: "Search the memory vault using BM25 full-text search",
+		Short: "Search the memory vault using BM25 or vector search",
 		Args:  cobra.ExactArgs(1),
 		Example: `  mink memory search "golang concurrency"
   mink memory search "오늘 날씨" --collection journal
-  mink memory search "machine learning" --limit 5 --json`,
+  mink memory search "machine learning" --limit 5 --json
+  mink memory search "embeddings" --mode vsearch`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runSearch(cmd, args[0], f)
 		},
@@ -80,7 +88,9 @@ func NewSearchCommand() *cobra.Command {
 	cmd.Flags().IntVar(&f.limit, "limit", 10,
 		"Maximum number of results (1–100)")
 	cmd.Flags().StringVar(&f.mode, "mode", "search",
-		"Retrieval mode: search (BM25, default), vsearch (M3), query (M4)")
+		"Retrieval mode: search (BM25, default), vsearch (vector, M3), query (M4)")
+	cmd.Flags().StringVar(&f.model, "model", defaultOllamaModel,
+		"Ollama embedding model for --mode vsearch")
 	cmd.Flags().BoolVar(&f.jsonOut, "json", false,
 		"Emit results as a JSON array")
 
@@ -89,9 +99,9 @@ func NewSearchCommand() *cobra.Command {
 
 // runSearch implements the `mink memory search` workflow.
 //
-// @MX:ANCHOR: [AUTO] CLI entry point wiring BM25Runner to the search subcommand.
-// @MX:REASON: fan_in >= 3 (cobra RunE, integration tests, future gRPC bridge). Invariant:
-// must propagate exit codes 0/1/2 correctly.
+// @MX:ANCHOR: [AUTO] CLI entry point wiring BM25Runner and VectorRunner to search.
+// @MX:REASON: fan_in >= 3 (cobra RunE, integration tests, future gRPC bridge).
+// Invariant: must propagate exit codes 0/1/2 correctly.
 func runSearch(cmd *cobra.Command, query string, f searchFlags) error {
 	// --- Validate flags ---
 	if f.limit < 1 {
@@ -104,9 +114,9 @@ func runSearch(cmd *cobra.Command, query string, f searchFlags) error {
 
 	// --- Validate mode (early-out before touching SQLite) ---
 	switch f.mode {
-	case "search":
-		// OK — BM25 wired in M2.
-	case "vsearch", "query":
+	case "search", "vsearch":
+		// OK — both wired in M3.
+	case "query":
 		return retrieval.ErrModeNotImplementedM2
 	default:
 		return fmt.Errorf("unknown --mode %q; must be search, vsearch, or query", f.mode)
@@ -131,18 +141,27 @@ func runSearch(cmd *cobra.Command, query string, f searchFlags) error {
 	}
 	defer func() { _ = store.Close() }()
 
-	// --- Build retrieval pipeline ---
-	sqliteReader := sqlite.NewReader(store)
-	readerAdapter := sqlite.NewBM25ReaderAdapter(sqliteReader)
-	lookupAdapter := sqlite.NewChunkLookupStore(store)
-	runner := retrieval.NewBM25Runner(readerAdapter, lookupAdapter)
-
-	ctx := cmd.Context()
+	// --- Dispatch based on mode ---
 	opts := qmd.SearchOpts{
 		Collection: f.collection,
 		Limit:      f.limit,
 		Mode:       f.mode,
 	}
+
+	if f.mode == "vsearch" {
+		return runVsearch(cmd, store, query, opts, f.model)
+	}
+
+	return runBM25Search(cmd, store, query, opts)
+}
+
+// runBM25Search executes a BM25 search and writes results to cmd's output.
+func runBM25Search(cmd *cobra.Command, store *sqlite.Store, query string, opts qmd.SearchOpts) error {
+	ctx := cmd.Context()
+	sqliteReader := sqlite.NewReader(store)
+	readerAdapter := sqlite.NewBM25ReaderAdapter(sqliteReader)
+	lookupAdapter := sqlite.NewChunkLookupStore(store)
+	runner := retrieval.NewBM25Runner(readerAdapter, lookupAdapter)
 
 	results, err := runner.RunBM25(ctx, query, opts)
 	if err != nil {
@@ -157,8 +176,47 @@ func runSearch(cmd *cobra.Command, query string, f searchFlags) error {
 		return fmt.Errorf("search error: %w", err)
 	}
 
-	// --- Emit output ---
-	if f.jsonOut {
+	return emitResults(cmd, results, opts.Mode == "search" && opts.Collection == "" && !isJSONMode(cmd))
+}
+
+// isJSONMode reports whether the --json flag is set.
+func isJSONMode(cmd *cobra.Command) bool {
+	f := cmd.Flags().Lookup("json")
+	return f != nil && f.Value.String() == "true"
+}
+
+// runVsearch executes vector similarity search, falling back to BM25 on
+// recoverable Ollama errors or when vec0 is unavailable (AC-MEM-019).
+func runVsearch(cmd *cobra.Command, store *sqlite.Store, query string, opts qmd.SearchOpts, model string) error {
+	ctx := cmd.Context()
+	ollamaClient := ollama.NewClient("")
+	embedFunc := func(embedCtx context.Context, m, text string) ([]float32, error) {
+		return ollamaClient.Embed(embedCtx, m, text)
+	}
+
+	vecReader := sqlite.NewVectorReaderAdapter(store)
+	lookupAdapter := sqlite.NewChunkLookupStore(store)
+	vRunner := retrieval.NewVectorRunner(vecReader, lookupAdapter, embedFunc, model)
+
+	results, err := vRunner.RunVector(ctx, query, opts)
+	if err != nil {
+		if ollama.ShouldFallbackToBM25(err) || errors.Is(err, retrieval.ErrVec0Unavailable) {
+			// Transparent fall-back to BM25 with exit code 0 (AC-MEM-019).
+			_, _ = fmt.Fprintf(cmd.ErrOrStderr(),
+				"warning: ollama unreachable; falling back to BM25\n")
+			bm25Opts := opts
+			bm25Opts.Mode = "search"
+			return runBM25Search(cmd, store, query, bm25Opts)
+		}
+		return fmt.Errorf("vsearch error: %w", err)
+	}
+
+	return emitResults(cmd, results, false)
+}
+
+// emitResults dispatches to JSON or table format based on the --json flag.
+func emitResults(cmd *cobra.Command, results []qmd.Result, _ bool) error {
+	if isJSONMode(cmd) {
 		return emitJSON(cmd, results)
 	}
 	return emitTable(cmd, results)

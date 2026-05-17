@@ -34,9 +34,11 @@ CREATE TABLE IF NOT EXISTS metadata (
 -- Note: The vec0 virtual table requires the sqlite-vec extension to be loaded.
 -- If the extension is unavailable, this statement will be skipped gracefully
 -- (M1 does not query vec0; vector search is wired in M3).
+-- M3: dimension changed from 768 to 1024 (mxbai-embed-large model).
+-- The extension.go migration handles upgrading existing 768-d tables.
 CREATE VIRTUAL TABLE IF NOT EXISTS embeddings USING vec0(
     chunk_id TEXT PRIMARY KEY,
-    embedding FLOAT[768]
+    embedding FLOAT[1024]
 );
 
 CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(

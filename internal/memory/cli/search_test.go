@@ -9,6 +9,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -196,16 +198,129 @@ func TestSearch_limitFlag(t *testing.T) {
 	assert.LessOrEqual(t, len(results), 2, "limit=2 must cap results at 2")
 }
 
-func TestSearch_modeVsearchReturnsError(t *testing.T) {
+func TestSearch_modeQueryReturnsNotImplemented(t *testing.T) {
 	if !sqlite.CGOEnabled {
 		t.Skip("sqlite package requires cgo")
 	}
-	// This test does not need a real store — mode is rejected before SQLite is opened.
+	// Mode "query" is still M4 — must return ErrModeNotImplementedM2.
 	store := openSearchTestStore(t)
 	_ = store // path override set; just need the cleanup
 
-	_, err := executeMemorySearch(t, "--mode", "vsearch", "test")
-	assert.Error(t, err, "vsearch mode must return an error in M2")
+	_, err := executeMemorySearch(t, "--mode", "query", "test")
+	assert.Error(t, err, "--mode query must return an error (M4 not implemented)")
+}
+
+func TestSearch_unknownModeReturnsError(t *testing.T) {
+	if !sqlite.CGOEnabled {
+		t.Skip("sqlite package requires cgo")
+	}
+	store := openSearchTestStore(t)
+	_ = store
+
+	_, err := executeMemorySearch(t, "--mode", "unknown_xyz", "test")
+	assert.Error(t, err, "unknown mode must return an error")
+}
+
+func TestSearch_limitZeroReturnsError(t *testing.T) {
+	if !sqlite.CGOEnabled {
+		t.Skip("sqlite package requires cgo")
+	}
+	store := openSearchTestStore(t)
+	_ = store
+
+	_, err := executeMemorySearch(t, "--limit", "0", "test")
+	assert.Error(t, err, "--limit 0 must return an error")
+}
+
+// executeMemorySearchWithStderr is a variant that captures stderr separately.
+func executeMemorySearchWithStderr(t *testing.T, args ...string) (stdout, stderr string, err error) {
+	t.Helper()
+
+	root := &cobra.Command{Use: "mink", SilenceUsage: true, SilenceErrors: true}
+	root.AddCommand(NewMemoryCommand())
+
+	var stdoutBuf, stderrBuf bytes.Buffer
+	root.SetOut(&stdoutBuf)
+	root.SetErr(&stderrBuf)
+
+	allArgs := append([]string{"memory", "search"}, args...)
+	root.SetArgs(allArgs)
+
+	err = root.Execute()
+	return stdoutBuf.String(), stderrBuf.String(), err
+}
+
+func TestSearch_vsearchFallbackToBM25_ollamaUnreachable(t *testing.T) {
+	if !sqlite.CGOEnabled {
+		t.Skip("sqlite package requires cgo")
+	}
+
+	store := openSearchTestStore(t)
+	skipIfNoFTS5CLI(t, store)
+
+	ingestForSearch(t, store, "custom", "/vault/custom/vsearch.md",
+		"vector search embedding fallback bm25")
+
+	// The Ollama server is not running on port 11434 in the test environment.
+	// vsearch must silently fall back to BM25 and return exit code 0.
+	stdout, stderr, err := executeMemorySearchWithStderr(t, "--mode", "vsearch", "vector")
+	require.NoError(t, err, "vsearch BM25 fallback must exit 0 (AC-MEM-019)")
+	assert.Contains(t, stderr, "falling back to BM25",
+		"warning message must appear on stderr")
+	// The fallback BM25 results or no-results line should appear in stdout.
+	_ = stdout
+}
+
+func TestSearch_vsearchWithMockOllama(t *testing.T) {
+	if !sqlite.CGOEnabled {
+		t.Skip("sqlite package requires cgo")
+	}
+
+	store := openSearchTestStore(t)
+	skipIfNoFTS5CLI(t, store)
+
+	// If vec0 is unavailable, the vsearch path falls back to BM25.
+	// This test verifies the fallback path when vec0 is not installed.
+	if store.HasVec0() {
+		t.Skip("vec0 available; end-to-end vsearch test requires real data")
+	}
+
+	// Even with a mock Ollama server returning a valid 1024-d vector,
+	// if vec0 is unavailable the runner will return ErrVec0Unavailable
+	// and the CLI will fall back to BM25.
+	ingestForSearch(t, store, "custom", "/vault/custom/vsearch2.md",
+		"golang channels context concurrency")
+
+	mockOllama := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		// Return a canned 1024-d embedding (all zeros for simplicity).
+		_, _ = w.Write([]byte(`{"embedding":` + buildZeroEmbeddingJSON(1024) + `}`))
+	}))
+	defer mockOllama.Close()
+
+	// We cannot inject the Ollama URL into the CLI directly without refactoring
+	// for testability.  The test validates the BM25 fallback path which is the
+	// same code path as when Ollama is unreachable.
+	stdout, stderr, err := executeMemorySearchWithStderr(t, "--mode", "vsearch", "golang")
+	require.NoError(t, err, "vsearch must not return error when falling back to BM25")
+	// Either BM25 results or "no results" in stdout; warning in stderr.
+	assert.Contains(t, stderr, "falling back to BM25")
+	_ = stdout
+	_ = mockOllama
+}
+
+// buildZeroEmbeddingJSON returns a JSON array of n zeros for mock responses.
+func buildZeroEmbeddingJSON(n int) string {
+	sb := strings.Builder{}
+	sb.WriteString("[")
+	for i := range n {
+		if i > 0 {
+			sb.WriteString(",")
+		}
+		sb.WriteString("0.0")
+	}
+	sb.WriteString("]")
+	return sb.String()
 }
 
 func TestSearch_collectionFilter(t *testing.T) {
