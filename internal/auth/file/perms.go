@@ -82,18 +82,20 @@ func WarnIfCloudSynced(path string) string {
 	parts := splitPathSegments(absPath)
 
 	for _, part := range parts {
-		candidate := part
-		if caseInsensitive {
-			candidate = strings.ToLower(part)
-		}
 		for _, keyword := range cloudSyncSegments {
-			compare := keyword
-			if !caseInsensitive {
-				// On Linux keep the original case for both sides.
-				compare = keyword // cloudSyncSegments are already lower-case
+			var matched bool
+			if caseInsensitive {
+				// macOS / Windows: case-insensitive match (cloudSyncSegments are
+				// already lower-case).
+				matched = strings.EqualFold(part, keyword)
+			} else {
+				// Linux: case-sensitive match against the lower-case canonical
+				// form.  A user-created "Dropbox" directory must NOT match
+				// because Linux filesystems are case-sensitive — the official
+				// Dropbox client on Linux uses lower-case "dropbox".
+				matched = part == keyword
 			}
-			if strings.EqualFold(candidate, compare) ||
-				(!caseInsensitive && candidate == compare) {
+			if matched {
 				return fmt.Sprintf(
 					"warning: credentials file %q appears to be inside a "+
 						"cloud-sync folder (%q). "+
