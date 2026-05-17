@@ -32,12 +32,12 @@ author: MoAI manager-spec
 
 | 마일스톤 | priority | tasks | AC | 진행률 | status | 비고 |
 |---------|----------|-------|------|--------|--------|------|
-| M1 — keyring abstraction | High | 5 (T-001~T-005) | 9 (AC-CR-001, 002, 005, 007, 008, 009, 013, 014, 015, 020, 024) | 0% | not-started | M1 진입은 spec.md status → in-progress 전이 시점 |
-| M2 — 평문 fallback + auto-detect + CLI config | High | 4 (T-006~T-009) | 8 (AC-CR-004, 006, 021, 022, 026, 027, 029, 030) | 0% | not-started | OP placeholder 검증 (AC-CR-029, 030) 은 T-008 에서 GREEN — M2 종결 시 |
-| M3 — 8 credential schema + Codex OAuth + LLM-ROUTING-V2 wiring | High | 5 (T-010~T-014) | 11 (AC-CR-003, 006 보강, 010, 011, 016, 017, 018, 023, 025, 028, 031) | 0% | not-started | LLM-ROUTING-V2 회귀 PASS 필수 |
-| M4 — USERDATA-MIGRATE 통합 + CLI 완성 + OP placeholder | Medium | 4 (T-015~T-018) | 4 (AC-CR-012, 019, 032 + meta task T-018) | 0% | not-started | USERDATA-MIGRATE-001 회귀 PASS 필수, plan-auditor pass 포함 |
+| M1 — keyring abstraction | High | 5 (T-001~T-005) | 10 (AC-CR-001, 002, 005, 007, 008, 009, 013, 014, 015, 020, 024) | 0% | not-started | audit B1 fix: 메인 책임 GREEN AC 만 unique 카운트. AC-CR-024 (UN, T-001 partial) 포함 |
+| M2 — 평문 fallback + auto-detect + CLI config | High | 4 (T-006~T-009) | 8 (AC-CR-004, 006, 021, 022, 026, 027, 029, 030) | 0% | not-started | AC-CR-006 의 M2 부분 GREEN (T-009). OP placeholder (AC-CR-029, 030) T-008 GREEN |
+| M3 — 8 credential schema + Codex OAuth + LLM-ROUTING-V2 wiring | High | 5 (T-010~T-014) | 10 (AC-CR-003, 010, 011, 016, 017, 018, 023, 025, 028, 031) | 0% | not-started | AC-CR-006 의 M3 최종 GREEN (T-013), 카운트는 메인 M2 에 귀속. LLM-ROUTING-V2 회귀 PASS 필수 |
+| M4 — USERDATA-MIGRATE 통합 + CLI 완성 + OP placeholder | Medium | 4 (T-015~T-018) | 4 (AC-CR-012, 019, 032 + meta T-018) | 0% | not-started | USERDATA-MIGRATE-001 회귀 PASS, plan-auditor pass 포함 |
 
-> 위 마일스톤별 AC 카운트 합 = 9 + 8 + 11 + 4 = 32 (overall AC 32 와 정합). 일부 AC (AC-CR-006) 는 M2 와 M3 양쪽 일부 검증 — M3 에서 8 schema 완전 검증 시 최종 GREEN.
+> **카운팅 방법론** (audit B1 fix): 마일스톤별 AC 카운트는 *메인 GREEN 책임 task* 기준 unique 카운트만 포함. 다중 task GREEN AC (예: AC-CR-006 = T-009 partial M2 + T-013 final M3) 는 메인 책임 마일스톤 (M2) 에만 카운트. 합 = 10 + 8 + 10 + 4 = 32 (overall AC 32 정합).
 
 ## 3. Task Status Table
 

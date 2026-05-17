@@ -103,8 +103,10 @@ type Credential interface {
 - 로깅 마스킹 (UN-1) helper
 - 통합 테스트: macOS + Linux + Windows CI runner (CROSSPLAT 호환)
 
-**완료 정의 (DoD)**:
-- AC-CR-001~AC-CR-005, AC-CR-009 (UB), AC-CR-013, AC-CR-014, AC-CR-015 (ED), AC-CR-020 (SD), AC-CR-024 (UN) GREEN
+**완료 정의 (DoD)** (audit B2 fix — M2/M3 영역 AC 제외, M1 메인 책임만 enumerate):
+- AC-CR-001, AC-CR-002, AC-CR-005, AC-CR-007 (부분, T-001), AC-CR-008, AC-CR-009, AC-CR-013, AC-CR-014, AC-CR-015 (부분, T-005), AC-CR-020, AC-CR-024 GREEN
+- AC-CR-003 (헌장 정합 static 검증) = M3 (T-014) 으로 이월
+- AC-CR-004 (file backend) = M2 (T-006) 으로 이월
 - LSP 0 error
 - 단일 provider 로 macOS Keychain Store/Load/Delete round-trip 검증
 - Linux libsecret 미설치 환경에서 `KeyringUnavailable` sentinel 정확히 반환

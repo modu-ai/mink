@@ -330,16 +330,16 @@ T-001 ─ T-013 ─ T-014 ─ T-015 ─ T-016 ─ T-017 ─ T-018
 
 | task | 핵심 GREEN AC | 핵심 REQ |
 |------|--------------|---------|
-| T-001 | AC-CR-001, AC-CR-024 | UB-1, UN-1 |
+| T-001 | AC-CR-001, AC-CR-007 (부분), AC-CR-024 | UB-1, UN-1 |
 | T-002 | AC-CR-002, AC-CR-005, AC-CR-009, AC-CR-013, AC-CR-014 | UB-2 (keyring), UB-7, UB-9, ED-1, ED-2 |
-| T-003 | AC-CR-020 | SD-1 (sentinel) |
-| T-004 | AC-CR-008, AC-CR-031 | UB-8, UB-9 |
-| T-005 | AC-CR-001, AC-CR-007, AC-CR-015 | UB-1, UB-7, ED-3 |
+| T-003 | AC-CR-006 (부분, schema validation), AC-CR-020 | UB-6 (부분), SD-1 (sentinel) |
+| T-004 | AC-CR-008, AC-CR-015 (부분), AC-CR-031 | UB-8, UB-9, ED-3 (부분) |
+| T-005 | AC-CR-001, AC-CR-003 (부분), AC-CR-007, AC-CR-015 | UB-1, UB-3 (부분), UB-7, ED-3 |
 | T-006 | AC-CR-004, AC-CR-026, AC-CR-027 | UB-2 (file), UN-2, UN-6 |
 | T-007 | AC-CR-021, AC-CR-022 | SD-1, SD-2 |
 | T-008 | AC-CR-021, AC-CR-029, AC-CR-030 | SD-2, OP-1, OP-2 |
 | T-009 | AC-CR-006, AC-CR-022 | UB-6, SD-1 |
-| T-010 | AC-CR-016 (initial) | ED-4 |
+| T-010 | AC-CR-008 (Codex health 부분), AC-CR-016 (initial) | UB-8 (부분), ED-4 |
 | T-011 | AC-CR-016, AC-CR-018 | ED-4, SD-4 |
 | T-012 | AC-CR-017, AC-CR-025 | ED-5, UN-4 |
 | T-013 | AC-CR-006, AC-CR-011, AC-CR-028 | UB-6, UB-4, UN-3 |
