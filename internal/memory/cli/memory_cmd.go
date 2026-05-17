@@ -7,7 +7,8 @@
 // memory subsystem.
 //
 // M1 implements: memory add
-// M2+ will add: search, reindex, export, import, stats, prune
+// M2 implements: memory search (BM25 full-text search)
+// M3+ will add: reindex, export, import, stats, prune
 //
 // SPEC: SPEC-MINK-MEMORY-QMD-001
 package cli
@@ -32,8 +33,10 @@ index is a derived, rebuildable artefact.
 Available subcommands (M1):
   add       Add a markdown file to the memory vault and index it
 
-Coming in M2+:
+Available subcommands (M2):
   search    Full-text (BM25) search across the memory vault
+
+Coming in M3+:
   reindex   Rebuild the SQLite index from the markdown vault
   export    Export the vault as a tarball or ClawMem-compatible directory
   import    Merge an external vault into the local vault
@@ -43,6 +46,9 @@ Coming in M2+:
 
 	// M1 subcommands.
 	cmd.AddCommand(NewAddCommand())
+
+	// M2 subcommands.
+	cmd.AddCommand(NewSearchCommand())
 
 	return cmd
 }
