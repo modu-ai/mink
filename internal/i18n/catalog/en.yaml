@@ -21,3 +21,10 @@ error.invalid_email: "Invalid email format"
 
 step.persona.name_too_long: "Name exceeds {{.Max}} characters (got {{.Got}})"
 step.consent.gdpr_required: "GDPR explicit consent is required in your region"
+
+# Locale auto-detect privacy notices (SPEC-MINK-LOCALE-001 amendment-v0.2 AC-LC-025).
+# .web : rendered in Step1Locale.tsx before any GPS prompt (PIPA/GDPR/CCPA compliant).
+# .cli : printed to stderr exactly once before any external probe (AC-LC-022 regex match
+#        in internal/locale/detect_test.go — must equal CLINoticeText in detect.go).
+locale.privacy.notice.web: "Location is used only for region auto-detection and is not stored. (PIPA / GDPR / CCPA Compliant)"
+locale.privacy.notice.cli: "Detecting your location for personalisation. Use --no-auto-detect to skip. (locally stored only)"

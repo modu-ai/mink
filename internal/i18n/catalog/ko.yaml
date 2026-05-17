@@ -18,3 +18,9 @@ error.invalid_email: "이메일 형식이 올바르지 않습니다"
 
 step.persona.name_too_long: "이름이 {{.Max}}자를 초과합니다 (현재 {{.Got}}자)"
 step.consent.gdpr_required: "귀하의 지역에서는 GDPR 명시적 동의가 필요합니다"
+
+# Locale auto-detect privacy notices (SPEC-MINK-LOCALE-001 amendment-v0.2 AC-LC-025).
+# .web : rendered in Step1Locale.tsx before any GPS prompt (PIPA/GDPR/CCPA compliant).
+# .cli : printed to stderr exactly once before any external probe (AC-LC-022 regex match).
+locale.privacy.notice.web: "위치 정보는 지역 자동 감지에만 사용되며 저장되지 않습니다. (PIPA / GDPR / CCPA 준수)"
+locale.privacy.notice.cli: "Detecting your location for personalisation. Use --no-auto-detect to skip. (locally stored only)"
