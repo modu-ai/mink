@@ -15,10 +15,7 @@ Last updated: 2026-05-17
 |--------|---------|---------|-----|
 | `github.com/zalando/go-keyring` | v0.2.x (v0.2.8) | MIT | OS keyring backend — macOS Keychain / Linux Secret Service / Windows Credential Manager |
 | `github.com/godbus/godbus/v5` | (transitive, Linux only) | BSD-2-Clause | Linux Secret Service D-Bus client (pulled in by go-keyring on linux builds) |
-| `golang.org/x/oauth2` | (latest, reserved) | BSD-3-Clause | Reserved for M3 T-010 — Codex OAuth 2.1 + PKCE flow. **Not yet imported** into go.mod. |
-
-> `golang.org/x/oauth2` is listed here for planning purposes only.
-> It will be added to `go.mod` in M3 T-010.
+| `golang.org/x/oauth2` | v0.36.0 | BSD-3-Clause | M3 T-010 — Codex OAuth 2.1 + PKCE flow (`internal/auth/oauth/`). Added to go.mod in M3. |
 
 ---
 

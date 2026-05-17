@@ -2,13 +2,14 @@
 //
 // Tests cover:
 //   - Store → Load → Delete → List round-trip via a tmp dir
+//   - All 5 credential kinds round-trip (M3 T-013)
 //   - mode 0600 verified via os.Stat (POSIX only; Windows test skipped)
 //   - Concurrent Store calls (race-detector clean)
 //   - JSON round-trip with unknown kind (forward-compat)
 //   - Idempotent Delete
 //   - .gitignore assertion (AC-CR-026)
 //
-// SPEC: SPEC-MINK-AUTH-CREDENTIAL-001 (AC-CR-004, AC-CR-026, AC-CR-027, T-006)
+// SPEC: SPEC-MINK-AUTH-CREDENTIAL-001 (AC-CR-004, AC-CR-006, AC-CR-026, AC-CR-027, T-006, T-013)
 package file
 
 import (
@@ -19,6 +20,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/modu-ai/mink/internal/auth/credential"
 )
@@ -316,6 +318,195 @@ func TestHealthAbsent(t *testing.T) {
 	}
 	if status.Present {
 		t.Error("Health: expected Present=false")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// M3 T-013: round-trip tests for all 5 credential kinds
+// ---------------------------------------------------------------------------
+
+// discordPubKey is a valid 64-char lowercase hex Ed25519 public key for tests.
+const discordPubKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+// TestOAuthTokenRoundTrip verifies Store → Load round-trip for OAuthToken.
+func TestOAuthTokenRoundTrip(t *testing.T) {
+	b, cleanup := newTestBackend(t)
+	defer cleanup()
+
+	now := time.Now().Truncate(time.Second).UTC()
+	want := credential.OAuthToken{
+		Provider:     "codex",
+		AccessToken:  "sess-access-token-1234",
+		RefreshToken: "rt-refresh-token-5678",
+		ExpiresAt:    now.Add(time.Hour),
+		Scope:        "openid email profile offline_access",
+	}
+
+	if err := b.Store("codex", want); err != nil {
+		t.Fatalf("Store OAuthToken: %v", err)
+	}
+
+	loaded, err := b.Load("codex")
+	if err != nil {
+		t.Fatalf("Load OAuthToken: %v", err)
+	}
+	got, ok := loaded.(credential.OAuthToken)
+	if !ok {
+		t.Fatalf("expected OAuthToken, got %T", loaded)
+	}
+	if got.Provider != want.Provider {
+		t.Errorf("Provider: got %q, want %q", got.Provider, want.Provider)
+	}
+	if got.AccessToken != want.AccessToken {
+		t.Errorf("AccessToken: got %q, want %q", got.AccessToken, want.AccessToken)
+	}
+	if got.RefreshToken != want.RefreshToken {
+		t.Errorf("RefreshToken: got %q, want %q", got.RefreshToken, want.RefreshToken)
+	}
+	if !got.ExpiresAt.Equal(want.ExpiresAt) {
+		t.Errorf("ExpiresAt: got %v, want %v", got.ExpiresAt, want.ExpiresAt)
+	}
+	if got.Scope != want.Scope {
+		t.Errorf("Scope: got %q, want %q", got.Scope, want.Scope)
+	}
+}
+
+// TestBotTokenRoundTrip verifies Store → Load round-trip for BotToken.
+func TestBotTokenRoundTrip(t *testing.T) {
+	b, cleanup := newTestBackend(t)
+	defer cleanup()
+
+	want := credential.BotToken{Provider: "telegram_bot", Token: "123456789:ABCdefghij"}
+
+	if err := b.Store("telegram_bot", want); err != nil {
+		t.Fatalf("Store BotToken: %v", err)
+	}
+
+	loaded, err := b.Load("telegram_bot")
+	if err != nil {
+		t.Fatalf("Load BotToken: %v", err)
+	}
+	got, ok := loaded.(credential.BotToken)
+	if !ok {
+		t.Fatalf("expected BotToken, got %T", loaded)
+	}
+	if got.Provider != want.Provider {
+		t.Errorf("Provider: got %q, want %q", got.Provider, want.Provider)
+	}
+	if got.Token != want.Token {
+		t.Errorf("Token: got %q, want %q", got.Token, want.Token)
+	}
+}
+
+// TestSlackComboRoundTrip verifies Store → Load round-trip for SlackCombo.
+func TestSlackComboRoundTrip(t *testing.T) {
+	b, cleanup := newTestBackend(t)
+	defer cleanup()
+
+	want := credential.SlackCombo{
+		SigningSecret: "signingSecretValue1234",
+		BotToken:      "slackbot-token-abcdef",
+		AppID:         "A0987654321",
+		TeamID:        "T1234567890",
+	}
+
+	if err := b.Store("slack", want); err != nil {
+		t.Fatalf("Store SlackCombo: %v", err)
+	}
+
+	loaded, err := b.Load("slack")
+	if err != nil {
+		t.Fatalf("Load SlackCombo: %v", err)
+	}
+	got, ok := loaded.(credential.SlackCombo)
+	if !ok {
+		t.Fatalf("expected SlackCombo, got %T", loaded)
+	}
+	if got.SigningSecret != want.SigningSecret {
+		t.Errorf("SigningSecret mismatch")
+	}
+	if got.BotToken != want.BotToken {
+		t.Errorf("BotToken mismatch")
+	}
+	if got.AppID != want.AppID {
+		t.Errorf("AppID: got %q, want %q", got.AppID, want.AppID)
+	}
+	if got.TeamID != want.TeamID {
+		t.Errorf("TeamID: got %q, want %q", got.TeamID, want.TeamID)
+	}
+}
+
+// TestDiscordComboRoundTrip verifies Store → Load round-trip for DiscordCombo.
+func TestDiscordComboRoundTrip(t *testing.T) {
+	b, cleanup := newTestBackend(t)
+	defer cleanup()
+
+	want := credential.DiscordCombo{
+		PublicKey: discordPubKey,
+		BotToken:  "discordbot-token-abcdef",
+		AppID:     "123456789012345678",
+	}
+
+	if err := b.Store("discord", want); err != nil {
+		t.Fatalf("Store DiscordCombo: %v", err)
+	}
+
+	loaded, err := b.Load("discord")
+	if err != nil {
+		t.Fatalf("Load DiscordCombo: %v", err)
+	}
+	got, ok := loaded.(credential.DiscordCombo)
+	if !ok {
+		t.Fatalf("expected DiscordCombo, got %T", loaded)
+	}
+	if got.PublicKey != want.PublicKey {
+		t.Errorf("PublicKey mismatch")
+	}
+	if got.BotToken != want.BotToken {
+		t.Errorf("BotToken mismatch")
+	}
+	if got.AppID != want.AppID {
+		t.Errorf("AppID: got %q, want %q", got.AppID, want.AppID)
+	}
+}
+
+// TestAll5KindsRoundTrip stores all 5 credential kinds in one file and
+// verifies each can be loaded correctly (AC-CR-006).
+func TestAll5KindsRoundTrip(t *testing.T) {
+	b, cleanup := newTestBackend(t)
+	defer cleanup()
+
+	expires := time.Now().Truncate(time.Second).UTC().Add(time.Hour)
+
+	if err := b.Store("anthropic", credential.APIKey{Value: "ak-test-1234"}); err != nil {
+		t.Fatalf("Store APIKey: %v", err)
+	}
+	if err := b.Store("codex", credential.OAuthToken{
+		Provider: "codex", AccessToken: "at-test", RefreshToken: "rt-test", ExpiresAt: expires,
+	}); err != nil {
+		t.Fatalf("Store OAuthToken: %v", err)
+	}
+	if err := b.Store("telegram_bot", credential.BotToken{Provider: "telegram_bot", Token: "tg-test-abc"}); err != nil {
+		t.Fatalf("Store BotToken: %v", err)
+	}
+	if err := b.Store("slack", credential.SlackCombo{SigningSecret: "ssec-test", BotToken: "slacktest"}); err != nil {
+		t.Fatalf("Store SlackCombo: %v", err)
+	}
+	if err := b.Store("discord", credential.DiscordCombo{PublicKey: discordPubKey, BotToken: "dctest"}); err != nil {
+		t.Fatalf("Store DiscordCombo: %v", err)
+	}
+
+	ids, err := b.List()
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(ids) != 5 {
+		t.Errorf("expected 5 providers, got %d: %v", len(ids), ids)
+	}
+	for _, p := range []string{"anthropic", "codex", "telegram_bot", "slack", "discord"} {
+		if !slices.Contains(ids, p) {
+			t.Errorf("provider %q missing from List result %v", p, ids)
+		}
 	}
 }
 

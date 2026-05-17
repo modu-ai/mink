@@ -9,6 +9,8 @@
 // SPEC: SPEC-MINK-AUTH-CREDENTIAL-001 (UB-1, UB-7, UB-8)
 package credential
 
+import "fmt"
+
 // Kind identifies the category of a stored credential.
 // Only the five values defined below are valid; the schema validation in
 // Credential.Validate() enforces this set (UB-6).
@@ -63,6 +65,43 @@ type HealthStatus struct {
 	// Backend identifies which storage backend returned this status
 	// ("keyring" or "file").
 	Backend string
+}
+
+// KnownProviders maps each supported provider identifier to its canonical
+// credential Kind.  This table drives ValidateProviderKindCombo and the
+// mink login / mink logout commands.
+//
+// The 8 provider IDs are: anthropic, deepseek, openai_gpt, zai_glm (APIKey),
+// codex (OAuth), telegram_bot (BotToken), slack (SlackCombo), discord (DiscordCombo).
+var KnownProviders = map[string]Kind{
+	"anthropic":    KindAPIKey,
+	"deepseek":     KindAPIKey,
+	"openai_gpt":   KindAPIKey,
+	"zai_glm":      KindAPIKey,
+	"codex":        KindOAuth,
+	"telegram_bot": KindBotToken,
+	"slack":        KindSlackCombo,
+	"discord":      KindDiscordCombo,
+}
+
+// ValidateProviderKindCombo asserts that cred's Kind matches the Kind
+// registered for provider in KnownProviders.
+//
+// Returns ErrSchemaViolation (wrapped) when:
+//   - provider is not in KnownProviders ("unknown provider id")
+//   - cred.Kind() does not match KnownProviders[provider] ("kind mismatch")
+func ValidateProviderKindCombo(provider string, cred Credential) error {
+	want, ok := KnownProviders[provider]
+	if !ok {
+		return fmt.Errorf("credential: unknown provider id %q: %w", provider, ErrSchemaViolation)
+	}
+	if got := cred.Kind(); got != want {
+		return fmt.Errorf(
+			"credential: kind mismatch for provider %q: got %q, want %q: %w",
+			provider, got, want, ErrSchemaViolation,
+		)
+	}
+	return nil
 }
 
 // Service is the single abstraction for all credential lifecycle operations.

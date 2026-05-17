@@ -85,6 +85,7 @@ require (
 	github.com/yuin/goldmark v1.7.13 // indirect
 	github.com/yuin/goldmark-emoji v1.0.6 // indirect
 	go.opentelemetry.io/otel/sdk v1.43.0 // indirect
+	golang.org/x/oauth2 v0.36.0 // indirect
 )
 
 require (
