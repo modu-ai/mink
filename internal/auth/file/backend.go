@@ -29,6 +29,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/modu-ai/mink/internal/auth/credential"
 )
@@ -286,8 +287,8 @@ func (b *Backend) writeAtomic(doc *credentialsDoc) error {
 // ---------------------------------------------------------------------------
 
 // marshalCredential encodes cred into a JSON blob suitable for storage in the
-// credentials map.  The format is {"kind": "<kind>", "value": <payload>} for
-// api_key, matching the schema documented in research.md §4.2.
+// credentials map.  Each Kind has a distinct flat JSON shape as documented in
+// research.md §4.2.
 func marshalCredential(cred credential.Credential) (json.RawMessage, error) {
 	switch c := cred.(type) {
 	case credential.APIKey:
@@ -301,6 +302,87 @@ func marshalCredential(cred credential.Credential) (json.RawMessage, error) {
 			return nil, fmt.Errorf("file: marshal api_key: %w", err)
 		}
 		return data, nil
+
+	case credential.OAuthToken:
+		type oauthPayload struct {
+			Kind         string    `json:"kind"`
+			Provider     string    `json:"provider"`
+			AccessToken  string    `json:"access_token"`
+			RefreshToken string    `json:"refresh_token"`
+			ExpiresAt    time.Time `json:"expires_at"`
+			Scope        string    `json:"scope,omitempty"`
+		}
+		payload := oauthPayload{
+			Kind:         string(credential.KindOAuth),
+			Provider:     c.Provider,
+			AccessToken:  c.AccessToken,
+			RefreshToken: c.RefreshToken,
+			ExpiresAt:    c.ExpiresAt,
+			Scope:        c.Scope,
+		}
+		data, err := json.Marshal(payload)
+		if err != nil {
+			return nil, fmt.Errorf("file: marshal oauth: %w", err)
+		}
+		return data, nil
+
+	case credential.BotToken:
+		type botTokenPayload struct {
+			Kind     string `json:"kind"`
+			Provider string `json:"provider"`
+			Value    string `json:"value"`
+		}
+		payload := botTokenPayload{
+			Kind:     string(credential.KindBotToken),
+			Provider: c.Provider,
+			Value:    c.Token,
+		}
+		data, err := json.Marshal(payload)
+		if err != nil {
+			return nil, fmt.Errorf("file: marshal bot_token: %w", err)
+		}
+		return data, nil
+
+	case credential.SlackCombo:
+		type slackComboPayload struct {
+			Kind          string `json:"kind"`
+			SigningSecret string `json:"signing_secret"`
+			BotToken      string `json:"bot_token"`
+			AppID         string `json:"app_id,omitempty"`
+			TeamID        string `json:"team_id,omitempty"`
+		}
+		payload := slackComboPayload{
+			Kind:          string(credential.KindSlackCombo),
+			SigningSecret: c.SigningSecret,
+			BotToken:      c.BotToken,
+			AppID:         c.AppID,
+			TeamID:        c.TeamID,
+		}
+		data, err := json.Marshal(payload)
+		if err != nil {
+			return nil, fmt.Errorf("file: marshal slack_combo: %w", err)
+		}
+		return data, nil
+
+	case credential.DiscordCombo:
+		type discordComboPayload struct {
+			Kind      string `json:"kind"`
+			PublicKey string `json:"public_key"`
+			BotToken  string `json:"bot_token"`
+			AppID     string `json:"app_id,omitempty"`
+		}
+		payload := discordComboPayload{
+			Kind:      string(credential.KindDiscordCombo),
+			PublicKey: c.PublicKey,
+			BotToken:  c.BotToken,
+			AppID:     c.AppID,
+		}
+		data, err := json.Marshal(payload)
+		if err != nil {
+			return nil, fmt.Errorf("file: marshal discord_combo: %w", err)
+		}
+		return data, nil
+
 	default:
 		return nil, fmt.Errorf("file: unsupported credential kind %q: %w",
 			cred.Kind(), credential.ErrSchemaViolation)
@@ -308,48 +390,95 @@ func marshalCredential(cred credential.Credential) (json.RawMessage, error) {
 }
 
 // unmarshalCredential decodes a raw JSON blob from the credentials map back
-// into a typed Credential.  Unknown kind values are skipped with a stderr
-// warning to ensure forward-compatibility when M3 adds new kinds.
+// into a typed Credential.  All 5 credential kinds are handled.  Unknown kind
+// values are skipped with a stderr warning to ensure forward-compatibility.
 func unmarshalCredential(raw json.RawMessage) (credential.Credential, error) {
-	// Decode just the discriminator field first.
-	var envelope struct {
-		Kind  string          `json:"kind"`
-		Value json.RawMessage `json:"value"`
+	// Decode only the discriminator field to decide the concrete type.
+	var kindOnly struct {
+		Kind string `json:"kind"`
 	}
-	if err := json.Unmarshal(raw, &envelope); err != nil {
-		return nil, fmt.Errorf("file: unmarshal credential envelope: %w", err)
+	if err := json.Unmarshal(raw, &kindOnly); err != nil {
+		return nil, fmt.Errorf("file: unmarshal credential kind: %w", err)
 	}
 
-	switch credential.Kind(envelope.Kind) {
+	switch credential.Kind(kindOnly.Kind) {
 	case credential.KindAPIKey:
-		// For api_key the value field may either be a JSON object {"Value": "..."}
-		// (keyring format) or a plain string (file format).  Handle both for
-		// compatibility.
-		var strVal string
-		if err := json.Unmarshal(envelope.Value, &strVal); err == nil {
-			return credential.APIKey{Value: strVal}, nil
+		// Flat format: {"kind":"api_key","value":"..."}
+		var p struct {
+			Value string `json:"value"`
 		}
-		// Fallback: try {"Value": "..."} object form.
-		var objVal struct {
-			Value string `json:"Value"`
+		if err := json.Unmarshal(raw, &p); err != nil {
+			return nil, fmt.Errorf("file: unmarshal api_key: %w", err)
 		}
-		if err := json.Unmarshal(envelope.Value, &objVal); err != nil {
-			return nil, fmt.Errorf("file: unmarshal api_key value: %w", err)
+		return credential.APIKey{Value: p.Value}, nil
+
+	case credential.KindOAuth:
+		var p struct {
+			Provider     string    `json:"provider"`
+			AccessToken  string    `json:"access_token"`
+			RefreshToken string    `json:"refresh_token"`
+			ExpiresAt    time.Time `json:"expires_at"`
+			Scope        string    `json:"scope"`
 		}
-		return credential.APIKey{Value: objVal.Value}, nil
+		if err := json.Unmarshal(raw, &p); err != nil {
+			return nil, fmt.Errorf("file: unmarshal oauth: %w", err)
+		}
+		return credential.OAuthToken{
+			Provider:     p.Provider,
+			AccessToken:  p.AccessToken,
+			RefreshToken: p.RefreshToken,
+			ExpiresAt:    p.ExpiresAt,
+			Scope:        p.Scope,
+		}, nil
+
+	case credential.KindBotToken:
+		var p struct {
+			Provider string `json:"provider"`
+			Value    string `json:"value"`
+		}
+		if err := json.Unmarshal(raw, &p); err != nil {
+			return nil, fmt.Errorf("file: unmarshal bot_token: %w", err)
+		}
+		return credential.BotToken{Provider: p.Provider, Token: p.Value}, nil
+
+	case credential.KindSlackCombo:
+		var p struct {
+			SigningSecret string `json:"signing_secret"`
+			BotToken      string `json:"bot_token"`
+			AppID         string `json:"app_id"`
+			TeamID        string `json:"team_id"`
+		}
+		if err := json.Unmarshal(raw, &p); err != nil {
+			return nil, fmt.Errorf("file: unmarshal slack_combo: %w", err)
+		}
+		return credential.SlackCombo{
+			SigningSecret: p.SigningSecret,
+			BotToken:      p.BotToken,
+			AppID:         p.AppID,
+			TeamID:        p.TeamID,
+		}, nil
+
+	case credential.KindDiscordCombo:
+		var p struct {
+			PublicKey string `json:"public_key"`
+			BotToken  string `json:"bot_token"`
+			AppID     string `json:"app_id"`
+		}
+		if err := json.Unmarshal(raw, &p); err != nil {
+			return nil, fmt.Errorf("file: unmarshal discord_combo: %w", err)
+		}
+		return credential.DiscordCombo{
+			PublicKey: p.PublicKey,
+			BotToken:  p.BotToken,
+			AppID:     p.AppID,
+		}, nil
 
 	default:
 		// Forward-compat: emit a warning but do not fail the entire Load.
-		// Callers that encounter an unknown kind should handle ErrNotFound by
-		// trying the next source — returning an error here would break M3
-		// files when read by M2 code.
 		fmt.Fprintf(os.Stderr,
 			"file: warning: unknown credential kind %q for entry; skipping\n",
-			envelope.Kind)
-		// We cannot return nil + nil from Load (caller expects a concrete type
-		// or ErrNotFound).  Return ErrNotFound with context so the caller can
-		// degrade gracefully.
+			kindOnly.Kind)
 		return nil, fmt.Errorf("file: unknown credential kind %q: %w",
-			envelope.Kind, credential.ErrNotFound)
+			kindOnly.Kind, credential.ErrNotFound)
 	}
 }
