@@ -106,11 +106,17 @@
 - **Then**: 응답 안 함
 - **Verify**: integration
 
-### AC-DCD-016 [REQ-DCD-016 / P1] — Bot invite link
+### AC-DCD-016 [REQ-DCD-023 / P1] — Bot invite link (audit D1 fix: REQ-016→REQ-023)
 - **Given**: invite link 생성 요청
 - **When**: 생성
 - **Then**: scopes=bot+applications.commands, 권한 비트 명시
 - **Verify**: unit
+
+### AC-DCD-025 [REQ-DCD-016 / P0] — Gateway WebSocket 차단 default (audit D1 fix)
+- **Given**: `MINK_DISCORD_GATEWAY` env 미설정
+- **When**: bot 프로세스 시작 + 10초 모니터
+- **Then**: WebSocket connection 0건 (netstat/lsof)
+- **Verify**: integration
 
 ### AC-DCD-017 [REQ-DCD-017 / P0] — PII 마스킹
 - **Given**: inbound payload 에 이메일/전화 포함
