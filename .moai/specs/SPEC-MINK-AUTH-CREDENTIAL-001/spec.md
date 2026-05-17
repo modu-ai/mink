@@ -1,7 +1,7 @@
 ---
 id: SPEC-MINK-AUTH-CREDENTIAL-001
-version: 0.2.0
-status: planned
+version: 0.3.0
+status: implemented
 created_at: 2026-05-16
 updated_at: 2026-05-16
 author: MoAI manager-spec
@@ -35,6 +35,7 @@ trust_metrics:
 |-----|------|---------|------|
 | 0.1.0 | 2026-05-16 | plan stub — 5라운드 사용자 결정 totals 진입 표시 | MoAI orchestrator |
 | 0.2.0 | 2026-05-16 | 본격 plan EARS 30 REQ / 32 AC / 4 마일스톤 / 18 tasks. size 중 → 대, status draft → planned, lifecycle spec-first → spec-anchored | manager-spec |
+| 0.3.0 | 2026-05-17 | M1+M2+M3+M4 코드 구현 완료 (T-015 export/import wiring 후속 amendment 이월); status planned → implemented | expert-backend |
 
 ---
 
