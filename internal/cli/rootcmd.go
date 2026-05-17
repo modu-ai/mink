@@ -8,6 +8,7 @@ import (
 	"github.com/modu-ai/mink/internal/cli/commands"
 	"github.com/modu-ai/mink/internal/cli/transport"
 	"github.com/modu-ai/mink/internal/cli/tui"
+	memorycli "github.com/modu-ai/mink/internal/memory/cli"
 	"github.com/modu-ai/mink/internal/userpath"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -136,6 +137,10 @@ func NewRootCommand(version, commit, builtAt string) *cobra.Command {
 	// removal (mink login {provider} / mink logout {provider}).
 	// SPEC: SPEC-MINK-AUTH-CREDENTIAL-001 (T-016, AC-CR-012, AC-CR-015)
 	rootCmd.AddCommand(commands.NewLoginCommand())
+
+	// Memory commands — QMD-based lifelong memory vault (M1: add only).
+	// SPEC: SPEC-MINK-MEMORY-QMD-001 (T1.9)
+	rootCmd.AddCommand(memorycli.NewMemoryCommand())
 
 	return rootCmd
 }
