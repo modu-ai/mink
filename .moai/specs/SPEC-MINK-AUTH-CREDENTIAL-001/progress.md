@@ -1,10 +1,10 @@
 ---
 spec_id: SPEC-MINK-AUTH-CREDENTIAL-001
 artifact: progress.md
-version: 0.2.0
+version: 0.3.0
 created_at: 2026-05-16
-updated_at: 2026-05-16
-author: MoAI manager-spec
+updated_at: 2026-05-17
+author: MoAI expert-backend
 ---
 
 # Progress — SPEC-MINK-AUTH-CREDENTIAL-001
@@ -17,25 +17,25 @@ author: MoAI manager-spec
 
 | 항목 | 값 |
 |------|-----|
-| spec.md status | `planned` (v0.2.0) |
+| spec.md status | `implemented` (v0.3.0) |
 | REQ 총 | 30 |
 | AC 총 | 32 (UB 12 / ED 8 / SD 5 / UN 5 / OP 2) |
 | 마일스톤 총 | 4 |
 | Tasks 총 | 18 (M1: 5, M2: 4, M3: 5, M4: 4) |
-| 완료된 AC | 0 / 32 |
-| 완료된 Tasks | 0 / 18 |
-| 완료된 마일스톤 | 0 / 4 |
-| Overall 진행률 | 0% (plan 완료, run 미진입) |
-| plan-auditor pass | 대기 (본 PR 머지 후 또는 후속 PR 에서) |
+| 완료된 AC | 31 / 32 (AC-CR-019 ⏸️ 이월) |
+| 완료된 Tasks | 17 / 18 (T-015 ⏸️ 이월) |
+| 완료된 마일스톤 | 4 / 4 (M4 T-015 이월 포함) |
+| Overall 진행률 | ~93% (T-015 export/import wiring 후속 amendment 이월) |
+| plan-auditor pass | M4 PR 머지 후 수행 |
 
 ## 2. Milestone Progress
 
 | 마일스톤 | priority | tasks | AC | 진행률 | status | 비고 |
 |---------|----------|-------|------|--------|--------|------|
-| M1 — keyring abstraction | High | 5 (T-001~T-005) | 10 (AC-CR-001, 002, 005, 007, 008, 009, 013, 014, 015, 020, 024) | 0% | not-started | audit B1 fix: 메인 책임 GREEN AC 만 unique 카운트. AC-CR-024 (UN, T-001 partial) 포함 |
-| M2 — 평문 fallback + auto-detect + CLI config | High | 4 (T-006~T-009) | 8 (AC-CR-004, 006, 021, 022, 026, 027, 029, 030) | 0% | not-started | AC-CR-006 의 M2 부분 GREEN (T-009). OP placeholder (AC-CR-029, 030) T-008 GREEN |
-| M3 — 8 credential schema + Codex OAuth + LLM-ROUTING-V2 wiring | High | 5 (T-010~T-014) | 10 (AC-CR-003, 010, 011, 016, 017, 018, 023, 025, 028, 031) | 0% | not-started | AC-CR-006 의 M3 최종 GREEN (T-013), 카운트는 메인 M2 에 귀속. LLM-ROUTING-V2 회귀 PASS 필수 |
-| M4 — USERDATA-MIGRATE 통합 + CLI 완성 + OP placeholder | Medium | 4 (T-015~T-018) | 4 (AC-CR-012, 019, 032 + meta T-018) | 0% | not-started | USERDATA-MIGRATE-001 회귀 PASS, plan-auditor pass 포함 |
+| M1 — keyring abstraction | High | 5 (T-001~T-005) | 10 (AC-CR-001, 002, 005, 007, 008, 009, 013, 014, 015, 020, 024) | 100% | complete | PR #243 머지 완료 |
+| M2 — 평문 fallback + auto-detect + CLI config | High | 4 (T-006~T-009) | 8 (AC-CR-004, 006, 021, 022, 026, 027, 029, 030) | 100% | complete | PR #244 머지 완료 |
+| M3 — 8 credential schema + Codex OAuth + LLM-ROUTING-V2 wiring | High | 5 (T-010~T-014) | 10 (AC-CR-003, 010, 011, 016, 017, 018, 023, 025, 028, 031) | 100% | complete | PR #245 머지 완료. AC-CR-006 M3 완전 GREEN |
+| M4 — USERDATA-MIGRATE 통합 + CLI 완성 + OP placeholder | Medium | 4 (T-015~T-018) | 4 (AC-CR-012, 019, 032 + meta T-018) | ~75% | complete (T-015 이월) | 이번 PR. T-015 (AC-CR-019) 후속 amendment 이월 — USERDATA-MIGRATE export/import cross-device 시스템 미존재 |
 
 > **카운팅 방법론** (audit B1 fix): 마일스톤별 AC 카운트는 *메인 GREEN 책임 task* 기준 unique 카운트만 포함. 다중 task GREEN AC (예: AC-CR-006 = T-009 partial M2 + T-013 final M3) 는 메인 책임 마일스톤 (M2) 에만 카운트. 합 = 10 + 8 + 10 + 4 = 32 (overall AC 32 정합).
 
@@ -43,61 +43,61 @@ author: MoAI manager-spec
 
 | Task | 마일스톤 | priority | status | 핵심 AC | 의존 task | 비고 |
 |------|----------|----------|--------|---------|-----------|------|
-| T-001 | M1 | High | not-started | AC-CR-001, AC-CR-024 | (없음) | M1 진입 task |
-| T-002 | M1 | High | not-started | AC-CR-002, AC-CR-005, AC-CR-009, AC-CR-013, AC-CR-014 | T-001 | go-keyring wrapper |
-| T-003 | M1 | High | not-started | AC-CR-020 | T-002 | probe + KeyringUnavailable sentinel |
-| T-004 | M1 | High | not-started | AC-CR-008, AC-CR-031 | T-002, T-003 | Health API + doctor subcommand |
-| T-005 | M1 | High | not-started | AC-CR-001, AC-CR-007, AC-CR-015 | T-001, T-002, T-003 | M1 통합 테스트 |
-| T-006 | M2 | High | not-started | AC-CR-004, AC-CR-026, AC-CR-027 | T-001 | FileBackend + atomic write |
-| T-007 | M2 | High | not-started | AC-CR-021, AC-CR-022 | T-002, T-006 | Dispatcher |
-| T-008 | M2 | High | not-started | AC-CR-021, AC-CR-029, AC-CR-030 | T-007 | CLI config + OP placeholder |
-| T-009 | M2 | High | not-started | AC-CR-006, AC-CR-022 | T-006, T-007 | M2 통합 테스트 + cloud folder 경고 |
-| T-010 | M3 | High | not-started | AC-CR-016 (initial) | T-007 | Codex PKCE flow |
-| T-011 | M3 | High | not-started | AC-CR-016, AC-CR-018 | T-010 | auto-refresh |
-| T-012 | M3 | High | not-started | AC-CR-017, AC-CR-025 | T-011 | invalid_grant detection |
-| T-013 | M3 | High | not-started | AC-CR-006, AC-CR-011, AC-CR-028 | T-001, T-006 | 8 credential schema |
-| T-014 | M3 | High | not-started | AC-CR-003, AC-CR-010, AC-CR-023 | T-013 | LLM-ROUTING-V2 wiring + 헌장 정합 회귀 |
-| T-015 | M4 | Medium | not-started | AC-CR-019 | T-013, T-014 | USERDATA-MIGRATE 통합 |
-| T-016 | M4 | Medium | not-started | AC-CR-012, AC-CR-015, AC-CR-032 | T-013, T-015 | CLI 완성 (8 login + logout) |
-| T-017 | M4 | Medium | not-started | AC-CR-032 (문서) | T-001~T-016 | 사용자 문서 `.moai/docs/auth-credential.md` |
-| T-018 | M4 | Medium | not-started | (meta) | T-001~T-017 | progress.md sync + plan-auditor pass |
+| T-001 | M1 | High | refactored | AC-CR-001, AC-CR-024 | (없음) | M1 진입 task — PR #243 |
+| T-002 | M1 | High | refactored | AC-CR-002, AC-CR-005, AC-CR-009, AC-CR-013, AC-CR-014 | T-001 | go-keyring wrapper — PR #243 |
+| T-003 | M1 | High | refactored | AC-CR-020 | T-002 | probe + KeyringUnavailable sentinel — PR #243 |
+| T-004 | M1 | High | refactored | AC-CR-008, AC-CR-031 | T-002, T-003 | Health API + doctor subcommand — PR #243 |
+| T-005 | M1 | High | refactored | AC-CR-001, AC-CR-007, AC-CR-015 | T-001, T-002, T-003 | M1 통합 테스트 — PR #243 |
+| T-006 | M2 | High | refactored | AC-CR-004, AC-CR-026, AC-CR-027 | T-001 | FileBackend + atomic write — PR #244 |
+| T-007 | M2 | High | refactored | AC-CR-021, AC-CR-022 | T-002, T-006 | Dispatcher — PR #244 |
+| T-008 | M2 | High | refactored | AC-CR-021, AC-CR-029, AC-CR-030 | T-007 | CLI config + OP placeholder — PR #244 |
+| T-009 | M2 | High | refactored | AC-CR-006, AC-CR-022 | T-006, T-007 | M2 통합 테스트 + cloud folder 경고 — PR #244 |
+| T-010 | M3 | High | refactored | AC-CR-016 (initial) | T-007 | Codex PKCE flow — PR #245 |
+| T-011 | M3 | High | refactored | AC-CR-016, AC-CR-018 | T-010 | auto-refresh — PR #245 |
+| T-012 | M3 | High | refactored | AC-CR-017, AC-CR-025 | T-011 | invalid_grant detection — PR #245 |
+| T-013 | M3 | High | refactored | AC-CR-006, AC-CR-011, AC-CR-028 | T-001, T-006 | 8 credential schema — PR #245 |
+| T-014 | M3 | High | refactored | AC-CR-003, AC-CR-010, AC-CR-023 | T-013 | LLM-ROUTING-V2 wiring + 헌장 정합 회귀 — PR #245 |
+| T-015 | M4 | Medium | blocked | AC-CR-019 | T-013, T-014 | USERDATA-MIGRATE export/import wiring 이월 — cross-device 시스템 미존재, 후속 amendment SPEC 필요 |
+| T-016 | M4 | Medium | refactored | AC-CR-012, AC-CR-015, AC-CR-032 | T-013, T-015 | CLI 완성 (8 login + logout) — 이번 PR |
+| T-017 | M4 | Medium | refactored | AC-CR-032 (문서) | T-001~T-016 | 사용자 문서 `.moai/docs/auth-credential.md` — 이번 PR |
+| T-018 | M4 | Medium | refactored | (meta) | T-001~T-017 | progress.md sync + spec.md HISTORY — 이번 PR |
 
 ## 4. AC Status Table
 
 | AC | 분류 | REQ | task(s) | status | 비고 |
 |----|------|-----|---------|--------|------|
-| AC-CR-001 | UB | UB-1 | T-001, T-005 | not-started | |
-| AC-CR-002 | UB | UB-2 | T-002 | not-started | |
-| AC-CR-003 | UB | UB-3 | T-014 | not-started | static analysis |
-| AC-CR-004 | UB | UB-2 | T-006 | not-started | |
-| AC-CR-005 | UB | UB-7 | T-002 | not-started | |
-| AC-CR-006 | UB | UB-6 | T-009, T-013 | not-started | M3 에서 완전 검증 |
-| AC-CR-007 | UB | UB-7 | T-001, T-005 | not-started | |
-| AC-CR-008 | UB | UB-8 | T-004 | not-started | |
-| AC-CR-009 | UB | UB-9 | T-002 | not-started | CI matrix |
-| AC-CR-010 | UB | UB-5, UN-5 | T-014 | not-started | static + I |
-| AC-CR-011 | UB | UB-4 | T-013 | not-started | |
-| AC-CR-012 | UB | UB-4 | T-016 | not-started | |
-| AC-CR-013 | ED | ED-1 | T-002, T-016 | not-started | |
-| AC-CR-014 | ED | ED-2 | T-002 | not-started | |
-| AC-CR-015 | ED | ED-3 | T-005, T-016 | not-started | |
-| AC-CR-016 | ED | ED-4 | T-010, T-011 | not-started | |
-| AC-CR-017 | ED | ED-5 | T-012 | not-started | |
-| AC-CR-018 | ED | SD-4 | T-011 | not-started | silent refresh (ED 영역 관찰) |
-| AC-CR-019 | ED | ED-6, ED-7 | T-015 | not-started | export+import round-trip |
-| AC-CR-031 | ED | UB-8, UB-9 | T-004 | not-started | doctor subcommand |
-| AC-CR-020 | SD | SD-1 | T-003 | not-started | |
-| AC-CR-021 | SD | SD-2 | T-007, T-008 | not-started | |
-| AC-CR-022 | SD | SD-1 | T-007, T-009 | not-started | |
-| AC-CR-023 | SD | SD-3 | T-014 | not-started | LLM-ROUTING-V2 graceful degrade |
-| AC-CR-024 | SD | UN-1 | T-001 | not-started | log state observation |
-| AC-CR-025 | UN | UN-4 | T-012 | not-started | |
-| AC-CR-026 | UN | UN-2 | T-006 | not-started | |
-| AC-CR-027 | UN | UN-6 | T-006 | not-started | |
-| AC-CR-028 | UN | UN-3 | T-013 | not-started | |
-| AC-CR-032 | UN | UN-2 (보조) + OP-3 | T-016, T-017 | not-started | doc + e2e |
-| AC-CR-029 | OP | OP-1 | T-008 | not-started | placeholder |
-| AC-CR-030 | OP | OP-2 | T-008 | not-started | placeholder |
+| AC-CR-001 | UB | UB-1 | T-001, T-005 | green | PR #243 |
+| AC-CR-002 | UB | UB-2 | T-002 | green | PR #243 |
+| AC-CR-003 | UB | UB-3 | T-014 | green | PR #245, static analysis PASS |
+| AC-CR-004 | UB | UB-2 | T-006 | green | PR #244 |
+| AC-CR-005 | UB | UB-7 | T-002 | green | PR #243 |
+| AC-CR-006 | UB | UB-6 | T-009, T-013 | green | PR #244/#245, M3 완전 GREEN |
+| AC-CR-007 | UB | UB-7 | T-001, T-005 | green | PR #243 |
+| AC-CR-008 | UB | UB-8 | T-004 | green | PR #243 |
+| AC-CR-009 | UB | UB-9 | T-002 | green | PR #243, CI matrix |
+| AC-CR-010 | UB | UB-5, UN-5 | T-014 | green | PR #245, static + I |
+| AC-CR-011 | UB | UB-4 | T-013 | green | PR #245 |
+| AC-CR-012 | UB | UB-4 | T-016 | green | 이번 PR — mink login 8 providers |
+| AC-CR-013 | ED | ED-1 | T-002, T-016 | green | PR #243 + 이번 PR |
+| AC-CR-014 | ED | ED-2 | T-002 | green | PR #243 |
+| AC-CR-015 | ED | ED-3 | T-005, T-016 | green | PR #243 + 이번 PR (mink logout) |
+| AC-CR-016 | ED | ED-4 | T-010, T-011 | green | PR #245 |
+| AC-CR-017 | ED | ED-5 | T-012 | green | PR #245 |
+| AC-CR-018 | ED | SD-4 | T-011 | green | PR #245, silent refresh |
+| AC-CR-019 | ED | ED-6, ED-7 | T-015 | deferred | T-015 후속 amendment 이월 — cross-device export/import 시스템 미존재 |
+| AC-CR-031 | ED | UB-8, UB-9 | T-004 | green | PR #243, doctor subcommand |
+| AC-CR-020 | SD | SD-1 | T-003 | green | PR #243 |
+| AC-CR-021 | SD | SD-2 | T-007, T-008 | green | PR #244 |
+| AC-CR-022 | SD | SD-1 | T-007, T-009 | green | PR #244 |
+| AC-CR-023 | SD | SD-3 | T-014 | green | PR #245, LLM-ROUTING-V2 graceful degrade |
+| AC-CR-024 | SD | UN-1 | T-001 | green | PR #243 |
+| AC-CR-025 | UN | UN-4 | T-012 | green | PR #245 |
+| AC-CR-026 | UN | UN-2 | T-006 | green | PR #244 |
+| AC-CR-027 | UN | UN-6 | T-006 | green | PR #244 |
+| AC-CR-028 | UN | UN-3 | T-013 | green | PR #245 |
+| AC-CR-032 | UN | UN-2 (보조) + OP-3 | T-016, T-017 | green | 이번 PR — mink login/logout CLI + 문서 |
+| AC-CR-029 | OP | OP-1 | T-008 | green | PR #244, placeholder |
+| AC-CR-030 | OP | OP-2 | T-008 | green | PR #244, placeholder |
 
 > AC unique count = 32. 분포: UB 12 + ED 8 + SD 5 + UN 5 + OP 2 = 32. spec.md frontmatter `acceptance_total: 32` 와 acceptance.md §6 매트릭스 및 plan.md §4 매트릭스와 정합.
 
@@ -147,11 +147,11 @@ author: MoAI manager-spec
 
 ---
 
-Version: 0.2.0
-Last Updated: 2026-05-16
-spec.md status: planned
+Version: 0.3.0
+Last Updated: 2026-05-17
+spec.md status: implemented
 REQ: 30 (UB 9 / ED 7 / SD 4 / UN 6 / OP 4)
-AC: 32 (UB 12 / ED 8 / SD 5 / UN 5 / OP 2)
-Milestones: 4 (all not-started)
-Tasks: 18 (all not-started)
-Overall progress: 0% (plan 완료, run 미진입)
+AC: 32 (UB 12 / ED 8 / SD 5 / UN 5 / OP 2) — 31 GREEN, 1 deferred (AC-CR-019)
+Milestones: 4 (M1+M2+M3+M4 complete)
+Tasks: 18 (17 complete, T-015 deferred)
+Overall progress: ~93% (T-015 export/import wiring 후속 amendment 이월)

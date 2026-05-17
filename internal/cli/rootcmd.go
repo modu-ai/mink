@@ -132,6 +132,11 @@ func NewRootCommand(version, commit, builtAt string) *cobra.Command {
 	// Doctor command — subsystem health checks (auth-keyring, etc.).
 	rootCmd.AddCommand(commands.NewDoctorCommand())
 
+	// Login / logout commands — interactive credential registration and
+	// removal (mink login {provider} / mink logout {provider}).
+	// SPEC: SPEC-MINK-AUTH-CREDENTIAL-001 (T-016, AC-CR-012, AC-CR-015)
+	rootCmd.AddCommand(commands.NewLoginCommand())
+
 	return rootCmd
 }
 
