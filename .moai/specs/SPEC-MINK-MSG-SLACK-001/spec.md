@@ -98,6 +98,10 @@ trust_metrics:
 - **REQ-SLK-021 [P1]**: The adapter **shall not** call Slack Web API in synchronous response path (ack first, post async)
 - **REQ-SLK-022 [P1]**: The adapter **shall not** retry failed `chat.postMessage` more than 3 times (exponential backoff)
 
+### 3.4.5 Additional Event-Driven (audit D1+D8 fix — OAuth state CSRF 신규)
+
+- **REQ-SLK-025 [P1]**: When OAuth installation callback is received, the adapter **shall** verify the state token (CSRF, single-use, ≤5분 TTL) before accepting the authorization code
+
 ### 3.5 Optional (2)
 
 - **REQ-SLK-023 [P2, OPT]**: Where workspace admin enables "MINK memory share", channel history **shall** be queryable via `/mink-memory search <query>`

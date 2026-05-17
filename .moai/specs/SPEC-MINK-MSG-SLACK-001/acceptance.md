@@ -11,7 +11,7 @@
 - **SLK-003 [REQ-SLK-003/P0]**: LLM-ROUTING-V2-AMEND 위임 — Router.Route 호출 (mock 검증), Verify: integration
 - **SLK-006 [REQ-SLK-006/P1]**: BRIDGE canonical normalize — user_id/channel_id/team_id/text/ts/thread_ts, Verify: unit
 - **SLK-009 [REQ-SLK-009/P0]**: app_mention 트리거 — @bot mention 시 LLM 호출, Verify: integration
-- **SLK-010 [REQ-SLK-010/P0]**: message.im DM 처리 — DM 시 mention 불필요, Verify: integration
+- **SLK-010 [REQ-SLK-010, REQ-SLK-016/P0]**: message.im DM 처리 — DM 시 mention 불필요 (audit D8 fix: REQ-SLK-016 state-driven DM 매핑 추가), Verify: integration
 - **SLK-011 [REQ-SLK-011/P0]**: slash command — `/mink prompt` ack ≤ 3s + chat.postMessage, Verify: integration
 - **SLK-015 [REQ-SLK-015/P0]**: placeholder → update — "MINK is thinking..." 후 chat.update final, Verify: integration
 - **SLK-017 [REQ-SLK-017/P1]**: public channel mention 강제 — @mention 없는 일반 메시지 응답 0, Verify: integration
@@ -19,7 +19,7 @@
 ## §3 M3 (3 AC)
 - **SLK-004 [REQ-SLK-004/P0]**: AUTH-CREDENTIAL 위임 — signing_secret + bot_token 평문 0, Verify: unit
 - **SLK-012 [REQ-SLK-012/P1]**: OAuth installation — workspace_id 키로 Store, Verify: integration
-- **SLK-016 [REQ-SLK-016/P1]**: OAuth state token — CSRF 검증, Verify: unit
+- **SLK-016 [REQ-SLK-025/P1]**: OAuth state token — CSRF 검증, single-use, ≤5분 TTL (audit D1 fix: REQ-016→REQ-025 신규), Verify: unit
 
 ## §4 M4 (13 AC)
 - **SLK-005 [REQ-SLK-005/P1]**: AGPL 헤더 — 신규 .go grep 0 missing, Verify: CI
