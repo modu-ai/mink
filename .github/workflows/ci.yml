@@ -14,8 +14,58 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # detect: paths-filter — Go 코드 변경과 docs-only 변경을 분기한다.
+  #
+  # docs-only PR (e.g. .moai/specs/**/*.md, CHANGELOG.md) 의 경우 무거운
+  # `Go (...)` job 을 skip 하고 동일 이름의 marker job 으로 required check 를
+  # 충족한다.  Tier 1 fast-track 패턴 (1인 개발 CI/CD 가이드 §2 / §3.A).
+  #
+  # SHA-pinned: dorny/paths-filter v3.0.3 (가이드 §5 supply-chain 안티패턴 회피).
+  # ---------------------------------------------------------------------------
+  detect:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    outputs:
+      go_code: ${{ steps.filter.outputs.go_code }}
+      docs_only: ${{ steps.filter.outputs.docs_only }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Filter paths
+        id: filter
+        uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590  # v3.0.3
+        with:
+          filters: |
+            go_code:
+              - '**/*.go'
+              - 'go.mod'
+              - 'go.sum'
+              - 'Makefile'
+              - 'scripts/install.sh'
+              - '.github/workflows/ci.yml'
+            docs_only:
+              - '**/*.md'
+              - 'docs/**'
+              - 'CHANGELOG.md'
+              - 'LICENSE'
+              - '.moai/project/**'
+              - '.moai/specs/**'
+
+  # ---------------------------------------------------------------------------
+  # ci: 실제 빌드 / vet / gofmt / test -race.
+  #
+  # docs-only PR 이면 이 job 은 skip 되고, 아래 ci-skip-marker 가 동일 이름으로
+  # required check 를 충족한다.
+  # ---------------------------------------------------------------------------
   ci:
     name: Go (build / vet / gofmt / test -race)
+    needs: detect
+    if: needs.detect.outputs.go_code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -50,3 +100,25 @@ jobs:
 
       - name: go test -race -cover
         run: go test -race -cover -timeout=10m ./...
+
+  # ---------------------------------------------------------------------------
+  # ci-skip-marker: docs-only PR 인 경우 동일한 check-run name 으로 success 발행.
+  #
+  # branch protection 의 required check "Go (build / vet / gofmt / test -race)"
+  # 는 check-run name 으로 매칭되므로, 이 marker 가 실제 ci job 을 대체한다.
+  #
+  # mutual exclusivity guard:
+  #   docs_only == true  AND  go_code != true
+  #   → 혼합 PR (docs + code) 에서는 marker 가 비활성, real ci 가 실행됨.
+  # ---------------------------------------------------------------------------
+  ci-skip-marker:
+    name: Go (build / vet / gofmt / test -race)
+    needs: detect
+    if: needs.detect.outputs.docs_only == 'true' && needs.detect.outputs.go_code != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Docs-only fast-track
+        run: |
+          echo "Docs-only PR — Go CI skipped via paths-filter."
+          echo "If this PR is later amended with Go code, the real CI job runs."
