@@ -18,7 +18,7 @@ related:
   - SPEC-MINK-MSG-SLACK-001
   - SPEC-MINK-MSG-DISCORD-001
 trust_metrics:
-  requirements_total: 26
+  requirements_total: 28
   acceptance_total: 28
   milestones: 4
 ---
@@ -114,6 +114,11 @@ trust_metrics:
 - **REQ-ONB5-024 [P2, OPT]**: Where user provides custom OpenAI-compat endpoint, an additional "Custom Endpoint" card **shall** be available
 - **REQ-ONB5-025 [P2, OPT]**: Where Brand theme variants are configured, the UI **shall** apply theme
 - **REQ-ONB5-026 [P2, OPT]**: Where `MINK_ONBOARDING_LANG=ko|en` env is set, UI labels **shall** use specified language
+
+### 3.6 Additional Ubiquitous (audit B1 fix — CI gate REQ 신규)
+
+- **REQ-ONB5-027 [P0]**: The build pipeline **shall** ensure go vet + golangci-lint + tsc --noEmit + eslint produce 0 error on every CI run
+- **REQ-ONB5-028 [P1]**: The build pipeline **shall** ensure gofmt / prettier produce 0 diff on all new .go/.tsx files
 
 ## 4. 마일스톤
 

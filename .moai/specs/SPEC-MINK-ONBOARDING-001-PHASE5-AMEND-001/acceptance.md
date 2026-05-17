@@ -35,8 +35,8 @@
 - **OB5-024 [REQ-ONB5-024/P2,OPT]**: custom OpenAI-compat endpoint 추가 카드, Verify: integration
 - **OB5-025 [REQ-ONB5-025/P2,OPT]**: brand theme 적용, Verify: e2e visual
 - **OB5-026 [REQ-ONB5-026/P2,OPT]**: MINK_ONBOARDING_LANG env 적용, Verify: integration
-- **OB5-027 [REQ-ONB5-005 보강/P0]**: go vet + golangci-lint + tsc --noEmit + eslint CI clean, Verify: CI
-- **OB5-028 [REQ-ONB5-005 보강/P1]**: gofmt/prettier 신규 파일 clean, Verify: CI
+- **OB5-027 [REQ-ONB5-027/P0]**: go vet + golangci-lint + tsc --noEmit + eslint CI clean (audit B1 fix: 신규 REQ-027), Verify: CI
+- **OB5-028 [REQ-ONB5-028/P1]**: gofmt/prettier 신규 파일 clean (audit B1 fix: 신규 REQ-028), Verify: CI
 
 ## §5 DoD
 28/28 GREEN, coverage ≥ 85% (internal/server/install/, web/install/src/Step2/Step3), Playwright E2E PASS (5 provider mock + OAuth callback mock + 3 channel), plan-auditor pass.
