@@ -7,16 +7,13 @@
 package file
 
 import (
-	"runtime"
 	"testing"
 )
 
 // TestWarnIfCloudSynced verifies the cloud-sync path detection logic.
-// On macOS/Windows the comparison is case-insensitive; on Linux it is
-// case-sensitive (matching the production behaviour in WarnIfCloudSynced).
+// Matching is case-insensitive on all platforms — see WarnIfCloudSynced
+// documentation for rationale (R4 risk uniformity).
 func TestWarnIfCloudSynced(t *testing.T) {
-	caseInsensitive := runtime.GOOS == "darwin" || runtime.GOOS == "windows"
-
 	type testCase struct {
 		name    string
 		path    string
@@ -74,14 +71,13 @@ func TestWarnIfCloudSynced(t *testing.T) {
 		},
 	}
 
-	// On case-sensitive Linux, uppercase variants should NOT warn.
-	if !caseInsensitive {
-		tests = append(tests, testCase{
-			name:    "linux case-sensitive: Dropbox uppercase should warn (exact match)",
-			path:    "/home/alice/Dropbox/.mink/auth/credentials.json",
-			wantMsg: false, // "Dropbox" != "dropbox" on Linux — keywords are lower
-		})
-	}
+	// Case-insensitive matching applies on all platforms — verify with a
+	// lowercase-named Dropbox folder typically created by the Linux client.
+	tests = append(tests, testCase{
+		name:    "lowercase dropbox folder (linux client)",
+		path:    "/home/alice/dropbox/.mink/auth/credentials.json",
+		wantMsg: true,
+	})
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

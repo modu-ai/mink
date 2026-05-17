@@ -48,8 +48,11 @@ func verifyMode(path string) error {
 // cloudSyncSegments is the ordered list of path segment substrings that
 // indicate the path is inside a known cloud-sync folder.
 //
-// Matching is case-insensitive on macOS and Windows (common for cloud folders
-// on those platforms) and case-sensitive on Linux.
+// Matching is case-insensitive on all platforms because the same cloud vendor
+// uses different capitalisations on different platforms (e.g., macOS uses
+// "iCloud Drive" with a leading capital; the official Linux Dropbox client
+// uses lower-case "dropbox") and the user-perceived risk (R4 in plan.md) is
+// identical regardless of capitalisation.
 //
 // The list covers the five vendors named in SPEC T-009:
 //
@@ -67,35 +70,21 @@ var cloudSyncSegments = []string{
 // proceeds when this function returns a non-empty string — callers should emit
 // the warning to stderr and continue.
 //
-// Detection algorithm: split path into filepath components and check whether
-// any component matches a cloud-sync keyword.  Comparison is case-insensitive
-// on macOS and Windows; case-sensitive on Linux.
+// Detection algorithm: split path into filepath components and case-
+// insensitively compare each segment against the known cloud keywords.
 //
 // @MX:NOTE: [AUTO] WarnIfCloudSynced is called on every Store to inform the
 // user when credentials land in a synced directory (UN-2 trade-off awareness,
 // T-009 requirement).
 func WarnIfCloudSynced(path string) string {
 	absPath := filepath.Clean(path)
-	caseInsensitive := runtime.GOOS == "darwin" || runtime.GOOS == "windows"
 
 	// Split the path into its directory components for segment-level matching.
 	parts := splitPathSegments(absPath)
 
 	for _, part := range parts {
 		for _, keyword := range cloudSyncSegments {
-			var matched bool
-			if caseInsensitive {
-				// macOS / Windows: case-insensitive match (cloudSyncSegments are
-				// already lower-case).
-				matched = strings.EqualFold(part, keyword)
-			} else {
-				// Linux: case-sensitive match against the lower-case canonical
-				// form.  A user-created "Dropbox" directory must NOT match
-				// because Linux filesystems are case-sensitive — the official
-				// Dropbox client on Linux uses lower-case "dropbox".
-				matched = part == keyword
-			}
-			if matched {
+			if strings.EqualFold(part, keyword) {
 				return fmt.Sprintf(
 					"warning: credentials file %q appears to be inside a "+
 						"cloud-sync folder (%q). "+
