@@ -77,6 +77,7 @@ func NewWriter(store *Store, lockPath string) (*Writer, error) {
 	defer cancel()
 
 	locked := false
+acquireLoop:
 	for {
 		ok, err := fl.TryLock()
 		if err != nil {
@@ -85,18 +86,14 @@ func NewWriter(store *Store, lockPath string) (*Writer, error) {
 		}
 		if ok {
 			locked = true
-			break
+			break acquireLoop
 		}
 		select {
 		case <-ctx.Done():
-			// Timeout reached.
-			break
+			// Timeout reached; abort outer loop.
+			break acquireLoop
 		case <-time.After(lockPollInterval):
-			// Retry.
-			continue
-		}
-		if !locked {
-			break
+			// Retry the lock acquisition.
 		}
 	}
 

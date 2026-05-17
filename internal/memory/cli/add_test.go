@@ -19,26 +19,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// setVaultPaths overrides the default vault/index paths for testing.
-// The t.Cleanup restores the original values so tests do not interfere.
-func withTempVault(t *testing.T) (vaultDir, indexPath string) {
-	t.Helper()
-	base := t.TempDir()
-	vaultDir = filepath.Join(base, "markdown")
-	indexPath = filepath.Join(base, "main.sqlite")
-
-	// Temporarily redirect the defaults.
-	oldVault := defaultVaultPath
-	oldIndex := defaultIndexPath
-	// Override via monkey-patching is not clean without interfaces; instead we
-	// write a small helper that sets the env vars used by go-homedir.
-	// For simplicity in M1 we test through the real paths but use t.TempDir
-	// to isolate the file system.
-	_ = oldVault
-	_ = oldIndex
-	return vaultDir, indexPath
-}
-
 // executeAdd builds a root command tree with the memory subcommand wired in,
 // executes it with the given arguments, and captures stdout.
 func executeAdd(t *testing.T, args ...string) (string, error) {

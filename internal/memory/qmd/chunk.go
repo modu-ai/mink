@@ -159,26 +159,18 @@ func splitByTokenCap(content string, startLine, endLine, maxTokens int) []Chunk 
 	// sub-chunks.  We do not attempt to track per-word line numbers here;
 	// the sub-chunk line range is an approximation that uses proportional
 	// distribution.
-	totalLines := endLine - startLine + 1
-	if totalLines < 1 {
-		totalLines = 1
-	}
+	totalLines := max(endLine-startLine+1, 1)
 
 	var chunks []Chunk
 	for offset := 0; offset < len(words); offset += maxTokens {
-		end := offset + maxTokens
-		if end > len(words) {
-			end = len(words)
-		}
+		end := min(offset+maxTokens, len(words))
 		slice := words[offset:end]
 		chunkContent := strings.Join(slice, " ")
 
 		// Approximate line range proportionally.
 		chunkStart := startLine + int(float64(offset)/float64(len(words))*float64(totalLines))
 		chunkEnd := startLine + int(float64(end)/float64(len(words))*float64(totalLines)) - 1
-		if chunkEnd < chunkStart {
-			chunkEnd = chunkStart
-		}
+		chunkEnd = max(chunkEnd, chunkStart)
 		if end == len(words) {
 			chunkEnd = endLine
 		}
