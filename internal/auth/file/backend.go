@@ -28,7 +28,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sync"
 
 	"github.com/modu-ai/mink/internal/auth/credential"
@@ -232,12 +231,6 @@ type credentialsDoc struct {
 	Credentials map[string]json.RawMessage `json:"credentials"`
 }
 
-// credentialEnvelope is used to decode/encode the kind + payload fields.
-type credentialEnvelope struct {
-	Kind  string          `json:"kind"`
-	Value json.RawMessage `json:"value,omitempty"`
-}
-
 // readOrEmpty loads the credentials file if it exists, or returns an
 // initialised empty document if the file does not exist yet.
 func (b *Backend) readOrEmpty() (*credentialsDoc, error) {
@@ -359,19 +352,4 @@ func unmarshalCredential(raw json.RawMessage) (credential.Credential, error) {
 		return nil, fmt.Errorf("file: unknown credential kind %q: %w",
 			envelope.Kind, credential.ErrNotFound)
 	}
-}
-
-// verifyPlatformPermission is an alias for the permission check in perms.go,
-// exposed here for use by tests and the Store path when needed.
-// On POSIX it verifies mode 0600; on Windows it is a no-op (documented gap).
-func verifyPlatformPermission(path string) error {
-	if runtime.GOOS == "windows" {
-		// NTFS ACL enforcement deferred to ICACLS integration (post-M2).
-		// @MX:WARN: [AUTO] Windows permission check is a no-op in M2.
-		// @MX:REASON: Windows NTFS ACL verification deferred to ICACLS
-		// integration (post-M2); file is written with os.WriteFile 0600 which
-		// is silently ignored by the Windows kernel for NTFS volumes.
-		return nil
-	}
-	return verifyMode(path)
 }
