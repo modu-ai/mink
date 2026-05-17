@@ -8,7 +8,7 @@
 //
 // M1 implements: memory add
 // M2 implements: memory search (BM25 full-text search)
-// M3+ will add: reindex, export, import, stats, prune
+// M5 implements: memory reindex, export, import, stats, prune
 //
 // SPEC: SPEC-MINK-MEMORY-QMD-001
 package cli
@@ -36,12 +36,12 @@ Available subcommands (M1):
 Available subcommands (M2):
   search    Full-text (BM25) search across the memory vault
 
-Coming in M3+:
-  reindex   Rebuild the SQLite index from the markdown vault
-  export    Export the vault as a tarball or ClawMem-compatible directory
-  import    Merge an external vault into the local vault
-  stats     Show per-collection statistics
-  prune     Remove old markdown files and their index rows`,
+Available subcommands (M5):
+  reindex   Rebuild stale index entries from vault markdown files
+  export    Export the vault as a tarball
+  import    Merge an exported vault tarball into the local vault
+  stats     Show per-collection memory vault statistics
+  prune     Remove old markdown files and their index entries`,
 	}
 
 	// M1 subcommands.
@@ -49,6 +49,15 @@ Coming in M3+:
 
 	// M2 subcommands.
 	cmd.AddCommand(NewSearchCommand())
+
+	// M5 subcommands.
+	cmd.AddCommand(
+		NewReindexCommand(),
+		NewExportCommand(),
+		NewImportCommand(),
+		NewStatsCommand(),
+		NewPruneCommand(),
+	)
 
 	return cmd
 }
