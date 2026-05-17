@@ -165,6 +165,13 @@ func (s *Store) MigrateSchema(ctx context.Context) error {
 			return fmt.Errorf("sqlite.MigrateSchema: execute DDL: %w", err)
 		}
 	}
+
+	// Seed schema_version into the metadata table (idempotent INSERT OR IGNORE).
+	// Called here so every Open is guaranteed to have the row present.
+	if err := s.seedSchemaVersion(ctx); err != nil {
+		return fmt.Errorf("sqlite.MigrateSchema: seed schema version: %w", err)
+	}
+
 	return nil
 }
 

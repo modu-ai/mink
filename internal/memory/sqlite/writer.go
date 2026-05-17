@@ -138,6 +138,70 @@ RETURNING file_id`
 	return fileID, nil
 }
 
+// DeleteChunksByFileID removes all chunks (and their FTS + embedding rows)
+// associated with the given file_id.
+//
+// FTS rows are cleaned explicitly because FTS5 virtual tables do not support
+// FK cascade.  Vec0 embeddings are deleted best-effort (ignored when vec0 is
+// not loaded).  This method is used by the reindex workflow to clear stale
+// chunks before inserting fresh ones (AC-MEM-016).
+func (w *Writer) DeleteChunksByFileID(ctx context.Context, fileID int64) error {
+	// Collect chunk IDs first so FTS rows can be removed explicitly.
+	const selectIDs = `SELECT chunk_id FROM chunks WHERE file_id = ?`
+	rows, err := w.store.db.QueryContext(ctx, selectIDs, fileID)
+	if err != nil {
+		return fmt.Errorf("sqlite.Writer.DeleteChunksByFileID: select chunk ids: %w", err)
+	}
+	var ids []string
+	for rows.Next() {
+		var id string
+		if scanErr := rows.Scan(&id); scanErr != nil {
+			_ = rows.Close()
+			return fmt.Errorf("sqlite.Writer.DeleteChunksByFileID: scan: %w", scanErr)
+		}
+		ids = append(ids, id)
+	}
+	if closeErr := rows.Close(); closeErr != nil {
+		return fmt.Errorf("sqlite.Writer.DeleteChunksByFileID: close rows: %w", closeErr)
+	}
+
+	tx, err := w.store.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("sqlite.Writer.DeleteChunksByFileID: begin tx: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	// Delete FTS rows first (FTS5 has no FK cascade).
+	for _, id := range ids {
+		if _, ftsErr := tx.ExecContext(ctx, "DELETE FROM chunks_fts WHERE chunk_id = ?", id); ftsErr != nil {
+			// FTS5 may not be present; log and continue.
+			log.Printf("sqlite.Writer.DeleteChunksByFileID: delete fts for %q: %v (ignored)", id, ftsErr)
+		}
+	}
+
+	// Delete embedding rows best-effort (vec0 may not be present).
+	for _, id := range ids {
+		if _, embErr := tx.ExecContext(ctx, "DELETE FROM embeddings WHERE chunk_id = ?", id); embErr != nil {
+			log.Printf("sqlite.Writer.DeleteChunksByFileID: delete embedding for %q: %v (ignored)", id, embErr)
+		}
+	}
+
+	// Delete the chunk rows themselves.
+	const deleteChunks = `DELETE FROM chunks WHERE file_id = ?`
+	if _, err = tx.ExecContext(ctx, deleteChunks, fileID); err != nil {
+		return fmt.Errorf("sqlite.Writer.DeleteChunksByFileID: delete chunks: %w", err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("sqlite.Writer.DeleteChunksByFileID: commit: %w", err)
+	}
+	return nil
+}
+
 // Insert persists a single Chunk into the chunks and chunks_fts tables.
 //
 // The operation is idempotent: a conflict on chunk_id triggers an UPSERT that
