@@ -4,6 +4,11 @@
 // presence/masked status of all 8 known providers.  No plaintext is ever
 // printed (UN-1).
 //
+// The backend is accepted as a credential.Service so the doctor works with any
+// backend (keyring, file, or Dispatcher) without modification (M2 requirement).
+// When no explicit backend is provided via RunAuthKeyringWithBackend, the
+// command defaults to a keyring.Backend for backward compatibility.
+//
 // SPEC: SPEC-MINK-AUTH-CREDENTIAL-001 (UB-8, UB-9, AC-CR-008, AC-CR-031)
 package commands
 
@@ -53,28 +58,46 @@ func newAuthKeyringCommand() *cobra.Command {
 	}
 }
 
-// runAuthKeyring executes the auth-keyring health check and writes a
-// human-readable table to w.  It is extracted from the cobra RunE so it can
-// be called directly by tests.
+// runAuthKeyring executes the auth-keyring health check using the default
+// keyring backend and writes a human-readable table to w.
+//
+// Callers that want to use a different backend (e.g. the Dispatcher in
+// integration tests) should call RunAuthKeyringWithBackend instead.
 func runAuthKeyring(w io.Writer) error {
 	b := keyring.NewBackend()
 
 	// Probe detects actual OS keyring availability; on real hardware the
 	// result may differ from the mock used in unit tests.
 	_, probeReason := keyring.Probe()
-	backendName := "keyring"
+	backendLabel := "keyring"
 	if probeReason != "" {
-		backendName = "keyring (unavailable: " + probeReason + ")"
+		backendLabel = "keyring (unavailable: " + probeReason + ")"
 	}
 
-	fmt.Fprintf(w, "Backend: %s\n\n", backendName)
+	return runAuthKeyringWithBackend(w, b, backendLabel)
+}
+
+// RunAuthKeyringWithBackend executes the auth-keyring health check against
+// the supplied credential.Service and writes a human-readable table to w.
+//
+// This function accepts any credential.Service (keyring.Backend, file.Backend,
+// or Dispatcher) so that the doctor command remains backend-agnostic (M2
+// requirement).
+func RunAuthKeyringWithBackend(w io.Writer, svc credential.Service, backendLabel string) error {
+	return runAuthKeyringWithBackend(w, svc, backendLabel)
+}
+
+// runAuthKeyringWithBackend is the internal implementation shared by
+// runAuthKeyring and RunAuthKeyringWithBackend.
+func runAuthKeyringWithBackend(w io.Writer, svc credential.Service, backendLabel string) error {
+	fmt.Fprintf(w, "Backend: %s\n\n", backendLabel)
 
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(tw, "PROVIDER\tSTATUS")
 	fmt.Fprintln(tw, "--------\t------")
 
 	for _, provider := range knownProviders {
-		status, err := b.Health(provider)
+		status, err := svc.Health(provider)
 		row := formatHealthRow(status, err)
 		fmt.Fprintf(tw, "%s\t%s\n", provider, row)
 	}

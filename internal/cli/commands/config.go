@@ -98,6 +98,10 @@ func newConfigGetCommand(store ConfigStore) *cobra.Command {
 }
 
 // newConfigSetCommand creates the config set subcommand.
+//
+// Key-specific validation is applied before the value is persisted.  Currently
+// the "auth.store" key enforces a fixed set of accepted values and rejects OP
+// placeholder names with a NotImplemented message (AC-CR-029, AC-CR-030).
 func newConfigSetCommand(store ConfigStore) *cobra.Command {
 	return &cobra.Command{
 		Use:   "set <key> <value>",
@@ -106,6 +110,11 @@ func newConfigSetCommand(store ConfigStore) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key := args[0]
 			value := args[1]
+
+			// Apply per-key validation before persisting.
+			if err := validateConfigSet(key, value); err != nil {
+				return err
+			}
 
 			if err := store.Set(key, value); err != nil {
 				return fmt.Errorf("goose: failed to set config: %w", err)
