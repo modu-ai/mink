@@ -1,0 +1,22 @@
+# lefthook — local pre-push hook for MINK
+#
+# 1인 개발 CI/CD 가이드 §3(D) 의 local pre-flight 패턴.
+# push 전 lint / vet / gofmt / build / test -race / brand-lint 를 로컬에서 돌려
+# CI 실패 95%+ 를 사전 차단한다.
+#
+# 설치 (개발자 1회):
+#   brew install lefthook
+#   lefthook install
+#
+# 긴급 우회 (hotfix 등):
+#   LEFTHOOK=0 git push
+#
+# pre-push hook 은 Makefile 의 `ci-local` 타겟을 그대로 호출한다.
+# (Makefile 이 GitHub Actions 의 `Go (...)` + `Brand Notation Check` 게이트와 1:1 mirror)
+
+pre-push:
+  parallel: false
+  commands:
+    preflight:
+      run: make ci-local
+      tags: lint test build brand

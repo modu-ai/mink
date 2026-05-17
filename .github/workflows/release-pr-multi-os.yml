@@ -1,0 +1,76 @@
+name: Release PR Multi-OS Verify
+
+# Tier 2 (1인 개발 CI/CD 가이드 §3.C):
+# release/* branch 의 PR 또는 manual dispatch 시에만 풀 매트릭스
+# (ubuntu / macOS / windows) 로 Go test -race 를 검증한다.
+#
+# 평상시 PR 은 ci.yml 의 단일 ubuntu-latest 만 실행 — 빠른 머지.
+# release 직전에만 multi-OS regression 을 just-in-time 으로 catch.
+#
+# Windows 의 sqlite-vec/cgo 비호환 회피: -tags 로 vec0 의존 패키지 제외 옵션을
+# 미래에 추가 가능. 현 시점에서는 windows-latest 가 SQLite cgo 빌드를 시도하면
+# fail 할 수 있으므로 fail-fast: false 로 다른 OS 결과는 보존한다.
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-multi-os-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect-release:
+    name: Detect release/* branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    if: |
+      startsWith(github.head_ref, 'release/') ||
+      github.event_name == 'workflow_dispatch'
+    outputs:
+      proceed: ${{ steps.gate.outputs.proceed }}
+    steps:
+      - name: Gate
+        id: gate
+        run: echo "proceed=true" >> "$GITHUB_OUTPUT"
+
+  full-matrix-test:
+    name: Release Verify (${{ matrix.os }})
+    needs: detect-release
+    if: needs.detect-release.outputs.proceed == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        # Windows: sqlite-vec/cgo 비호환은 CROSSPLAT-001 §5.1 의 별도 SPEC 에서
+        # 처리. release verify 단계에서는 ubuntu+macOS 매트릭스로 충분.
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+
+      - name: Download modules
+        run: go mod download
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go build
+        run: go build ./...
+
+      - name: go test -race
+        run: go test -race -timeout=15m ./...
