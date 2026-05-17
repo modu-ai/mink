@@ -59,7 +59,7 @@ PR #50 (SPEC-GOOSE-COMMAND-001) 와 PR #52 (SPEC-GOOSE-CMDCTX-001 v0.1.1) 머지
 
 - **SPEC-GOOSE-COMMAND-001** (implemented, PR #50, FROZEN): `command.Dispatcher`, `command.SlashCommandContext`, `command.ModelInfo`, `command.SessionSnapshot`, `command.ErrUnknownModel`. 본 SPEC 은 이 자산을 instantiate / 호출 만 한다. 변경하지 않는다.
 - **SPEC-GOOSE-CMDCTX-001** (implemented, PR #52, v0.1.1, FROZEN): `adapter.ContextAdapter`, `adapter.Options`, `adapter.New`, `adapter.WithContext`, `adapter.SetPlanMode`, `adapter.LoopController` 인터페이스, `adapter.LoopSnapshot`. 본 SPEC 은 `New(Options{...})` 와 `WithContext(ctx)` 만 호출한다. 변경하지 않는다.
-- **SPEC-GOOSE-CLI-001** (planned, v0.2.0, FROZEN-by-reference): `cmd/goose/main.go`, `internal/cli/rootcmd.go`, `internal/cli/tui/`, `internal/cli/commands/ask.go`, `internal/cli/transport/`. 본 SPEC 은 이 패키지 레이아웃을 read-only 로 가정하고 wiring add-on 만 추가한다. CLI-001 의 REQ / AC / 본문 변경 금지.
+- **SPEC-GOOSE-CLI-001** (planned, v0.2.0, FROZEN-by-reference): `cmd/mink/main.go`, `internal/cli/rootcmd.go`, `internal/cli/tui/`, `internal/cli/commands/ask.go`, `internal/cli/transport/`. 본 SPEC 은 이 패키지 레이아웃을 read-only 로 가정하고 wiring add-on 만 추가한다. CLI-001 의 REQ / AC / 본문 변경 금지.
 - **SPEC-GOOSE-CMDLOOP-WIRE-001** (planned, batch A): `cmdctrl.New(engine, logger)` 시그니처. 본 SPEC 은 §7.1 의 옵션 γ 를 채택하여 client-side 에서는 LoopController 를 omit 또는 stub 으로 처리. CMDLOOP-WIRE-001 의 산출물은 daemon-side wiring (DAEMON-WIRE-001) 에서 직접 회수.
 - **SPEC-GOOSE-ALIAS-CONFIG-001** (planned, batch A): `aliasconfig.LoadDefault(LoadOptions)` 시그니처. 본 SPEC 은 그 반환 map 을 `adapter.Options.AliasMap` 에 주입.
 - **SPEC-GOOSE-CMDCTX-PERMISSIVE-ALIAS-001** (planned, batch A): strict / lenient mode 토글. 본 SPEC 의 `--strict-alias` flag 와 결합.
@@ -122,13 +122,13 @@ PR #50 (SPEC-GOOSE-COMMAND-001) 와 PR #52 (SPEC-GOOSE-CMDCTX-001 v0.1.1) 머지
 
 **REQ-CLIINT-009**: WHEN bubbletea TUI 의 `handleSubmit` 이 user input 라인을 받으면 THEN 시스템은 (a) `streamCtx := derive(cmd.Context())` 를 cancellable context 로 derive, (b) `sctx := app.Adapter.WithContext(streamCtx)` 호출, (c) `app.Dispatcher.ProcessUserInput(streamCtx, line, sctx)` 호출, (d) 결과의 `Kind` 에 따라 (CLI-001 §6.5 의 switch 문) 분기해야 한다 (`shall invoke dispatcher with child adapter on every TUI submit`).
 
-**REQ-CLIINT-010**: WHEN `goose ask "<message>"` 또는 `goose ask --stdin` 이 invoke 되면 THEN 시스템은 첫 input 에 대해 dispatcher 호출 패턴 (`ProcessUserInput(ctx, input, app.Adapter.WithContext(ctx))`) 을 적용해야 한다 (`shall invoke dispatcher on first input in ask mode`). dispatcher 결과:
+**REQ-CLIINT-010**: WHEN `mink ask "<message>"` 또는 `mink ask --stdin` 이 invoke 되면 THEN 시스템은 첫 input 에 대해 dispatcher 호출 패턴 (`ProcessUserInput(ctx, input, app.Adapter.WithContext(ctx))`) 을 적용해야 한다 (`shall invoke dispatcher on first input in ask mode`). dispatcher 결과:
 - `ProcessLocal`: stdout 에 메시지 출력 후 exit 0.
 - `ProcessExit`: exit 0.
 - `ProcessProceed`: expanded prompt 를 daemon 의 `AgentService/ChatStream` 에 전송 (CLI-001 REQ-CLI-007 경로).
 - `ProcessAbort`: stderr 메시지 + exit 1.
 
-**REQ-CLIINT-011**: WHEN `--alias-file <path>` flag 가 명시되면 THEN 시스템은 `aliasconfig.LoadDefault(LoadOptions{AliasFile: path, ...})` 를 호출하여 그 파일을 우선 사용해야 한다 (`shall use --alias-file path when specified`). 명시되지 않으면 환경 변수 `GOOSE_ALIAS_FILE` 우선, 그 다음 default `$GOOSE_HOME/aliases.yaml` (ALIAS-CONFIG-001 위임).
+**REQ-CLIINT-011**: WHEN `--alias-file <path>` flag 가 명시되면 THEN 시스템은 `aliasconfig.LoadDefault(LoadOptions{AliasFile: path, ...})` 를 호출하여 그 파일을 우선 사용해야 한다 (`shall use --alias-file path when specified`). 명시되지 않으면 환경 변수 `MINK_ALIAS_FILE` 우선, 그 다음 default `$MINK_HOME/aliases.yaml` (ALIAS-CONFIG-001 위임).
 
 **REQ-CLIINT-012**: WHEN `--strict-alias` flag 가 true 로 명시되면 THEN 시스템은 `aliasconfig.LoadDefault(LoadOptions{Strict: true, ...})` 를 호출하여 unregistered canonical 에 대해 error 반환을 강제해야 한다 (`shall enforce strict alias validation when --strict-alias is true`). 기본값 false (lenient — PERMISSIVE-ALIAS-001 의 default 동작).
 
@@ -150,7 +150,7 @@ PR #50 (SPEC-GOOSE-COMMAND-001) 와 PR #52 (SPEC-GOOSE-CMDCTX-001 v0.1.1) 머지
 
 ### 4.5 Optional Requirements (where possible)
 
-**REQ-CLIINT-019**: WHERE `--alias-file` flag 가 제공되면 시스템은 ALIAS-CONFIG-001 의 `LoadOptions.AliasFile` 으로 그 값을 매핑해야 한다 (`shall map --alias-file flag to LoadOptions.AliasFile`). flag 미제공 시 ALIAS-CONFIG-001 의 default 동작 (env / GOOSE_HOME).
+**REQ-CLIINT-019**: WHERE `--alias-file` flag 가 제공되면 시스템은 ALIAS-CONFIG-001 의 `LoadOptions.AliasFile` 으로 그 값을 매핑해야 한다 (`shall map --alias-file flag to LoadOptions.AliasFile`). flag 미제공 시 ALIAS-CONFIG-001 의 default 동작 (env / MINK_HOME).
 
 **REQ-CLIINT-020**: WHERE `--strict-alias` flag 가 제공되면 시스템은 ALIAS-CONFIG-001 의 `LoadOptions.Strict` 와 PERMISSIVE-ALIAS-001 의 strict toggle 양쪽에 동일 값으로 매핑해야 한다 (`shall map --strict-alias flag to both LoadOptions.Strict and PERMISSIVE-ALIAS-001 toggle`). flag 미제공 시 default false (lenient).
 
@@ -228,7 +228,7 @@ import (
     "go.uber.org/zap"
 )
 
-// App holds the wiring dependencies for the goose CLI.
+// App holds the wiring dependencies for the mink CLI.
 //
 // One instance per process. Initialized in rootcmd.PersistentPreRunE via App.New.
 // All user-input entry points (TUI handleSubmit, ask cmd, session load) call
@@ -248,7 +248,7 @@ type App struct {
 // Config carries the persistent flags + env values needed for App.New.
 // Populated in rootcmd.PersistentPreRunE from cobra/viper.
 type Config struct {
-    AliasFile   string // --alias-file flag, falls back to GOOSE_ALIAS_FILE env, then default
+    AliasFile   string // --alias-file flag, falls back to MINK_ALIAS_FILE env, then default
     StrictAlias bool   // --strict-alias flag, default false
     DaemonAddr  string // --daemon-addr flag, falls back to CONFIG-001
     Logger      *zap.Logger
@@ -412,7 +412,7 @@ var (
 
 func init() {
     rootCmd.PersistentFlags().StringVar(&flagAliasFile, "alias-file", "",
-        "Path to alias YAML file (overrides $GOOSE_ALIAS_FILE)")
+        "Path to alias YAML file (overrides $MINK_ALIAS_FILE)")
     rootCmd.PersistentFlags().BoolVar(&flagStrictAlias, "strict-alias", false,
         "Reject aliases whose canonical model is not registered in ProviderRegistry")
     // ... 기존 CLI-001 의 다른 persistent flag (--config, --daemon-addr, etc.) 그대로
@@ -656,13 +656,13 @@ bubbletea Model 의 handleSubmit 호출 시 (a) `app.Adapter.WithContext(streamC
 
 ### AC-CLIINT-005 — ask cmd dispatcher 호출 (인자 모드)
 
-`goose ask "hello"` subprocess 실행 시 dispatcher.ProcessUserInput 이 1회 호출되고 input == "hello", sctx 는 `app.Adapter.WithContext(askCtx)` 의 결과. ProcessProceed 결과 시 daemon ChatStream 으로 전달.
+`mink ask "hello"` subprocess 실행 시 dispatcher.ProcessUserInput 이 1회 호출되고 input == "hello", sctx 는 `app.Adapter.WithContext(askCtx)` 의 결과. ProcessProceed 결과 시 daemon ChatStream 으로 전달.
 
 검증 방법: subprocess test (`os/exec.Cmd` + stub dispatcher with call recorder).
 
 ### AC-CLIINT-006 — ask cmd dispatcher 호출 (--stdin 모드)
 
-`echo "hello" | goose ask --stdin` subprocess 실행 시 dispatcher.ProcessUserInput 이 1회 호출되고 input == "hello".
+`echo "hello" | mink ask --stdin` subprocess 실행 시 dispatcher.ProcessUserInput 이 1회 호출되고 input == "hello".
 
 검증 방법: subprocess test with stdin pipe.
 

@@ -28,7 +28,7 @@ labels: []
 
 ## Goal
 
-OS keyring에 저장된 secret을 별도 `goose-proxy` 프로세스가 네트워크 경계에서 Authorization header로 주입한다. GOOSE agent (LLM context 포함)는 secret value를 절대 보지 않는다. 프롬프트 인젝션으로 secret 노출 불가능.
+OS keyring에 저장된 secret을 별도 `goose-proxy` 프로세스가 네트워크 경계에서 Authorization header로 주입한다. MINK agent (LLM context 포함)는 secret value를 절대 보지 않는다. 프롬프트 인젝션으로 secret 노출 불가능.
 
 ## Scope
 
@@ -40,7 +40,7 @@ OS keyring에 저장된 secret을 별도 `goose-proxy` 프로세스가 네트워
 ## Requirements (EARS)
 
 ### REQ-CREDPROXY-001
-**WHEN** `goose secret set <provider> <keyring_id>` 가 실행되면, the system **SHALL** OS keyring에 secret을 저장하고 `~/.goose/secrets/providers.yaml` 에 참조만 기록한다.
+**WHEN** `mink secret set <provider> <keyring_id>` 가 실행되면, the system **SHALL** OS keyring에 secret을 저장하고 `~/.goose/secrets/providers.yaml` 에 참조만 기록한다.
 
 ### REQ-CREDPROXY-002
 **WHEN** agent가 외부 API를 호출할 때, the system **SHALL** 요청을 `goose-proxy`에 relay하고 proxy가 keyring 조회 후 header 주입한 뒤 실제 API로 전송한다.

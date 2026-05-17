@@ -27,7 +27,7 @@ labels: [memory, storage, phase-4, pluggable, goose-agent]
 
 ## 1. 개요 (Overview)
 
-AI.GOOSE **자기진화 파이프라인의 Layer 4**를 정의한다. QueryEngine의 세션 경계를 넘어 **사용자 맥락·선호도·사실·과거 delegation 결과**를 유지하는 **Pluggable Memory Provider 인터페이스**를 정립하고, 항상 1순위로 동작하는 **Builtin Provider**(SQLite FTS5 + 파일 MEMORY.md/USER.md)와 **최대 1개의 외부 Plugin Provider**(Honcho / Hindsight / Mem0 등)를 `MemoryManager`가 조정한다.
+AI.MINK **자기진화 파이프라인의 Layer 4**를 정의한다. QueryEngine의 세션 경계를 넘어 **사용자 맥락·선호도·사실·과거 delegation 결과**를 유지하는 **Pluggable Memory Provider 인터페이스**를 정립하고, 항상 1순위로 동작하는 **Builtin Provider**(SQLite FTS5 + 파일 MEMORY.md/USER.md)와 **최대 1개의 외부 Plugin Provider**(Honcho / Hindsight / Mem0 등)를 `MemoryManager`가 조정한다.
 
 본 SPEC이 통과한 시점에서:
 
@@ -356,7 +356,7 @@ func (BaseProvider) QueuePrefetch(q, s string)                             {}
 // internal/memory/types.go
 
 type SessionContext struct {
-    HermesHome    string   // legacy: Hermes에서 GOOSE_HOME과 동의어
+    HermesHome    string   // legacy: Hermes에서 MINK_HOME과 동의어
     Platform      string   // "darwin" | "linux" | "windows"
     AgentContext  map[string]string   // QueryEngine에서 주입 (user_id, preferences 등)
     AgentIdentity string   // teammate 모드 식별자
@@ -636,7 +636,7 @@ func (m *MemoryManager) RegisterPlugin(p MemoryProvider) error {
 
 | 타입 | 대상 | 설명 |
 |-----|------|------|
-| 선행 SPEC | SPEC-GOOSE-CORE-001 | `GOOSE_HOME`, zap 로거, context 루트 |
+| 선행 SPEC | SPEC-GOOSE-CORE-001 | `MINK_HOME`, zap 로거, context 루트 |
 | 선행 SPEC | SPEC-GOOSE-CONFIG-001 | `config.memory.*` 로드 |
 | 선행 SPEC | SPEC-GOOSE-QUERY-001 | `Message` 타입, lifecycle 훅 진입점(`PostSamplingHooks` 등) |
 | 협력 SPEC | SPEC-GOOSE-TRAJECTORY-001 | `session_id` 공유 |

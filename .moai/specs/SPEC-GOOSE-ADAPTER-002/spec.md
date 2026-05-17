@@ -28,7 +28,7 @@ labels: [llm, adapter, provider, openai-compat, glm, groq, openrouter, mistral, 
 
 ## 1. 개요 (Overview)
 
-GOOSE의 LLM provider 생태계를 **6개에서 15개로 확장**한다. SPEC-GOOSE-ADAPTER-001이 구현한 `internal/llm/provider/openai/` 어댑터를 **BaseURL override + Capabilities 주입** 패턴으로 재사용하여 9개 provider(Z.ai GLM, Groq, OpenRouter, Together AI, Fireworks AI, Cerebras, Mistral AI, Qwen, Kimi)를 추가한다.
+MINK의 LLM provider 생태계를 **6개에서 15개로 확장**한다. SPEC-GOOSE-ADAPTER-001이 구현한 `internal/llm/provider/openai/` 어댑터를 **BaseURL override + Capabilities 주입** 패턴으로 재사용하여 9개 provider(Z.ai GLM, Groq, OpenRouter, Together AI, Fireworks AI, Cerebras, Mistral AI, Qwen, Kimi)를 추가한다.
 
 본 SPEC이 Plan·Run을 통과한 시점에서:
 
@@ -46,7 +46,7 @@ GOOSE의 LLM provider 생태계를 **6개에서 15개로 확장**한다. SPEC-GO
 
 ### 2.1 왜 지금 필요한가
 
-- **2026-04 시점 시장 확장**: GLM-4.6(357B MoE), Kimi K2.6(1T MoE, 262K context), Qwen3.6 Max Preview(1T MoE) 등 주요 신모델이 연달아 출시되어, GOOSE가 이들을 routing할 수 있어야 competitive.
+- **2026-04 시점 시장 확장**: GLM-4.6(357B MoE), Kimi K2.6(1T MoE, 262K context), Qwen3.6 Max Preview(1T MoE) 등 주요 신모델이 연달아 출시되어, MINK가 이들을 routing할 수 있어야 competitive.
 - **Z.ai GLM endpoint 불일치 해소**: SPEC-001의 router registry는 `https://open.bigmodel.cn/api/paas/v4`(구 ZhipuAI)를 등록했으나, 2026년 공식 endpoint는 `https://api.z.ai/api/paas/v4`. 본 SPEC에서 교체 필수.
 - **CG Mode 비용 최적화 지원**: MoAI의 CG Mode(Claude + GLM cost optimization)가 제대로 동작하려면 GLM 실 어댑터 필요.
 - **무료/저가 implementation 경로**: Groq(30 RPM 무료), OpenRouter(29 free models), Cerebras(무료 tier), Mistral Nemo($0.02/M) 확보로 개발 단계 비용 최소화.
@@ -138,9 +138,9 @@ GOOSE의 LLM provider 생태계를 **6개에서 15개로 확장**한다. SPEC-GO
 
 ### 4.3 State-Driven
 
-**REQ-ADP2-011 [State-Driven]** — **While** `QwenOptions.Region == "cn"` or the environment variable `GOOSE_QWEN_REGION=cn` is set, the adapter **shall** use `https://dashscope.aliyuncs.com/compatible-mode/v1`; otherwise the default `https://dashscope-intl.aliyuncs.com/compatible-mode/v1` is used.
+**REQ-ADP2-011 [State-Driven]** — **While** `QwenOptions.Region == "cn"` or the environment variable `MINK_QWEN_REGION=cn` is set, the adapter **shall** use `https://dashscope.aliyuncs.com/compatible-mode/v1`; otherwise the default `https://dashscope-intl.aliyuncs.com/compatible-mode/v1` is used.
 
-**REQ-ADP2-012 [State-Driven]** — **While** `KimiOptions.Region == "cn"` or the environment variable `GOOSE_KIMI_REGION=cn` is set, the adapter **shall** use `https://api.moonshot.cn/v1`; otherwise `https://api.moonshot.ai/v1` is used.
+**REQ-ADP2-012 [State-Driven]** — **While** `KimiOptions.Region == "cn"` or the environment variable `MINK_KIMI_REGION=cn` is set, the adapter **shall** use `https://api.moonshot.cn/v1`; otherwise `https://api.moonshot.ai/v1` is used.
 
 **REQ-ADP2-013 [State-Driven]** — **While** a provider's `Capabilities.Vision == false` and `CompletionRequest.Vision != nil`, the adapter **shall** return `ErrCapabilityUnsupported{feature:"vision", provider:...}` before any HTTP call is made; the existing SPEC-001 error type **shall** be reused.
 
@@ -154,7 +154,7 @@ GOOSE의 LLM provider 생태계를 **6개에서 15개로 확장**한다. SPEC-GO
 
 **REQ-ADP2-017 [Unwanted]** — The adapters **shall not** introduce new external Go dependencies beyond what SPEC-001 already pulls in (`sashabaranov/go-openai`, `net/http`, `zap`). No `github.com/alibabacloud-go/dashscope-sdk` or provider-specific SDK is permitted.
 
-**REQ-ADP2-018 [Unwanted]** — **If** a user sets `GOOSE_QWEN_REGION` to any value other than `cn` or `intl`, **then** the adapter **shall** return an `ErrInvalidRegion` at `New()` time; **shall not** silently fall back.
+**REQ-ADP2-018 [Unwanted]** — **If** a user sets `MINK_QWEN_REGION` to any value other than `cn` or `intl`, **then** the adapter **shall** return an `ErrInvalidRegion` at `New()` time; **shall not** silently fall back.
 
 ### 4.5 Optional
 
@@ -191,9 +191,9 @@ GOOSE의 LLM provider 생태계를 **6개에서 15개로 확장**한다. SPEC-GO
 - **Then** HTTP 요청이 `https://api.groq.com/openai/v1/chat/completions`, `Tracker.Parse("groq", headers, now)` 호출, streaming 정상
 
 **AC-ADP2-005 — OpenRouter ranking 헤더 주입**
-- **Given** OpenRouter 어댑터를 `HTTPReferer:"https://goose.modu-ai.dev", XTitle:"GOOSE CLI"`로 초기화, 모델 `deepseek/deepseek-r1:free`
+- **Given** OpenRouter 어댑터를 `HTTPReferer:"https://goose.modu-ai.dev", XTitle:"MINK CLI"`로 초기화, 모델 `deepseek/deepseek-r1:free`
 - **When** `LLMCall`
-- **Then** HTTP 요청 헤더에 `HTTP-Referer: https://goose.modu-ai.dev`와 `X-Title: GOOSE CLI` 포함(REQ-ADP2-008), body routing은 정상
+- **Then** HTTP 요청 헤더에 `HTTP-Referer: https://goose.modu-ai.dev`와 `X-Title: MINK CLI` 포함(REQ-ADP2-008), body routing은 정상
 
 **AC-ADP2-006 — Together streaming**
 - **Given** Together 어댑터, 모델 `meta-llama/Llama-3.3-70B-Instruct-Turbo`
@@ -216,17 +216,17 @@ GOOSE의 LLM provider 생태계를 **6개에서 15개로 확장**한다. SPEC-GO
 - **Then** HTTP body에 `"response_format": {"type": "json_object"}` 포함(REQ-ADP2-019), streaming 정상
 
 **AC-ADP2-010 — Qwen 지역 URL 선택 (intl 기본)**
-- **Given** `QwenOptions{}` (Region 미지정), `GOOSE_QWEN_REGION` 환경변수 없음
+- **Given** `QwenOptions{}` (Region 미지정), `MINK_QWEN_REGION` 환경변수 없음
 - **When** `New(...)` 호출 후 `LLMCall`
 - **Then** HTTP 요청이 `https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions`(REQ-ADP2-011)
 
 **AC-ADP2-011 — Qwen 지역 URL 선택 (cn 환경변수)**
-- **Given** 환경변수 `GOOSE_QWEN_REGION=cn`, `QwenOptions{}` (Region 미지정)
+- **Given** 환경변수 `MINK_QWEN_REGION=cn`, `QwenOptions{}` (Region 미지정)
 - **When** `New(...)` 호출 후 `LLMCall`
 - **Then** HTTP 요청이 `https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions`
 
 **AC-ADP2-012 — Qwen 잘못된 지역 거부**
-- **Given** 환경변수 `GOOSE_QWEN_REGION=foo`
+- **Given** 환경변수 `MINK_QWEN_REGION=foo`
 - **When** `qwen.New(...)` 호출
 - **Then** `ErrInvalidRegion{region:"foo"}` 반환(REQ-ADP2-018), provider 생성 실패
 
@@ -392,7 +392,7 @@ var ErrInvalidRegion = errors.New("qwen: invalid region; must be 'intl' or 'cn'"
 func resolveBaseURL(optsRegion string) (string, error) {
     region := optsRegion
     if region == "" {
-        region = os.Getenv("GOOSE_QWEN_REGION")
+        region = os.Getenv("MINK_QWEN_REGION")
     }
     switch region {
     case "", "intl":
@@ -630,7 +630,7 @@ func New(pool, tracker, secretStore, logger, opts Options) (*openai.OpenAIAdapte
 | R6 | GLM thinking mode 파라미터가 z.ai 문서와 실제 API 차이 | 중 | 중 | GREEN phase에서 실 API 소량 호출(개인 API key)로 검증. REQ-ADP2-021에 budget_tokens 선택 옵션 병행 |
 | R7 | `RegisterAllProviders`가 너무 많은 의존성(pool, tracker, secretStore, logger)을 받음 | 낮 | 낮 | functional options 패턴으로 리팩터링 가능(후속 REFACTOR) |
 | R8 | 9 provider 동시 추가로 인한 테스트 flakiness | 중 | 중 | 각 provider 테스트는 완전 격리(httptest), goleak으로 goroutine 누수 검증, `go test -race -count=5` CI 검증 |
-| R9 | `GOOSE_QWEN_REGION` / `GOOSE_KIMI_REGION` 환경변수와 `Options.Region`의 우선순위 혼동 | 낮 | 낮 | 명시적 테스트 케이스: Options.Region이 env보다 우선, 둘 다 없으면 intl 기본 |
+| R9 | `MINK_QWEN_REGION` / `MINK_KIMI_REGION` 환경변수와 `Options.Region`의 우선순위 혼동 | 낮 | 낮 | 명시적 테스트 케이스: Options.Region이 env보다 우선, 둘 다 없으면 intl 기본 |
 | R10 | Together/Fireworks 모델 ID의 슬래시(`meta-llama/...`, `accounts/...`)가 URL path에 섞여 misparsing | 낮 | 중 | OpenAI-compat schema는 모델 ID를 body `model` 필드에만 사용, URL path에 포함 안 함. SPEC-001의 openai 어댑터가 이미 검증 |
 
 ---

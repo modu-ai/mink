@@ -28,7 +28,7 @@ labels: [permission, security, declarative, first-call-confirm, phase-2, primiti
 
 ## 1. 개요 (Overview)
 
-GOOSE-AGENT의 **선언 기반 권한 시스템(Declared Permission)**을 정의한다. AI.GOOSE가 외부 자원(network, filesystem read/write, exec)에 접근하려면 해당 능력을 제공하는 `Skill` / `MCP server` / `Agent` 정의의 frontmatter에 `requires:` 필드로 권한을 **사전 선언**해야 하며, 사용자는 첫 호출 시점에 허용/거절을 선택하고 그 결정은 영속 grant store에 기록되어 이후 재사용된다.
+GOOSE-AGENT의 **선언 기반 권한 시스템(Declared Permission)**을 정의한다. AI.MINK가 외부 자원(network, filesystem read/write, exec)에 접근하려면 해당 능력을 제공하는 `Skill` / `MCP server` / `Agent` 정의의 frontmatter에 `requires:` 필드로 권한을 **사전 선언**해야 하며, 사용자는 첫 호출 시점에 허용/거절을 선택하고 그 결정은 영속 grant store에 기록되어 이후 재사용된다.
 
 본 SPEC이 통과한 시점에서 `internal/permission` 패키지는:
 
@@ -36,7 +36,7 @@ GOOSE-AGENT의 **선언 기반 권한 시스템(Declared Permission)**을 정의
 - `Confirmer` 인터페이스를 통해 첫 호출 시점에 `[항상 허용 / 이번만 / 거절]` 3-way 선택을 외부(orchestrator, AskUserQuestion 경로)에 위임하고,
 - `Store` 인터페이스(JSON 파일 + 향후 SQLite 백엔드 가능)를 통해 grant를 `(subject_id, capability)` 키로 영속화하며,
 - `Auditor`를 통해 모든 grant/revoke/denied 이벤트를 SPEC-GOOSE-AUDIT-001의 append-only audit.log로 dispatch하고,
-- `goose permission list/revoke <subject>` CLI 표면을 제공하며,
+- `mink permission list/revoke <subject>` CLI 표면을 제공하며,
 - Sub-agent가 부모의 grant를 명시 플래그(`inherit_grants: true`) 시에만 상속하도록 SUBAGENT-001과 통합한다.
 
 본 SPEC은 **OS 수준 sandbox 강제 실행을 포함하지 않는다** (그것은 SECURITY-SANDBOX-001). 본 SPEC은 "선언 → 첫호출 확인 → grant 영속화 → 재사용/취소"의 **policy layer**만 책임진다.
@@ -49,7 +49,7 @@ GOOSE-AGENT의 **선언 기반 권한 시스템(Declared Permission)**을 정의
 
 - ARCH-REDESIGN-v0.2 §5 5-tier defense-in-depth 모델의 **Tier 5 (가장 바깥쪽 policy 레이어)**에 해당. Tier 1~4(Storage Partition / FS Access Matrix / OS Sandbox / Zero-Knowledge Proxy)가 **기술적 강제 메커니즘**이라면 Tier 5는 **사용자 동의 메커니즘**으로, 대부분의 사용자가 첫 접점으로 만나게 된다.
 - SKILLS-001(M2 row 11)·MCP-001(M2 row 12)·SUBAGENT-001(M2 row 13)이 모두 frontmatter `requires:` 필드 자리만 비워두고 본 SPEC 완료를 기다리는 상태. M2 critical path의 join point.
-- Claude Code 동등 기능 비교: Claude Code는 `tools/`, `mcpServers/`, plugin manifest의 `permissions:` 필드와 첫 호출 시 권한 prompt(키보드 인터랙션) + `~/.claude/permissions/` grant 영속화로 동일 패턴을 운용한다. AI.GOOSE는 이를 (a) 4-카테고리 명시 분류, (b) AskUserQuestion 기반 3-way 선택, (c) grant scope inheritance 명시화로 **이디엄에 맞춰 재해석**한다.
+- Claude Code 동등 기능 비교: Claude Code는 `tools/`, `mcpServers/`, plugin manifest의 `permissions:` 필드와 첫 호출 시 권한 prompt(키보드 인터랙션) + `~/.claude/permissions/` grant 영속화로 동일 패턴을 운용한다. AI.MINK는 이를 (a) 4-카테고리 명시 분류, (b) AskUserQuestion 기반 3-way 선택, (c) grant scope inheritance 명시화로 **이디엄에 맞춰 재해석**한다.
 
 ### 2.2 상속 자산 (패턴만 계승)
 
@@ -60,7 +60,7 @@ GOOSE-AGENT의 **선언 기반 권한 시스템(Declared Permission)**을 정의
 
 ### 2.3 범위 경계
 
-- **IN**: `requires:` frontmatter 스키마(4 카테고리 + scope 표기법), `RequiresParser`, `Grant` 타입, `Store` 인터페이스 + 파일 백엔드(`~/.goose/permissions/grants.json` + project-local override), `Confirmer` 인터페이스(orchestrator가 AskUserQuestion으로 구현), `Auditor` 인터페이스(AUDIT-001 forwarding), CLI 표면(`goose permission list/revoke/show`), Sub-agent inheritance flag, blocked_always 항목과의 교차 차단(security.yaml 연계), expiry/TTL 옵션.
+- **IN**: `requires:` frontmatter 스키마(4 카테고리 + scope 표기법), `RequiresParser`, `Grant` 타입, `Store` 인터페이스 + 파일 백엔드(`~/.goose/permissions/grants.json` + project-local override), `Confirmer` 인터페이스(orchestrator가 AskUserQuestion으로 구현), `Auditor` 인터페이스(AUDIT-001 forwarding), CLI 표면(`mink permission list/revoke/show`), Sub-agent inheritance flag, blocked_always 항목과의 교차 차단(security.yaml 연계), expiry/TTL 옵션.
 - **OUT**: OS-level sandbox 강제(SECURITY-SANDBOX-001), filesystem path resolution + glob 매칭(FS-ACCESS-001), audit log 자체 구현(AUDIT-001), credential value 접근 제어(CREDENTIAL-PROXY-001), rate limiting / quota, network policy(예: 특정 도메인 차단), MFA / 생체 인증, 권한 위임(delegation) 모델, plugin marketplace에서의 manifest 공급망 검증(PLUGIN-001).
 
 ---
@@ -69,7 +69,7 @@ GOOSE-AGENT의 **선언 기반 권한 시스템(Declared Permission)**을 정의
 
 ### 3.1 IN SCOPE (본 SPEC이 구현하는 것)
 
-1. `internal/permission/` 패키지: `schema`(파서) / `store`(영속) / `confirmer`(인터페이스) / `auditor`(인터페이스) / `cli`(`goose permission` 서브커맨드).
+1. `internal/permission/` 패키지: `schema`(파서) / `store`(영속) / `confirmer`(인터페이스) / `auditor`(인터페이스) / `cli`(`mink permission` 서브커맨드).
 2. `requires:` 스키마 정의: 4-카테고리(`net` / `fs_read` / `fs_write` / `exec`)와 각 카테고리별 scope 토큰. 예:
    ```yaml
    requires:
@@ -110,10 +110,10 @@ GOOSE-AGENT의 **선언 기반 권한 시스템(Declared Permission)**을 정의
    - (d) 미존재 시 Confirmer 호출,
    - (e) 결과 Store 저장 + Auditor.Record.
 9. CLI 표면(`internal/cli/permission_cmd.go`):
-   - `goose permission list [--subject <id>] [--capability net|fs_read|fs_write|exec]`
-   - `goose permission show <subject_id>`
-   - `goose permission revoke <subject_id>` — 해당 subject의 모든 grant revoke + 후속 호출 시 재확인 강제.
-   - `goose permission gc` — expired grant 정리.
+   - `mink permission list [--subject <id>] [--capability net|fs_read|fs_write|exec]`
+   - `mink permission show <subject_id>`
+   - `mink permission revoke <subject_id>` — 해당 subject의 모든 grant revoke + 후속 호출 시 재확인 강제.
+   - `mink permission gc` — expired grant 정리.
 10. Sub-agent inheritance: SUBAGENT-001의 `AgentDefinition`에 `inherit_grants: bool` 추가(본 SPEC에서 명세, 실 구현은 SUBAGENT-001 v0.4 amendment에서). 기본값 `false`(부모 grant 미상속). 명시적 `true` 시 sub-agent가 부모의 `subjectID`를 `parent_subject_id`로 받아 lookup 시 fallback chain 형성.
 11. Expiry 정책: `Grant.ExpiresAt`이 non-nil이고 `time.Now() > ExpiresAt`이면 `Lookup`은 `(grant, false)` 반환(expired 취급), `permission gc`가 정리.
 12. `requires:` 충돌 해결(merge): 동일 subject 정의가 2회 로드되면(예: skill upgrade) `Manifest`는 union 합집합으로 합쳐지되 신규 capability/scope는 신규 grant 요구로 처리. 축소(이전 manifest에 있던 scope이 사라짐)는 grant invalidation 트리거 — 다음 호출에서 재확인.
@@ -154,7 +154,7 @@ GOOSE-AGENT의 **선언 기반 권한 시스템(Declared Permission)**을 정의
 
 **REQ-PE-007 [Event-Driven]** — **When** `Manager.Check` finds an existing non-revoked, non-expired grant in `Store` matching `(SubjectID, Capability, Scope)`, the manager **shall** return `Allow` immediately (no Confirmer invocation), **shall** record an event of type `grant_reused`, and **shall** complete within 5 ms p95 (excluding audit dispatch). (v0.1.0 REQ-PERMISSION-002 흡수.)
 
-**REQ-PE-008 [Event-Driven]** — **When** `goose permission revoke <subject_id>` is invoked, the CLI **shall** call `Store.Revoke(subjectID)` which (a) marks all matching grants `Revoked=true` with `RevokedAt = now`, (b) atomic-writes the store, (c) returns the revoked count, and (d) emits one `grant_revoked` audit event per affected grant. The next `Manager.Check` for that subject **shall** trigger `Confirmer.Ask` again (re-confirmation enforced). (v0.1.0 REQ-PERMISSION-004 흡수.)
+**REQ-PE-008 [Event-Driven]** — **When** `mink permission revoke <subject_id>` is invoked, the CLI **shall** call `Store.Revoke(subjectID)` which (a) marks all matching grants `Revoked=true` with `RevokedAt = now`, (b) atomic-writes the store, (c) returns the revoked count, and (d) emits one `grant_revoked` audit event per affected grant. The next `Manager.Check` for that subject **shall** trigger `Confirmer.Ask` again (re-confirmation enforced). (v0.1.0 REQ-PERMISSION-004 흡수.)
 
 **REQ-PE-009 [Event-Driven]** — **When** a manifest declares a scope token whose normalized form matches an entry in the security policy's `blocked_always` list (loaded from `./.goose/config/security.yaml` per FS-ACCESS-001), `Manager.Check` **shall** return `ErrBlockedByPolicy` and **shall** record an audit event of type `grant_denied` with `reason: "blocked_always"`; the Confirmer **shall not** be invoked, and no grant **shall** be created — even if the user attempted to override. The blocked_always list is FROZEN per ARCH-REDESIGN-v0.2 REQ-ARCH-005. (v0.1.0 REQ-PERMISSION-005 흡수.)
 
@@ -166,7 +166,7 @@ GOOSE-AGENT의 **선언 기반 권한 시스템(Declared Permission)**을 정의
 
 **REQ-PE-012 [State-Driven]** — **While** a manifest is mid-load (post-parse, pre-registry-publish), `Manager.Check` against that subject **shall** return `ErrSubjectNotReady`; a subject becomes available only after the loader (SKILLS-001 / MCP-001 / SUBAGENT-001) calls `Manager.Register(subjectID, manifest)`.
 
-**REQ-PE-013 [State-Driven]** — **While** an existing grant's `ExpiresAt` is non-nil and `time.Now().After(ExpiresAt)` is true, `Store.Lookup` **shall** return `(grant, false)` (treat as miss), **shall not** silently update the grant, and **shall** allow the next `Manager.Check` to re-trigger the Confirmer flow. Expired grants are cleaned up on `goose permission gc` invocation (not eagerly).
+**REQ-PE-013 [State-Driven]** — **While** an existing grant's `ExpiresAt` is non-nil and `time.Now().After(ExpiresAt)` is true, `Store.Lookup` **shall** return `(grant, false)` (treat as miss), **shall not** silently update the grant, and **shall** allow the next `Manager.Check` to re-trigger the Confirmer flow. Expired grants are cleaned up on `mink permission gc` invocation (not eagerly).
 
 **REQ-PE-014 [State-Driven]** — **While** the store file is being mutated (Save/Revoke), readers via `Lookup` **shall** see either the prior state or the new state — never a partial state. Implementation **shall** use atomic temp-file write + rename and protect in-memory index with `sync.RWMutex`; cross-process writers (multi-`goosed` instances) are out of scope (single-process assumption matching CREDPOOL-001 §3.2).
 
@@ -176,7 +176,7 @@ GOOSE-AGENT의 **선언 기반 권한 시스템(Declared Permission)**을 정의
 
 **REQ-PE-016 [Unwanted]** — Concurrent `Manager.Check` calls for the same `(SubjectID, Capability, Scope)` triple while the Confirmer is in flight **shall not** invoke the Confirmer more than once. Implementation: per-triple `sync.Mutex` keyed on `hash(subjectID + capability + scope)`. The second waiter **shall** observe the first waiter's persisted decision (Allow → returns Allow; Deny → returns Deny once-only).
 
-**REQ-PE-017 [Unwanted]** — The `Store` file backend **shall not** silently accept a grants.json file whose JSON schema version (`schema_version` field) does not match the current code version. Mismatches **shall** cause `Store.Open` to return `ErrIncompatibleStoreVersion` with the file's version embedded; migration is operator-driven via `goose permission migrate --from <ver>` (out of scope for this SPEC; placeholder error only).
+**REQ-PE-017 [Unwanted]** — The `Store` file backend **shall not** silently accept a grants.json file whose JSON schema version (`schema_version` field) does not match the current code version. Mismatches **shall** cause `Store.Open` to return `ErrIncompatibleStoreVersion` with the file's version embedded; migration is operator-driven via `mink permission migrate --from <ver>` (out of scope for this SPEC; placeholder error only).
 
 **REQ-PE-018 [Unwanted]** — `RequiresParser.Parse` **shall not** allow nested `requires:` nesting (e.g., `requires.requires.net: [...]`); flat 4-category structure is the only accepted shape. Nested structures **shall** cause `ErrInvalidScopeShape` with `nested: true` annotation.
 
@@ -225,7 +225,7 @@ GOOSE-AGENT의 **선언 기반 권한 시스템(Declared Permission)**을 정의
 - **Covers**: REQ-PE-001, REQ-PE-005
 
 **AC-PE-005 — Revoke 후 재확인 강제 (v0.1.0 AC-PERMISSION-04 재배치)**
-- **Given** AC-PE-002 후 grant 존재 상태에서 `goose permission revoke skill:my-tool` CLI 실행
+- **Given** AC-PE-002 후 grant 존재 상태에서 `mink permission revoke skill:my-tool` CLI 실행
 - **When** (a) `Store.Revoke("skill:my-tool")` 반환값 확인, (b) 동일 subject에 대해 `Manager.Check` 재호출
 - **Then** (a) revoked 카운트 == 1, `Auditor.Record`가 `type: grant_revoked` 1건 받음, (b) 후속 `Manager.Check`에서 `Confirmer.Ask`가 다시 호출됨(이전 grant는 `Revoked==true`로 lookup 미스), (c) `Store.List({IncludeRevoked:true})`에는 해당 grant가 `Revoked:true`로 남아있음(append-only 의미 보존)
 - **Covers**: REQ-PE-008
@@ -262,7 +262,7 @@ GOOSE-AGENT의 **선언 기반 권한 시스템(Declared Permission)**을 정의
 
 **AC-PE-011 — Expired grant는 lookup 미스 + gc로 정리**
 - **Given** subject `skill:bar` grant가 `ExpiresAt = now - 1h`(이미 만료) 상태로 store에 영속
-- **When** (a) `Manager.Check` 호출, (b) 별도로 `goose permission gc` CLI 실행
+- **When** (a) `Manager.Check` 호출, (b) 별도로 `mink permission gc` CLI 실행
 - **Then** (a) `Confirmer.Ask` 새로 호출됨(expired는 lookup 미스 취급), (b) `gc` 실행 후 `Store.List({IncludeRevoked:true})`에서 해당 만료 grant가 제거됨(또는 `Revoked:true`로 표시됨, 구현 선택), 반환된 `pruned` 카운트 ≥ 1
 - **Covers**: REQ-PE-013
 
@@ -278,16 +278,16 @@ GOOSE-AGENT의 **선언 기반 권한 시스템(Declared Permission)**을 정의
 - **Then** 반환 `(_, ErrSubjectNotReady)`, `Confirmer.Ask` / `Store.Lookup` 호출 0회
 - **Covers**: REQ-PE-012
 
-**AC-PE-014 — `goose permission list` / `show` CLI surface**
+**AC-PE-014 — `mink permission list` / `show` CLI surface**
 - **Given** Store에 3개 subject(`skill:a`, `mcp:b`, `agent:c`)의 grants 5건 존재
-- **When** (a) `goose permission list` 실행, (b) `goose permission list --capability net` 실행, (c) `goose permission show skill:a` 실행
+- **When** (a) `mink permission list` 실행, (b) `mink permission list --capability net` 실행, (c) `mink permission show skill:a` 실행
 - **Then** (a) 5건 모두 출력, (b) `net` capability grant만 필터링 출력, (c) `skill:a`의 grants와 manifest에 선언된 capabilities 요약 출력. 모두 exit code 0, stdout JSON 또는 사람-친화 표 옵션(`--format json|table`) 지원
 - **Covers**: REQ-PE-008 (CLI 표면 검증; revoke과 동일 SubjectID 인덱스 사용)
 
 **AC-PE-015 — Schema version mismatch 거부**
 - **Given** `~/.goose/permissions/grants.json`이 `{"schema_version": 99, "grants": []}` 내용으로 존재 (현재 코드 schema_version=1)
 - **When** `Store.Open()` 호출
-- **Then** 반환 `ErrIncompatibleStoreVersion`이며 에러 메시지에 file의 `schema_version: 99`와 코드의 `expected: 1` 두 값 모두 포함, 메모리 인덱스 미생성, zap WARN 로그 1건. 후속 `Manager.Check`는 `ErrStoreNotReady` 반환. 마이그레이션 placeholder는 별도 검증 (`goose permission migrate --from 99` 호출 시 `not implemented` 에러 반환 — OI-02 본문 참조)
+- **Then** 반환 `ErrIncompatibleStoreVersion`이며 에러 메시지에 file의 `schema_version: 99`와 코드의 `expected: 1` 두 값 모두 포함, 메모리 인덱스 미생성, zap WARN 로그 1건. 후속 `Manager.Check`는 `ErrStoreNotReady` 반환. 마이그레이션 placeholder는 별도 검증 (`mink permission migrate --from 99` 호출 시 `not implemented` 에러 반환 — OI-02 본문 참조)
 - **Covers**: REQ-PE-017
 
 **AC-PE-016 — TTL 옵션 적용**
@@ -325,7 +325,7 @@ internal/permission/
 └── errors.go                  # ErrUnknownCapability / ErrUndeclaredCapability / ErrBlockedByPolicy / ...
 
 internal/cli/
-└── permission_cmd.go          # goose permission [list|show|revoke|gc|migrate]
+└── permission_cmd.go          # mink permission [list|show|revoke|gc|migrate]
 ```
 
 ### 6.2 Public API Surface (Go 시그니처)
@@ -630,7 +630,7 @@ Check(ctx, req):
 - [ ] coverage ≥ 85%
 - [ ] `golangci-lint run --enable gosec ./internal/permission/...` 0 issue
 - [ ] `goleak.VerifyNone(t)` 모든 테스트에서 pass (per-triple mutex map이 leak 안 함)
-- [ ] CLI `goose permission --help` 출력에 4 서브커맨드 모두 존재 (smoke test)
+- [ ] CLI `mink permission --help` 출력에 4 서브커맨드 모두 존재 (smoke test)
 
 ---
 
@@ -668,7 +668,7 @@ Check(ctx, req):
 | R1 | Grant store 손상(부분 write / disk full) | 낮 | 고 | atomic write(temp + fsync + rename), 0600 권한, schema_version 검증, write 실패 시 메모리 인덱스 보존 후 다음 mutation에서 재시도 |
 | R2 | First-call confirm UX 방해(매번 prompt 폭증) | 중 | 중 | `AlwaysAllow` 기본 옵션 + grant scope 단위 영속화로 동일 scope 반복 호출 0회 prompt; sub-agent 인원이 늘어도 부모 grant 상속(`InheritGrants`) 옵션으로 prompt 폭증 차단; `--ttl` 옵션(REQ-PE-019)으로 단기 grant 가능 |
 | R3 | Sub-agent grant leakage(부모 권한이 의도치 않게 자식에 흘러감) | 중 | 고 | `InheritGrants` 기본값 `false`(opt-in), 명시 플래그 시에만 fallback chain 활성화, audit event에 `inherited_from` 명시로 감사 가능, 매니페스트 contraction 시 자동 invalidation(REQ-PE-015) |
-| R4 | `requires:` 스키마 breaking change (v0.2 → v0.3+) | 중 | 중 | Manifest에 `schema_version` 필드, 미스매치 시 명시 에러(REQ-PE-017), 마이그레이션 CLI(`goose permission migrate --from <ver>`) placeholder; 4-카테고리는 FROZEN(추가는 minor bump, 제거는 major bump) |
+| R4 | `requires:` 스키마 breaking change (v0.2 → v0.3+) | 중 | 중 | Manifest에 `schema_version` 필드, 미스매치 시 명시 에러(REQ-PE-017), 마이그레이션 CLI(`mink permission migrate --from <ver>`) placeholder; 4-카테고리는 FROZEN(추가는 minor bump, 제거는 major bump) |
 | R5 | per-triple mutex map이 메모리 누수(map 크기 무한 증가) | 중 | 중 | mutex GC 정책: triple key가 store에 grant로 영속되면 mutex 제거 가능; 또는 LRU(최대 1024 active triple), 만료된 triple은 zero-value mutex로 회수 |
 | R6 | blocked_always 목록이 manifest scope 토큰 표기와 불일치(예: `~/.ssh/**` vs `$HOME/.ssh/**`) | 중 | 고 | normalization 단계 — 모든 path-like scope를 `os.UserHomeDir()` + `filepath.Clean`으로 정규화 후 매칭, FS-ACCESS-001 `Matcher`가 동일 정규화 수행 보장(인터페이스 계약), AC-PE-006에서 `~/.ssh` 경로 변형 4종 fixture로 검증 |
 | R7 | Confirmer 미배선(orchestrator 누락) 시 모든 첫 호출이 영원히 block | 낮 | 고 | 기본 `DefaultDenyConfirmer` 폴백 — Confirmer가 nil이면 자동으로 모든 첫 호출 Deny 반환; `Manager.New` 생성 시 nil 검사로 명시 fail-fast(`ErrConfirmerRequired`); 통합 테스트 시 stub Confirmer 강제 |
@@ -692,7 +692,7 @@ Check(ctx, req):
 - 본 SPEC은 **audit log retention policy(보존 기간 / 자동 삭제)를 정의하지 않는다**. AUDIT-001.
 - 본 SPEC은 **다중 `goosed` 프로세스 간 grant store sync를 보장하지 않는다**. 단일 프로세스 가정.
 - 본 SPEC은 **권한 그룹화 / 정책 templating(예: "이 5개 host는 한 번에 grant")을 구현하지 않는다**. v0.3.0 amendment 후보.
-- 본 SPEC은 **grant migration tool(v0.1 schema → v0.2 schema 일괄 변환)의 실 구현을 포함하지 않는다**. `goose permission migrate` 서브커맨드는 v0.2에서 placeholder; 실 구현은 schema breaking change 발생 시.
+- 본 SPEC은 **grant migration tool(v0.1 schema → v0.2 schema 일괄 변환)의 실 구현을 포함하지 않는다**. `mink permission migrate` 서브커맨드는 v0.2에서 placeholder; 실 구현은 schema breaking change 발생 시.
 
 ---
 
@@ -705,7 +705,7 @@ Check(ctx, req):
 | ID | 항목 | 관련 REQ/AC | 이관 사유 |
 |----|-----|-----------|---------|
 | OI-01 | per-triple mutex map의 LRU GC 정책 구체화 | REQ-PE-016, R5 | Plan에는 알고리즘 윤곽만; 구체 LRU 사이즈 / eviction 트리거는 GREEN 후 측정 데이터 기반 결정 |
-| OI-02 | `goose permission migrate --from <ver>` 실 구현 | REQ-PE-017 | v0.2.0에는 placeholder error만; schema breaking change 발생 시 별도 구현 |
+| OI-02 | `mink permission migrate --from <ver>` 실 구현 | REQ-PE-017 | v0.2.0에는 placeholder error만; schema breaking change 발생 시 별도 구현 |
 | OI-03 | Confirmer의 default `DefaultDenyConfirmer` polyfill 구현 | R7 | Manager.New 시점 fallback; 인터페이스 contract만 명시 |
 | OI-04 | grant scope 토큰 normalization 헬퍼 (`~/`, `$HOME` 등) | R6 | FS-ACCESS-001과 공유 — 본 SPEC에서 인터페이스 계약 합의, 실 구현은 FS-ACCESS-001 Run phase |
 

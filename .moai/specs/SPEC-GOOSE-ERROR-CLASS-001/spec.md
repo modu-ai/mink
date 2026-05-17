@@ -27,7 +27,7 @@ labels: [error-handling, go, phase-4, evolve, classifier]
 
 ## 1. 개요 (Overview)
 
-AI.GOOSE **자기진화 파이프라인의 보조 레이어**를 정의한다. LLM 어댑터(ADAPTER-001)에서 발생한 모든 오류를 **14종 FailoverReason enum**으로 정확 분류하고, 각 오류에 대해 **`retryable` / `should_compress` / `should_rotate_credential` / `should_fallback` 4개의 회복 신호**를 계산한다. 본 분류 결과는 ROUTER-001의 모델 전환, CREDPOOL-001의 credential 회전, CONTEXT-001의 긴급 compaction, COMPRESSOR-001의 trajectory 재가공 트리거로 사용된다.
+AI.MINK **자기진화 파이프라인의 보조 레이어**를 정의한다. LLM 어댑터(ADAPTER-001)에서 발생한 모든 오류를 **14종 FailoverReason enum**으로 정확 분류하고, 각 오류에 대해 **`retryable` / `should_compress` / `should_rotate_credential` / `should_fallback` 4개의 회복 신호**를 계산한다. 본 분류 결과는 ROUTER-001의 모델 전환, CREDPOOL-001의 credential 회전, CONTEXT-001의 긴급 compaction, COMPRESSOR-001의 trajectory 재가공 트리거로 사용된다.
 
 본 SPEC이 통과한 시점에서:
 

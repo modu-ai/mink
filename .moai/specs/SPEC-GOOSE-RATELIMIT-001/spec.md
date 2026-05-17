@@ -27,7 +27,7 @@ labels: [rate-limit, llm, provider, tracker, phase-1]
 
 ## 1. 개요 (Overview)
 
-AI.GOOSE Phase 1의 **provider 응답 헤더 기반 rate limit 추적 레이어**를 정의한다. Hermes Agent의 `rate_limit_tracker.py`(~243 LoC)를 Go로 포팅하여, 각 provider의 HTTP 응답 헤더(`x-ratelimit-*`)를 파싱하고 4-bucket(`requests_min/hour`, `tokens_min/hour`) 상태를 유지하며 80% 임계치 초과 시 경고를 발화하는 `internal/llm/ratelimit` 패키지를 구현한다.
+AI.MINK Phase 1의 **provider 응답 헤더 기반 rate limit 추적 레이어**를 정의한다. Hermes Agent의 `rate_limit_tracker.py`(~243 LoC)를 Go로 포팅하여, 각 provider의 HTTP 응답 헤더(`x-ratelimit-*`)를 파싱하고 4-bucket(`requests_min/hour`, `tokens_min/hour`) 상태를 유지하며 80% 임계치 초과 시 경고를 발화하는 `internal/llm/ratelimit` 패키지를 구현한다.
 
 본 SPEC이 통과한 시점에서 `RateLimitTracker`는:
 
@@ -47,7 +47,7 @@ AI.GOOSE Phase 1의 **provider 응답 헤더 기반 rate limit 추적 레이어*
 
 - ROADMAP v2.0 Phase 1 row 08은 RATELIMIT-001을 `CREDPOOL-001` 이후 P0로 배치. 실제 호출을 수행하는 ADAPTER-001이 호출 직후 헤더를 본 tracker에 넘겨 버킷을 갱신하는 구조.
 - `.moai/project/research/hermes-llm.md` §5는 Hermes의 `RateLimitBucket` + `RateLimitState` 구조와 헤더 파싱 정책을 Go 포팅 매핑(§9)과 함께 제시. "80% 사용률 경고"는 사용자가 Retry-After 없이도 고갈을 미리 알아차리게 하는 핵심 기능.
-- v4.0 UX 목표(goose ask 중 "⚠️ Anthropic rate limit 82% used, resets in 34s" 같은 안내)의 데이터 원천.
+- v4.0 UX 목표(mink ask 중 "⚠️ Anthropic rate limit 82% used, resets in 34s" 같은 안내)의 데이터 원천.
 
 ### 2.2 상속 자산
 

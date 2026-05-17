@@ -45,8 +45,8 @@ CORE-001이 정의한 **단일 파일 bootstrap config**를 확장하여, `goose
 
 - CORE-001 §6.3은 `gopkg.in/yaml.v3`로 최소 파싱만 수행. 복수 설정 소스(project/user/runtime) 병합 로직은 범위 외로 지정됨.
 - ROADMAP §4 Phase 0 row 02는 CONFIG-001을 `CORE-001` 의존 후속으로 명시하며, 근거 문서 `tech §11, structure §1`을 지목.
-- `tech.md` §11.2는 `GOOSE_HOME`, `GOOSE_LOCALE`, `GOOSE_LOG_LEVEL`, `OLLAMA_HOST`, `GOOSE_LEARNING_ENABLED` 등 **환경변수 15+종**을 나열. 이들은 runtime 레이어에서 YAML 값을 override해야 한다.
-- `.moai/project/structure.md` §1의 `.moai/config/sections/*.yaml` 패턴(user.yaml, language.yaml, workflow.yaml, quality.yaml)을 GOOSE의 `~/.goose/config.yaml`로 대응시킨다.
+- `tech.md` §11.2는 `MINK_HOME`, `MINK_LOCALE`, `MINK_LOG_LEVEL`, `OLLAMA_HOST`, `MINK_LEARNING_ENABLED` 등 **환경변수 15+종**을 나열. 이들은 runtime 레이어에서 YAML 값을 override해야 한다.
+- `.moai/project/structure.md` §1의 `.moai/config/sections/*.yaml` 패턴(user.yaml, language.yaml, workflow.yaml, quality.yaml)을 MINK의 `~/.goose/config.yaml`로 대응시킨다.
 
 ### 2.2 viper 사용 여부
 
@@ -61,7 +61,7 @@ tech.md §3.1이 `spf13/viper` 1.19+를 후보로 명시. 그러나 viper는:
 ### 2.3 범위 경계
 
 - **IN**: 계층 정의 + 병합 알고리즘, 환경변수 오버레이, 스키마 검증, 감시 없이 로드-once, 테스트용 in-memory 로더.
-- **OUT**: Hot reload/watch(파일 변경 감시), remote config server, secret manager 통합, JSON/TOML 형식, CLI 명령(`goose config get/set`) — CLI-001 또는 후속 SPEC.
+- **OUT**: Hot reload/watch(파일 변경 감시), remote config server, secret manager 통합, JSON/TOML 형식, CLI 명령(`mink config get/set`) — CLI-001 또는 후속 SPEC.
 
 ---
 
@@ -70,7 +70,7 @@ tech.md §3.1이 `spf13/viper` 1.19+를 후보로 명시. 그러나 viper는:
 ### 3.1 IN SCOPE
 
 1. `internal/config/config.go`에 `type Config struct`와 `func Load(opts LoadOptions) (*Config, error)` 제공.
-2. 3-계층 소스 병합: **project** (`$PWD/.goose/config.yaml` 선택적) → **user** (`$GOOSE_HOME/config.yaml`) → **runtime** (env vars + CLI flags 예약, 본 SPEC은 env만).
+2. 3-계층 소스 병합: **project** (`$PWD/.goose/config.yaml` 선택적) → **user** (`$MINK_HOME/config.yaml`) → **runtime** (env vars + CLI flags 예약, 본 SPEC은 env만).
 3. `yaml.v3`로 각 레이어 unmarshal. 존재하지 않는 파일은 오류가 아니며 기본값 유지.
 4. 환경변수 → `Config` 필드 매핑 표(§6.2).
 5. 스키마 검증: 필수 필드 누락, 잘못된 enum 값(예: `log.level: "blah"`), 포트 범위(1~65535) 검증.
@@ -83,7 +83,7 @@ tech.md §3.1이 `spf13/viper` 1.19+를 후보로 명시. 그러나 viper는:
 - Hot reload / fsnotify 감시 (후속 SPEC).
 - Secret/credential 저장소 통합 (키체인, 1Password, OS keychain 등). 본 SPEC은 secret-typed 필드(`llm.providers.*.api_key`)를 env/YAML 평문으로만 다룬다. **단, REQ-CFG-016이 향후 `SPEC-GOOSE-CREDPOOL-XXX` (credential-pool SPEC)와의 연동 훅을 forward-reference로 제공한다.** 해당 SPEC이 ROADMAP 상위 Phase에서 채택되면, secret-typed 필드는 자동으로 credential-pool resolver 경유로 전환된다. 본 SPEC은 그 전환 시점까지 평문 경로를 유지할 뿐, credential pool 자체의 구현·저장 형식·암호화 방식에는 개입하지 않는다.
 - **JSON Schema export / 생성 / 런타임 검증 (명시적 미채택)**: 본 SPEC은 Config 스키마를 **Go 타입 (§6.3)**으로만 정의한다. JSON Schema 파일(`config.schema.json` 등)은 생성하지 않으며, `encoding/json` 기반 스키마 검증, IDE autocomplete용 schema export, OpenAPI 3.x 스키마 매핑도 수행하지 않는다. 이유: (1) 본 SPEC의 validation은 Go 수준의 `Config.Validate()` 메서드로 충분하고, (2) YAML-first 경로에서 JSON Schema는 중복 유지보수 부담이 되며, (3) 향후 필요 시 별도 SPEC(예: `SPEC-GOOSE-CONFIG-SCHEMA-XXX`)로 분리 가능하다.
-- CLI `goose config get/set` 하위명령 (CLI-001 범위).
+- CLI `mink config get/set` 하위명령 (CLI-001 범위).
 - 프로바이더별 세부 설정 검증 — 각 SPEC이 자기 필드 검증 위임 (LLM-001이 `providers[*]` 검증).
 - Windows 레지스트리 기반 설정.
 - 암호화된 설정 파일.
@@ -102,7 +102,7 @@ tech.md §3.1이 `spf13/viper` 1.19+를 후보로 명시. 그러나 viper는:
 
 ### 4.2 Event-Driven
 
-**REQ-CFG-004 [Event-Driven]** — **When** `Load()` is invoked and `$GOOSE_HOME/config.yaml` exists, the loader **shall** parse it as YAML and merge its fields over the defaults before applying runtime overlays.
+**REQ-CFG-004 [Event-Driven]** — **When** `Load()` is invoked and `$MINK_HOME/config.yaml` exists, the loader **shall** parse it as YAML and merge its fields over the defaults before applying runtime overlays.
 
 **REQ-CFG-005 [Event-Driven]** — **When** `Load()` is invoked and a project-local `.goose/config.yaml` is present in `cwd`, the loader **shall** overlay it on top of the user-level config.
 
@@ -120,7 +120,7 @@ tech.md §3.1이 `spf13/viper` 1.19+를 후보로 명시. 그러나 viper는:
 
 **REQ-CFG-010 [Unwanted]** — **If** a numeric field (e.g., `transport.grpc_port`) receives a string value in YAML, **then** `Load()` **shall** return a validation error naming the field path (`transport.grpc_port`) and the expected type.
 
-**REQ-CFG-011 [Unwanted]** — **If** `$GOOSE_HOME` is empty or unset at the time `Load()` is invoked, **then** the loader **shall** resolve the user config directory to `$HOME/.goose` exactly once per `Load()` call and **shall not** dereference `$HOME` at any other location in the lookup chain.
+**REQ-CFG-011 [Unwanted]** — **If** `$MINK_HOME` is empty or unset at the time `Load()` is invoked, **then** the loader **shall** resolve the user config directory to `$HOME/.goose` exactly once per `Load()` call and **shall not** dereference `$HOME` at any other location in the lookup chain.
 
 **REQ-CFG-012 [Unwanted]** — **If** a YAML string value contains shell-variable syntax (e.g. `${FOO}`, `$BAR`), **then** the loader **shall** treat the entire value as a literal string and **shall not** perform shell-variable expansion, environment substitution, or command substitution on it.
 
@@ -128,7 +128,7 @@ tech.md §3.1이 `spf13/viper` 1.19+를 후보로 명시. 그러나 viper는:
 
 **REQ-CFG-013 [Optional]** — **Where** a caller supplies `LoadOptions.OverrideFiles []string`, the loader **shall** consume those paths instead of the default file lookup chain (test-only).
 
-**REQ-CFG-014 [Optional]** — **Where** environment variable `GOOSE_CONFIG_STRICT=true` is set, unknown top-level keys (REQ-CFG-008) **shall** instead cause load failure with an error listing all unknowns.
+**REQ-CFG-014 [Optional]** — **Where** environment variable `MINK_CONFIG_STRICT=true` is set, unknown top-level keys (REQ-CFG-008) **shall** instead cause load failure with an error listing all unknowns.
 
 ### 4.6 Addenda (0.2.0 감사 수정)
 
@@ -145,19 +145,19 @@ tech.md §3.1이 `spf13/viper` 1.19+를 후보로 명시. 그러나 viper는:
 ## 5. 수용 기준 (Acceptance Criteria)
 
 **AC-CFG-001 — 계층 병합 순서**
-- **Given** defaults `{log.level: "info", transport.grpc_port: 17891}`, user YAML `{log.level: "debug"}`, env `GOOSE_GRPC_PORT=9999`
+- **Given** defaults `{log.level: "info", transport.grpc_port: 17891}`, user YAML `{log.level: "debug"}`, env `MINK_GRPC_PORT=9999`
 - **When** `Load()` 실행
 - **Then** 결과는 `log.level="debug"` (user), `transport.grpc_port=9999` (env), 그 외는 default. `Source("log.level")=="user"`, `Source("transport.grpc_port")=="env"`.
 - **Satisfies**: REQ-CFG-001, REQ-CFG-004, REQ-CFG-006
 
 **AC-CFG-002 — 파일 부재 시 기본값 유지**
-- **Given** `$GOOSE_HOME=t.TempDir()` (빈 디렉토리), 프로젝트 config 없음, env 없음
+- **Given** `$MINK_HOME=t.TempDir()` (빈 디렉토리), 프로젝트 config 없음, env 없음
 - **When** `Load()`
 - **Then** 에러 없이 기본값만으로 `*Config` 반환, `Validate()==nil`.
 - **Satisfies**: REQ-CFG-004
 
 **AC-CFG-003 — YAML 구문 오류 거부**
-- **Given** `$GOOSE_HOME/config.yaml` 내용이 `log:\n  level: [unclosed`
+- **Given** `$MINK_HOME/config.yaml` 내용이 `log:\n  level: [unclosed`
 - **When** `Load()`
 - **Then** `*ConfigError`가 반환되며 `File` 필드가 입력 경로와 일치하고, `Line` 필드는 파서가 라인 번호를 보고하는 경우에 한해 채워진다 (yaml.v3가 라인을 보고하지 않는 malformation의 경우 0 허용). `errors.Is(err, ErrSyntax)==true`이며, 함수는 기본값으로 silent fallback하지 **않는다**.
 - **Satisfies**: REQ-CFG-009
@@ -175,19 +175,19 @@ tech.md §3.1이 `spf13/viper` 1.19+를 후보로 명시. 그러나 viper는:
 - **Satisfies**: REQ-CFG-005
 
 **AC-CFG-006 — Unknown 키 보존 (비-strict)**
-- **Given** user YAML에 `future_feature: {x: 1}` 포함, `GOOSE_CONFIG_STRICT` 미설정
+- **Given** user YAML에 `future_feature: {x: 1}` 포함, `MINK_CONFIG_STRICT` 미설정
 - **When** `Load()`
 - **Then** 에러 없음, `cfg.Unknown["future_feature"]` 존재, WARN 로그 1건.
 - **Satisfies**: REQ-CFG-008
 
 **AC-CFG-007 — Strict 모드 거부**
-- **Given** AC-CFG-006 상황 + `GOOSE_CONFIG_STRICT=true`
+- **Given** AC-CFG-006 상황 + `MINK_CONFIG_STRICT=true`
 - **When** `Load()`
 - **Then** `ErrStrictUnknown{Keys: ["future_feature"]}` 반환.
 - **Satisfies**: REQ-CFG-014
 
 **AC-CFG-008 — 환경변수 오버레이 단순 타입**
-- **Given** env `GOOSE_LOG_LEVEL=error`, `GOOSE_LEARNING_ENABLED=false`
+- **Given** env `MINK_LOG_LEVEL=error`, `MINK_LEARNING_ENABLED=false`
 - **When** `Load()`
 - **Then** `cfg.Log.Level=="error"`, `cfg.Learning.Enabled==false`.
 - **Satisfies**: REQ-CFG-006
@@ -199,13 +199,13 @@ tech.md §3.1이 `spf13/viper` 1.19+를 후보로 명시. 그러나 viper는:
 - **Satisfies**: REQ-CFG-015
 
 **AC-CFG-010a — Env overlay int happy-path (D17 / D34 분리)**
-- **Given** user YAML `transport.grpc_port: 17891`, env `GOOSE_GRPC_PORT=9999`
+- **Given** user YAML `transport.grpc_port: 17891`, env `MINK_GRPC_PORT=9999`
 - **When** `Load()`
 - **Then** `cfg.Transport.GRPCPort == 9999`, `Source("transport.grpc_port")=="env"`.
 - **Satisfies**: REQ-CFG-006
 
 **AC-CFG-010b — Env overlay int 파싱 실패 fallback (D34 분리)**
-- **Given** user YAML `transport.grpc_port: 17891`, env `GOOSE_GRPC_PORT=abc` (정수 파싱 실패)
+- **Given** user YAML `transport.grpc_port: 17891`, env `MINK_GRPC_PORT=abc` (정수 파싱 실패)
 - **When** `Load()`
 - **Then** WARN 로그 1건 기록, `cfg.Transport.GRPCPort == 17891` (하위 레이어 값 유지), `Source("transport.grpc_port")=="user"`, `Load()`는 에러 없이 반환. 최종 값에 대한 범위 검증은 `Validate()` 단계에서 별도 수행.
 - **Satisfies**: REQ-CFG-006, R2 리스크 완화 (§8)
@@ -223,7 +223,7 @@ tech.md §3.1이 `spf13/viper` 1.19+를 후보로 명시. 그러나 viper는:
 - **Satisfies**: REQ-CFG-006, REQ-CFG-017
 
 **AC-CFG-013 — fs.FS stub 주입 동등성 (D23)**
-- **Given** 동일한 YAML 내용을 (a) 실제 디스크의 `$GOOSE_HOME/config.yaml`에 배치한 케이스와 (b) in-memory `fs.FS`(예: `fstest.MapFS`)로 `LoadOptions.FS`를 통해 주입한 케이스 두 가지로 준비
+- **Given** 동일한 YAML 내용을 (a) 실제 디스크의 `$MINK_HOME/config.yaml`에 배치한 케이스와 (b) in-memory `fs.FS`(예: `fstest.MapFS`)로 `LoadOptions.FS`를 통해 주입한 케이스 두 가지로 준비
 - **When** 각각 `Load()` 실행
 - **Then** 두 경우 모두 동일한 `*Config` 값(깊은 비교로 `reflect.DeepEqual == true`)과 동일한 `Source` 맵을 반환한다. 디스크 I/O를 전혀 수행하지 않은 (b) 경로에서도 성공적으로 Config을 생성할 수 있다.
 - **Satisfies**: REQ-CFG-002
@@ -246,8 +246,8 @@ tech.md §3.1이 `spf13/viper` 1.19+를 후보로 명시. 그러나 viper는:
 - **Then** `ErrInvalidField{Path: "transport.grpc_port", Expected: "int", Got: "string"}` 또는 동등한 validation error를 반환하며, 에러 메시지에 **필드 경로(`transport.grpc_port`)**와 **기대 타입(`int`)**이 모두 포함된다. 이는 AC-CFG-004(범위 검증)와는 구별되는 타입 불일치 계약이다.
 - **Satisfies**: REQ-CFG-010
 
-**AC-CFG-017 — $GOOSE_HOME 미설정 시 $HOME/.goose fallback (D27)**
-- **Given** `os.Unsetenv("GOOSE_HOME")`, `os.Setenv("HOME", "/tmp/goose-test-xyz")`, `/tmp/goose-test-xyz/.goose/config.yaml`에 `log.level: "warn"` 배치
+**AC-CFG-017 — $MINK_HOME 미설정 시 $HOME/.mink fallback (D27)**
+- **Given** `os.Unsetenv("MINK_HOME")`, `os.Setenv("HOME", "/tmp/goose-test-xyz")`, `/tmp/goose-test-xyz/.goose/config.yaml`에 `log.level: "warn"` 배치
 - **When** `Load()`
 - **Then** loader가 `/tmp/goose-test-xyz/.goose/config.yaml`을 읽어 `cfg.Log.Level == "warn"`, `Source("log.level")=="user"`. `$HOME` 참조는 단 1회만 발생하며 다른 경로 조회 단계에서는 재참조되지 않는다 (관찰 방법: `fs.FS` 스텁으로 파일 열기 요청 경로를 캡처, `/tmp/goose-test-xyz/.goose/*` 외의 `$HOME` 유도 경로가 열리지 않음을 검증).
 - **Satisfies**: REQ-CFG-011
@@ -259,9 +259,9 @@ tech.md §3.1이 `spf13/viper` 1.19+를 후보로 명시. 그러나 viper는:
 - **Satisfies**: REQ-CFG-012
 
 **AC-CFG-019 — LoadOptions.OverrideFiles 테스트 전용 경로 (D29)**
-- **Given** `$GOOSE_HOME/config.yaml`에 `log.level: "info"` (default chain), 별도 경로 `/tmp/override-a.yaml`에 `log.level: "error"`
+- **Given** `$MINK_HOME/config.yaml`에 `log.level: "info"` (default chain), 별도 경로 `/tmp/override-a.yaml`에 `log.level: "error"`
 - **When** `Load(LoadOptions{OverrideFiles: []string{"/tmp/override-a.yaml"}})`
-- **Then** loader가 default chain (`$GOOSE_HOME/config.yaml`, 프로젝트 `.goose/config.yaml`)을 **bypass**하고 `OverrideFiles`만 처리한다. 결과는 `cfg.Log.Level == "error"`, `Source("log.level")` 값은 override path를 식별하는 구현-정의 Source 값(예: `SourceOverride` 또는 `"override:/tmp/override-a.yaml"`)을 반환한다. env 오버레이는 여전히 최상위로 적용된다.
+- **Then** loader가 default chain (`$MINK_HOME/config.yaml`, 프로젝트 `.goose/config.yaml`)을 **bypass**하고 `OverrideFiles`만 처리한다. 결과는 `cfg.Log.Level == "error"`, `Source("log.level")` 값은 override path를 식별하는 구현-정의 Source 값(예: `SourceOverride` 또는 `"override:/tmp/override-a.yaml"`)을 반환한다. env 오버레이는 여전히 최상위로 적용된다.
 - **Satisfies**: REQ-CFG-013
 
 ---
@@ -286,16 +286,16 @@ internal/config/
 
 | ENV | Config 경로 | 타입 | 기본값 |
 |-----|-----------|-----|-------|
-| `GOOSE_HOME` | (특수: 검색 경로) | path | `~/.goose` |
-| `GOOSE_LOG_LEVEL` | `log.level` | enum{debug,info,warn,error} | info |
-| `GOOSE_HEALTH_PORT` | `transport.health_port` | int | 17890 (CORE-001) |
-| `GOOSE_GRPC_PORT` | `transport.grpc_port` | int | 17891 |
-| `GOOSE_LOCALE` | `ui.locale` | enum{en,ko,ja,zh} | en |
+| `MINK_HOME` | (특수: 검색 경로) | path | `~/.goose` |
+| `MINK_LOG_LEVEL` | `log.level` | enum{debug,info,warn,error} | info |
+| `MINK_HEALTH_PORT` | `transport.health_port` | int | 17890 (CORE-001) |
+| `MINK_GRPC_PORT` | `transport.grpc_port` | int | 17891 |
+| `MINK_LOCALE` | `ui.locale` | enum{en,ko,ja,zh} | en |
 | `OLLAMA_HOST` | `llm.providers.ollama.host` | URL | `http://localhost:11434` |
 | `OPENAI_API_KEY` | `llm.providers.openai.api_key` | secret | "" |
 | `ANTHROPIC_API_KEY` | `llm.providers.anthropic.api_key` | secret | "" |
-| `GOOSE_LEARNING_ENABLED` | `learning.enabled` | bool | false (Phase 0 default) |
-| `GOOSE_CONFIG_STRICT` | (특수: loader 동작) | bool | false |
+| `MINK_LEARNING_ENABLED` | `learning.enabled` | bool | false (Phase 0 default) |
+| `MINK_CONFIG_STRICT` | (특수: loader 동작) | bool | false |
 
 후속 SPEC들은 이 표에 ENV를 추가할 수 있으나, 동일 경로를 두 ENV가 매핑하는 경우는 금지(스키마 린트).
 
@@ -385,7 +385,7 @@ func (c *Config) Source(path string) Source
 
 | 타입 | 대상 | 설명 |
 |-----|------|------|
-| 선행 SPEC | **SPEC-GOOSE-CORE-001** | 동일 프로세스의 `zap` logger 인스턴스 공유, `GOOSE_HOME` 의미 상속 |
+| 선행 SPEC | **SPEC-GOOSE-CORE-001** | 동일 프로세스의 `zap` logger 인스턴스 공유, `MINK_HOME` 의미 상속 |
 | 후속 SPEC | SPEC-GOOSE-TRANSPORT-001 | `TransportConfig` 소비 |
 | 후속 SPEC | SPEC-GOOSE-LLM-001 | `LLMConfig.Providers` 확장 + `Validate()` 구현 |
 | 후속 SPEC | SPEC-GOOSE-AGENT-001 | `LearningConfig` 플래그 소비 |
@@ -432,7 +432,7 @@ func (c *Config) Source(path string) Source
 ## Exclusions (What NOT to Build)
 
 - 본 SPEC은 **hot reload / fsnotify 감시를 구현하지 않는다**. `Load()`는 1회성.
-- 본 SPEC은 **CLI `goose config get/set` 하위명령을 포함하지 않는다** (CLI-001).
+- 본 SPEC은 **CLI `mink config get/set` 하위명령을 포함하지 않는다** (CLI-001).
 - 본 SPEC은 **secret manager / keychain 통합을 구현하지 않는다**. API key는 평문 YAML 또는 env. 단 REQ-CFG-016이 향후 credential-pool SPEC과의 연동 훅을 forward-reference로 제공한다 (본 SPEC은 훅 선언만 수행, 동작 전환은 해당 SPEC이 수행).
 - 본 SPEC은 **JSON Schema export / 검증 / 생성을 수행하지 않는다** (§3.2 참조). Config 스키마는 Go 타입으로만 정의된다.
 - 본 SPEC은 **JSON/TOML/HCL 형식을 지원하지 않는다**. YAML 전용.

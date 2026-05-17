@@ -27,7 +27,7 @@ labels: ["phase-4", "learning", "trajectory", "privacy", "sharegpt"]
 
 ## 1. 개요 (Overview)
 
-AI.GOOSE **자기진화 파이프라인의 Layer 1**을 정의한다. QueryEngine의 한 턴(turn)이 끝날 때마다 발생하는 대화 기록을 **ShareGPT 호환 JSON-L 포맷**으로 로컬 디스크에 유실 없이 적재하고, 저장 직전 **Redact 파이프라인**으로 이메일·API 키·신용카드·전화번호·경로상 PII를 제거하며, 성공(`completed=true`) vs 실패(`completed=false`) 궤적을 물리적으로 분리 저장하여 Layer 2(COMPRESSOR) · Layer 3(INSIGHTS)의 입력을 준비한다.
+AI.MINK **자기진화 파이프라인의 Layer 1**을 정의한다. QueryEngine의 한 턴(turn)이 끝날 때마다 발생하는 대화 기록을 **ShareGPT 호환 JSON-L 포맷**으로 로컬 디스크에 유실 없이 적재하고, 저장 직전 **Redact 파이프라인**으로 이메일·API 키·신용카드·전화번호·경로상 PII를 제거하며, 성공(`completed=true`) vs 실패(`completed=false`) 궤적을 물리적으로 분리 저장하여 Layer 2(COMPRESSOR) · Layer 3(INSIGHTS)의 입력을 준비한다.
 
 본 SPEC이 통과한 시점에서:
 
@@ -72,7 +72,7 @@ AI.GOOSE **자기진화 파이프라인의 Layer 1**을 정의한다. QueryEngin
 4. `internal/learning/trajectory/redact/` 서브패키지: `Redactor` 인터페이스 + 6개 기본 규칙(이메일 / API 키 패턴 / Bearer 토큰 / 신용카드 번호 / 전화번호 / 홈 디렉토리 경로 사용자명).
 5. `internal/learning/trajectory/rotation.go`: 날짜/크기 기반 파일 회전.
 6. `internal/learning/trajectory/retention.go`: 90일 초과 궤적 자동 삭제 (기본값, 설정 가능).
-7. Disk layout: `${GOOSE_HOME}/trajectories/success/YYYY-MM-DD.jsonl`, `${GOOSE_HOME}/trajectories/failed/YYYY-MM-DD.jsonl`.
+7. Disk layout: `${MINK_HOME}/trajectories/success/YYYY-MM-DD.jsonl`, `${MINK_HOME}/trajectories/failed/YYYY-MM-DD.jsonl`.
 8. 설정 통합: `config.yaml`의 `telemetry.trajectory.{enabled, retention_days, redact_rules, max_file_bytes}`.
 9. 비동기 기록(QueryEngine critical path 차단 금지): 내부 channel + goroutine worker.
 10. 기록 실패는 에이전트 흐름 차단 금지 — zap warning 로그만.
@@ -107,9 +107,9 @@ AI.GOOSE **자기진화 파이프라인의 Layer 1**을 정의한다. QueryEngin
 
 ### 4.2 Event-Driven (이벤트 기반)
 
-**REQ-TRAJECTORY-005 [Event-Driven]** — **When** the QueryEngine's Terminal event fires with `success: true`, the `TrajectoryCollector` **shall** flush the session buffer to `${GOOSE_HOME}/trajectories/success/YYYY-MM-DD.jsonl` (date computed in UTC).
+**REQ-TRAJECTORY-005 [Event-Driven]** — **When** the QueryEngine's Terminal event fires with `success: true`, the `TrajectoryCollector` **shall** flush the session buffer to `${MINK_HOME}/trajectories/success/YYYY-MM-DD.jsonl` (date computed in UTC).
 
-**REQ-TRAJECTORY-006 [Event-Driven]** — **When** the QueryEngine's Terminal event fires with `success: false`, the `TrajectoryCollector` **shall** flush the session buffer to `${GOOSE_HOME}/trajectories/failed/YYYY-MM-DD.jsonl` with `TrajectoryMetadata.failure_reason` populated from the Terminal `error` field.
+**REQ-TRAJECTORY-006 [Event-Driven]** — **When** the QueryEngine's Terminal event fires with `success: false`, the `TrajectoryCollector` **shall** flush the session buffer to `${MINK_HOME}/trajectories/failed/YYYY-MM-DD.jsonl` with `TrajectoryMetadata.failure_reason` populated from the Terminal `error` field.
 
 **REQ-TRAJECTORY-007 [Event-Driven]** — **When** a file's cumulative byte count exceeds `max_file_bytes` (default 10,485,760 = 10MB) during append, the `Writer` **shall** rotate by closing the current file and opening `YYYY-MM-DD-{N}.jsonl` where N starts at 1 and monotonically increases.
 
@@ -202,7 +202,7 @@ AI.GOOSE **자기진화 파이프라인의 Layer 1**을 정의한다. QueryEngin
 **AC-TRAJECTORY-011 — 버퍼 spill (1000턴 초과)**
 - **Given** `in_memory_turn_cap=100` (테스트용), 단일 세션에서 150턴 누적
 - **When** 101번째 턴 도착
-- **Then** 50턴이 `${GOOSE_HOME}/trajectories/success/2026-04-21.jsonl`에 `{partial:true}` 플래그로 append, 메모리 버퍼는 50턴으로 축소
+- **Then** 50턴이 `${MINK_HOME}/trajectories/success/2026-04-21.jsonl`에 `{partial:true}` 플래그로 append, 메모리 버퍼는 50턴으로 축소
 
 **AC-TRAJECTORY-012 — 동시성 무결성**
 - **Given** 10개 QueryEngine 인스턴스가 병렬로 각 10턴씩 종료
@@ -210,7 +210,7 @@ AI.GOOSE **자기진화 파이프라인의 Layer 1**을 정의한다. QueryEngin
 - **Then** 10개 JSON-L 라인 각각이 valid JSON, 라인 간 바이트 혼재 없음(각 라인이 독립적으로 `json.Unmarshal` 성공)
 
 **AC-TRAJECTORY-013 — 파일 시스템 권한 강제 (REQ-003 / 보안)**  _(신설 v0.1.1, 감사 D4)_
-- **Given** 임시 `GOOSE_HOME` 하에 `${GOOSE_HOME}/trajectories/` 디렉토리가 아직 존재하지 않는 상태
+- **Given** 임시 `MINK_HOME` 하에 `${MINK_HOME}/trajectories/` 디렉토리가 아직 존재하지 않는 상태
 - **When** `Writer.WriteTrajectory()`가 성공 궤적 1건을 최초 기록
 - **Then** `os.Stat()` 결과: (a) 생성된 `success/2026-04-25.jsonl` 파일 모드가 `0600` (umask 영향 배제 위해 `0077` umask에서 검증), (b) 부모 디렉토리 `trajectories/` 및 `success/`가 `0700`, (c) 실행 유저(UID) 소유, (d) symlink가 아닌 regular file. 동일 검증을 `failed/` 경로에 대해 별도 반복하여 두 경로 모두 0600/0700 보장.
 
@@ -384,7 +384,7 @@ func BuiltinRules() []Rule {
 
 ### 6.3 QueryEngine 통합 계약
 
-본 SPEC은 SPEC-GOOSE-QUERY-001의 `PostSamplingHooks`, `StopFailureHooks`, Terminal 이벤트를 consumer로 사용한다. 주입 책임은 GOOSE 부트스트랩(CORE-001 + 본 SPEC 등록자)에 있다.
+본 SPEC은 SPEC-GOOSE-QUERY-001의 `PostSamplingHooks`, `StopFailureHooks`, Terminal 이벤트를 consumer로 사용한다. 주입 책임은 MINK 부트스트랩(CORE-001 + 본 SPEC 등록자)에 있다.
 
 | QueryEngine 훅 | 본 SPEC 핸들러 | 용도 |
 |---|---|---|
@@ -415,7 +415,7 @@ QueryEngine의 `message.Role`을 Trajectory의 `Role`로 매핑:
 ### 6.5 파일 레이아웃
 
 ```
-~/.goose/                                    # GOOSE_HOME
+~/.goose/                                    # MINK_HOME
 ├── trajectories/
 │   ├── success/
 │   │   ├── 2026-04-21.jsonl                 # 기본 날짜별
@@ -466,7 +466,7 @@ QueryEngine의 `message.Role`을 Trajectory의 `Role`로 매핑:
 
 | 타입 | 대상 | 설명 |
 |-----|------|------|
-| 선행 SPEC | SPEC-GOOSE-CORE-001 | `GOOSE_HOME` 해석, zap 로거, context 루트 |
+| 선행 SPEC | SPEC-GOOSE-CORE-001 | `MINK_HOME` 해석, zap 로거, context 루트 |
 | 선행 SPEC | SPEC-GOOSE-QUERY-001 | `PostSamplingHooks`, `StopFailureHooks`, Terminal 이벤트, `SessionID` |
 | 선행 SPEC | SPEC-GOOSE-CONFIG-001 | `config.telemetry.trajectory.*` 로드 |
 | 후속 SPEC | SPEC-GOOSE-COMPRESSOR-001 | 본 SPEC의 `Trajectory` 타입을 입력으로 |

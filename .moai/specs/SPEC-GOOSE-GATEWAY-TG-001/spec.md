@@ -27,7 +27,7 @@ labels: []
 
 ## 1. 개요
 
-사용자 PC에서 Telegram Bot API long-polling으로 작동하는 원격 리모컨. **클라우드 0, 계정 0**. @BotFather에서 Bot Token 발급 후 GOOSE Desktop 설정 화면에 붙여넣기만 하면 활성.
+사용자 PC에서 Telegram Bot API long-polling으로 작동하는 원격 리모컨. **클라우드 0, 계정 0**. @BotFather에서 Bot Token 발급 후 MINK Desktop 설정 화면에 붙여넣기만 하면 활성.
 
 ## 2. 범위
 
@@ -43,11 +43,11 @@ labels: []
 
 ### 3.2 Event-driven
 - **REQ-TG-010**: When user messages bot for the first time, bot shall require 6-digit auth code from Desktop app to establish Trusted User.
-- **REQ-TG-011**: When Trusted User sends query, bot shall forward to local GOOSE QueryEngine and reply with response.
+- **REQ-TG-011**: When Trusted User sends query, bot shall forward to local MINK QueryEngine and reply with response.
 - **REQ-TG-012**: When query response contains Journal/Health category content, bot shall reply with placeholder and prompt user to open Desktop/Mobile app.
 
 ### 3.3 State-driven
-- **REQ-TG-020**: While Desktop is offline, bot shall reply with "GOOSE PC is offline, try later" and queue message.
+- **REQ-TG-020**: While Desktop is offline, bot shall reply with "MINK PC is offline, try later" and queue message.
 - **REQ-TG-021**: While Crisis keyword is detected in incoming message, bot shall respond with 1577-0199 (Korean) / local hotline + pause LLM execution.
 
 ### 3.4 Unwanted

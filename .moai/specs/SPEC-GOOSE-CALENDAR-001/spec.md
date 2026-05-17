@@ -3,7 +3,7 @@ id: SPEC-GOOSE-CALENDAR-001
 version: 0.1.1
 status: planned
 created_at: 2026-04-22
-updated_at: 2026-04-25
+updated_at: 2026-05-17
 author: manager-spec
 priority: P0
 issue_number: null
@@ -11,6 +11,9 @@ phase: 7
 size: 중(M)
 lifecycle: spec-anchored
 labels: [calendar, caldav, oauth, integration, phase-7, security]
+target_milestone: v0.2.0
+mvp_status: deferred
+deferred_reason: "0.1.0 MVP 범위 외 — v0.2.0 이월 (2026-05-17 사용자 확정). 아침 브리핑은 0.1.0에서 WEATHER+JOURNAL+MSG-TELEGRAM 으로 축소."
 ---
 
 # SPEC-GOOSE-CALENDAR-001 — Calendar Integration (Google, iCloud, Outlook, Naver via CalDAV + Native APIs)
@@ -26,7 +29,7 @@ labels: [calendar, caldav, oauth, integration, phase-7, security]
 
 ## 1. 개요 (Overview)
 
-GOOSE v6.0 Daily Companion의 **아침 브리핑 3대 축** 중 마지막 **"오늘의 일정 요약"** 을 책임지는 캘린더 통합 SPEC. Google Calendar, Apple iCloud, Microsoft Outlook, Naver Calendar 등 외부 캘린더 서비스와 연동하여 **사용자의 오늘 일정 + 앞으로 7일 주요 일정**을 가져오고, 필요 시 쓰기(이벤트 생성/수정)도 수행한다.
+MINK v6.0 Daily Companion의 **아침 브리핑 3대 축** 중 마지막 **"오늘의 일정 요약"** 을 책임지는 캘린더 통합 SPEC. Google Calendar, Apple iCloud, Microsoft Outlook, Naver Calendar 등 외부 캘린더 서비스와 연동하여 **사용자의 오늘 일정 + 앞으로 7일 주요 일정**을 가져오고, 필요 시 쓰기(이벤트 생성/수정)도 수행한다.
 
 본 SPEC은 두 가지 경로를 동시에 지원한다:
 
@@ -427,7 +430,7 @@ Content-Type: application/xml
 
 ### 6.6 OAuth Flow
 
-1. 사용자가 CLI `goose calendar auth google` 실행
+1. 사용자가 CLI `mink calendar auth google` 실행
 2. CLI가 local HTTP server (port 6274) 시작 + 브라우저 open
 3. 사용자 Google 승인 → callback으로 code 수신
 4. Token exchange → CREDPOOL-001에 저장 (암호화)

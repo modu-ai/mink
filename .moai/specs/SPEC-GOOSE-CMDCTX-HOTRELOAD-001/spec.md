@@ -152,7 +152,7 @@ All Reload* and ResolveModelAlias paths **shall** be safe for concurrent invocat
 
 #### REQ-HOTRELOAD-010 — fsnotify watcher trigger
 
-**When** the alias file resolved by ALIAS-CONFIG-001 (`$GOOSE_ALIAS_FILE` or `$GOOSE_HOME/aliases.yaml` or `$HOME/.goose/aliases.yaml`) emits a `Write` / `Create` / `Rename` fsnotify event, the watcher **shall** schedule a debounced reload.
+**When** the alias file resolved by ALIAS-CONFIG-001 (`$MINK_ALIAS_FILE` or `$MINK_HOME/aliases.yaml` or `$HOME/.goose/aliases.yaml`) emits a `Write` / `Create` / `Rename` fsnotify event, the watcher **shall** schedule a debounced reload.
 
 #### REQ-HOTRELOAD-011 — reload chain on event
 

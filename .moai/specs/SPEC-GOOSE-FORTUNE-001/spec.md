@@ -3,14 +3,17 @@ id: SPEC-GOOSE-FORTUNE-001
 version: 0.1.0
 status: planned
 created_at: 2026-04-22
-updated_at: 2026-04-22
+updated_at: 2026-05-17
 author: manager-spec
 priority: P1
 issue_number: null
 phase: 7
 size: 중(M)
 lifecycle: spec-anchored
-labels: []
+labels: [fortune, personalization, entertainment, opt-in, phase-7]
+target_milestone: v0.2.0
+mvp_status: deferred
+deferred_reason: "0.1.0 MVP 범위 외 — v0.2.0 이월 (2026-05-17 사용자 확정). 엔터테인먼트 기능, MVP 후순위."
 ---
 
 # SPEC-GOOSE-FORTUNE-001 — Personalized Fortune Generator (사주·바이오리듬·오늘의 운세, Opt-in)
@@ -25,7 +28,7 @@ labels: []
 
 ## 1. 개요 (Overview)
 
-GOOSE v6.0 Daily Companion의 **아침 브리핑 3대 축** 중 하나인 **개인화 운세 생성기**를 정의한다. 사용자의 생년월일(IDENTITY-001 Person entity 에서 소비) + 오늘 날짜 + 최근 감정 트렌드 (INSIGHTS-001)를 입력으로, **한국 사주 + 서양 점성술 + 바이오리듬**을 융합한 "오늘의 운세"를 LLM이 생성한다.
+MINK v6.0 Daily Companion의 **아침 브리핑 3대 축** 중 하나인 **개인화 운세 생성기**를 정의한다. 사용자의 생년월일(IDENTITY-001 Person entity 에서 소비) + 오늘 날짜 + 최근 감정 트렌드 (INSIGHTS-001)를 입력으로, **한국 사주 + 서양 점성술 + 바이오리듬**을 융합한 "오늘의 운세"를 LLM이 생성한다.
 
 본 SPEC은 **엔터테인먼트 목적**임을 명확히 선언한다:
 - 의학적 진단 불가

@@ -30,7 +30,7 @@ labels: ["llm-provider", "phase-1", "adapter", "credpool-extension", "anthropic"
 
 ## 1. 개요 (Overview)
 
-AI.GOOSE Phase 1의 **LLM HTTP 호출 경계**를 정의한다. QUERY-001의 `LLMCallFunc` 인터페이스에 대한 6개 provider 구현(Anthropic, OpenAI, Google Gemini, xAI Grok, DeepSeek, Ollama)을 공통 `Provider` interface 아래 통합하는 `internal/llm/provider` 패키지를 구현한다.
+AI.MINK Phase 1의 **LLM HTTP 호출 경계**를 정의한다. QUERY-001의 `LLMCallFunc` 인터페이스에 대한 6개 provider 구현(Anthropic, OpenAI, Google Gemini, xAI Grok, DeepSeek, Ollama)을 공통 `Provider` interface 아래 통합하는 `internal/llm/provider` 패키지를 구현한다.
 
 본 SPEC이 Plan·Run을 통과한 시점에서:
 
@@ -51,7 +51,7 @@ AI.GOOSE Phase 1의 **LLM HTTP 호출 경계**를 정의한다. QUERY-001의 `LL
 
 - ROADMAP v2.0 Phase 1 row 10은 ADAPTER-001을 P0 마지막으로 배치. QUERY-001·CREDPOOL-001·ROUTER-001·RATELIMIT-001·PROMPT-CACHE-001의 결과를 **하나로 통합하는 경계**.
 - `.moai/project/research/hermes-llm.md` §8은 Anthropic Adapter의 58KB Python 코드가 포함한 기능(OAuth PKCE, Token sync, Model normalization, Tool conversion, Content conversion, Thinking mode)을 상세화하며, Go 포팅 매핑(§9)을 제공.
-- QUERY-001 `LLMCall` interface 수신측 구현 계약이 본 SPEC에서 확정되어야 Phase 1 MVP Milestone 1(`goose ask "hello"` → Claude/GPT 응답)이 동작.
+- QUERY-001 `LLMCall` interface 수신측 구현 계약이 본 SPEC에서 확정되어야 Phase 1 MVP Milestone 1(`mink ask "hello"` → Claude/GPT 응답)이 동작.
 
 ### 2.2 상속 자산
 

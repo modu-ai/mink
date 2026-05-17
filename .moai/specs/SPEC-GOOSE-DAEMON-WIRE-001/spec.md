@@ -162,7 +162,7 @@ issue_number: null
 **[Event-Driven]** **When** `goosed` is launched with a valid `~/.goose/config.yaml`, an empty `~/.goose/skills/` directory, and an unbound health port, the daemon **shall** transition through `init → bootstrap → wire-up → serving` within 500ms, **shall** complete steps (1) through (12) of REQ-WIRE-002 in the declared order with all five registries non-nil, **shall** respond `200 OK` with `{"status":"ok"}` on `GET /healthz`, and **shall** report `rt.State.Load() == StateServing`.
 
 **Test Scenario (verification)**:
-- **Given** 임시 디렉토리에 `~/.goose/config.yaml` (default values), 빈 `~/.goose/skills/`, 자유 포트(테스트가 사전에 listen+close로 확보), `GOOSE_HOME=<tmpdir>` 환경변수
+- **Given** 임시 디렉토리에 `~/.goose/config.yaml` (default values), 빈 `~/.goose/skills/`, 자유 포트(테스트가 사전에 listen+close로 확보), `MINK_HOME=<tmpdir>` 환경변수
 - **When** `cmd := exec.Command("goosed")` 실행, 500ms 대기 후 `http.Get("/healthz")`
 - **Then** (a) HTTP 200, body에 `"status":"ok"` 포함, (b) test harness가 daemon process를 attach하여 reflect/inspect 시 `rt.Sessions != nil`, `rt.Drain != nil`, `hookRegistry != nil`, `toolsRegistry != nil`, `skillRegistry != nil` 모두 관측, (c) zap 로그에서 `"goosed started"` INFO 라인 1건 + `"hook registry initialized"`, `"tools registry initialized"`, `"skills loaded"` 3건 INFO 라인이 declared 순서대로 출력 (zap log capture로 검증).
 
@@ -234,7 +234,7 @@ issue_number: null
 **Test Scenario (verification)**:
 - **Given** main.go에 `wireInteractiveHandler(rt, hookRegistry, nil, hook.WithExplicitNoOp())` 호출 (placeholder)
 - **When** 정상 부트스트랩 진행
-- **Then** (a) daemon이 정상적으로 `StateServing`에 도달, (b) `hookRegistry`의 InteractiveHandler 슬롯은 nil 상태로 유지(reflect로 관측), (c) `goose tool list` 등 InteractiveHandler를 요구하지 않는 경로는 정상 작동, (d) InteractiveHandler가 필요한 경로(CLI-001 영역)는 본 SPEC 범위 밖이므로 negative test는 CLI-001로 위임됨.
+- **Then** (a) daemon이 정상적으로 `StateServing`에 도달, (b) `hookRegistry`의 InteractiveHandler 슬롯은 nil 상태로 유지(reflect로 관측), (c) `mink tool list` 등 InteractiveHandler를 요구하지 않는 경로는 정상 작동, (d) InteractiveHandler가 필요한 경로(CLI-001 영역)는 본 SPEC 범위 밖이므로 negative test는 CLI-001로 위임됨.
 
 ---
 

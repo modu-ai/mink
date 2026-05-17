@@ -46,7 +46,7 @@ Anthropic의 **prompt caching** 기능을 활용하기 위한 caching breakpoint
 - ROADMAP v2.0 Phase 1 row 09는 PROMPT-CACHE-001을 `ROUTER-001` 후속 P1로 배치. ADAPTER-001이 Anthropic 호출 경로에서 이 plan을 소비.
 - `.moai/project/research/hermes-llm.md` §6은 Hermes `system_and_3` 전략의 알고리즘과 효과(multi-turn에서 입력 토큰 비용 ~75% 절감)를 제시.
 - Anthropic API는 단일 요청에 **최대 4개** `cache_control` breakpoint를 허용. 잘못 배치하면 cache miss로 비용 낭비.
-- GOOSE의 multi-turn agentic loop(QUERY-001의 queryLoop)는 동일 system prompt + tool schema를 매 turn 반복 전송. Caching 없으면 턴마다 동일 내용을 재청구.
+- MINK의 multi-turn agentic loop(QUERY-001의 queryLoop)는 동일 system prompt + tool schema를 매 turn 반복 전송. Caching 없으면 턴마다 동일 내용을 재청구.
 
 ### 2.2 상속 자산
 

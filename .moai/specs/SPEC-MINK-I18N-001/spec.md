@@ -16,7 +16,7 @@ labels: [i18n, localization, ui, rtl, icu, phase-6, mink-rebrand]
 
 # SPEC-MINK-I18N-001 — UI Internationalization (20+ Languages, Plurals, RTL)
 
-> **REBRAND FROM SPEC-GOOSE-I18N-001 (2026-05-14)**: 본 SPEC 은 SPEC-MINK-BRAND-RENAME-001 (commit f0f02e4, 2026-05-13) 의 GOOSE → MINK 전역 rename 정책에 따라 선행 SPEC-GOOSE-I18N-001 (v0.2.1, draft) 의 본문을 MINK 로 rebrand 한 후속 SPEC 이다. 선행 SPEC body 는 immutable 로 유지되며 (BRAND-RENAME-001 OUT-scope 정책), 선행 SPEC frontmatter status 는 별도 commit 에서 `superseded` 로 전환된다. 다른 SPEC 의 cross-reference (`SPEC-GOOSE-LOCALE-001` 등) 는 immutable 정책에 따라 그대로 유지된다.
+> **REBRAND FROM SPEC-GOOSE-I18N-001 (2026-05-14)**: 본 SPEC 은 SPEC-MINK-BRAND-RENAME-001 (commit f0f02e4, 2026-05-13) 의 MINK → MINK 전역 rename 정책에 따라 선행 SPEC-GOOSE-I18N-001 (v0.2.1, draft) 의 본문을 MINK 로 rebrand 한 후속 SPEC 이다. 선행 SPEC body 는 immutable 로 유지되며 (BRAND-RENAME-001 OUT-scope 정책), 선행 SPEC frontmatter status 는 별도 commit 에서 `superseded` 로 전환된다. 다른 SPEC 의 cross-reference (`SPEC-GOOSE-LOCALE-001` 등) 는 immutable 정책에 따라 그대로 유지된다.
 
 ## HISTORY
 
@@ -25,7 +25,7 @@ labels: [i18n, localization, ui, rtl, icu, phase-6, mink-rebrand]
 | 0.1.0 | 2026-04-22 | 초안 작성 (선행 SPEC-GOOSE-I18N-001). v5.0 ROADMAP Phase 6 Localization 시리즈 2번째. LOCALE-001이 제공하는 `primary_language`를 소비하여 20+ 언어 UI 번역 제공. Hermes 수준 다국어. | manager-spec |
 | 0.2.0 | 2026-04-25 | (선행 SPEC) 감사 리포트(mass-20260425/I18N-001-audit.md) 반영: frontmatter `labels` 채움 및 `status: draft`로 정규화, §5 header "Test Scenarios"로 변경 + "Verifies: REQ-I18N-XXX" 라인 추가(D3), REQ-013/015/016 Unwanted 정형화(D4), REQ-018 `may`→조건부 `shall`(D5), REQ-016 Tier 1/Tier 2 범위로 한정(D8), REQ-019(BCP 47 regional fallback chain) 신설(D9), 누락 AC 6개 추가(D7), REQ-020(calendar-system 렌더링) 신설(D14), gender/context-dependent 번역은 Exclusions 명시(D10/D11), CI exit code 일관화(D13). | manager-spec |
 | 0.2.1 | 2026-05-14 | (선행 SPEC) POST-BRAND-RENAME marker 추가. frontmatter created_at/updated_at 인용부호 정규화. | manager-spec |
-| 0.3.0 | 2026-05-14 | SPEC-MINK-BRAND-RENAME-001 rebrand 정책 적용. 본문 GOOSE/Goose/goose 명칭을 MINK/Mink/mink 로 치환. id `SPEC-GOOSE-I18N-001` → `SPEC-MINK-I18N-001` 신설, 선행 SPEC supersede. 다른 SPEC 의 cross-reference (SPEC-GOOSE-LOCALE-001 / SPEC-GOOSE-ADAPTER-001 / SPEC-GOOSE-CONFIG-001 / SPEC-GOOSE-DESKTOP-001 / SPEC-GOOSE-MOBILE-001 / SPEC-GOOSE-REGION-SKILLS-001) 는 immutable 보존. labels 에 `mink-rebrand` 추가. | manager-spec |
+| 0.3.0 | 2026-05-14 | SPEC-MINK-BRAND-RENAME-001 rebrand 정책 적용. 본문 MINK/Goose/goose 명칭을 MINK/Mink/mink 로 치환. id `SPEC-GOOSE-I18N-001` → `SPEC-MINK-I18N-001` 신설, 선행 SPEC supersede. 다른 SPEC 의 cross-reference (SPEC-GOOSE-LOCALE-001 / SPEC-GOOSE-ADAPTER-001 / SPEC-GOOSE-CONFIG-001 / SPEC-GOOSE-DESKTOP-001 / SPEC-GOOSE-MOBILE-001 / SPEC-GOOSE-REGION-SKILLS-001) 는 immutable 보존. labels 에 `mink-rebrand` 추가. | manager-spec |
 | 0.2.1 | 2026-05-14 | POST-BRAND-RENAME marker 추가. BRAND-RENAME-001 (commit f0f02e4) 이후 MINK prefix draft 의 후속 처리 (rebrand vs 본문 치환) 미결정. frontmatter created_at/updated_at 인용부호 정규화 (다른 SPEC 들과 동일 unquoted 스타일 align). labels 에 `post-brand-rename` 추가. | manager-spec |
 
 ---

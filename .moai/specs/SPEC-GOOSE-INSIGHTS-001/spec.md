@@ -25,7 +25,7 @@ labels: []
 
 ## 1. 개요 (Overview)
 
-AI.GOOSE **자기진화 파이프라인의 Layer 3**를 정의한다. TRAJECTORY-001이 기록한 `.jsonl` 궤적 파일 + MEMORY-001의 `facts` 테이블을 입력으로, **4개 다차원 집계(overview / models / tools / activity)**와 **4개 질적 분류(Pattern / Preference / Error / Opportunity)**를 생성한다. 각 분류 항목은 **신뢰도 점수**(관찰 횟수 + 분산 기반)를 달며, REFLECT-001(Phase 5)의 5단계 승격 파이프라인 입력이자 사용자 주간/월간 리포트의 데이터 소스로 사용된다.
+AI.MINK **자기진화 파이프라인의 Layer 3**를 정의한다. TRAJECTORY-001이 기록한 `.jsonl` 궤적 파일 + MEMORY-001의 `facts` 테이블을 입력으로, **4개 다차원 집계(overview / models / tools / activity)**와 **4개 질적 분류(Pattern / Preference / Error / Opportunity)**를 생성한다. 각 분류 항목은 **신뢰도 점수**(관찰 횟수 + 분산 기반)를 달며, REFLECT-001(Phase 5)의 5단계 승격 파이프라인 입력이자 사용자 주간/월간 리포트의 데이터 소스로 사용된다.
 
 본 SPEC이 통과한 시점에서:
 
@@ -44,7 +44,7 @@ AI.GOOSE **자기진화 파이프라인의 Layer 3**를 정의한다. TRAJECTORY
 - Phase 4의 "사용자에게 보이는 산출물". Trajectory + Compressor + Memory는 데이터 처리 인프라, Insights는 **사람이 읽는 결과물**이다.
 - `.moai/project/research/hermes-learning.md` §4의 `InsightsEngine` 스키마(overview/models/tools/activity 4-dim)가 이식 대상.
 - REFLECT-001(Phase 5) 5단계 승격은 본 SPEC의 질적 분류를 **관찰(Observation) 입력**으로 사용한다. Insights 없이 REFLECT는 데이터 없이 동작 불가.
-- `/goose insights` CLI 명령(CLI-001)의 백엔드. 주간 리포트 자동 생성 + 사용자 확인 워크플로우.
+- `/mink insights` CLI 명령(CLI-001)의 백엔드. 주간 리포트 자동 생성 + 사용자 확인 워크플로우.
 - 로드맵 v2.0 §4 Phase 4 #21.
 
 ### 2.2 상속 자산
@@ -71,7 +71,7 @@ AI.GOOSE **자기진화 파이프라인의 Layer 3**를 정의한다. TRAJECTORY
 5. `internal/learning/insights/activity.go`: `ActivityPattern` 집계 (by_day / by_hour / busiest_day / busiest_hour / active_days / max_streak).
 6. `internal/learning/insights/analyzer.go`: 4-cat 질적 분류(Pattern / Preference / Error / Opportunity) heuristic 엔진.
 7. `internal/learning/insights/confidence.go`: 신뢰도 계산 (관찰 횟수 N + 분산 σ² 기반 bayesian adjustment).
-8. `internal/learning/insights/scanner.go`: `${GOOSE_HOME}/trajectories/**/*.jsonl` 스캔 (`TrajectoryReader`).
+8. `internal/learning/insights/scanner.go`: `${MINK_HOME}/trajectories/**/*.jsonl` 스캔 (`TrajectoryReader`).
 9. `internal/learning/insights/render.go`: terminal UI 테이블(ASCII) + JSON export.
 10. Cost 계산: 모델별 가격표 (lookup 기반, `config.insights.pricing.yaml` 주입).
 11. Period 지정: `Last(days int)`, `Between(from, to time.Time)`, `AllTime()`.
@@ -105,7 +105,7 @@ AI.GOOSE **자기진화 파이프라인의 Layer 3**를 정의한다. TRAJECTORY
 
 ### 4.2 Event-Driven (이벤트 기반)
 
-**REQ-INSIGHTS-005 [Event-Driven]** — **When** `Extract(period=Last(7))` is invoked, the engine **shall** scan `${GOOSE_HOME}/trajectories/{success,failed}/YYYY-MM-DD.jsonl` for dates in the range `[now-7d, now]` and ignore files outside range.
+**REQ-INSIGHTS-005 [Event-Driven]** — **When** `Extract(period=Last(7))` is invoked, the engine **shall** scan `${MINK_HOME}/trajectories/{success,failed}/YYYY-MM-DD.jsonl` for dates in the range `[now-7d, now]` and ignore files outside range.
 
 **REQ-INSIGHTS-006 [Event-Driven]** — **When** a trajectory file is malformed JSON on any line, the scanner **shall** log a zap warning with `{path, line_number}`, skip that line, and continue; one malformed line **shall not** abort the full extraction.
 
@@ -637,9 +637,9 @@ pricing:
 | 선행 SPEC | SPEC-GOOSE-COMPRESSOR-001 | (선택) `Summarizer` 인터페이스 재사용 — `UseLLMSummary=true` 시 |
 | 선행 SPEC | SPEC-GOOSE-MEMORY-001 | (선택) `MemoryManager` 주입 — Opportunity category 보강 |
 | 선행 SPEC | SPEC-GOOSE-ERROR-CLASS-001 | `FailureReason` 문자열 ↔ `FailoverReason` enum 매핑 |
-| 선행 SPEC | SPEC-GOOSE-CORE-001 | `GOOSE_HOME`, zap 로거 |
+| 선행 SPEC | SPEC-GOOSE-CORE-001 | `MINK_HOME`, zap 로거 |
 | 후속 SPEC | SPEC-GOOSE-REFLECT-001 (Phase 5) | `Insight` 목록을 5단계 승격 입력으로 소비 |
-| 후속 SPEC | SPEC-GOOSE-CLI-001 | `goose insights [--last 7]` 명령이 본 SPEC의 `Report.RenderTable()` 호출 |
+| 후속 SPEC | SPEC-GOOSE-CLI-001 | `mink insights [--last 7]` 명령이 본 SPEC의 `Report.RenderTable()` 호출 |
 | 외부 | Go 1.22+ | generics, time package |
 | 외부 | `go.uber.org/zap` v1.27+ | CORE-001 계승 |
 | 외부 | `github.com/tidwall/gjson` v1.17+ | trajectory JSON path 접근 (선택) |

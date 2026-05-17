@@ -27,7 +27,7 @@ labels: [phase-2, primitive/mcp, transport/multi, security/oauth]
 
 ## 1. 개요 (Overview)
 
-AI.GOOSE의 **Model Context Protocol (MCP) 통합**을 정의한다. Claude Code와 동일하게 goosed는 **이중 역할**을 수행한다:
+AI.MINK의 **Model Context Protocol (MCP) 통합**을 정의한다. Claude Code와 동일하게 goosed는 **이중 역할**을 수행한다:
 
 1. **MCP 클라이언트** — 외부 MCP 서버(e.g., github, filesystem, playwright)에 연결하여 해당 서버가 노출한 tools/resources/prompts를 `QueryEngine`의 tool inventory에 동적 편입.
 2. **MCP 서버** — `createSdkMcpServer()` API로 사용자가 작성한 Go 프로그램이 MCP 서버로 동작하여 외부 호스트(Claude Desktop, Cursor 등)에 tools를 노출.
@@ -41,7 +41,7 @@ AI.GOOSE의 **Model Context Protocol (MCP) 통합**을 정의한다. Claude Code
 - `resources/list`, `resources/read`, `tools/list`, `tools/call`, `prompts/list` 5개 메서드를 처리하고,
 - `MCPServer` 측에서는 `sdkmcp.NewServer().Tool(name, handler).Prompt(...)` 빌더 API로 외부 노출을 제공한다.
 
-본 SPEC은 **JSON-RPC 2.0 wire 포맷의 직접 구현을 포함하지 않으며**, `modelcontextprotocol/go-sdk`(공식 Go SDK) 위에 GOOSE의 인터페이스를 올리는 래퍼 층을 규정한다.
+본 SPEC은 **JSON-RPC 2.0 wire 포맷의 직접 구현을 포함하지 않으며**, `modelcontextprotocol/go-sdk`(공식 Go SDK) 위에 MINK의 인터페이스를 올리는 래퍼 층을 규정한다.
 
 ---
 
@@ -104,7 +104,7 @@ AI.GOOSE의 **Model Context Protocol (MCP) 통합**을 정의한다. Claude Code
 
 ### 4.1 Ubiquitous (시스템 상시 불변)
 
-**REQ-MCP-001 [Ubiquitous]** — Every tool exposed by an external MCP server **shall** appear in GOOSE's tool inventory with the namespaced name `mcp__{serverName}__{toolName}`; collisions within the same server **shall** cause `ConnectToServer` to return `ErrDuplicateMCPToolName` for that server only.
+**REQ-MCP-001 [Ubiquitous]** — Every tool exposed by an external MCP server **shall** appear in MINK's tool inventory with the namespaced name `mcp__{serverName}__{toolName}`; collisions within the same server **shall** cause `ConnectToServer` to return `ErrDuplicateMCPToolName` for that server only.
 
 **REQ-MCP-002 [Ubiquitous]** — The `MCPClient.ConnectToServer` function **shall** memoize successful connections keyed by `MCPServerConfig.ID` (hash of `Name + Transport + URI`); a second call with identical config **shall** return the existing `ServerSession` without re-establishing the transport.
 

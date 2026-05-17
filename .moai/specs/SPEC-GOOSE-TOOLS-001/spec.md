@@ -28,7 +28,7 @@ labels: [phase-3, tools, mcp, permission, security]
 
 ## 1. 개요 (Overview)
 
-AI.GOOSE의 **Tool 실행 인프라 계층**을 정의한다. `SPEC-GOOSE-QUERY-001` §3.2(OUT)에서 인터페이스만 선언한 `tools.Registry` 및 `tools.Executor`를 본 SPEC이 완성하며, Claude Code의 deferred-loading `ToolSearch` 메커니즘(`.moai/project/research/claude-primitives.md` §3.4)과 Hermes `cli.py` / `model_tools.py`의 **auto-registry inventory 패턴**을 Go로 포팅한다.
+AI.MINK의 **Tool 실행 인프라 계층**을 정의한다. `SPEC-GOOSE-QUERY-001` §3.2(OUT)에서 인터페이스만 선언한 `tools.Registry` 및 `tools.Executor`를 본 SPEC이 완성하며, Claude Code의 deferred-loading `ToolSearch` 메커니즘(`.moai/project/research/claude-primitives.md` §3.4)과 Hermes `cli.py` / `model_tools.py`의 **auto-registry inventory 패턴**을 Go로 포팅한다.
 
 본 SPEC 수락 시점에서:
 
@@ -47,7 +47,7 @@ AI.GOOSE의 **Tool 실행 인프라 계층**을 정의한다. `SPEC-GOOSE-QUERY-
 
 ### 2.1 왜 지금 필요한가
 
-- **MVP Milestone 1 블로커**: ROADMAP §7 "MVP Milestone 1 — 동작하는 에이전트"의 필수 경로는 `TOOLS-001 → CLI-001`. 본 SPEC이 완료되어야 `goose ask "list files in current dir"` → `Glob tool 실행` → 결과 반환이 end-to-end로 동작.
+- **MVP Milestone 1 블로커**: ROADMAP §7 "MVP Milestone 1 — 동작하는 에이전트"의 필수 경로는 `TOOLS-001 → CLI-001`. 본 SPEC이 완료되어야 `mink ask "list files in current dir"` → `Glob tool 실행` → 결과 반환이 end-to-end로 동작.
 - **QUERY-001 의존성 해소**: QUERY-001은 `tools.Registry`, `tools.Executor`, `ToolPermissionContext`를 **인터페이스 호출**만 한다. 본 SPEC이 구현체를 제공하지 않으면 QUERY-001의 AC-QUERY-002(1 tool call) / AC-QUERY-003(permission deny) / AC-QUERY-009(tool result budget) 테스트가 통합 레벨에서 실행 불가.
 - **MCP-001 ↔ TOOLS-001 경계**: MCP-001은 transport/OAuth/connection 매니저만 담당. "MCP에서 받은 tool을 어디에 올리고, 이름 충돌을 어떻게 해결하고, 모델에게 어떤 매니페스트로 노출하는가"는 본 SPEC의 책임.
 
@@ -172,7 +172,7 @@ AI.GOOSE의 **Tool 실행 인프라 계층**을 정의한다. `SPEC-GOOSE-QUERY-
 
 **REQ-TOOLS-015 [Unwanted]** — The `FileWrite` and `FileEdit` tools **shall not** write outside `QueryEngineConfig.Cwd` by default; attempts to write to paths outside cwd **shall** return an error result unless the path is explicitly allowlisted via `PermissionsConfig.additional_directories`.
 
-**REQ-TOOLS-016 [Unwanted]** — The `Bash` tool **shall not** inherit environment variables matching secret-name heuristics (`*_TOKEN`, `*_KEY`, `*_SECRET`, `GOOSE_SHUTDOWN_TOKEN`) into subprocess env unless `input.inherit_secrets == true` is explicitly set AND the invocation is pre-approved via `PermissionMatcher`.
+**REQ-TOOLS-016 [Unwanted]** — The `Bash` tool **shall not** inherit environment variables matching secret-name heuristics (`*_TOKEN`, `*_KEY`, `*_SECRET`, `MINK_SHUTDOWN_TOKEN`) into subprocess env unless `input.inherit_secrets == true` is explicitly set AND the invocation is pre-approved via `PermissionMatcher`.
 
 **REQ-TOOLS-017 [Unwanted]** — An MCP tool manifest that claims `tool.name` containing `__` (double underscore) **shall** be rejected at adoption to prevent prefix collision ambiguity; the adapter logs ERROR and skips the tool.
 
@@ -589,7 +589,7 @@ QUERY-001 queryLoop:
 | 선행 SPEC | SPEC-GOOSE-CONFIG-001 | `ToolsConfig`, `PermissionsConfig` 로딩 |
 | 선행 SPEC | SPEC-GOOSE-QUERY-001 | `permissions.CanUseTool`, `ToolPermissionContext` 타입 소유 (본 SPEC이 구현을 **호출**) |
 | 선행 SPEC | SPEC-GOOSE-MCP-001 | `mcp.Connection`, `mcp.Manager`, `FetchToolManifest`, `ConnectionClosed` 이벤트 |
-| 후속 SPEC | SPEC-GOOSE-CLI-001 | `goose tool list` 서브커맨드가 `Registry.ListNames` + `Inventory.ForModel` 호출 |
+| 후속 SPEC | SPEC-GOOSE-CLI-001 | `mink tool list` 서브커맨드가 `Registry.ListNames` + `Inventory.ForModel` 호출 |
 | 후속 SPEC | SPEC-GOOSE-COMMAND-001 | slash command가 tool을 참조 (`/bash`, `/read` 등 custom command) |
 | 후속 SPEC | SPEC-GOOSE-SUBAGENT-001 | teammate별 tool visibility 제어 (`useExactTools`, `tools: ["*"]`) |
 | 후속 SPEC | SPEC-GOOSE-HOOK-001 | PreToolUse/PostToolUse hook이 `Executor.Run` 감싸는 middleware로 진입 |
@@ -637,7 +637,7 @@ QUERY-001 queryLoop:
 - `./research.md` — claude-primitives §3.4 deferred loading 구현 전략 상세, permission matcher 구문 결정 근거, builtin 6종 선정 이유
 - `../ROADMAP.md` — Phase 3 의존 그래프
 - `../SPEC-GOOSE-COMMAND-001/spec.md` — Slash command가 tool을 소비하는 경로
-- `../SPEC-GOOSE-CLI-001/spec.md` — CLI에서 `goose tool list`로 Inventory 노출
+- `../SPEC-GOOSE-CLI-001/spec.md` — CLI에서 `mink tool list`로 Inventory 노출
 
 ---
 

@@ -20,7 +20,7 @@ labels: [area/config, area/cli, type/feature, priority/p2-medium]
 
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
-| 0.1.0 | 2026-04-27 | 초안 작성. SPEC-GOOSE-CMDCTX-001 (PR #52, c018ec5 머지)에서 노출된 `adapter.Options.AliasMap` 필드를 `~/.goose/aliases.yaml` 파일에서 채워주는 wiring SPEC. flat `aliases:` 스키마, GOOSE_HOME 경로 컨벤션, strict/lenient validation, project-local overlay 포함. hot-reload 미포함 (별도 SPEC). | manager-spec |
+| 0.1.0 | 2026-04-27 | 초안 작성. SPEC-GOOSE-CMDCTX-001 (PR #52, c018ec5 머지)에서 노출된 `adapter.Options.AliasMap` 필드를 `~/.goose/aliases.yaml` 파일에서 채워주는 wiring SPEC. flat `aliases:` 스키마, MINK_HOME 경로 컨벤션, strict/lenient validation, project-local overlay 포함. hot-reload 미포함 (별도 SPEC). | manager-spec |
 
 ---
 
@@ -43,7 +43,7 @@ type Options struct {
 본 SPEC 수락 시점에서:
 
 - `internal/command/adapter/aliasconfig/` 신규 패키지가 존재한다.
-- `aliasconfig.Loader` 가 `~/.goose/aliases.yaml` (또는 `GOOSE_ALIAS_FILE` 지정 경로)을 파싱하여 `map[string]string` 을 반환한다.
+- `aliasconfig.Loader` 가 `~/.goose/aliases.yaml` (또는 `MINK_ALIAS_FILE` 지정 경로)을 파싱하여 `map[string]string` 을 반환한다.
 - `aliasconfig.Validate(map, registry, strict)` 가 alias canonical 값을 `router.ProviderRegistry` 와 대조 검증한다.
 - daemon bootstrap 에서 `aliasconfig.LoadDefault()` → `adapter.New(Options{ AliasMap: ... })` wiring이 이루어진다.
 - 파일 부재 / 빈 파일 / 권한 없음에 대해 graceful default (빈 맵 + warn log).
@@ -58,7 +58,7 @@ type Options struct {
 
 - **SPEC-GOOSE-CMDCTX-001** (implemented, PR #52, c018ec5): `adapter.Options.AliasMap` 필드와 `resolveAlias` 함수의 알고리즘. 본 SPEC 은 `Options.AliasMap` 에 데이터를 주입할 뿐, 이 SPEC 의 surface는 변경하지 않는다.
 - **SPEC-GOOSE-ROUTER-001** (implemented): `*router.ProviderRegistry`, `ProviderMeta.SuggestedModels` API를 read-only validation 에 사용.
-- **SPEC-GOOSE-CONFIG-001** (implemented): `internal/config/` 의 `resolveGooseHome()` 패턴 (`GOOSE_HOME` env → `$HOME/.goose` fallback) 을 동일 의미론으로 차용. 본 SPEC 은 별도 패키지로 분리되며 `Config` struct 자체에는 alias 필드를 추가하지 않는다.
+- **SPEC-GOOSE-CONFIG-001** (implemented): `internal/config/` 의 `resolveGooseHome()` 패턴 (`MINK_HOME` env → `$HOME/.goose` fallback) 을 동일 의미론으로 차용. 본 SPEC 은 별도 패키지로 분리되며 `Config` struct 자체에는 alias 필드를 추가하지 않는다.
 
 ### 2.2 왜 지금 필요한가
 
@@ -81,9 +81,9 @@ type Options struct {
 | alias | 사용자가 짧게 타이핑할 식별자 (`opus`, `sonnet`). |
 | canonical | `provider/model` 형식의 정식 식별자 (`anthropic/claude-opus-4-7`). |
 | alias map | `map[string]string` 형태로 alias → canonical 을 저장. `adapter.Options.AliasMap` 에 주입되는 자료구조. |
-| user file | `$GOOSE_HOME/aliases.yaml` (default `$HOME/.goose/aliases.yaml`). |
+| user file | `$MINK_HOME/aliases.yaml` (default `$HOME/.goose/aliases.yaml`). |
 | project file | `$CWD/.goose/aliases.yaml` (project-local overlay, optional). |
-| effective file | `GOOSE_ALIAS_FILE` env 가 설정된 경우 그 경로. 미설정 시 user file → project file 순서로 merge. |
+| effective file | `MINK_ALIAS_FILE` env 가 설정된 경우 그 경로. 미설정 시 user file → project file 순서로 merge. |
 | strict mode | validation 시 canonical 이 `ProviderRegistry` 에 등록되지 않으면 error 반환. |
 | lenient mode | validation 시 canonical 미등록을 warn log 로만 처리, 해당 entry skip. |
 
@@ -151,29 +151,29 @@ The system **shall** wire `aliasconfig.LoadDefault` 의 결과를 `adapter.New(O
 
 ### 4.3 State-Driven Requirements
 
-#### REQ-ALIAS-020 — `GOOSE_ALIAS_FILE` 우선
+#### REQ-ALIAS-020 — `MINK_ALIAS_FILE` 우선
 
-**While** environment variable `GOOSE_ALIAS_FILE` is set to a non-empty string, the system **shall** treat that value as the absolute alias file path and ignore the user/project file chain.
+**While** environment variable `MINK_ALIAS_FILE` is set to a non-empty string, the system **shall** treat that value as the absolute alias file path and ignore the user/project file chain.
 
 근거: 테스트 / 비표준 배포 / 멀티테넌트 격리를 위한 explicit override.
 
-#### REQ-ALIAS-021 — `GOOSE_HOME` 기반 fallback
+#### REQ-ALIAS-021 — `MINK_HOME` 기반 fallback
 
-**While** `GOOSE_ALIAS_FILE` is unset and `GOOSE_HOME` is set, the system **shall** resolve the user file as `$GOOSE_HOME/aliases.yaml`.
+**While** `MINK_ALIAS_FILE` is unset and `MINK_HOME` is set, the system **shall** resolve the user file as `$MINK_HOME/aliases.yaml`.
 
 #### REQ-ALIAS-022 — `$HOME` 기반 final fallback
 
-**While** both `GOOSE_ALIAS_FILE` and `GOOSE_HOME` are unset, the system **shall** resolve the user file as `$HOME/.goose/aliases.yaml`.
+**While** both `MINK_ALIAS_FILE` and `MINK_HOME` are unset, the system **shall** resolve the user file as `$HOME/.goose/aliases.yaml`.
 
 근거: SPEC-GOOSE-CONFIG-001 의 `resolveGooseHome` 동작과 동치.
 
 #### REQ-ALIAS-023 — strict 모드 기본 동작
 
-**While** environment variable `GOOSE_ALIAS_STRICT` is unset or equals `"true"`, `Validate(m, registry, strict=true)` **shall** be the default mode used by daemon bootstrap.
+**While** environment variable `MINK_ALIAS_STRICT` is unset or equals `"true"`, `Validate(m, registry, strict=true)` **shall** be the default mode used by daemon bootstrap.
 
 #### REQ-ALIAS-024 — lenient 모드 opt-in
 
-**While** environment variable `GOOSE_ALIAS_STRICT` equals `"false"`, daemon bootstrap **shall** call `Validate(m, registry, strict=false)` and treat returned errors as warn logs only — invalid entries are removed from the map but the daemon continues.
+**While** environment variable `MINK_ALIAS_STRICT` equals `"false"`, daemon bootstrap **shall** call `Validate(m, registry, strict=false)` and treat returned errors as warn logs only — invalid entries are removed from the map but the daemon continues.
 
 근거: third-party provider plugin 등록이 늦은 경우의 fail-fast 회피.
 
@@ -250,11 +250,11 @@ The system **shall** wire `aliasconfig.LoadDefault` 의 결과를 `adapter.New(O
 | AC-ALIAS-010 | REQ-ALIAS-010 | Unit test: `aliases: { opus: anthropic/claude-opus-4-7, sonnet: anthropic/claude-sonnet-4-6 }` → 2-entry map, 키-값 정확 일치. |
 | AC-ALIAS-011 | REQ-ALIAS-011 | Unit test: 3개 entry 중 2개 invalid → `len(errs) == 2`, 각 error 가 해당 alias key 식별 가능. |
 | AC-ALIAS-012 | REQ-ALIAS-012 | Integration test: daemon bootstrap (또는 helper) 호출 후 `adapter.ContextAdapter` 의 alias map 이 file 내용과 일치. |
-| AC-ALIAS-020 | REQ-ALIAS-020 | Unit test: `GOOSE_ALIAS_FILE=/tmp/custom.yaml` 설정 + GOOSE_HOME 도 설정 → `/tmp/custom.yaml` 만 읽힘 (`fs.FS` 호출 spy). |
-| AC-ALIAS-021 | REQ-ALIAS-021 | Unit test: `GOOSE_ALIAS_FILE` unset, `GOOSE_HOME=/opt/goose` → `/opt/goose/aliases.yaml` 조회. |
+| AC-ALIAS-020 | REQ-ALIAS-020 | Unit test: `MINK_ALIAS_FILE=/tmp/custom.yaml` 설정 + MINK_HOME 도 설정 → `/tmp/custom.yaml` 만 읽힘 (`fs.FS` 호출 spy). |
+| AC-ALIAS-021 | REQ-ALIAS-021 | Unit test: `MINK_ALIAS_FILE` unset, `MINK_HOME=/opt/goose` → `/opt/goose/aliases.yaml` 조회. |
 | AC-ALIAS-022 | REQ-ALIAS-022 | Unit test: 둘 다 unset, `HOME=/home/user` (env override) → `/home/user/.goose/aliases.yaml` 조회. |
-| AC-ALIAS-023 | REQ-ALIAS-023 | Unit test: `GOOSE_ALIAS_STRICT` unset → bootstrap 의 strict 인자 `true`. |
-| AC-ALIAS-024 | REQ-ALIAS-024 | Unit test: `GOOSE_ALIAS_STRICT=false` → bootstrap 의 strict 인자 `false`, invalid entry 가 map 에서 제거된 채 daemon 계속 진행. |
+| AC-ALIAS-023 | REQ-ALIAS-023 | Unit test: `MINK_ALIAS_STRICT` unset → bootstrap 의 strict 인자 `true`. |
+| AC-ALIAS-024 | REQ-ALIAS-024 | Unit test: `MINK_ALIAS_STRICT=false` → bootstrap 의 strict 인자 `false`, invalid entry 가 map 에서 제거된 채 daemon 계속 진행. |
 | AC-ALIAS-030 | REQ-ALIAS-030 | Unit test: `aliases: [` 같은 malformed input → `errors.Is(err, ErrMalformedAliasFile)` true. |
 | AC-ALIAS-031 | REQ-ALIAS-031 | Unit test: `aliases: { "": "anthropic/claude-opus-4-7" }` → `errors.Is(err, ErrEmptyAliasEntry)` true. |
 | AC-ALIAS-032 | REQ-ALIAS-032 | Unit test: `aliases: { opus: "" }` → `errors.Is(err, ErrEmptyAliasEntry)` true. |
@@ -310,7 +310,7 @@ type Options struct {
     FS fs.FS
     // Logger receives info/warn entries. zap.NewNop() if nil.
     Logger *zap.Logger
-    // GooseHome forces a specific GOOSE_HOME for test isolation.
+    // GooseHome forces a specific MINK_HOME for test isolation.
     // Empty string means "read environment".
     GooseHome string
     // EnvOverrides supplies test-only env values. nil means use os.Getenv.
@@ -333,8 +333,8 @@ func (l *Loader) Load(path string) (map[string]string, error) { /* ... */ }
 
 // LoadDefault resolves the effective alias file chain and returns the merged map.
 // Resolution order:
-//   1. GOOSE_ALIAS_FILE  (absolute, REQ-ALIAS-020)
-//   2. $GOOSE_HOME/aliases.yaml (REQ-ALIAS-021)
+//   1. MINK_ALIAS_FILE  (absolute, REQ-ALIAS-020)
+//   2. $MINK_HOME/aliases.yaml (REQ-ALIAS-021)
 //   3. $HOME/.goose/aliases.yaml (REQ-ALIAS-022)
 //   4. $WorkDir/.goose/aliases.yaml (project overlay, REQ-ALIAS-040)
 // Project entries override user entries on key conflict.
@@ -384,7 +384,7 @@ var (
 #
 # Each entry maps a short alias to a canonical "provider/model" string.
 # The canonical value MUST exist in router.ProviderRegistry SuggestedModels
-# unless GOOSE_ALIAS_STRICT=false is set.
+# unless MINK_ALIAS_STRICT=false is set.
 #
 # Recommended file mode: chmod 600
 
@@ -422,7 +422,7 @@ if err != nil {
     aliasMap = map[string]string{}
 }
 
-strict := envBool("GOOSE_ALIAS_STRICT", true)
+strict := envBool("MINK_ALIAS_STRICT", true)
 if errs := aliasconfig.Validate(aliasMap, registry, strict); len(errs) > 0 {
     if strict {
         return fmt.Errorf("alias validation failed: %w",
@@ -502,8 +502,8 @@ ctxAdapter := adapter.New(adapter.Options{
 | # | 위험 | 완화 |
 |---|-----|-----|
 | R-1 | hot-reload 미지원 — alias 변경 시 daemon 재시작 필요 | SPEC-GOOSE-HOTRELOAD-001 에서 별도 해결. 본 SPEC 의 `Limitations` 절로 명시. |
-| R-2 | strict 모드 false-fail (third-party plugin 의 model이 SuggestedModels 에 없음) | `GOOSE_ALIAS_STRICT=false` lenient 모드 제공 (REQ-ALIAS-024). |
-| R-3 | XDG 비준수 (`~/.config/goose/aliases.yaml` 미지원) | SPEC-GOOSE-XDG-MIGRATION-001 별도 처리. 본 SPEC 의 `GOOSE_ALIAS_FILE` env 로 즉시 우회 가능. |
+| R-2 | strict 모드 false-fail (third-party plugin 의 model이 SuggestedModels 에 없음) | `MINK_ALIAS_STRICT=false` lenient 모드 제공 (REQ-ALIAS-024). |
+| R-3 | XDG 비준수 (`~/.config/goose/aliases.yaml` 미지원) | SPEC-GOOSE-XDG-MIGRATION-001 별도 처리. 본 SPEC 의 `MINK_ALIAS_FILE` env 로 즉시 우회 가능. |
 | R-4 | project overlay 가 git-commit 되어 팀원 alias 충돌 | sample 파일 헤더에 `# git-ignore recommended` 주석 추가 권장. CONFIG-001 동일 모델. |
 | R-5 | yaml.v3 가 unknown top-level key silent-ignore | v0.1 허용 (사용자 확장 여지). v0.2 에서 strict-unknown 모드 검토. |
 
@@ -530,7 +530,7 @@ ctxAdapter := adapter.New(adapter.Options{
 
 - 의존 SPEC: `.moai/specs/SPEC-GOOSE-CMDCTX-001/spec.md` (FROZEN, REQ-CMDCTX-017)
 - 의존 SPEC: `.moai/specs/SPEC-GOOSE-ROUTER-001/spec.md` (FROZEN, ProviderRegistry API)
-- 의존 SPEC: `.moai/specs/SPEC-GOOSE-CONFIG-001/spec.md` (FROZEN, GOOSE_HOME 컨벤션)
+- 의존 SPEC: `.moai/specs/SPEC-GOOSE-CONFIG-001/spec.md` (FROZEN, MINK_HOME 컨벤션)
 - 후속 SPEC: SPEC-GOOSE-HOTRELOAD-001 (작성 중) — 본 SPEC 의 hot-reload 책임 위임 대상
 - 후속 SPEC: SPEC-GOOSE-XDG-MIGRATION-001 (계획) — `~/.config/goose` 경로 마이그레이션
 - 코드 anchor: `internal/command/adapter/adapter.go:49-62` (Options.AliasMap 정의)

@@ -25,6 +25,75 @@
 
 ---
 
+## v0.1.0 MVP Milestone (FROZEN — 2026-05-17 사용자 확정)
+
+> ROADMAP §0 (v0.1.0 MVP 범위) 의 IMPLEMENTATION-ORDER 측 대응 섹션. v6.2 본문의 M0~M9 milestone 은 **참조용 장기 로드맵**이며, **실 구현 우선순위는 본 §v0.1.0 + §0.2.0 이월 표가 우선**한다.
+
+### v0.1.0 Critical Path (직선)
+
+```
+[완료된 Foundation — 다시 진입 불필요]
+M0 Foundation        ✅ CORE → CONFIG → TRANSPORT → QUERY → CONTEXT
+M1 Multi-LLM         ✅ CREDPOOL → ROUTER → RATELIMIT → PROMPT-CACHE → ADAPTER
+M2 4 Primitives      ✅ SKILLS → MCP → HOOK → SUBAGENT → PLUGIN → PERMISSION
+M3 Core Workflow     ✅ TOOLS → COMMAND → CLI(베이스)
+M4 Evolution(부분)   ✅ ERROR-CLASS → MEMORY → TRAJECTORY(일부)
+M5 Safety(부분)      ✅ AUDIT
+M7 Daily(부분)       ✅ SCHEDULER → WEATHER → JOURNAL → BRIEFING (v0.3.1)
+                     ✅ MSG-TELEGRAM (v0.1.4)
+MINK 전환            ✅ BRAND-RENAME, DISTANCING, PRODUCT-V7, USERDATA-MIGRATE,
+                       ENV-MIGRATE, LOCALE-001(v0.4), AUTH-CREDENTIAL(v0.3)
+
+[v0.1.0 Critical Path — 완료해야 launch 가능]
+1. MEMORY-QMD M5b              🟡 M1~M5a 완료, M5b cross-SPEC wiring 잔여
+2. LLM-ROUTING-V2-AMEND M2~M5  🟡 M1 stub 완료, 5 provider 실 구현 + 2 패턴 인증
+3. CLI-TUI-003-AMEND           ⏸️ TUI/CLI 패리티 (코드 진입 필요)
+4. MSG-SLACK + MSG-DISCORD     ⏸️ 채널 3종 완비 (코드 진입 필요)
+5. WEB-CONFIG                  ⏸️ 설치 후 설정 페이지 (코드 진입 필요)
+6. ONBOARDING-001 Phase 5 AMEND ⏸️ Web Step 2 LLM provider 로그인 wiring 🔴
+   └─ launch 차단 요소
+```
+
+### v0.1.0 의존성 정렬 (실 진입 순서)
+
+```
+[Step 1] MEMORY-QMD M5b
+    └─ JOURNAL/BRIEFING/WEATHER publish hooks 가 0.1.0 의 cross-SPEC wiring 풀어줌
+    └─ 차단 해소 후 [Step 2~6] 모두 진입 가능
+[Step 2] LLM-ROUTING-V2-AMEND M2~M5 (병행 가능)
+    └─ ONBOARDING Phase 5 의 Web Step 2 placeholder 해소 선행 의존
+[Step 3] ONBOARDING-001 Phase 5 AMEND (Step 2 후 진입)
+    └─ Web Step 2 (LLM 로그인) + Step 3 (채널 연결) wiring
+[Step 4] MSG-SLACK + MSG-DISCORD (병행 가능, Step 3 와 무관)
+[Step 5] CLI-TUI-003-AMEND (병행 가능, 어느 시점이든)
+[Step 6] WEB-CONFIG (병행 가능, Step 3 후 진입 권장)
+```
+
+병렬 처리: Step 2/4/5 는 Step 1 완료 후 동시 진입 가능. Step 3 는 Step 2 의존.
+
+### v0.2.0 이월 10건 (2026-05-17 사용자 확정)
+
+| SPEC | M | Phase | 원래 priority | 이월 priority | 이월 사유 |
+|---|---|---|---|---|---|
+| CALENDAR-001 | M7 | 7 | P0 | P0(유지) | 아침 브리핑 통합 일정은 v0.2.0 |
+| FORTUNE-001 | M7 | 7 | P1 | P1(유지) | 엔터테인먼트, 후순위 |
+| HEALTH-001 | M7 | 7 | P1 | P1(유지) | 의료 규제 의존 |
+| LORA-001 | M8 | 6 | P2 | P2(유지) | Deep personalization, Rust 위임 |
+| GEMMA4-001 | M1 | 1 | P0 | P1(강등) | 0.1.0 은 qwen2.5:3b 유지 |
+| TRAIN-001 | M8 | 2 | P1 | P2(강등) | GEMMA4 의존 |
+| AUTH-001 | M6 | 6 | P0 | P1(강등) | AUTH-CREDENTIAL 가 0.1.0 인증 담당 |
+| A2A-001 | M9 | 7 | P2 | P2(유지) | v2.0+ 검토 |
+| WEBUI-001 | M6 | 6 | P0 | P1(강등) | 0.1.0 은 ONBOARDING 설치 위저드 + 채널 |
+| DESKTOP-001 | M6 | 6 | critical | P1(강등) | 0.1.0 은 CLI/TUI 한정 |
+
+frontmatter 마킹: 각 SPEC `target_milestone: v0.2.0` + `mvp_status: deferred` + `deferred_reason` 필드.
+
+### v0.1.0 잔여 backlog — 별도 결정 필요
+
+10건 외에 `planned` 상태로 남는 SPEC 들 (Self-Evolution Layer 2~4 / Identity·Vector / 보안 4건 / Channel / CMDCTX amendments / PAI-CONTEXT / REGION-SKILLS) 은 본 결정에서 명시적 이월 대상 아님. 0.1.0 launch 직전 별도 라운드로 진입 여부 결정.
+
+---
+
 > **작성일**: 2026-04-22 (v6.2) · 2026-04-24 (v0.2 amendment)
 > **대상**: v6.2 58 SPEC + v0.2 재편 (-5 +9) = 약 54 SPEC
 > **근거**: ROADMAP v6.2 → v0.2 amendment + 7-round 소크라테스식 인터뷰

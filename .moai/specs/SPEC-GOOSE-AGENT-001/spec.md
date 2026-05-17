@@ -26,11 +26,11 @@ labels: []
 
 ## 1. 개요 (Overview)
 
-AI.GOOSE 대화 루프의 **최소 Agent Runtime과 Persona 모델**을 정의한다. 본 SPEC은 Tool Registry(Tool-001), Memory(MEMORY-001), Learning Engine(REFLECT-001) 등 후속 SPEC의 consumer가 접속할 **인터페이스 계약**과 **단일 LLM 호출 루프**를 확정한다.
+AI.MINK 대화 루프의 **최소 Agent Runtime과 Persona 모델**을 정의한다. 본 SPEC은 Tool Registry(Tool-001), Memory(MEMORY-001), Learning Engine(REFLECT-001) 등 후속 SPEC의 consumer가 접속할 **인터페이스 계약**과 **단일 LLM 호출 루프**를 확정한다.
 
 수락 조건 통과 시점에서:
 
-- YAML로 정의된 `Agent` persona를 로드한다 (`agents/*.yaml`, CORE-001 `GOOSE_HOME` 하위 또는 프로젝트 로컬).
+- YAML로 정의된 `Agent` persona를 로드한다 (`agents/*.yaml`, CORE-001 `MINK_HOME` 하위 또는 프로젝트 로컬).
 - 사용자 메시지를 받아 `LLMProvider`(LLM-001)로 단일 completion 호출 후 응답을 반환하는 최소 대화 루프가 동작한다.
 - Conversation history가 in-memory slice로 유지되며, context window에 맞추어 슬라이딩 트림(FIFO) 된다.
 - Tool calling은 **본 SPEC에서 구현하지 않는다** — 인터페이스 훅(`ToolInvoker`)만 제공하고 TOOL-001이 구현한다.
@@ -195,7 +195,7 @@ internal/agent/
 ├── errors.go            # AgentError, ErrInvalidSpec, ErrAgentNotReady
 └── *_test.go
 
-agents/                   # $GOOSE_HOME/agents/ (런타임 탐색)
+agents/                   # $MINK_HOME/agents/ (런타임 탐색)
 └── default.yaml          # 기본 agent 예시
 
 agents/builtin/           # 레포 내 builtin (빌드 시 embed)
@@ -210,7 +210,7 @@ name: default
 version: 1
 model: ollama/qwen2.5:3b
 system_prompt: |
-  You are GOOSE, a helpful personal assistant.
+  You are MINK, a helpful personal assistant.
   Be concise and factual. Do not invent URLs.
 examples:
   - user: "What's the capital of France?"
@@ -279,7 +279,7 @@ func (a *defaultAgent) notifyObserver(ix Interaction) {
 func LoadFromDir(dir string, provReg *llm.Registry, logger *zap.Logger) (*Registry, error)
 ```
 
-- `$GOOSE_HOME/agents/*.yaml` + 레포 builtin `embed.FS`를 모두 스캔, 중복 name 시 $GOOSE_HOME 우선.
+- `$MINK_HOME/agents/*.yaml` + 레포 builtin `embed.FS`를 모두 스캔, 중복 name 시 $MINK_HOME 우선.
 
 ### 6.8 TDD 진입
 

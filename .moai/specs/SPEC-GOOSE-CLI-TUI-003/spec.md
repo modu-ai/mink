@@ -10,7 +10,7 @@ issue_number: 112
 labels: [tui, cli, bubbletea, i18n, sessionmenu, edit-regenerate]
 ---
 
-# SPEC-GOOSE-CLI-TUI-003 — goose CLI TUI 보강 P2 (sessionmenu(Ctrl-R) + Ctrl-Up edit/regenerate + i18n 8 golden)
+# SPEC-GOOSE-CLI-TUI-003 — mink CLI TUI 보강 P2 (sessionmenu(Ctrl-R) + Ctrl-Up edit/regenerate + i18n 8 golden)
 
 ## HISTORY
 

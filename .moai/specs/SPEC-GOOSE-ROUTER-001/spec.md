@@ -27,7 +27,7 @@ labels: [routing, llm, infrastructure, phase-1]
 
 ## 1. 개요 (Overview)
 
-AI.GOOSE의 **라우팅 결정 레이어**를 정의한다. Hermes Agent의 `model_router.py` smart routing heuristic(hermes-llm.md §4)을 Go로 포팅하여, 사용자 메시지의 단순성을 판정하고 primary 모델과 cheap 모델 사이의 전환을 결정하는 `internal/llm/router` 패키지를 구현한다.
+AI.MINK의 **라우팅 결정 레이어**를 정의한다. Hermes Agent의 `model_router.py` smart routing heuristic(hermes-llm.md §4)을 Go로 포팅하여, 사용자 메시지의 단순성을 판정하고 primary 모델과 cheap 모델 사이의 전환을 결정하는 `internal/llm/router` 패키지를 구현한다.
 
 본 SPEC이 통과한 시점에서 `Router`는:
 

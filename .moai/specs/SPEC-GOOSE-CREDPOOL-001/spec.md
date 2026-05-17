@@ -40,7 +40,7 @@ labels: [credential, llm, oauth, phase-1, zero-knowledge]
 
 ## 1. 개요 (Overview)
 
-AI.GOOSE Phase 1의 **Multi-LLM Infrastructure 진입점**을 정의한다. Hermes Agent의 `credential_pool.py`(~1.3K LoC) 원형을 Go로 포팅하여, OAuth 토큰과 API key 자격을 하나의 풀에 통합하고, 선택 전략(4종)·자동 갱신·고갈 쿨다운·소프트 임대·외부 디스크 동기화를 제공하는 `internal/llm/credential` 패키지를 구현한다.
+AI.MINK Phase 1의 **Multi-LLM Infrastructure 진입점**을 정의한다. Hermes Agent의 `credential_pool.py`(~1.3K LoC) 원형을 Go로 포팅하여, OAuth 토큰과 API key 자격을 하나의 풀에 통합하고, 선택 전략(4종)·자동 갱신·고갈 쿨다운·소프트 임대·외부 디스크 동기화를 제공하는 `internal/llm/credential` 패키지를 구현한다.
 
 본 SPEC이 Plan·Run을 통과한 시점에서 `CredentialPool`은:
 
@@ -568,7 +568,7 @@ Select_with_refresh(ctx):
 
 | 타입 | 대상 | 설명 |
 |-----|------|------|
-| 선행 SPEC | SPEC-GOOSE-CORE-001 | zap logger, `GOOSE_HOME` 의미 상속 |
+| 선행 SPEC | SPEC-GOOSE-CORE-001 | zap logger, `MINK_HOME` 의미 상속 |
 | 선행 SPEC | SPEC-GOOSE-CONFIG-001 | `LLMConfig.Providers[*]`로부터 초기 엔트리 구성 |
 | 후속 SPEC | SPEC-GOOSE-ROUTER-001 | 풀에서 provider 단위 자격 선택 |
 | 후속 SPEC | SPEC-GOOSE-RATELIMIT-001 | 429 status + Retry-After 헤더를 `MarkExhaustedAndRotate`로 전달 |

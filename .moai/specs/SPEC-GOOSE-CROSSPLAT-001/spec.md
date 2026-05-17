@@ -16,10 +16,10 @@ labels: [installer, cross-platform, ollama, goreleaser, distribution, model-down
 
 # SPEC-GOOSE-CROSSPLAT-001 — Universal Cross-Platform Installer + Model Distribution
 
-> **POST-BRAND-RENAME NOTICE (2026-05-14)**: 본 SPEC 은 SPEC-MINK-BRAND-RENAME-001 (commit f0f02e4, 2026-05-13) 이전에 작성된 draft 이다. 본문 곳곳에 GOOSE / AI.GOOSE 명칭이 남아 있으며, 후속 implementation 진입 시 다음 중 하나로 처리해야 한다.
+> **POST-BRAND-RENAME NOTICE (2026-05-14)**: 본 SPEC 은 SPEC-MINK-BRAND-RENAME-001 (commit f0f02e4, 2026-05-13) 이전에 작성된 draft 이다. 본문 곳곳에 MINK / AI.MINK 명칭이 남아 있으며, 후속 implementation 진입 시 다음 중 하나로 처리해야 한다.
 >
 > 1. **MINK 로 rebrand** — id `SPEC-MINK-CROSSPLAT-001` 신설, 본 SPEC 은 status=superseded
-> 2. **본문 내 MINK 치환** — id 유지, 본문 GOOSE → MINK 치환 (BRAND-RENAME-001 의 binary rename 정책과 align)
+> 2. **본문 내 MINK 치환** — id 유지, 본문 MINK → MINK 치환 (BRAND-RENAME-001 의 binary rename 정책과 align)
 >
 > 후속 implementation 진입 직전에 결정. 본 marker 가 추가되기 전까지 본 SPEC 은 "draft, awaiting brand-rename decision" 상태이다.
 
@@ -28,14 +28,14 @@ labels: [installer, cross-platform, ollama, goreleaser, distribution, model-down
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-29 | 초안 작성. Phase 1 배포 인프라: 범용 설치 스크립트, Ollama 자동 설치, Gemma 4 RL 모델 자동 선택/다운로드, goreleaser 다중 플랫폼 빌드, 패키지 매니저 배포. | manager-spec |
-| 0.1.1 | 2026-05-14 | POST-BRAND-RENAME marker 추가. BRAND-RENAME-001 (commit f0f02e4) 이후 GOOSE prefix draft 의 후속 처리 (rebrand vs 본문 치환) 미결정. labels 에 `post-brand-rename` 추가. | manager-spec |
+| 0.1.1 | 2026-05-14 | POST-BRAND-RENAME marker 추가. BRAND-RENAME-001 (commit f0f02e4) 이후 MINK prefix draft 의 후속 처리 (rebrand vs 본문 치환) 미결정. labels 에 `post-brand-rename` 추가. | manager-spec |
 | 0.1.2 | 2026-05-14 | Superseded by SPEC-MINK-CROSSPLAT-001 (rebrand 옵션 c 선택). frontmatter status=draft → superseded, superseded_by 추가, labels 에 `superseded` 추가. 본문 body 는 immutable 로 유지 (BRAND-RENAME-001 OUT-scope 정책). 후속 implementation 은 SPEC-MINK-CROSSPLAT-001 에서 진행. | manager-spec |
 
 ---
 
 ## 1. 개요 (Overview)
 
-AI.GOOSE를 **macOS, Linux, Windows** 세 플랫폼에서 **단일 명령어로 설치**할 수 있는 범용 인스톨러와, 훈련된 Gemma 4 RL 모델의 자동 선택 및 다운로드 시스템을 정의한다.
+AI.MINK를 **macOS, Linux, Windows** 세 플랫폼에서 **단일 명령어로 설치**할 수 있는 범용 인스톨러와, 훈련된 Gemma 4 RL 모델의 자동 선택 및 다운로드 시스템을 정의한다.
 
 사용자 경험 목표:
 
@@ -50,7 +50,7 @@ irm https://goose.ai/install.ps1 | iex
 위 한 줄 실행으로 다음이 모두 자동 완료된다:
 
 1. OS/CPU 아키텍처 감지
-2. AI.GOOSE 바이너리 다운로드 및 설치
+2. AI.MINK 바이너리 다운로드 및 설치
 3. Ollama 미설치 시 자동 설치 + 서비스 시작
 4. 시스템 RAM 기반 적절한 Gemma 4 모델 자동 선택
 5. `ollama pull` 모델 다운로드 (진행률 표시)
@@ -72,7 +72,7 @@ irm https://goose.ai/install.ps1 | iex
 
 ### 2.1 왜 범용 인스톨러가 필요한가
 
-AI.GOOSE는 개발자뿐 아니라 비개발자(가족, 친지)도 사용할 수 있는 컴패니언 AI이다. 설치 장벽을 최소화하기 위해:
+AI.MINK는 개발자뿐 아니라 비개발자(가족, 친지)도 사용할 수 있는 컴패니언 AI이다. 설치 장벽을 최소화하기 위해:
 
 - **한 줄 설치**: `curl | sh` / `irm | iex` / `winget install`
 - **의존성 자동 해결**: Ollama 미설치 시 자동 설치
@@ -161,7 +161,7 @@ AI.GOOSE는 개발자뿐 아니라 비개발자(가족, 친지)도 사용할 수
 
 ### 3.2 OUT OF SCOPE
 
-- **자동 업데이트**: `goose update` 명령은 후속 SPEC
+- **자동 업데이트**: `mink update` 명령은 후속 SPEC
 - **GUI 설치 마법사**: ONBOARDING-001 Web UI에서 담당
 - **Docker 이미지**: 컨테이너 배포는 후속 SPEC
 - **macOS .pkg/.dmg**: macOS 패키지 설치 관리자는 v1.0+ 검토
@@ -185,9 +185,9 @@ AI.GOOSE는 개발자뿐 아니라 비개발자(가족, 친지)도 사용할 수
 
 **REQ-CP-004 [Ubiquitous]** — The install script **shall** detect the operating system (macOS, Linux, Windows) and CPU architecture (x86_64, arm64) and report both values to the user before proceeding with download.
 
-**REQ-CP-005 [Ubiquitous]** — The install script **shall** download the correct AI.GOOSE binary matching the detected OS and CPU architecture from the GitHub Releases API.
+**REQ-CP-005 [Ubiquitous]** — The install script **shall** download the correct AI.MINK binary matching the detected OS and CPU architecture from the GitHub Releases API.
 
-**REQ-CP-015 [Ubiquitous]** — AI.GOOSE **shall** be distributed as a single statically-linked Go binary per platform with no runtime dependencies beyond the OS kernel and libc (or musl for linux/arm64).
+**REQ-CP-015 [Ubiquitous]** — AI.MINK **shall** be distributed as a single statically-linked Go binary per platform with no runtime dependencies beyond the OS kernel and libc (or musl for linux/arm64).
 
 **REQ-CP-016 [Ubiquitous]** — goreleaser **shall** be configured to build for six target platforms: darwin/amd64, darwin/arm64, linux/amd64, linux/arm64, windows/amd64, windows/arm64.
 
@@ -236,13 +236,13 @@ AI.GOOSE는 개발자뿐 아니라 비개발자(가족, 친지)도 사용할 수
 
 ### 4.4 Unwanted Behavior
 
-**REQ-CP-023 [Unwanted]** — The install script **shall not** execute arbitrary remote code beyond the explicitly downloaded AI.GOOSE binary and Ollama installer; all download URLs **shall** use HTTPS and **shall** verify checksums before execution.
+**REQ-CP-023 [Unwanted]** — The install script **shall not** execute arbitrary remote code beyond the explicitly downloaded AI.MINK binary and Ollama installer; all download URLs **shall** use HTTPS and **shall** verify checksums before execution.
 
 **REQ-CP-024 [Unwanted]** — The install script **shall not** modify system-level configuration (e.g., `/etc/profile`, Windows Registry) without explicit user consent; PATH modifications **shall** target user-level shell profiles only.
 
 **REQ-CP-025 [Unwanted]** — **If** the detected platform is unsupported (e.g., BSD, Solaris, non-x86/non-ARM CPU), the script **shall** display a clear error message listing supported platforms and exit with code 1, rather than attempting an incompatible download.
 
-**REQ-CP-026 [Unwanted]** — **If** Ollama auto-installation fails (network error, permission denied), the script **shall not** abort the entire installation; it **shall** install the AI.GOOSE binary successfully and display instructions for manual Ollama setup.
+**REQ-CP-026 [Unwanted]** — **If** Ollama auto-installation fails (network error, permission denied), the script **shall not** abort the entire installation; it **shall** install the AI.MINK binary successfully and display instructions for manual Ollama setup.
 
 ### 4.5 Optional
 
@@ -331,7 +331,7 @@ AI.GOOSE는 개발자뿐 아니라 비개발자(가족, 친지)도 사용할 수
 ### AC-CP-015 — Ollama 설치 실패 시 계속 진행 (verifies REQ-CP-026)
 - **Given** Linux, Ollama 설치 실패 (네트워크 오류)
 - **When** 설치 스크립트 실행
-- **Then** AI.GOOSE 바이너리는 정상 설치, "Ollama installation failed. Please install manually: https://ollama.com" 안내 표시, exit code 0
+- **Then** AI.MINK 바이너리는 정상 설치, "Ollama installation failed. Please install manually: https://ollama.com" 안내 표시, exit code 0
 
 ### AC-CP-016 — 시스템 설정 미수정 (verifies REQ-CP-024)
 - **Given** Linux, 설치 스크립트 실행

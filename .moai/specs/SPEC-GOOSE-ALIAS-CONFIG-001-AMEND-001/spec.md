@@ -75,7 +75,7 @@ parent_version: 0.1.0
 |-----|------|
 | amendment | 부모 SPEC v0.1.0 의 FROZEN export 표면을 보존하면서 신규 표면만 추가하는 backward-compat 변경 단위. |
 | effective config path | `New(opts)` 가 fallback chain 적용 후 결정한 최종 절대 경로 (현재 unexported `Loader.configPath`). |
-| user file | `$GOOSE_HOME/aliases.yaml` 또는 `$HOME/.goose/aliases.yaml`. |
+| user file | `$MINK_HOME/aliases.yaml` 또는 `$HOME/.goose/aliases.yaml`. |
 | project file | `$CWD/.goose/aliases.yaml` (project-local overlay). |
 | merge policy | user file + project file 동시 존재 시 합성 정책. ProjectOverride / UserOnly / ProjectOnly 3종. |
 | validation policy | `Validate` 호출 시 strict / SkipOnError / MaxErrors / AggregateAsJoin 4축 결정. |
@@ -93,7 +93,7 @@ parent_version: 0.1.0
 
 #### REQ-AMEND-001 — ConfigPath getter
 
-The `aliasconfig.Loader` **shall** expose `(l *Loader) ConfigPath() string` returning the effective config path resolved at `New(...)` time, including any fallback applied (project-local / GOOSE_HOME / HOME chain).
+The `aliasconfig.Loader` **shall** expose `(l *Loader) ConfigPath() string` returning the effective config path resolved at `New(...)` time, including any fallback applied (project-local / MINK_HOME / HOME chain).
 
 근거: 후속 HOTRELOAD-001 watcher 가 fsnotify 대상 path 결정 로직을 외부 재구현 없이 가져오기 위함. 부모 surface 0 변경.
 
@@ -119,7 +119,7 @@ The `aliasconfig` package **shall** expose `ErrorCode(err error) string` returni
 
 #### REQ-AMEND-010 — Multi-source merge on Load
 
-**When** `(l *Loader).LoadDefault()` is invoked AND both the user file (`$GOOSE_HOME/aliases.yaml` 또는 `$HOME/.goose/aliases.yaml`) and the project file (`$CWD/.goose/aliases.yaml`) exist AND `Options.MergePolicy` is unset OR equals `MergePolicyProjectOverride`, the system **shall** parse both files, build the user map first, then overlay the project map's entries, and **shall** emit one info-level log entry per overridden alias key (text contains both source paths and the alias key).
+**When** `(l *Loader).LoadDefault()` is invoked AND both the user file (`$MINK_HOME/aliases.yaml` 또는 `$HOME/.goose/aliases.yaml`) and the project file (`$CWD/.goose/aliases.yaml`) exist AND `Options.MergePolicy` is unset OR equals `MergePolicyProjectOverride`, the system **shall** parse both files, build the user map first, then overlay the project map's entries, and **shall** emit one info-level log entry per overridden alias key (text contains both source paths and the alias key).
 
 근거: 부모 SPEC §4.5 REQ-ALIAS-040 본문 구현. 현재 OR 분기 미준수 결손 보강.
 
@@ -231,7 +231,7 @@ The `aliasconfig` package **shall** expose `ErrorCode(err error) string` returni
 // ============================================================================
 
 // ConfigPath returns the effective config path resolved at New(...) time.
-// Includes fallback resolution result (project-local / GOOSE_HOME / HOME).
+// Includes fallback resolution result (project-local / MINK_HOME / HOME).
 //
 // SPEC-GOOSE-ALIAS-CONFIG-001-AMEND-001 REQ-AMEND-001
 func (l *Loader) ConfigPath() string { return l.configPath }

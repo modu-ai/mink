@@ -3,23 +3,26 @@ id: SPEC-GOOSE-DESKTOP-001
 version: 0.2.0
 status: planned
 created_at: 2026-04-21
-updated_at: 2026-04-25
+updated_at: 2026-05-17
 author: manager-spec
-priority: critical
+priority: P1
 issue_number: null
 phase: 6
 size: 대(L)
 lifecycle: spec-anchored
 labels: [desktop, tauri, ui, phase-6, cross-platform]
+target_milestone: v0.2.0
+mvp_status: deferred
+deferred_reason: "0.1.0 MVP 범위 외 — v0.2.0 이월 (2026-05-17 사용자 확정). 0.1.0의 PC 인터페이스는 CLI/TUI로 한정. Tauri Desktop App은 v0.2.0. priority critical → P1."
 ---
 
-# SPEC-GOOSE-DESKTOP-001 — GOOSE Desktop App (기본 UI, Tauri v2)
+# SPEC-GOOSE-DESKTOP-001 — MINK Desktop App (기본 UI, Tauri v2)
 
 ## HISTORY
 
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
-| 0.1.0 | 2026-04-21 | ROADMAP v4.0 Phase 6 신규 Phase "Cross-Platform Clients" 추가에 따른 초안. 기존 Phase 6(Deep Personalization)은 Phase 8로 이동. 사용자 최종 확정 컨셉(2026-04-22) "PC가 메인, 모바일은 원격 클라이언트"에 따라 Desktop App을 GOOSE의 **기본 UI**로 정의. | manager-spec |
+| 0.1.0 | 2026-04-21 | ROADMAP v4.0 Phase 6 신규 Phase "Cross-Platform Clients" 추가에 따른 초안. 기존 Phase 6(Deep Personalization)은 Phase 8로 이동. 사용자 최종 확정 컨셉(2026-04-22) "PC가 메인, 모바일은 원격 클라이언트"에 따라 Desktop App을 MINK의 **기본 UI**로 정의. | manager-spec |
 | 0.2.0 | 2026-04-25 | plan-audit 결함 수정 (audit score 0.52 → 재감사 목표 ≥0.80). (a) frontmatter 정상화: `labels` 값 채움, `priority: critical`(canonical enum), `updated_at` 갱신. (b) MP-2: §5 EARS Requirements를 acceptance contract로 공식 선언하고 §7을 "Test Scenarios (BDD)"로 재명명 (format declaration). (c) D1: REQ-DK-001 HOW leak 제거 — "bundle a goosed binary"를 behavioral phrasing("shall ensure a goosed daemon is running")으로 교체. (d) D13: REQ-DK-013 공개키 분배 메커니즘 불확정은 §9 Exclusions에 v0.1 OUT-OF-SCOPE로 명시, v0.2에서 별도 SPEC으로 해결 예정임을 선언. (e) Orphan 해소 — AC-DK-013(REQ-DK-006 notification), AC-DK-014(REQ-DK-011 biometric), AC-DK-015(REQ-DK-012 macOS menu), AC-DK-016(REQ-DK-007 happy-path auto-update) 신규 추가; REQ-DK-016(cross-platform CI build) 신규 추가하여 AC-DK-012 orphan 해소. (f) Weasel words 정량화: AC-DK-005 "즉시"→"≤500ms", AC-DK-009 에러 채널/메시지 계약 명시. (g) Windows ARM64 scope gap: §9 Exclusions에 rationale과 함께 명시. REQ/AC 번호 재배치 없음, 번호 증가만 허용 (append-only). | manager-spec |
 
 ---
@@ -30,7 +33,7 @@ labels: [desktop, tauri, ui, phase-6, cross-platform]
 
 > "CLI가 아닌 데스크탑 앱으로 모바일 앱으로 항상 함께 할 수 있도록 하자. 기본 설치는 pc이지만 모바일 클라우드 연동으로 앱에서 pc를 제어 또는 지시를 할 수가 있다."
 
-본 SPEC은 GOOSE의 **기본 사용자 인터페이스**를 CLI가 아닌 **Desktop App**으로 재정의한다. GOOSE는 설치 시 `goosed` daemon + Desktop App이 **기본 구성**이며, CLI(SPEC-GOOSE-CLI-001)는 개발/디버그/스크립팅 전용으로 유지된다. Desktop App은 사용자 PC에 상주하면서 채팅 UI, Rituals 대시보드, Growth Meters, 시스템 트레이 통합을 제공한다.
+본 SPEC은 MINK의 **기본 사용자 인터페이스**를 CLI가 아닌 **Desktop App**으로 재정의한다. MINK는 설치 시 `goosed` daemon + Desktop App이 **기본 구성**이며, CLI(SPEC-GOOSE-CLI-001)는 개발/디버그/스크립팅 전용으로 유지된다. Desktop App은 사용자 PC에 상주하면서 채팅 UI, Rituals 대시보드, Growth Meters, 시스템 트레이 통합을 제공한다.
 
 기술 기반은 Tauri v2(Rust backend + React/TypeScript frontend)이며, Claude Code의 146개 UI 컴포넌트 패턴(`src/ui/`, `src/screens/`, `src/panels/`)을 직접 흡수한다. 본 SPEC은 UI 껍데기(chrome)를 정의하고, 실제 세션·QueryEngine 연결은 TRANSPORT-001 gRPC를 경유한다.
 
@@ -40,10 +43,10 @@ labels: [desktop, tauri, ui, phase-6, cross-platform]
 
 ### 2.1 왜 Desktop App이 기본인가
 
-- **상시 동반성**: GOOSE는 "평생 동반자" 콘셉트(product.md)로, 사용자와 항상 함께하려면 터미널이 아닌 OS 레벨에서 상주해야 한다. 시스템 트레이, 전역 단축키, 푸시 알림은 CLI로 제공 불가.
+- **상시 동반성**: MINK는 "평생 동반자" 콘셉트(product.md)로, 사용자와 항상 함께하려면 터미널이 아닌 OS 레벨에서 상주해야 한다. 시스템 트레이, 전역 단축키, 푸시 알림은 CLI로 제공 불가.
 - **Claude Code 관찰**: Claude Code는 터미널 네이티브이지만, bridge/(33 파일) 패턴을 통해 모바일·웹 원격 세션을 명시적으로 지원. 즉 CLI만으로는 불충분하다는 업계 합의.
 - **Rituals & Meters**: product.md가 정의한 아침 브리핑, 저녁 일기, Growth Meters는 그래픽 UI가 필수. 터미널로는 시각적 임팩트가 제한됨.
-- **경쟁사 벤치마크**: ChatGPT Desktop, Claude Desktop, Raycast, Alfred 모두 OS 레벨 앱으로 진화. GOOSE가 CLI에 머물면 일반 사용자 접근성 결여.
+- **경쟁사 벤치마크**: ChatGPT Desktop, Claude Desktop, Raycast, Alfred 모두 OS 레벨 앱으로 진화. MINK가 CLI에 머물면 일반 사용자 접근성 결여.
 
 ### 2.2 왜 Tauri v2인가
 
@@ -74,7 +77,7 @@ labels: [desktop, tauri, ui, phase-6, cross-platform]
 2. Tauri Rust backend(`src-tauri/`): window manager, system tray, global shortcut, auto-updater, IPC command invocations.
 3. React 19 + TypeScript frontend:
    - 메인 창(MainWindow): 채팅 UI(Claude Code `src/screens/` 참고), 좌측 Rituals 사이드바, 우측 Growth Meters 패널.
-   - 시스템 트레이 메뉴(열기/숨기기/종료/GOOSE mood 표시).
+   - 시스템 트레이 메뉴(열기/숨기기/종료/MINK mood 표시).
    - 전역 단축키(⌘K/Ctrl+K): 창 토글.
    - 멀티 창 지원: 프로젝트별 별도 창, Preferences 창.
    - 설정 화면(Preferences): LLM provider, 언어, 테마, 자동시작.
@@ -82,7 +85,7 @@ labels: [desktop, tauri, ui, phase-6, cross-platform]
 5. 자동 daemon 부트스트랩: Desktop 실행 시 `goosed` 프로세스 spawn(이미 실행 중이면 skip), 종료 시 graceful stop.
 6. 다크 모드(시스템 설정 추적 + 수동 오버라이드).
 7. i18n: ko/en/ja/zh 4개 언어, i18next 기반.
-8. 앱 아이콘 + 시스템 트레이 아이콘(GOOSE mood 4 상태: calm/active/learning/alert).
+8. 앱 아이콘 + 시스템 트레이 아이콘(MINK mood 4 상태: calm/active/learning/alert).
 9. 패키징: macOS `.dmg` + 코드사인, Linux `.deb`/`.rpm`/AppImage, Windows `.msi` + 코드사인.
 10. Auto-update: Tauri updater plugin, GitHub Releases feed, 서명 검증(ed25519).
 
@@ -115,7 +118,7 @@ labels: [desktop, tauri, ui, phase-6, cross-platform]
 ### 5.1 Ubiquitous
 
 - **REQ-DK-001**: The Desktop App **shall** ensure a `goosed` daemon is reachable on the configured gRPC port whenever the main window is active, spawning the daemon process when no existing daemon responds to `Ping`. (Packaging strategy — bundled binary vs. separate install — is deferred to a future SPEC per research.md open-issue #5; this REQ is behavioral only.)
-- **REQ-DK-002**: The Desktop App **shall** display a system tray icon that reflects GOOSE's current mood (calm, active, learning, alert).
+- **REQ-DK-002**: The Desktop App **shall** display a system tray icon that reflects MINK's current mood (calm, active, learning, alert).
 - **REQ-DK-003**: All user-facing strings **shall** be externalized and available in ko / en / ja / zh language packs.
 - **REQ-DK-004**: The Desktop App **shall** support dark mode following the OS preference, with a manual override stored in user preferences.
 
@@ -182,7 +185,7 @@ export interface SystemTray {
   setMenu(items: TrayMenuItem[]): Promise<void>;   // 동적 메뉴
 }
 
-// GOOSE mood (트레이 아이콘 4상태)
+// MINK mood (트레이 아이콘 4상태)
 export type GooseMood = "calm" | "active" | "learning" | "alert";
 
 // Rituals 사이드바
@@ -208,7 +211,7 @@ export interface GlobalShortcut {
 
 ```rust
 // packages/goose-desktop/src-tauri/src/lib.rs
-// GOOSE Desktop Tauri 진입점. goosed 부트스트랩과 OS 통합 담당.
+// MINK Desktop Tauri 진입점. goosed 부트스트랩과 OS 통합 담당.
 
 #[tauri::command]
 async fn bootstrap_daemon(app: tauri::AppHandle) -> Result<u32, String> {

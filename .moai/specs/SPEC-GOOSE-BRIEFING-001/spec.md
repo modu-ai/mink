@@ -49,7 +49,7 @@ labels: [ritual, llm, tts, orchestration, briefing, scheduler-consumer, supersed
 
 ## 1. 개요 (Overview)
 
-GOOSE v6.0 Daily Companion의 **아침 루틴 통합 SPEC**. SCHEDULER-001이 `MorningBriefingTime` 이벤트를 emit하면, 본 SPEC이 활성화되어 **3개 데이터 소스를 병렬 수집 → LLM으로 자연스러운 내러티브 생성 → 사용자에게 전달**한다.
+MINK v6.0 Daily Companion의 **아침 루틴 통합 SPEC**. SCHEDULER-001이 `MorningBriefingTime` 이벤트를 emit하면, 본 SPEC이 활성화되어 **3개 데이터 소스를 병렬 수집 → LLM으로 자연스러운 내러티브 생성 → 사용자에게 전달**한다.
 
 3개 소스:
 1. **FORTUNE-001** — 오늘의 운세 (opt-in, 엔터테인먼트)

@@ -16,7 +16,7 @@ labels: [installer, cross-platform, ollama, goreleaser, distribution, model-down
 
 # SPEC-MINK-CROSSPLAT-001 — Universal Cross-Platform Installer + Model Distribution
 
-> **REBRAND FROM SPEC-GOOSE-CROSSPLAT-001 (2026-05-14)**: 본 SPEC 은 SPEC-MINK-BRAND-RENAME-001 (commit f0f02e4, 2026-05-13) 의 GOOSE → MINK 전역 rename 정책에 따라 선행 SPEC-GOOSE-CROSSPLAT-001 (v0.1.1, draft) 의 본문을 MINK 로 rebrand 한 후속 SPEC 이다. 선행 SPEC body 는 immutable 로 유지되며 (BRAND-RENAME-001 OUT-scope 정책), 선행 SPEC frontmatter status 는 별도 commit 에서 `superseded` 로 전환된다. 다른 SPEC 의 cross-reference (`SPEC-GOOSE-XXX-001`) 는 immutable 정책에 따라 그대로 유지된다.
+> **REBRAND FROM SPEC-GOOSE-CROSSPLAT-001 (2026-05-14)**: 본 SPEC 은 SPEC-MINK-BRAND-RENAME-001 (commit f0f02e4, 2026-05-13) 의 MINK → MINK 전역 rename 정책에 따라 선행 SPEC-GOOSE-CROSSPLAT-001 (v0.1.1, draft) 의 본문을 MINK 로 rebrand 한 후속 SPEC 이다. 선행 SPEC body 는 immutable 로 유지되며 (BRAND-RENAME-001 OUT-scope 정책), 선행 SPEC frontmatter status 는 별도 commit 에서 `superseded` 로 전환된다. 다른 SPEC 의 cross-reference (`SPEC-GOOSE-XXX-001`) 는 immutable 정책에 따라 그대로 유지된다.
 
 ## HISTORY
 
@@ -24,7 +24,7 @@ labels: [installer, cross-platform, ollama, goreleaser, distribution, model-down
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-29 | 초안 작성 (선행 SPEC-GOOSE-CROSSPLAT-001). Phase 1 배포 인프라: 범용 설치 스크립트, Ollama 자동 설치, Gemma 4 RL 모델 자동 선택/다운로드, goreleaser 다중 플랫폼 빌드, 패키지 매니저 배포. | manager-spec |
 | 0.1.1 | 2026-05-14 | (선행 SPEC) POST-BRAND-RENAME marker 추가. | manager-spec |
-| 0.2.0 | 2026-05-14 | SPEC-MINK-BRAND-RENAME-001 rebrand 정책 적용. 본문 GOOSE/Goose/goose 명칭을 MINK/Mink/mink 로 치환 + Go module path / cmd binary / env var / workspace path 등 code identifier 동기화. id `SPEC-GOOSE-CROSSPLAT-001` → `SPEC-MINK-CROSSPLAT-001` 신설, 선행 SPEC supersede. 다른 SPEC 의 cross-reference (SPEC-GOOSE-CONFIG-001 / SPEC-GOOSE-LLM-001 / SPEC-GOOSE-LOCALE-001 / SPEC-GOOSE-ONBOARDING-001 등) 는 immutable 보존. labels 에 `mink-rebrand` 추가. | manager-spec |
+| 0.2.0 | 2026-05-14 | SPEC-MINK-BRAND-RENAME-001 rebrand 정책 적용. 본문 MINK/Goose/goose 명칭을 MINK/Mink/mink 로 치환 + Go module path / cmd binary / env var / workspace path 등 code identifier 동기화. id `SPEC-GOOSE-CROSSPLAT-001` → `SPEC-MINK-CROSSPLAT-001` 신설, 선행 SPEC supersede. 다른 SPEC 의 cross-reference (SPEC-GOOSE-CONFIG-001 / SPEC-GOOSE-LLM-001 / SPEC-GOOSE-LOCALE-001 / SPEC-GOOSE-ONBOARDING-001 등) 는 immutable 보존. labels 에 `mink-rebrand` 추가. | manager-spec |
 | 0.2.0+amendment-v0.2 | 2026-05-15 | curl-single + WSL-only 정책 적용. M1.A (Homebrew tap + winget + nfpms + AUR + scoop) 와 M3 (install.ps1) 전면 OUT scope 전환. REQ-CP-002 / 003 / 018 / 019 및 AC-CP-003 / 012 / 014 SUPERSEDED 마킹. AC-CP-002 WSL2 bash 시나리오로 재정의. 근거: hermes-agent (NousResearch v0.13.0) 공식 권장 = curl + WSL2, 2026 WSL2 dev 표준, 유지보수 ROI. M1/M2/M4/M5 머지본 (#189/#194/#195) 영향 없음. 상세 amendment 본문은 amendment-v0.2.md 참조. | manager-spec |
 
 ---

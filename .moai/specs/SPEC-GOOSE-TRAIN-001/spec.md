@@ -3,14 +3,17 @@ id: SPEC-GOOSE-TRAIN-001
 version: 0.1.0
 status: planned
 created_at: 2026-04-29
-updated_at: 2026-04-29
+updated_at: 2026-05-17
 author: manager-spec
-priority: P1
+priority: P2
 issue_number: null
 phase: 2
 size: 대(L)
 lifecycle: spec-first
 labels: [training, ml, mlx, lora, rl, gemma4, phase-2]
+target_milestone: v0.2.0
+mvp_status: deferred
+deferred_reason: "0.1.0 MVP 범위 외 — v0.2.0 이월 (2026-05-17 사용자 확정). RL 훈련 파이프라인은 GEMMA4-001 전환 이후 후순위, priority P1 → P2."
 ---
 
 # SPEC-GOOSE-TRAIN-001 — MLX RL Training Pipeline for Gemma 4
@@ -19,18 +22,18 @@ labels: [training, ml, mlx, lora, rl, gemma4, phase-2]
 
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
-| 0.1.0 | 2026-04-29 | 초안 작성 (ROADMAP Phase 2, AI.GOOSE Gemma 4 RL training pipeline) | manager-spec |
+| 0.1.0 | 2026-04-29 | 초안 작성 (ROADMAP Phase 2, AI.MINK Gemma 4 RL training pipeline) | manager-spec |
 
 ---
 
 ## 1. 개요 (Overview)
 
-AI.GOOSE의 **Gemma 4 E4B-IT 모델 기반 RL(Reinforcement Learning) 훈련 파이프라인**을 정의한다. M4 Max 128GB 환경에서 Apple MLX 생태계를 활용하여 SFT → DPO → GRPO 3단계 훈련을 수행하고, 훈련된 모델을 GGUF로 변환하여 Ollama 레지스트리에 배포하는 전체 과정을 규정한다.
+AI.MINK의 **Gemma 4 E4B-IT 모델 기반 RL(Reinforcement Learning) 훈련 파이프라인**을 정의한다. M4 Max 128GB 환경에서 Apple MLX 생태계를 활용하여 SFT → DPO → GRPO 3단계 훈련을 수행하고, 훈련된 모델을 GGUF로 변환하여 Ollama 레지스트리에 배포하는 전체 과정을 규정한다.
 
 수락 조건 통과 시점에서:
 
 - `training/` 디렉터리에 SFT, DPO, GRPO 각 단계별 Python 스크립트가 존재한다.
-- SFT 데이터는 한국어 대화(40%), AI.GOOSE tool call(20%), Socratic interview(15%), memory-referencing(15%), delegation routing(10%) 비율로 구성된 JSONL 파일이다.
+- SFT 데이터는 한국어 대화(40%), AI.MINK tool call(20%), Socratic interview(15%), memory-referencing(15%), delegation routing(10%) 비율로 구성된 JSONL 파일이다.
 - LoRA rank가 설정 가능하며(기본 16, 범위 8-64) 훈련 메트릭(loss, lr, examples/sec)이 stdout에 로깅된다.
 - DPO는 SFT-finetuned LoRA adapter를 시작점으로 하여 preference optimization을 수행한다.
 - GRPO는 tool call JSON schema compliance, Korean language quality, routing accuracy 보상 함수를 사용한다.
@@ -45,15 +48,15 @@ AI.GOOSE의 **Gemma 4 E4B-IT 모델 기반 RL(Reinforcement Learning) 훈련 파
 
 ### 2.1 왜 MLX + Gemma 4
 
-- AI.GOOSE는 **로컬 우선** 정책(product.md §3.1)을 채택. M4 Max 128GB는 Gemma 4 E4B-IT의 full fine-tuning과 대형 LoRA 훈련이 가능한 하드웨어.
+- AI.MINK는 **로컬 우선** 정책(product.md §3.1)을 채택. M4 Max 128GB는 Gemma 4 E4B-IT의 full fine-tuning과 대형 LoRA 훈련이 가능한 하드웨어.
 - MLX는 Apple Silicon에 최적화된 ML 프레임워크로, Metal GPU를 통한 훈련 가속을 제공. MLX-LM은 LoRA, DPO, GRPO 훈련을 네이티브 지원.
 - Gemma 4 E4B-IT는 Google의 instruction-tuned 4B parameter 모델로, 한국어 이해도와 도구 호출 능력이 균형 잡힌 모델.
 - 훈련된 모델을 GGUF로 변환하여 Ollama를 통해 크로스 플랫폼 배포 가능.
 
 ### 2.2 3단계 훈련 전략
 
-1. **SFT (Supervised Fine-Tuning)**: AI.GOOSE 특화 태스크 수행 능력 부여. LoRA를 사용하여 base model에 한국어 대화·tool call·Socratic interview 등의 패턴을 학습.
-2. **DPO (Direct Preference Optimization)**: SFT 모델을 기반으로 선호도 학습. chosen vs rejected 응답 쌍으로 AI.GOOSE 스타일의 응답 품질을 강화.
+1. **SFT (Supervised Fine-Tuning)**: AI.MINK 특화 태스크 수행 능력 부여. LoRA를 사용하여 base model에 한국어 대화·tool call·Socratic interview 등의 패턴을 학습.
+2. **DPO (Direct Preference Optimization)**: SFT 모델을 기반으로 선호도 학습. chosen vs rejected 응답 쌍으로 AI.MINK 스타일의 응답 품질을 강화.
 3. **GRPO (Group Relative Policy Optimization)**: 검증 가능한 보상 함수로 RL 수행. Tool call schema compliance, 한국어 품질, routing 정확도를 직접 최적화.
 
 ### 2.3 SPEC-GOOSE-LORA-001과의 관계
@@ -102,7 +105,7 @@ AI.GOOSE의 **Gemma 4 E4B-IT 모델 기반 RL(Reinforcement Learning) 훈련 파
 
 **REQ-TR-001 [Ubiquitous]** — The training pipeline **shall** support SFT on Gemma 4 E4B-IT using MLX-LM LoRA with configurable LoRA rank (default: 16, range: 8-64). Values outside this range **shall** be rejected at config-load time with an `InvalidConfigError` listing the valid range.
 
-**REQ-TR-002 [Ubiquitous]** — SFT training data **shall** consist of the following distribution: Korean dialogue (40%), AI.GOOSE tool calls (20%), Socratic interview patterns (15%), memory-referencing responses (15%), delegation routing (10%).
+**REQ-TR-002 [Ubiquitous]** — SFT training data **shall** consist of the following distribution: Korean dialogue (40%), AI.MINK tool calls (20%), Socratic interview patterns (15%), memory-referencing responses (15%), delegation routing (10%).
 
 **REQ-TR-003 [Ubiquitous]** — SFT training data **shall** be stored in JSONL format with version control, where each line contains `{"messages": [{"role": str, "content": str}, ...]}`.
 
@@ -144,7 +147,7 @@ AI.GOOSE의 **Gemma 4 E4B-IT 모델 기반 RL(Reinforcement Learning) 훈련 파
 
 **REQ-TR-018 [Event-Driven]** — **When** a GGUF model file is available, the pipeline **shall** publish it to the Ollama registry via `ollama create` followed by `ollama push`.
 
-**REQ-TR-019 [Event-Driven]** — **When** exporting to Ollama, the pipeline **shall** generate a Modelfile containing the AI.GOOSE system prompt and default inference parameters (temperature, top_p, context_length).
+**REQ-TR-019 [Event-Driven]** — **When** exporting to Ollama, the pipeline **shall** generate a Modelfile containing the AI.MINK system prompt and default inference parameters (temperature, top_p, context_length).
 
 ### 4.6 Tooling & Infrastructure
 
@@ -300,7 +303,7 @@ output:
 
 **SFT JSONL:**
 ```json
-{"messages": [{"role": "system", "content": "You are AI.GOOSE..."}, {"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]}
+{"messages": [{"role": "system", "content": "You are AI.MINK..."}, {"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]}
 ```
 
 **DPO JSONL:**

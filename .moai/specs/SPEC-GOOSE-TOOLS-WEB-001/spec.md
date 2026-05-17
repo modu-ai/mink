@@ -29,7 +29,7 @@ labels: [phase-4, tools, web, search, browse, rss, wikipedia, arxiv, maps, wayba
 
 ## 1. 개요 (Overview)
 
-AI.GOOSE의 **8개 핵심 web 도구**를 정의한다. 사용자가 daily companion으로 GOOSE를 사용할 때 외부 정보를 안전하게 조회하기 위한 표준 도구 세트이며, 모두 SPEC-GOOSE-TOOLS-001의 `tools.Registry`에 등록되어 agent / skill에서 호출 가능하다.
+AI.MINK의 **8개 핵심 web 도구**를 정의한다. 사용자가 daily companion으로 MINK를 사용할 때 외부 정보를 안전하게 조회하기 위한 표준 도구 세트이며, 모두 SPEC-GOOSE-TOOLS-001의 `tools.Registry`에 등록되어 agent / skill에서 호출 가능하다.
 
 본 SPEC이 통과한 시점에서:
 
@@ -164,7 +164,7 @@ AI.GOOSE의 **8개 핵심 web 도구**를 정의한다. 사용자가 daily compa
 
 ### 4.2 Event-Driven (이벤트 기반)
 
-**REQ-WEB-004 [Event-Driven]** — **When** 도구 X 가 특정 host H 에 대해 본 GOOSE 인스턴스에서 처음 호출되는 시점에, the system **shall** PERMISSION-001 의 `Confirmer.Ask()` 를 호출하여 `[AlwaysAllow / OnceOnly / Deny]` 3-way 결정을 받고, 결과를 `Store.Save()` 로 영속화한다. `Deny` 응답 시 `{ok: false, error: {code: "permission_denied"}}` 를 반환한다.
+**REQ-WEB-004 [Event-Driven]** — **When** 도구 X 가 특정 host H 에 대해 본 MINK 인스턴스에서 처음 호출되는 시점에, the system **shall** PERMISSION-001 의 `Confirmer.Ask()` 를 호출하여 `[AlwaysAllow / OnceOnly / Deny]` 3-way 결정을 받고, 결과를 `Store.Save()` 로 영속화한다. `Deny` 응답 시 `{ok: false, error: {code: "permission_denied"}}` 를 반환한다.
 
 **REQ-WEB-005 [Event-Driven]** — **When** 도구의 외부 fetch 직전에, the system **shall** 대상 host 의 robots.txt 를 fetch(24h 캐시) 하고 도구의 path 가 `Disallow` 매칭이면 fetch 를 중단하며 `{ok: false, error: {code: "robots_disallow"}}` 를 반환한다. 단, `web_search` 의 provider API endpoint(`api.search.brave.com` 등)는 robots.txt 검사 대상이 **아니다** (API endpoint 는 명시적 동의 필요한 commercial endpoint).
 

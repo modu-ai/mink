@@ -27,7 +27,7 @@ labels: [phase-7, daily-companion, weather, openweathermap, kma, air-quality, ca
 
 ## 1. 개요 (Overview)
 
-GOOSE의 **날씨 정보 제공 tool 묶음**을 정의한다. BRIEFING-001의 아침 브리핑 구성요소 중 하나로, 사용자 위치의 현재·예보 날씨 + 미세먼지·강수확률·일출 시각을 조회한다. 본 SPEC은 TOOLS-WEB-001 의 common 인프라(Blocklist / Permission / Audit / RateLimit / bbolt TTL Cache)를 재사용하여 `internal/tools/web/` 패키지에 **3개 도구** (`weather_current`, `weather_forecast`, `weather_air_quality`) 를 등록하고, 두 provider(글로벌 OpenWeatherMap + 한국 기상청 KMA + 에어코리아) 중 설정에 따라 선택한다.
+MINK의 **날씨 정보 제공 tool 묶음**을 정의한다. BRIEFING-001의 아침 브리핑 구성요소 중 하나로, 사용자 위치의 현재·예보 날씨 + 미세먼지·강수확률·일출 시각을 조회한다. 본 SPEC은 TOOLS-WEB-001 의 common 인프라(Blocklist / Permission / Audit / RateLimit / bbolt TTL Cache)를 재사용하여 `internal/tools/web/` 패키지에 **3개 도구** (`weather_current`, `weather_forecast`, `weather_air_quality`) 를 등록하고, 두 provider(글로벌 OpenWeatherMap + 한국 기상청 KMA + 에어코리아) 중 설정에 따라 선택한다.
 
 본 SPEC이 통과한 시점에서 `internal/tools/web/weather*.go` 군 (`weather_current.go`, `weather_forecast.go`, `weather_air_quality.go` 및 보조 파일) 은:
 
@@ -420,7 +420,7 @@ func LatLonToGrid(lat, lon float64) (nx, ny int) {
 | R5 | 에어코리아 API 다운타임 | 중 | 낮 | AirQuality는 M3 의 별도 도구, 다른 도구 영향 없음. 응답 `{ok: false, error.code == "fetch_failed", retryable: true}` |
 | R6 | 미세먼지 기준 해외 표준과 한국 표준 혼용 | 낮 | 중 | provider별 기준 명시, weather_air_quality 는 한국 환경부 기준 hardcoded (M3) |
 | R7 | 디스크 fallback 파일이 corrupt / 부분 write | 낮 | 낮 | atomic write (temp file + rename), JSON parse fail 시 disk evict + ErrNoFallbackAvailable |
-| R8 | bbolt 파일 락 충돌 (다중 GOOSE 인스턴스) | 낮 | 중 | bbolt `Options{Timeout: 5s}` 적용 (TOOLS-WEB-001 common.Cache 패턴), 락 실패 시 캐시 우회 (degraded but functional) |
+| R8 | bbolt 파일 락 충돌 (다중 MINK 인스턴스) | 낮 | 중 | bbolt `Options{Timeout: 5s}` 적용 (TOOLS-WEB-001 common.Cache 패턴), 락 실패 시 캐시 우회 (degraded but functional) |
 | R9 | TOOLS-WEB-001 M2~M4 미완료 시 본 SPEC 의 register count 변동 | 중 | 낮 | AC-WEATHER-009 가 "M3 완료 시 17 names" 로 명시. M1 단독 PR 시점에는 weather_current 1 개만 추가 검증 |
 | R10 | weather.yaml schema 가 web.yaml 과 file 충돌 | 낮 | 낮 | 별도 파일 (`~/.goose/config/weather.yaml`) 사용. TOOLS-WEB-001 `LoadWebConfig` 패턴 모방 |
 

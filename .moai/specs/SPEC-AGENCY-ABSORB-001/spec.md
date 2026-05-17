@@ -72,7 +72,7 @@ MoAI-ADK는 SPEC-First DDD 워크플로우를 단일 오케스트레이터(/moai
 다음 항목은 명백히 본 SPEC의 책임 범위를 벗어나며, 별도 트랙으로 분리한다:
 
 - **DB 메타 관리 통합**: `moai-domain-db-docs` 스킬, `.moai/config/sections/db.yaml`, `.moai/project/db/`는 별도 SPEC(예: `SPEC-DB-SYNC-RELOC-001`)에 속한다. 본 SPEC의 검증 대상이 아니다.
-- **GOOSE 브랜드 파운데이션 수립**: 커밋 d02f512 (2026-04-23 이전)에서 수행된 `.moai/project/brand/`의 GOOSE 페르소나 정립은 본 SPEC의 선행 조건이지 결과물이 아니다.
+- **MINK 브랜드 파운데이션 수립**: 커밋 d02f512 (2026-04-23 이전)에서 수행된 `.moai/project/brand/`의 MINK 페르소나 정립은 본 SPEC의 선행 조건이지 결과물이 아니다.
 - **agency-migration CLI 구현**: `moai migrate agency` 명령 자체의 코드 구현은 별도 트랙. 본 SPEC은 그 명령이 `/moai design` workflow에서 호출되어야 한다는 사실만 규정한다.
 - **Pencil MCP 자체의 안정성**: `moai-workflow-pencil-integration`이 호출하는 MCP 서버의 가용성·버전 관리는 외부 의존성으로 간주.
 
@@ -96,7 +96,7 @@ MoAI-ADK는 SPEC-First DDD 워크플로우를 단일 오케스트레이터(/moai
 | Dependency | Type | Reference |
 |------------|------|-----------|
 | Thin Command Pattern | 선행(필수) | SPEC-THIN-CMDS-001 — `/moai design` 명령 파일이 routing wrapper(<20 LOC) 패턴을 따르려면 사전 정의 필요 |
-| GOOSE 브랜드 파운데이션 | 선행(권장) | 커밋 d02f512 — `.moai/project/brand/` 구조 표준화 |
+| MINK 브랜드 파운데이션 | 선행(권장) | 커밋 d02f512 — `.moai/project/brand/` 구조 표준화 |
 | DB 메타 관리 흡수 | 병렬 트랙 | SPEC-DB-SYNC-RELOC-001 (별도) — 동시기 진행되었으나 본 SPEC과 독립 |
 | Claude Code v2.1.110+ | 런타임 | `effortLevel`, `disableBypassPermissionsMode`, Bash timeout 정책 등 디자인 워크플로우의 Opus 4.7 효율 활용을 위한 baseline |
 | Pencil MCP | 외부 옵션 | Phase B2.6 활성화 시에만 필요. 부재 시 graceful skip |
@@ -317,7 +317,7 @@ CLAUDE.md SHALL note that legacy `.agency/` directories are archived via the `mo
 이전 Scope 섹션의 Out of Scope를 재확인한다:
 
 - DB 메타 관리·`moai-domain-db-docs`·`db.yaml`·`.moai/project/db/`는 본 SPEC의 acceptance 대상이 아니다.
-- GOOSE 브랜드 페르소나 정립(d02f512)은 선행 트랙이며, 본 SPEC은 그 결과물(`.moai/project/brand/` 표준 구조)을 입력으로 사용할 뿐이다.
+- MINK 브랜드 페르소나 정립(d02f512)은 선행 트랙이며, 본 SPEC은 그 결과물(`.moai/project/brand/` 표준 구조)을 입력으로 사용할 뿐이다.
 - agency-migration CLI 자체의 코드 구현은 별도 트랙.
 - 본 SPEC은 신규 코드 작성을 트리거하지 않는다 (characterization 패턴).
 
