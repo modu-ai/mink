@@ -1,0 +1,17 @@
+memory:
+  vault_path: "~/.mink/memory/markdown"
+  index_path: "~/.mink/memory/main.sqlite"
+  embedding:
+    enabled: false
+    model: "nomic-embed-text"
+    endpoint: "http://127.0.0.1:11434"
+  retrieval:
+    alpha: 0.7
+    beta: 0.3
+    decay_half_life_days: 30
+    mmr_lambda: 0.7
+  session_autoexport:
+    enabled: false
+  clawmem_compat:
+    enabled: false
+    vault_path: "~/.clawmem/vault"
