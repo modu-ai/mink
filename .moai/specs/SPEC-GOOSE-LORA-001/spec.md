@@ -1,25 +1,31 @@
 ---
 id: SPEC-GOOSE-LORA-001
-version: 0.1.0
-status: planned
+version: 0.2.0
+status: deprecated
 created_at: 2026-04-21
-updated_at: 2026-04-21
+updated_at: 2026-05-16
+deprecated_at: 2026-05-16
 author: manager-spec
 priority: P2
 issue_number: null
 phase: 6
 size: 대(L)
 lifecycle: spec-anchored
-labels: []
+labels: [deprecated]
+supersedes: []
+superseded_by: [SPEC-MINK-MEMORY-QMD-001]
 ---
 
-# SPEC-GOOSE-LORA-001 — User-specific QLoRA Trainer (Go 인터페이스 + Rust 위임 경계)
+# SPEC-GOOSE-LORA-001 — User-specific QLoRA Trainer (Go 인터페이스 + Rust 위임 경계) [DEPRECATED]
+
+> **DEPRECATED 2026-05-16**: 사용자 결정으로 on-device QLoRA 학습 노선을 폐기한다. 대체 경로는 외부 GOAT LLM (Anthropic Claude / DeepSeek / OpenAI GPT / Codex / z.ai GLM-5-Turbo) + QMD 기반 메모리 (SPEC-MINK-MEMORY-QMD-001). 근거: ADR-001 (`.moai/decisions/ADR-001-qlora-rl-training-deprecation.md`). 본 SPEC 본문은 역사 보존을 위해 그대로 유지하되 신규 구현 대상에서 제외된다.
 
 ## HISTORY
 
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.1.0 | 2026-04-21 | 초안 작성 (learning-engine.md §5-6 + tech.md §2.1 goose-ml 기반) | manager-spec |
+| 0.2.0 | 2026-05-16 | **Deprecated**. 사용자 결정으로 on-device QLoRA/강화학습 폐기, 외부 GOAT LLM + QMD 메모리로 대체. ADR-001 참조. | MoAI orchestrator |
 
 ---
 
