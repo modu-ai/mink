@@ -10,11 +10,15 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/gofrs/flock"
+	"github.com/modu-ai/mink/internal/memory/clawmem"
 	"github.com/modu-ai/mink/internal/memory/qmd"
+	"go.uber.org/zap"
 )
 
 // lockAcquireTimeout is the maximum time Writer.NewWriter will wait to
@@ -48,11 +52,17 @@ var processMu sync.Mutex
 //
 // Use NewWriter to acquire a Writer; call Close when done.
 //
-// SPEC: SPEC-MINK-MEMORY-QMD-001 T1.6
-// REQ:  REQ-MEM-025, REQ-MEM-030
+// When a non-nil clawmem.Mirror is attached via WithMirror, every successful
+// UpsertFile call also mirrors the markdown source file to the ClawMem vault.
+// The mirror write is best-effort and never blocks the primary write.
+//
+// SPEC: SPEC-MINK-MEMORY-QMD-001 T1.6, T5.6
+// REQ:  REQ-MEM-025, REQ-MEM-030, AC-MEM-024, AC-MEM-036
 type Writer struct {
-	store *Store
-	fl    *flock.Flock
+	store  *Store
+	fl     *flock.Flock
+	mirror *clawmem.Mirror // optional; nil disables mirror writes
+	logger *zap.Logger     // used for mirror diagnostics; may be no-op
 }
 
 // NewWriter acquires the write lock and returns a Writer ready for use.
@@ -102,7 +112,24 @@ acquireLoop:
 		return nil, ErrWriterBusy
 	}
 
-	return &Writer{store: store, fl: fl}, nil
+	return &Writer{
+		store:  store,
+		fl:     fl,
+		logger: zap.NewNop(),
+	}, nil
+}
+
+// WithMirror attaches a ClawMem mirror to the Writer.  Every subsequent
+// UpsertFile call will also attempt to mirror the markdown source file to the
+// ClawMem vault after the SQLite commit succeeds.
+//
+// The logger is used for mirror-related diagnostic events.  Pass zap.NewNop()
+// to silence them.
+func (w *Writer) WithMirror(m *clawmem.Mirror, logger *zap.Logger) {
+	w.mirror = m
+	if logger != nil {
+		w.logger = logger
+	}
 }
 
 // Close releases the file lock and the process-level mutex.
@@ -113,8 +140,13 @@ func (w *Writer) Close() error {
 
 // UpsertFile inserts or updates a files row.
 //
-// SPEC: SPEC-MINK-MEMORY-QMD-001 T1.6
-// REQ:  REQ-MEM-001, REQ-MEM-006
+// After a successful SQLite commit, UpsertFile mirrors the source markdown
+// file to the ClawMem vault (if a mirror is configured via WithMirror).
+// The mirror write is best-effort: a failure is logged but does not cause
+// UpsertFile to return an error.
+//
+// SPEC: SPEC-MINK-MEMORY-QMD-001 T1.6, T5.6
+// REQ:  REQ-MEM-001, REQ-MEM-006, AC-MEM-024, AC-MEM-036
 func (w *Writer) UpsertFile(ctx context.Context, f qmd.File) (int64, error) {
 	const q = `
 INSERT INTO files (collection, source_path, content_hash, created_at, updated_at)
@@ -135,7 +167,37 @@ RETURNING file_id`
 	if err != nil {
 		return 0, fmt.Errorf("sqlite.Writer.UpsertFile: %w", err)
 	}
+
+	// Mirror the markdown source file to the ClawMem vault after the primary
+	// SQLite commit.  This is best-effort: errors are logged, not returned.
+	if w.mirror != nil {
+		w.mirrorFile(f)
+	}
+
 	return fileID, nil
+}
+
+// mirrorFile reads the markdown file at f.SourcePath and forwards it to the
+// ClawMem mirror.  Any I/O error is logged at warn level and silently
+// discarded so the caller is not interrupted.
+func (w *Writer) mirrorFile(f qmd.File) {
+	content, err := os.ReadFile(f.SourcePath)
+	if err != nil {
+		w.logger.Warn("sqlite.Writer.UpsertFile: mirror: read source failed",
+			zap.String("op", "clawmem_mirror"),
+			zap.String("path", f.SourcePath),
+			zap.Error(err),
+		)
+		return
+	}
+	req := clawmem.WriteRequest{
+		Collection: f.Collection,
+		Filename:   filepath.Base(f.SourcePath),
+		Content:    content,
+	}
+	// Mirror.Write is already best-effort and returns nil on failure after
+	// logging internally; calling it here is safe.
+	_ = w.mirror.Write(req)
 }
 
 // DeleteChunksByFileID removes all chunks (and their FTS + embedding rows)

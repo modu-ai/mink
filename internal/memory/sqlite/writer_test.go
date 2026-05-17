@@ -7,21 +7,24 @@ package sqlite
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/modu-ai/mink/internal/memory/clawmem"
 	"github.com/modu-ai/mink/internal/memory/qmd"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zaptest"
 )
 
 func openTestStore(t *testing.T) *Store {
 	t.Helper()
 	s, err := Open(filepath.Join(t.TempDir(), "test.sqlite"))
 	require.NoError(t, err)
-	t.Cleanup(func() { s.Close() })
+	t.Cleanup(func() { _ = s.Close() })
 	return s
 }
 
@@ -35,7 +38,7 @@ func TestWriter_idempotentInsert(t *testing.T) {
 
 	w, err := NewWriter(s, "")
 	require.NoError(t, err)
-	defer w.Close()
+	defer func() { _ = w.Close() }()
 
 	now := time.Now().UTC()
 	f := qmd.File{
@@ -125,7 +128,7 @@ func TestWriter_UpsertFile(t *testing.T) {
 
 	w, err := NewWriter(s, "")
 	require.NoError(t, err)
-	defer w.Close()
+	defer func() { _ = w.Close() }()
 
 	now := time.Now().UTC()
 	f := qmd.File{
@@ -146,4 +149,87 @@ func TestWriter_UpsertFile(t *testing.T) {
 	id2, err := w.UpsertFile(ctx, f)
 	require.NoError(t, err)
 	assert.Equal(t, id1, id2, "UpsertFile on same source_path must return same file_id")
+}
+
+// TestWriter_UpsertFile_mirrorEnabled verifies that when a ClawMem mirror is
+// attached via WithMirror, a successful UpsertFile call copies the markdown
+// source file to the configured vault path.
+//
+// AC-MEM-024: mirror write fires after primary SQLite commit.
+func TestWriter_UpsertFile_mirrorEnabled(t *testing.T) {
+	if !CGOEnabled {
+		t.Skip("sqlite package requires cgo")
+	}
+
+	// Create a real source markdown file in a temp dir.
+	srcDir := t.TempDir()
+	vaultDir := t.TempDir()
+
+	content := []byte("# Mirror integration test\n")
+	srcPath := filepath.Join(srcDir, "note.md")
+	require.NoError(t, os.WriteFile(srcPath, content, 0o600))
+
+	// Build the mirror.
+	logger := zaptest.NewLogger(t)
+	m, err := clawmem.NewMirror(clawmem.Config{
+		Enabled:   true,
+		VaultPath: vaultDir,
+	}, logger)
+	require.NoError(t, err)
+
+	// Open store and attach mirror.
+	s := openTestStore(t)
+	ctx := context.Background()
+
+	w, err := NewWriter(s, "")
+	require.NoError(t, err)
+	defer func() { _ = w.Close() }()
+	w.WithMirror(m, logger)
+
+	now := time.Now().UTC()
+	f := qmd.File{
+		Collection:  "journal",
+		SourcePath:  srcPath,
+		ContentHash: "abc123",
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	_, err = w.UpsertFile(ctx, f)
+	require.NoError(t, err)
+
+	// Verify the mirror file was written.
+	mirrorPath := filepath.Join(vaultDir, "journal", "note.md")
+	got, err := os.ReadFile(mirrorPath)
+	require.NoError(t, err)
+	assert.Equal(t, content, got, "mirror file content must match source")
+}
+
+// TestWriter_UpsertFile_mirrorDisabled verifies that when no mirror is
+// attached, UpsertFile succeeds without attempting any filesystem writes
+// outside the SQLite store.
+func TestWriter_UpsertFile_mirrorDisabled(t *testing.T) {
+	if !CGOEnabled {
+		t.Skip("sqlite package requires cgo")
+	}
+
+	s := openTestStore(t)
+	ctx := context.Background()
+
+	w, err := NewWriter(s, "")
+	require.NoError(t, err)
+	defer func() { _ = w.Close() }()
+	// No WithMirror call — mirror is nil.
+
+	now := time.Now().UTC()
+	f := qmd.File{
+		Collection:  "journal",
+		SourcePath:  "/nonexistent/path/note.md",
+		ContentHash: "deadbeef",
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	// Must succeed even though SourcePath does not exist on disk.
+	id, err := w.UpsertFile(ctx, f)
+	require.NoError(t, err)
+	assert.Greater(t, id, int64(0))
 }

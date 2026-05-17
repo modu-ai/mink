@@ -24,7 +24,7 @@ func TestSchemaVersionSeededOnOpen(t *testing.T) {
 	dir := t.TempDir()
 	s, err := Open(filepath.Join(dir, "test.sqlite"))
 	require.NoError(t, err)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	var version string
 	err = s.db.QueryRowContext(context.Background(),
