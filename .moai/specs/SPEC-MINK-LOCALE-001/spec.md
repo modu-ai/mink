@@ -33,7 +33,7 @@ labels: ["phase-6", "localization", "foundation", "locale-detection", "cultural-
 
 > "한국뿐만 아니라, 설치시 사용자의 국가와 정보를 수집해서 사용자에 맞게 각 현지화된 스킬들을 추가하도록 하자. hermes-agent 정도의 다국어를 제공하자."
 
-본 SPEC은 GOOSE의 **현지화 기반층(Locale Foundation)**을 정의한다. OS 수준에서 사용자의 `country`/`language`/`timezone`/`currency`/`measurement_system`/`calendar_system`을 **감지 + 확인 + 저장**하고, LLM 프롬프트에 **문화권 컨텍스트(CulturalContext)**를 자동 주입한다. 본 SPEC이 통과하면:
+본 SPEC은 MINK의 **현지화 기반층(Locale Foundation)**을 정의한다. OS 수준에서 사용자의 `country`/`language`/`timezone`/`currency`/`measurement_system`/`calendar_system`을 **감지 + 확인 + 저장**하고, LLM 프롬프트에 **문화권 컨텍스트(CulturalContext)**를 자동 주입한다. 본 SPEC이 통과하면:
 
 - `internal/locale/` 패키지가 OS locale을 감지하고, IP geolocation으로 보조 검증하며,
 - `LocaleContext`(ISO 3166-1 country + BCP 47 language + IANA timezone + ISO 4217 currency)를 `CONFIG-001` 저장소에 영속화하고,
@@ -50,7 +50,7 @@ labels: ["phase-6", "localization", "foundation", "locale-detection", "cultural-
 ### 2.1 왜 지금 필요한가
 
 - **Phase 6 의존 루트**: I18N-001(UI 번역), REGION-SKILLS-001(국가별 Skill), ONBOARDING-001(설치 플로우) 모두 `LocaleContext`를 입력으로 소비한다. 이 기반 없이는 후속 3 SPEC 동작 불가.
-- **Hermes 수준 다국어**: `hermes-llm.md` §2는 15+ LLM 프로바이더 매트릭스를 보인다. GOOSE는 Hermes가 달성한 "프로바이더 다양성" 수준을 **사용자 다양성**(국가/언어/문화)에서 재현해야 한다.
+- **Hermes 수준 다국어**: `hermes-llm.md` §2는 15+ LLM 프로바이더 매트릭스를 보인다. MINK는 Hermes가 달성한 "프로바이더 다양성" 수준을 **사용자 다양성**(국가/언어/문화)에서 재현해야 한다.
 - **branding.md §3 다국어 페르소나**: 5종 페르소나(집사/친구/선생님/비서/동반자)가 언어별로 다른 존칭 체계(한국 존댓말, 일본 敬語, 중국 敬, 영어 first-name)로 재구성된다. 이 매핑은 `CulturalContext`에 인코딩되어 adapter가 소비한다.
 - **adaptation.md §4 Cultural Context**: 4개 주요 언어(en/ko/ja/zh) + 명절/기념일 자동 감지를 명시. 본 SPEC은 그 요구를 **런타임 주입 가능한 구조화 데이터**로 확정한다.
 - **법적 제약 분기**: GDPR(EU) / PIPA(한국) / Federal Law 152-FZ(러시아) / ICP(중국)는 country에 따라 다르게 적용된다. `LocaleContext.country`는 PRIVACY 로직의 정식 입력이다.
@@ -59,7 +59,7 @@ labels: ["phase-6", "localization", "foundation", "locale-detection", "cultural-
 
 - **Claude Code `src/localization/`**: OS locale detection 패턴 참조. Tauri `locale` crate로 대체.
 - **Hermes `agent/locale/`**: LLM 프롬프트 주입 패턴 참조(직접 포팅 아님).
-- **MoAI-ADK `.moai/config/sections/language.yaml`**: `conversation_language` + `agent_prompt_language` 분리 원칙 계승. GOOSE에서는 `LocaleContext.primary_language` + `LocaleContext.secondary_language`로 확장.
+- **MoAI-ADK `.moai/config/sections/language.yaml`**: `conversation_language` + `agent_prompt_language` 분리 원칙 계승. MINK에서는 `LocaleContext.primary_language` + `LocaleContext.secondary_language`로 확장.
 
 ### 2.3 범위 경계
 
@@ -165,7 +165,7 @@ labels: ["phase-6", "localization", "foundation", "locale-detection", "cultural-
 
 **REQ-LC-009 [State-Driven]** — **While** `LocaleContext.secondary_language` is set, `BuildSystemPromptAddendum` **shall** include both primary and secondary languages in the prompt ("User speaks ko-KR primary, en-US secondary; code-switching is natural").
 
-**REQ-LC-010 [State-Driven]** — **While** the MaxMind GeoLite2 DB file is absent or older than 90 days, the detector **shall** log a WARN entry on startup suggesting `goose locale update-db` (CLI-001 responsibility) but **shall not** fail `Detect()`.
+**REQ-LC-010 [State-Driven]** — **While** the MaxMind GeoLite2 DB file is absent or older than 90 days, the detector **shall** log a WARN entry on startup suggesting `mink locale update-db` (CLI-001 responsibility) but **shall not** fail `Detect()`.
 
 **REQ-LC-011 [State-Driven]** — **While** `CONFIG-001` is loaded, the `locale:` section **shall** be a typed sub-struct containing: `override` (nullable LocaleContext), `geolocation_enabled` (bool, default true), `geoip_db_path` (string, optional).
 
@@ -493,7 +493,7 @@ Apply these conventions unless the user's conversational style overrides them.
 
 **dariubs/locales 및 unicode-org/icu 언급 재평가**:
 - `dariubs/locales`: 활성 유지보수 불확실. 대신 `golang.org/x/text/language` 채택.
-- `unicode-org/icu`: C/C++ 라이브러리. GOOSE는 I18N-001에서 Go 네이티브 `go-i18n/v2`를 선호하므로 본 SPEC은 ICU 의존 미포함.
+- `unicode-org/icu`: C/C++ 라이브러리. MINK는 I18N-001에서 Go 네이티브 `go-i18n/v2`를 선호하므로 본 SPEC은 ICU 의존 미포함.
 
 ### 6.6 TDD 진입 순서
 
@@ -740,7 +740,7 @@ canonical (영문):
 | R4 | Windows `GetUserDefaultLocaleName` CGO 문제 | 중 | 중 | `golang.org/x/sys/windows` 순수 Go로 호출 |
 | R5 | `CulturalContext`에 담은 legal_flags가 법률 변경에 뒤처짐 | 중 | 고 | 플래그는 힌트(hint)이며 실제 준수 로직은 각 SPEC(예: JOURNAL-001 PIPA)에서 최종 결정 |
 | R6 | 이슬람 달력(hijri)/중국 음력 혼용 사용자(예: 말레이시아) | 중 | 낮 | `CalendarSystem`을 `gregorian+hijri` 복합 문자열 허용, REGION-SKILLS-001이 세부 처리 |
-| R7 | GeoLite2 DB의 90일 노후화 미감지 | 낮 | 중 | `goose locale update-db` CLI 명령 + 시작 시 WARN(REQ-LC-010) |
+| R7 | GeoLite2 DB의 90일 노후화 미감지 | 낮 | 중 | `mink locale update-db` CLI 명령 + 시작 시 WARN(REQ-LC-010) |
 | R8 (amendment-v0.2) | VPN / Tor 사용자에 대한 IP geolocation 부정확 | 고 | 낮 | `accuracy="medium"` 표기로 사용자에게 정확도 한계 노출 + manual override 수정 가능 (기존 R3 보강). LocaleContext.conflict 가 OS 결과와 IP 결과 불일치를 기록하므로 ONBOARDING-001 가 확인 UI 표시 |
 | R9 (amendment-v0.2) | 외부 HTTP 의존성 (ipapi.co) rate-limit / outage | 중 | 중 | 2차 fallback Nominatim (opt-in) + 최종 fallback OS env detect. timeout 3s + circuit-break 패턴으로 사용자 진행 차단 방지 |
 | R10 (amendment-v0.2) | GPS city-level 정확도가 프라이버시 위험 | 중 | 중 | lat/lng raw 값은 `LocaleContext` 에 저장하지 않음 (백엔드 reverse geocoding 직후 폐기). country/language/timezone 만 영속화. §6.12 4-원칙 고지로 사용자 명시 동의 보장 |
@@ -757,7 +757,7 @@ canonical (영문):
 - `.moai/project/adaptation.md` §4 Cultural Context (4 언어 자동 감지 + 문화별 뉘앙스 + 명절)
 - `.moai/project/research/hermes-llm.md` §2 15+ LLM 프로바이더 매트릭스 (다양성 벤치마크)
 - `.moai/specs/ROADMAP.md` §3 Phase 6 (v5.0 확장 9 SPEC 중 Localization 4 SPEC의 기반)
-- `.moai/specs/SPEC-GOOSE-CONFIG-001/spec.md` §6.2 ENV 매핑(`GOOSE_LOCALE`)
+- `.moai/specs/SPEC-GOOSE-CONFIG-001/spec.md` §6.2 ENV 매핑(`MINK_LOCALE`)
 
 ### 9.2 외부 참조
 

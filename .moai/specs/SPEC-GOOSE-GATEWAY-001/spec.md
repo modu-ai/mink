@@ -38,7 +38,7 @@ labels: []
 >
 > **왜 변경되었는가**:
 > 1. Hermes 모델이 Daily Companion 카테고리와 충돌 (2차 분석) → 폐기 고려
-> 2. 재평가 결과 "메신저를 PC GOOSE의 원격 리모컨으로 쓰는 패턴"은 여전히 가치 있음 → 재도입
+> 2. 재평가 결과 "메신저를 PC MINK의 원격 리모컨으로 쓰는 패턴"은 여전히 가치 있음 → 재도입
 > 3. 단, 사업자 등록 필요 플랫폼(Kakao/WeChat/LINE/SMS)은 v2.0+로 분리하여 v1.0 범위 확정
 
 ## HISTORY
@@ -46,13 +46,13 @@ labels: []
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
 | 0.2.0 | 2026-04-22 | ROADMAP v6.2 재정의. umbrella SPEC으로 전환. Tier A 5종(TG/DC/SL/MX/SG)만 포함, Tier B(Kakao/WeChat/LINE/SMS)는 v2.0+ 별도 SPEC 분리. Self-hosted long-polling 강조, 클라우드 0 원칙. Channel HARD rule 명시. | 세션 결정 |
-| 0.1.0 | 2026-04-21 | ROADMAP v4.0 Phase 6 신규 SPEC. Hermes `gateway/` 패턴을 Go로 이식. Telegram / Discord / Slack / Matrix / 카카오톡(알림톡) / WeChat / 일반 Webhook 봇을 통해 메신저에서 GOOSE 호출. 사용자 옵트인, 한국 시장은 카카오톡 우선. | manager-spec |
+| 0.1.0 | 2026-04-21 | ROADMAP v4.0 Phase 6 신규 SPEC. Hermes `gateway/` 패턴을 Go로 이식. Telegram / Discord / Slack / Matrix / 카카오톡(알림톡) / WeChat / 일반 Webhook 봇을 통해 메신저에서 MINK 호출. 사용자 옵트인, 한국 시장은 카카오톡 우선. | manager-spec |
 
 ---
 
 ## 1. 개요 (Overview)
 
-Gateway는 주요 메신저 플랫폼을 **GOOSE의 부가 인터페이스**로 열어주는 게이트웨이 서비스다. 사용자는 자신의 Telegram, Discord, Slack 등 계정에서 봇을 친구로 추가하거나 워크스페이스에 초대하면, 메신저에서 텍스트로 GOOSE에게 질문할 수 있다. GOOSE는 응답을 같은 메신저 채널로 돌려준다.
+Gateway는 주요 메신저 플랫폼을 **MINK의 부가 인터페이스**로 열어주는 게이트웨이 서비스다. 사용자는 자신의 Telegram, Discord, Slack 등 계정에서 봇을 친구로 추가하거나 워크스페이스에 초대하면, 메신저에서 텍스트로 MINK에게 질문할 수 있다. MINK는 응답을 같은 메신저 채널로 돌려준다.
 
 본 SPEC은 Hermes `gateway/` (Python) 패턴을 Go로 재구현한다:
 - Telegram Bot API
@@ -71,7 +71,7 @@ Gateway는 주요 메신저 플랫폼을 **GOOSE의 부가 인터페이스**로 
 
 ### 2.1 왜 Gateway가 필요한가
 
-- 사용자는 일상에서 메신저를 가장 많이 쓴다. GOOSE Desktop/Mobile을 열지 않고도 "카톡으로 알림 받기" 요구 존재.
+- 사용자는 일상에서 메신저를 가장 많이 쓴다. MINK Desktop/Mobile을 열지 않고도 "카톡으로 알림 받기" 요구 존재.
 - 팀 협업 시나리오: Slack 워크스페이스에서 "`@goose 이슈 #123 정리해줘`" 호출.
 - 한국 시장: 카카오톡 알림톡은 일일 국민 ~4500만 사용자에게 도달 가능.
 - 중국 시장: WeChat 없이는 실질적 접근 불가.
@@ -86,7 +86,7 @@ Gateway는 주요 메신저 플랫폼을 **GOOSE의 부가 인터페이스**로 
 
 ### 2.3 Hermes gateway/ 매핑
 
-| Hermes gateway/ | GOOSE Go 포팅 |
+| Hermes gateway/ | MINK Go 포팅 |
 |----------------|---------------|
 | `telegram.py` | `internal/gateway/telegram/bot.go` |
 | `discord.py` | `internal/gateway/discord/bot.go` |
@@ -115,7 +115,7 @@ Gateway는 주요 메신저 플랫폼을 **GOOSE의 부가 인터페이스**로 
    - Generic Webhook (임의 시스템이 inbound/outbound HTTP)
 4. **OAuth 2.0 연결 플로우**: 플랫폼별, Desktop/Mobile 설정에서 시작.
 5. **메시지 라우팅**: Gateway가 수신한 메시지 → `goosed` QueryEngine 세션에 주입 → 응답을 플랫폼으로 전송.
-6. **사용자 계정 매핑**: Platform user ID ↔ GOOSE user ID 매핑(SQLite).
+6. **사용자 계정 매핑**: Platform user ID ↔ MINK user ID 매핑(SQLite).
 7. **권한·스코프**:
    - 기본적으로 Gateway로 들어온 요청은 **읽기·간단 답변**만
    - Tool 실행(파일 쓰기 등)은 거부(메신저에 권한 승인 UX 없음)
@@ -130,7 +130,7 @@ Gateway는 주요 메신저 플랫폼을 **GOOSE의 부가 인터페이스**로 
 
 - **음성/비디오 통화 (Telegram Voice, Discord Voice)**: v2+.
 - **파일 첨부 업·다운로드**: 1차는 텍스트만.
-- **봇 커스터마이즈(페르소나)**: 1차는 표준 GOOSE. 커스텀은 이후.
+- **봇 커스터마이즈(페르소나)**: 1차는 표준 MINK. 커스텀은 이후.
 - **멀티 테넌트 배포**: 각 사용자 self-hosted 혹은 단일 공식 인스턴스. SaaS 상용 모델은 별도.
 - **카카오톡 일반 챗봇 (채널)**: 알림톡만. 양방향 챗봇은 카카오 i 오픈빌더 연동 별도.
 - **LINE, Viber, Signal**: v2+.
@@ -159,7 +159,7 @@ Gateway는 주요 메신저 플랫폼을 **GOOSE의 부가 인터페이스**로 
 
 - **REQ-GW-001**: The Gateway **shall** register each platform adapter as an implementation of a shared `Platform` interface.
 - **REQ-GW-002**: The Gateway **shall** store platform OAuth tokens only in the OS secret store (Keychain / Secret Service / Credential Manager).
-- **REQ-GW-003**: The Gateway **shall** record platform user IDs in a SQLite table mapped to GOOSE user IDs, and all message routing **shall** require a valid mapping.
+- **REQ-GW-003**: The Gateway **shall** record platform user IDs in a SQLite table mapped to MINK user IDs, and all message routing **shall** require a valid mapping.
 - **REQ-GW-004**: The Gateway **shall** never execute tools that modify local filesystem or external state based solely on a platform message — such requests must be escalated to Desktop/Mobile approval.
 
 ### 5.2 Event-Driven
@@ -181,7 +181,7 @@ Gateway는 주요 메신저 플랫폼을 **GOOSE의 부가 인터페이스**로 
 
 ### 5.5 Unwanted Behavior
 
-- **REQ-GW-013**: **If** a platform message originates from a user ID that is not mapped to a GOOSE user, **then** the Gateway **shall not** forward the message to `goosed` and **shall** reply with an onboarding link.
+- **REQ-GW-013**: **If** a platform message originates from a user ID that is not mapped to a MINK user, **then** the Gateway **shall not** forward the message to `goosed` and **shall** reply with an onboarding link.
 - **REQ-GW-014**: **If** an outgoing message contains personally identifying information from another mapped user (email, phone, home address), **then** the Gateway **shall** redact the identifier before sending.
 - **REQ-GW-015**: **If** a KakaoTalk 알림톡 template does not match an approved template ID, **then** the Gateway **shall not** attempt delivery and **shall** log a template violation error.
 
@@ -222,7 +222,7 @@ const (
     PlatformWebhook  PlatformKind = "webhook"
 )
 
-// InboundMessage: 외부 플랫폼 → GOOSE
+// InboundMessage: 외부 플랫폼 → MINK
 type InboundMessage struct {
     Platform       PlatformKind
     PlatformUserID string              // 예: Telegram user_id
@@ -232,7 +232,7 @@ type InboundMessage struct {
     ReplyContext   ReplyContext        // 답장 스레드 지원용
 }
 
-// OutboundMessage: GOOSE → 외부 플랫폼
+// OutboundMessage: MINK → 외부 플랫폼
 type OutboundMessage struct {
     Platform       PlatformKind
     PlatformUserID string
@@ -247,7 +247,7 @@ type ReplyContext struct {
     OriginalID    string
 }
 
-// UserMapping: platform user ↔ GOOSE user
+// UserMapping: platform user ↔ MINK user
 type UserMapping struct {
     GooseUserID    string
     Platform       PlatformKind
@@ -366,7 +366,7 @@ type WebhookMessage struct {
 
 - **음성/비디오 통화**: v2+.
 - **파일 업·다운로드**: 1차 텍스트만.
-- **봇 페르소나 커스터마이즈**: 표준 GOOSE만.
+- **봇 페르소나 커스터마이즈**: 표준 MINK만.
 - **SaaS 멀티테넌트**: self-hosted 또는 단일 사용자 인스턴스.
 - **카카오톡 i 오픈빌더 양방향 챗봇**: 알림톡 단방향만.
 - **LINE / Viber / Signal**: 이후 별도 SPEC.

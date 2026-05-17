@@ -82,9 +82,9 @@ reference 인용 (alias loader 패턴): `internal/envalias/loader.go` (ENV-MIGRA
 
 BRAND-RENAME-001 §1.3 NOTE (brand-runtime split window) 가 명시한 일시적 부정합:
 
-> binary `mink` 의 brand-position 출력은 모두 MINK 이지만 runtime 에서는 (a) `GOOSE_*` env vars 21개 를 읽고 (b) `./.goose/` / `~/.goose/` workspace path 117 occurrence 를 사용한다.
+> binary `mink` 의 brand-position 출력은 모두 MINK 이지만 runtime 에서는 (a) `MINK_*` env vars 21개 를 읽고 (b) `./.goose/` / `~/.goose/` workspace path 117 occurrence 를 사용한다.
 
-ENV-MIGRATE-001 머지로 (a) 항목은 해소되었다 (alias loader 도입, `MINK_*` 우선 + `GOOSE_*` deprecated). 본 SPEC 은 (b) 항목을 해소한다. 머지 후 `mink` binary 는 100% MINK-named runtime state 를 사용한다.
+ENV-MIGRATE-001 머지로 (a) 항목은 해소되었다 (alias loader 도입, `MINK_*` 우선 + `MINK_*` deprecated). 본 SPEC 은 (b) 항목을 해소한다. 머지 후 `mink` binary 는 100% MINK-named runtime state 를 사용한다.
 
 ### 2.2 왜 자동 마이그레이션인가
 
@@ -188,7 +188,7 @@ reference 인용: `internal/envalias/loader.go` (ENV-MIGRATE-001) — 22-key ali
 7. **CHANGELOG 기존 entry 수정**: immutable (BRAND-RENAME §3.2 item 4).
 8. **`.moai/brain/IDEA-*/**`, `.claude/agent-memory/**`**: 본 SPEC 범위 외 (path 패턴 0건이며 마이그레이션 대상 아님).
 9. **logs/audit 의 회고 분석**: 본 SPEC 머지 시점에 기록된 로그 메시지는 archival, 본 SPEC 은 신규 로그만 새 path 사용.
-10. **MINK_HOME / GOOSE_HOME env var 자체 정의 변경**: ENV-MIGRATE-001 가 이미 alias loader 로 처리. 본 SPEC 은 그 결과를 소비할 뿐.
+10. **MINK_HOME / MINK_HOME env var 자체 정의 변경**: ENV-MIGRATE-001 가 이미 alias loader 로 처리. 본 SPEC 은 그 결과를 소비할 뿐.
 11. **third-party plugin / extension 의 hardcoded `~/.goose/`**: 사용자 책임. 본 SPEC 은 first-party (`internal/`) 코드만 다룸.
 
 ---
@@ -273,7 +273,7 @@ reference 인용: `internal/envalias/loader.go` (ENV-MIGRATE-001) — 22-key ali
 ### 5.2 Test files
 
 [MODIFY] 다음 패턴이 적용된 모든 `*_test.go` (ENV-MIGRATE-001 의 33-callsite migration 선례 준수):
-- `os.Setenv("GOOSE_HOME", ...)` 사용처 → `t.Setenv("MINK_HOME", t.TempDir())` 또는 직접 `userpath` mock
+- `os.Setenv("MINK_HOME", ...)` 사용처 → `t.Setenv("MINK_HOME", t.TempDir())` 또는 직접 `userpath` mock
 - `~/.goose/` 또는 `./.goose/` 리터럴 사용처 → `t.TempDir()` + `userpath` 호출
 - Migration fallback test 만 예외 — `// MINK migration fallback test` 주석으로 marker
 

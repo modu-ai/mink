@@ -63,7 +63,7 @@ related_specs: [SPEC-MINK-BRAND-RENAME-001]
 
 사용자 IDEA-002 brain decision 의 8 확정사항 핵심:
 
-1. **brand**: AI.GOOSE → MINK (Made IN Korea)
+1. **brand**: AI.MINK → MINK (Made IN Korea)
 2. **6m success metric**: 본인 매일 + 1명 daily user. 외부 stars/WAU/revenue 무관 (anti-goal)
 3. **scope reset**: multi-tenant SaaS / marketplace / enterprise tier 야망 폐기
 4. **target persona**: 1인 dev (Korean, MoAI/Claude Code user)
@@ -193,7 +193,7 @@ REQ 매핑: REQ-MINK-PV7-FRONTMATTER-001, REQ-MINK-PV7-HISTORY-001
 **Then**:
 - `.moai/project/product-archive/product-v6.0-2026-04-27.md` 파일 존재 (`test -f` exit 0)
 - `sha256sum .moai/project/product-archive/product-v6.0-2026-04-27.md` 의 hash 값 = baseline SHA `X` (byte-identical)
-- baseline 의 first 3 lines (`# AI.GOOSE - 제품 문서 v4.0 GLOBAL EDITION` 등) 가 archive 파일의 first 3 lines 와 정확 일치
+- baseline 의 first 3 lines (`# AI.MINK - 제품 문서 v4.0 GLOBAL EDITION` 등) 가 archive 파일의 first 3 lines 와 정확 일치
 
 검증 명령:
 ```bash
@@ -496,7 +496,7 @@ git diff origin/main --name-only | grep -vE '^\.moai/(specs/SPEC-MINK-PRODUCT-V7
 - `SPEC-MINK-BRAND-RENAME-001` (planned v0.1.1, downstream child): brand identifier rename. 본 SPEC merge 후 §1 Background 또는 §References 에서 v7.0 인용.
 - `SPEC-MINK-DISTANCING-STATEMENT-001` (proposed Wave 3): distancing detail document. 본 SPEC §Distancing 의 4 단락이 starting point.
 - `SPEC-MINK-USERDATA-MIGRATE-001` (downstream Wave 3): `./.goose/` → `./.mink/` 마이그레이션. v7.0 의 local-first / single-user 가정이 base.
-- `SPEC-MINK-ENV-MIGRATE-001` (downstream Wave 3): `GOOSE_*` → `MINK_*` env var. 같은 base.
+- `SPEC-MINK-ENV-MIGRATE-001` (downstream Wave 3): `MINK_*` → `MINK_*` env var. 같은 base.
 - Wave 3 신규 ritual SPEC (FORTUNE / HEALTH / CALENDAR / RITUAL / BRIEFING): v7.0 §In-Scope §4 ritual flow 가 use case 정의 근거.
 
 ### 7.3 본 SPEC 의 sibling (병행)
@@ -518,7 +518,7 @@ git diff origin/main --name-only | grep -vE '^\.moai/(specs/SPEC-MINK-PRODUCT-V7
 | R3 | v6.0 archive 본문의 license / IP 문제 | 매우 낮 | 낮 | v6.0 본문 자체가 Apache-2.0 (현재 §15). archive 도 동일 license. byte-identical 보존 영향 없음. |
 | R4 | "본인 외 1명" 6m metric 이 너무 낮아 product 야망 부재로 인식 | 중 | 낮 | IDEA-002 brain reasoning (research.md §3.4) 을 v7.0 §3 본문에 inline 인용. "낮은 ceiling 은 anti-goal 명시의 직접 표현" 명문화. |
 | R5 | "1인 dev" persona 가 너무 좁아 본인 외 1명 자체가 어려움 | 중 | 중 | persona 영역 close peer (Korean dev, similar workflow) 명시. "본인 외 1명" 의 1명은 random user 가 아니라 본인의 close peer. |
-| R6 | block/goose distancing 이 legal/trademark 영역으로 확대 | 매우 낮 | 매우 낮 | distancing 은 vision 차원 카테고리 차별화 (multi-tenant agent platform vs personal ritual companion). trademark/legal claim 아님 — 본문 명시. |
+| R6 | block/mink distancing 이 legal/trademark 영역으로 확대 | 매우 낮 | 매우 낮 | distancing 은 vision 차원 카테고리 차별화 (multi-tenant agent platform vs personal ritual companion). trademark/legal claim 아님 — 본문 명시. |
 | R7 | Hermes / Replika / Routinery 의 사용자 일부가 MINK 와 confusion | 낮 | 낮 | §Distancing 4 단락이 정체성 명시. 외부 marketing 안 하므로 confusion 자체 도달성 낮음. |
 | R8 | v7.0 vision 변경 → sibling `.moai/project/*` (tech.md / structure.md / ecosystem.md / migration.md / token-economy.md 등) 의 일관성 손상 | 중 | 중 | 본 SPEC 은 product.md 1 파일만 변경. sibling reconciliation 은 별도 후속 audit (REQ-MINK-PV7-RECONCILE-001 optional). 본 SPEC §1.3 Non-Goals 에 명시. |
 | R9 | v6.0 의 8년 vision (Linux Foundation / 1M users 등) 가 archive 에 보존되어 후속 작성자가 잘못 인용 | 낮 | 낮 | archive 파일명 prefix `product-v6.0-` 와 `product-archive/` 디렉토리 자체가 superseded 지표. v7.0 본문이 canonical vision. |
@@ -543,7 +543,7 @@ git diff origin/main --name-only | grep -vE '^\.moai/(specs/SPEC-MINK-PRODUCT-V7
 
 - **IDEA-002 brain decision** (2026-05-12, brain dir: `/Users/goos/Projects/GooseBot/.moai/brain/IDEA-002/`): 8 확정사항.
 - **사용자 8 확정사항** (orchestrator-collected, 2026-05-12):
-  1. brand: AI.GOOSE → MINK (Made IN Korea)
+  1. brand: AI.MINK → MINK (Made IN Korea)
   2. 6m metric: 본인 매일 + 1명, 외부 지표 무관
   3. scope reset: multi-tenant / marketplace / enterprise anti-goal
   4. persona: 1인 dev (Korean, MoAI user)

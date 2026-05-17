@@ -19,7 +19,7 @@ issue_number: 125
 
 | 버전 | 날짜 | 변경 사유 | 담당 |
 |-----|------|---------|------|
-| 0.1.0 | 2026-05-05 | 초안 — GOOSE 8주 로드맵 Phase 4 (channel rollout) 첫 채널. Telegram Bot API 6.x 기반 1:1 ingress + outbound `telegram_send_message` tool. BRIDGE-001 (Daemon ↔ UI) 위에 wiring, TOOLS-001 registry 에 등록, MEMORY-001 으로 chat_id ↔ user_profile mapping, CREDENTIAL-PROXY-001 로 bot token keyring 보관, AUDIT-001 으로 모든 메시지 감사 로그 append. 사용자 마찰 가장 낮은 (5분 셋업) 첫 1차 접점 채널. | manager-spec |
+| 0.1.0 | 2026-05-05 | 초안 — MINK 8주 로드맵 Phase 4 (channel rollout) 첫 채널. Telegram Bot API 6.x 기반 1:1 ingress + outbound `telegram_send_message` tool. BRIDGE-001 (Daemon ↔ UI) 위에 wiring, TOOLS-001 registry 에 등록, MEMORY-001 으로 chat_id ↔ user_profile mapping, CREDENTIAL-PROXY-001 로 bot token keyring 보관, AUDIT-001 으로 모든 메시지 감사 로그 append. 사용자 마찰 가장 낮은 (5분 셋업) 첫 1차 접점 채널. | manager-spec |
 | 0.1.0 | 2026-05-06 | plan-auditor iter-1 CONDITIONAL_GO (5 defects D1~D5: AC count 10→11, plan.md L39 AC-MTGM-009 mis-binding, spec-compact.md §4 헤더, spec-compact.md §10 "10 AC", Markdown V2 reserved char count 16→18) 보강. 모든 결함 수정 후 plan-auditor iter-2 PASS (overall 0.91, 0 defects). status `draft` → `audit-ready` 전환. | manager-spec |
 | 0.1.1 | 2026-05-09 | plan workflow Phase 2.5 — GitHub Issue #125 생성 후 frontmatter `issue_number: 125` 동기화. SPEC 본문 변경 없음, Issue ↔ SPEC 양방향 링크 확립 (영문 Issue body, run.md Phase 3 에서 `Fixes #125` 사용). | MoAI |
 | 0.1.2 | 2026-05-09 | sync phase — P1/P2/P3 구현 완료 후 SPEC divergence 12건 일괄 반영. 주요: BRIDGE-001 Query → Chat (ChatService 도메인 인터페이스), MEMORY-001 → 독립 sqlite (Option B, modernc.org/sqlite v1.50.0), CREDENTIAL-PROXY-001 → OS keyring (zalando/go-keyring v0.2.8), AC-MTGM-005 E2 (CLI-TUI-002 modal) P4 deferred, REQ-MTGM-N04 표현 보완, attachment JSON Schema strict mode oneOf 정정. status: audit-ready → implemented (P3 까지). | manager-docs |
@@ -30,13 +30,13 @@ issue_number: 125
 
 ## 1. 개요 (Overview)
 
-본 SPEC은 GOOSE 데몬과 **Telegram Bot API 6.x** 를 연결하여, 사용자가 Telegram 모바일/데스크톱 앱에서 GOOSE 에이전트와 **1:1 대화**를 나누고, GOOSE 가 사용자에게 **proactive 메시지** (예: 아침 brief, 작업 완료 알림) 를 보낼 수 있게 한다. 전략적으로 "사용자 향 첫 채널" 위치 — 마찰 가장 낮음 (Bot 등록 5분), 매일 사용자가 GOOSE 와 만나는 1차 접점.
+본 SPEC은 MINK 데몬과 **Telegram Bot API 6.x** 를 연결하여, 사용자가 Telegram 모바일/데스크톱 앱에서 MINK 에이전트와 **1:1 대화**를 나누고, MINK 가 사용자에게 **proactive 메시지** (예: 아침 brief, 작업 완료 알림) 를 보낼 수 있게 한다. 전략적으로 "사용자 향 첫 채널" 위치 — 마찰 가장 낮음 (Bot 등록 5분), 매일 사용자가 MINK 와 만나는 1차 접점.
 
 본 SPEC 수락 시점에서:
 
-- 사용자가 `goose messaging telegram setup` 1회 실행으로 Bot 등록 + token keyring 저장 + 첫 chat_id 매핑 완료 (5분 이내).
-- Telegram 에서 사용자가 `/start` 또는 일반 메시지 입력 → GOOSE 데몬으로 전달 → goose query 실행 → 응답 Telegram 전송 (왕복 < 5초, streaming 옵션 시 첫 chunk < 1.5초).
-- GOOSE 가 `telegram_send_message` tool 을 호출해 사용자에게 proactive 메시지 전송 (TOOLS-001 registry 경유).
+- 사용자가 `mink messaging telegram setup` 1회 실행으로 Bot 등록 + token keyring 저장 + 첫 chat_id 매핑 완료 (5분 이내).
+- Telegram 에서 사용자가 `/start` 또는 일반 메시지 입력 → MINK 데몬으로 전달 → mink query 실행 → 응답 Telegram 전송 (왕복 < 5초, streaming 옵션 시 첫 chunk < 1.5초).
+- MINK 가 `telegram_send_message` tool 을 호출해 사용자에게 proactive 메시지 전송 (TOOLS-001 registry 경유).
 - 모든 inbound/outbound 메시지가 AUDIT-001 audit log 에 append-only 로 기록.
 - Bot token 은 CREDENTIAL-PROXY-001 keyring 으로 안전 보관 (평문 저장 금지).
 - chat_id ↔ user_profile mapping 은 MEMORY-001 (BoltDB / sqlite provider) 에 저장.
@@ -47,7 +47,7 @@ issue_number: 125
 
 ## 2. 배경 (Background)
 
-### 2.1 GOOSE 8주 로드맵에서의 위치
+### 2.1 MINK 8주 로드맵에서의 위치
 
 `.moai/project/ROADMAP.md` 기준 Phase 4 (channel rollout) 의 첫 채널. 선행 SPEC 의존:
 
@@ -57,7 +57,7 @@ issue_number: 125
 - **CREDENTIAL-PROXY-001** (또는 CREDPOOL-001): bot token keyring 보관.
 - **AUDIT-001**: 모든 messaging 이벤트 append-only log.
 
-본 SPEC 이 완성되면 사용자는 모바일 폰만으로 GOOSE 와 매일 대화 가능 → "engagement loop" 의 시작점.
+본 SPEC 이 완성되면 사용자는 모바일 폰만으로 MINK 와 매일 대화 가능 → "engagement loop" 의 시작점.
 
 ### 2.2 기존 messaging 코드베이스 부재 (Greenfield)
 
@@ -66,7 +66,7 @@ issue_number: 125
 기존 코드베이스 영향:
 
 - **[NEW]**: `internal/messaging/telegram/` 신규 패키지 (poller, handler, sender, store, setup CLI).
-- **[NEW]**: `cmd/goose/cmd/messaging.go` 또는 `cmd/goose/cmd/telegram.go` cobra subcommand (`goose messaging telegram setup|start|status`).
+- **[NEW]**: `cmd/goose/cmd/messaging.go` 또는 `cmd/goose/cmd/telegram.go` cobra subcommand (`mink messaging telegram setup|start|status`).
 - **[NEW]**: TOOLS-001 registry 에 `telegram_send_message` tool 등록 (`internal/tools/telegram_send.go` 또는 messaging 패키지 내).
 - **[NEW]**: `~/.goose/messaging/telegram.yaml` 설정 파일 (bot username, allowed_users, default_chat_id, polling/webhook mode).
 - **[MODIFY]**: `goosed` daemon 시작 시 messaging poller 도 부팅 (`internal/daemon/bootstrap.go` 또는 동등).
@@ -85,7 +85,7 @@ issue_number: 125
 
 ### 2.4 범위 경계 (한 줄)
 
-- **IN**: 1:1 chat (private chat type), inbound long polling (default) + webhook (옵션, BRIDGE-001 HTTP 서버 활용), outbound `telegram_send_message` tool (TOOLS-001), Markdown V2, inline keyboard (1단), file attach (image/document, ≤ 50MB), chat_id ↔ user_profile mapping (MEMORY-001), bot token keyring (CREDENTIAL-PROXY-001), audit log (AUDIT-001), `goose messaging telegram setup|start|status` CLI.
+- **IN**: 1:1 chat (private chat type), inbound long polling (default) + webhook (옵션, BRIDGE-001 HTTP 서버 활용), outbound `telegram_send_message` tool (TOOLS-001), Markdown V2, inline keyboard (1단), file attach (image/document, ≤ 50MB), chat_id ↔ user_profile mapping (MEMORY-001), bot token keyring (CREDENTIAL-PROXY-001), audit log (AUDIT-001), `mink messaging telegram setup|start|status` CLI.
 - **OUT**: Group chat (private only), Channel/Supergroup, Voice/Video call, Telegram Web App / Mini App, advanced inline mode (`@bot search...`), bot payments, Telegram Passport, Sticker pack management, custom emoji upload, message editing/deletion API (수신 측 edit/delete event 만 audit), polling parallelism > 1 worker, multi-bot 동시 운영.
 
 ---
@@ -96,17 +96,17 @@ issue_number: 125
 
 #### Area 1 — Bot 등록 + Setup CLI
 
-1. **신규 cobra subcommand**: `goose messaging telegram setup`
-   - 대화형 입력: bot token (또는 환경변수 `GOOSE_TELEGRAM_BOT_TOKEN` 우선), bot username 자동 fetch (`GET /getMe`).
+1. **신규 cobra subcommand**: `mink messaging telegram setup`
+   - 대화형 입력: bot token (또는 환경변수 `MINK_TELEGRAM_BOT_TOKEN` 우선), bot username 자동 fetch (`GET /getMe`).
    - 검증: token 유효성 (`getMe` 200 응답 + bot field), bot username 출력.
    - keyring 저장: OS keyring (zalando/go-keyring v0.2.8 — macOS Keychain / Linux Secret Service / Windows Credential Manager, 또는 환경변수 fallback).
    - 설정 파일 생성: `~/.goose/messaging/telegram.yaml` (bot_username, polling/webhook mode default=polling, allowed_users 빈 리스트, audit_enabled=true).
    - chat_id 매핑 안내: "이제 Telegram 에서 @<bot_username> 에게 `/start` 를 보내세요" 출력 후 첫 update 수신 대기 (선택, 30초 timeout).
-2. **신규 cobra subcommand**: `goose messaging telegram status`
+2. **신규 cobra subcommand**: `mink messaging telegram status`
    - bot 등록 여부 (token 존재) / 매핑된 chat_id 수 / 마지막 inbound 시각 / poller running 여부 출력.
-3. **신규 cobra subcommand**: `goose messaging telegram start` (foreground debug 모드)
+3. **신규 cobra subcommand**: `mink messaging telegram start` (foreground debug 모드)
    - daemon 외부에서 standalone 실행 (디버깅용). production 은 daemon bootstrap 이 자동 기동.
-4. **token 부재 시 동작**: `setup` 미실행 상태에서 `start` / daemon bootstrap 시 → "Run `goose messaging telegram setup` first" 안내 후 messaging 모듈 비활성 (daemon 자체는 정상 기동).
+4. **token 부재 시 동작**: `setup` 미실행 상태에서 `start` / daemon bootstrap 시 → "Run `mink messaging telegram setup` first" 안내 후 messaging 모듈 비활성 (daemon 자체는 정상 기동).
 
 #### Area 2 — Long Polling Ingress (Default)
 
@@ -161,8 +161,8 @@ issue_number: 125
 2. **First-message flow** (chat_id 미매핑 시):
    - allowed_users 가 비어있고 yaml `auto_admit_first_user: true` 인 경우 → 첫 사용자 자동 등록 (admin 으로 마킹).
    - 그 외 경우 → "이 봇은 사전 승인된 사용자만 사용할 수 있습니다. 관리자에게 chat_id `<id>` 를 전달하세요" 응답 + 매핑 미생성.
-3. **승인 CLI**: `goose messaging telegram approve <chat_id> [--user-profile <id>]` — yaml `allowed_users` + MEMORY-001 mapping 동시 갱신.
-4. **revoke CLI**: `goose messaging telegram revoke <chat_id>` — `allowed_users` 제거 + mapping 의 `allowed=false` 마킹 (이력 보존).
+3. **승인 CLI**: `mink messaging telegram approve <chat_id> [--user-profile <id>]` — yaml `allowed_users` + MEMORY-001 mapping 동시 갱신.
+4. **revoke CLI**: `mink messaging telegram revoke <chat_id>` — `allowed_users` 제거 + mapping 의 `allowed=false` 마킹 (이력 보존).
 
 #### Area 5 — Webhook Mode (옵션)
 
@@ -182,7 +182,7 @@ issue_number: 125
 - **[OUT-7]** Sticker pack management / custom emoji upload — 별도 SPEC.
 - **[OUT-8]** Multi-bot 동시 운영 (한 daemon 에서 여러 bot token) — Phase 5+ 고려.
 - **[OUT-9]** Polling parallelism (worker > 1) — 단일 poller 만 (Telegram offset 모델은 단일 consumer 가정).
-- **[OUT-10]** message edit/delete API 발신 — 인바운드 edit/delete event 는 audit 에 기록하되, GOOSE 가 자기 메시지를 수정/삭제하는 outbound tool 은 본 SPEC 범위 밖 (단, streaming edit 은 예외 — Area 2).
+- **[OUT-10]** message edit/delete API 발신 — 인바운드 edit/delete event 는 audit 에 기록하되, MINK 가 자기 메시지를 수정/삭제하는 outbound tool 은 본 SPEC 범위 밖 (단, streaming edit 은 예외 — Area 2).
 - **[OUT-11]** end-to-end encryption — Telegram Bot API 는 서버-사이드 암호화만 (E2E 는 secret chat 전용, Bot 비지원).
 - **[OUT-12]** rate limit 자체 구현 (Telegram 30 msg/sec/bot 제약은 라이브러리 측 처리에 위임).
 
@@ -193,7 +193,7 @@ issue_number: 125
 ### 4.1 Ubiquitous Requirements (시스템 상시 보장)
 
 - **REQ-MTGM-U01** [Ubiquitous] [HARD]: 시스템은 모든 inbound/outbound Telegram 메시지를 AUDIT-001 audit log 에 append-only 기록한다. 기록 항목: `{direction (in|out), chat_id, message_id, user_profile_id, ts, content_hash, streaming_flag, tool_call_id (out 만)}`.
-- **REQ-MTGM-U02** [Ubiquitous] [HARD]: 시스템은 bot token 을 평문으로 디스크에 저장하지 않는다. OS keyring (zalando/go-keyring v0.2.8 — macOS Keychain / Linux Secret Service / Windows Credential Manager) 만 허용 (또는 환경변수 `GOOSE_TELEGRAM_BOT_TOKEN` 휘발성). yaml 파일에 token 평문 기록 시 setup 거부.
+- **REQ-MTGM-U02** [Ubiquitous] [HARD]: 시스템은 bot token 을 평문으로 디스크에 저장하지 않는다. OS keyring (zalando/go-keyring v0.2.8 — macOS Keychain / Linux Secret Service / Windows Credential Manager) 만 허용 (또는 환경변수 `MINK_TELEGRAM_BOT_TOKEN` 휘발성). yaml 파일에 token 평문 기록 시 setup 거부.
 - **REQ-MTGM-U03** [Ubiquitous]: 시스템은 chat_id ↔ user_profile mapping 을 MEMORY-001 의 `messaging.telegram.users` bucket 에 영속화한다.
 - **REQ-MTGM-U04** [Ubiquitous]: 모든 outbound Tool 호출 (`telegram_send_message`) 은 TOOLS-001 registry 의 permission gate 를 통과해야 한다.
 - **REQ-MTGM-U05** [Ubiquitous]: getUpdates polling offset 은 MEMORY-001 의 `messaging.telegram.last_offset` 에 영속, daemon 재시작 시 마지막 처리 지점부터 재개한다 (중복 수신 0).
@@ -202,7 +202,7 @@ issue_number: 125
 
 - **REQ-MTGM-E01** [Event-Driven]: WHEN 사용자가 Telegram 에서 `/start` 또는 일반 텍스트 메시지를 전송 THEN 시스템은 chat_id 매핑 조회 → BRIDGE-001 `AgentService/Query` 호출 → 응답을 Markdown V2 로 렌더링 → `sendMessage` 호출, 왕복 P95 < 5초 (네트워크 RTT 제외).
 - **REQ-MTGM-E02** [Event-Driven]: WHEN 사용자가 메시지 본문에 `/stream` 접두 사용 또는 yaml `default_streaming: true` THEN 시스템은 BRIDGE-001 streaming RPC 사용, placeholder `sendMessage` 후 chunk 마다 `editMessageText` (rate limit 1초/편집), 첫 chunk 표시 < 1.5초.
-- **REQ-MTGM-E03** [Event-Driven]: WHEN GOOSE agent 가 `telegram_send_message` tool 을 호출 THEN 시스템은 TOOLS-001 permission gate 통과 후 chat_id 가 `allowed_users` 에 있는지 검증 → Markdown V2 escape → `sendMessage`/`sendPhoto`/`sendDocument` 분기 호출 → audit log 기록.
+- **REQ-MTGM-E03** [Event-Driven]: WHEN MINK agent 가 `telegram_send_message` tool 을 호출 THEN 시스템은 TOOLS-001 permission gate 통과 후 chat_id 가 `allowed_users` 에 있는지 검증 → Markdown V2 escape → `sendMessage`/`sendPhoto`/`sendDocument` 분기 호출 → audit log 기록.
 - **REQ-MTGM-E04** [Event-Driven]: WHEN inbound message 길이가 4096자 (Telegram 제약) 초과 THEN 시스템은 `RESP-MTGM-E04: 메시지가 너무 깁니다 (max 4096 chars)` 응답 + audit `length_exceeded` flag 기록 + query 미실행.
 - **REQ-MTGM-E05** [Event-Driven]: WHEN inbound update 가 callback_query (inline keyboard 클릭) THEN 시스템은 `answerCallbackQuery` 호출 (toast 표시) + callback_data 를 query 본문으로 변환하여 BRIDGE-001 호출.
 - **REQ-MTGM-E06** [Event-Driven]: WHEN file attachment (image/document) 수신 THEN 시스템은 `getFile` API 로 file_path 조회 → 임시 디렉토리 다운로드 (`~/.goose/messaging/telegram/inbox/<message_id>.<ext>`) → BRIDGE-001 query 본문에 file path 포함 (text + attachment_paths) → 응답 후 30분 후 임시 파일 삭제.
@@ -211,7 +211,7 @@ issue_number: 125
 ### 4.3 State-Driven Requirements (조건부 동작)
 
 - **REQ-MTGM-S01** [State-Driven]: WHILE chat_id 가 매핑되어 있지 않고 yaml `auto_admit_first_user: false` THEN inbound 메시지에 대해 "사전 승인 필요, 관리자에게 chat_id `<id>` 전달" 응답 + query 미실행.
-- **REQ-MTGM-S02** [State-Driven]: WHILE bot token 미설정 (keyring 부재) THEN daemon bootstrap 의 messaging 모듈은 startup skip + log warning + `goose messaging telegram status` 가 `not configured` 반환. daemon 자체는 정상 기동.
+- **REQ-MTGM-S02** [State-Driven]: WHILE bot token 미설정 (keyring 부재) THEN daemon bootstrap 의 messaging 모듈은 startup skip + log warning + `mink messaging telegram status` 가 `not configured` 반환. daemon 자체는 정상 기동.
 - **REQ-MTGM-S03** [State-Driven]: WHILE poller 가 backoff 단계 (네트워크 에러 후 재시도 중) THEN 시스템은 backoff 시각 + 다음 재시도 시각을 metrics 에 노출 (CLI `status` 명령으로 조회).
 - **REQ-MTGM-S04** [State-Driven]: WHILE allowed_users 비어 있고 yaml `auto_admit_first_user: true` THEN 첫 inbound 사용자를 자동으로 admin 으로 등록 + audit 에 `auto_admitted: true` 기록.
 - **REQ-MTGM-S05** [State-Driven]: WHILE streaming RPC 진행 중 THEN 다음 inbound 메시지 (같은 chat_id) 는 큐에 적재 (FIFO, 최대 큐 깊이 5), streaming 완료 후 순차 처리. 큐 가득 시 "이전 응답 진행 중, 잠시 후 다시 시도하세요" 응답.
@@ -327,9 +327,9 @@ issue_number: 125
 
 11개 Acceptance Criteria (AC-MTGM-001 ~ AC-MTGM-011), 모두 Given-When-Then 형식. 핵심 5개 요약:
 
-- **AC-MTGM-001**: `goose messaging telegram setup` 1회 실행 → bot 등록 + token OS keyring 저장 + 첫 chat_id 매핑 (사용자 setup SLO 5분, 통합 시나리오 1).
-- **AC-MTGM-002**: 사용자가 Telegram 에서 `Hello` 전송 → GOOSE 응답 수신 (왕복 P95 < 5초, audit log 2개 entry — inbound + outbound, 본문 hash 만 기록).
-- **AC-MTGM-005**: GOOSE agent 가 `telegram_send_message` tool 호출 → 사용자에게 proactive 메시지 도착 + audit + permission gate 통과 + allowed_users 검증. **(E2 modal 부분은 P4 deferred — CLI-TUI-002 modal 미구현)**
+- **AC-MTGM-001**: `mink messaging telegram setup` 1회 실행 → bot 등록 + token OS keyring 저장 + 첫 chat_id 매핑 (사용자 setup SLO 5분, 통합 시나리오 1).
+- **AC-MTGM-002**: 사용자가 Telegram 에서 `Hello` 전송 → MINK 응답 수신 (왕복 P95 < 5초, audit log 2개 entry — inbound + outbound, 본문 hash 만 기록).
+- **AC-MTGM-005**: MINK agent 가 `telegram_send_message` tool 호출 → 사용자에게 proactive 메시지 도착 + audit + permission gate 통과 + allowed_users 검증. **(E2 modal 부분은 P4 deferred — CLI-TUI-002 modal 미구현)**
 - **AC-MTGM-008**: bot token yaml 평문 기재 시 setup reject + 안내 메시지 출력 (REQ-MTGM-N01).
 - **AC-MTGM-011**: AUDIT-001 entry 가 PII (본문 raw / 타 사용자 정보) 미포함 + append-only 무결성 + audit fail 시에도 채널 작동.
 
@@ -348,7 +348,7 @@ issue_number: 125
 - [x] `go test ./internal/messaging/telegram/...` coverage ≥ 83% (P3 정점).
 - [x] Markdown V2 escape unit test 18개 reserved char (`_*[]()~\`>#+-=|{}.!`) 전수 통과.
 - [x] mock Telegram API (httptest) 기반 integration test 통과 — `setup → send → receive → audit` 플로우.
-- [x] `goose messaging telegram setup` 가 5분 이내 첫 chat_id 매핑까지 도달 (수동 시나리오 검증).
+- [x] `mink messaging telegram setup` 가 5분 이내 첫 chat_id 매핑까지 도달 (수동 시나리오 검증).
 - [x] audit log 가 inbound/outbound 모두 기록되고 본문 hash 가 일치 (PII leak 방지 검증).
 - [x] yaml 평문 token 감지 reject 동작 검증.
 - [x] daemon bootstrap 시 token 미설정 환경에서 graceful skip + warning 만 (daemon 자체는 기동).

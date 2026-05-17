@@ -140,7 +140,7 @@ labels: [area/runtime, type/feature, priority/p0-critical]
 
 ### 4.5 Optional (선택적)
 
-**REQ-CTX-016 [Optional]** — **Where** environment variable `GOOSE_HISTORY_SNIP=1` is set, the `Snip` strategy **shall** be preferred over `AutoCompact`/`ReactiveCompact` even when `Summarizer` is available; this feature gate allows deterministic snip-only mode for debugging.
+**REQ-CTX-016 [Optional]** — **Where** environment variable `MINK_HISTORY_SNIP=1` is set, the `Snip` strategy **shall** be preferred over `AutoCompact`/`ReactiveCompact` even when `Summarizer` is available; this feature gate allows deterministic snip-only mode for debugging.
 
 ---
 
@@ -217,7 +217,7 @@ labels: [area/runtime, type/feature, priority/p0-critical]
 - **Then** 반환된 `SystemContext.GitStatus == "(no git)"`, 에러 없이 `nil` error 반환, 세션은 계속 진행 가능. 2회차 호출 시에도 git 명령 재실행 없이 memoized `"(no git)"` 반환.
 
 **AC-CTX-015 — HISTORY_SNIP feature gate (covers REQ-CTX-016)**
-- **Given** `DefaultCompactor{Summarizer: stubSummarizer, HistorySnipOnly: true}` (해당 필드는 CONFIG-001이 `GOOSE_HISTORY_SNIP=1` env에서 로드한 값), state가 AutoCompact trigger 조건 충족 (token >=80%)
+- **Given** `DefaultCompactor{Summarizer: stubSummarizer, HistorySnipOnly: true}` (해당 필드는 CONFIG-001이 `MINK_HISTORY_SNIP=1` env에서 로드한 값), state가 AutoCompact trigger 조건 충족 (token >=80%)
 - **When** `Compactor.Compact(state)` 실행
 - **Then** `CompactBoundary.Strategy == "Snip"`, `Summarizer.Summarize` 호출 횟수 = 0, ReactiveCompact/AutoCompact 미선택. `HistorySnipOnly = false` 로 바꾼 뒤 같은 state로 재호출 시 `CompactBoundary.Strategy == "AutoCompact"` 확인(대조군).
 
@@ -450,7 +450,7 @@ tokens(message) =
 | 선행 SPEC | SPEC-GOOSE-QUERY-001 | `Compactor` 인터페이스 서명, `loop.State`, `message.Message` |
 | 후속 SPEC | SPEC-GOOSE-COMPRESSOR-001 | `Summarizer.Summarize` 실 구현 (LLM 요약) |
 | 후속 SPEC | SPEC-GOOSE-ADAPTER-001 | provider `usage.input_tokens`로 token count 보정 |
-| 후속 SPEC | SPEC-GOOSE-CONFIG-001 | `GOOSE_HISTORY_SNIP`, `TokenLimit`, `ProtectedHead/Tail` 설정값 |
+| 후속 SPEC | SPEC-GOOSE-CONFIG-001 | `MINK_HISTORY_SNIP`, `TokenLimit`, `ProtectedHead/Tail` 설정값 |
 | 외부 | Go 1.22+ | `sync.Once`, `atomic.Pointer[T]` generics |
 | 외부 | `go.uber.org/zap` v1.27+ | 구조화 로깅 |
 | 외부 | Git (CLI, runtime dependency) | `git status`, `git branch`, `git log` 실행 |

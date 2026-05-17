@@ -27,7 +27,7 @@ labels: [area/cli, area/command, type/feature, phase-3, priority/p1-high]
 
 ## 1. 개요 (Overview)
 
-AI.GOOSE의 **Slash Command 파서 및 디스패처**를 정의한다. `SPEC-GOOSE-QUERY-001` §3.2는 `processUserInput(prompt)`를 "본 SPEC에서 noop (원문 그대로 반환). COMMAND-001이 확장"으로 위임한다. 본 SPEC이 그 훅 포인트를 채우며, Claude Code `commands/` 디렉토리의 slash command 시스템을 Go로 포팅한다.
+AI.MINK의 **Slash Command 파서 및 디스패처**를 정의한다. `SPEC-GOOSE-QUERY-001` §3.2는 `processUserInput(prompt)`를 "본 SPEC에서 noop (원문 그대로 반환). COMMAND-001이 확장"으로 위임한다. 본 SPEC이 그 훅 포인트를 채우며, Claude Code `commands/` 디렉토리의 slash command 시스템을 Go로 포팅한다.
 
 본 SPEC 수락 시점에서:
 
@@ -48,7 +48,7 @@ AI.GOOSE의 **Slash Command 파서 및 디스패처**를 정의한다. `SPEC-GOO
 - **UX 필수**: 사용자가 `/help`, `/clear`, `/exit` 없이 CLI를 쓰는 것은 현실적 불가. CLI-001(Phase 3)이 착수하려면 본 SPEC이 먼저 (또는 병행) 완성되어야 함.
 - **QUERY-001 훅 포인트 해소**: QUERY-001 `processUserInput`의 passthrough stub을 제거하려면 command 판정 로직이 필요.
 - **Skill 확장 경로**: SKILLS-001이 정의할 "user-invocable skill"은 slash command로 노출된다. 본 SPEC이 공통 디스패치 경로를 제공해야 SKILLS-001 작업이 동일 인프라를 재사용.
-- **MoAI/Agency 명령 호환성**: ROADMAP의 목표는 Claude Code `.claude/commands/*.md`와 동형의 slash command를 GOOSE가 실행하는 것. `/moai run SPEC-XXX` 같은 기존 MoAI 워크플로우를 그대로 재활용하려면 동일 frontmatter 스키마를 지원해야 함.
+- **MoAI/Agency 명령 호환성**: ROADMAP의 목표는 Claude Code `.claude/commands/*.md`와 동형의 slash command를 MINK가 실행하는 것. `/moai run SPEC-XXX` 같은 기존 MoAI 워크플로우를 그대로 재활용하려면 동일 frontmatter 스키마를 지원해야 함.
 
 ### 2.2 상속 자산 (패턴 계승)
 
@@ -104,7 +104,7 @@ AI.GOOSE의 **Slash Command 파서 및 디스패처**를 정의한다. `SPEC-GOO
 5. `internal/command/substitute/` — 치환 엔진.
    - `$ARGUMENTS` → rawArgs 전체.
    - `$1`, `$2`, ... `$N` → positional args.
-   - `$CWD`, `$GOOSE_HOME` → context values.
+   - `$CWD`, `$MINK_HOME` → context values.
    - 이스케이프: `$$` → literal `$`.
 
 6. Skill-backed command 경로 (SKILLS-001 연계).
@@ -212,10 +212,10 @@ AI.GOOSE의 **Slash Command 파서 및 디스패처**를 정의한다. `SPEC-GOO
   description: greet user
   argument-hint: "<name>"
   ---
-  Hello $ARGUMENTS, welcome to GOOSE.
+  Hello $ARGUMENTS, welcome to MINK.
   ```
 - **When** Registry를 `WithCustomRoots(tmpDir)`로 구성 후 `ProcessUserInput(ctx, "/greet Alice", sctx)`
-- **Then** `ProceedWithPrompt{prompt: "Hello Alice, welcome to GOOSE."}` 반환
+- **Then** `ProceedWithPrompt{prompt: "Hello Alice, welcome to MINK."}` 반환
 
 **AC-CMD-005 — $N positional 치환**
 - **Given** custom command body: `"First: $1, Second: $2, All: $ARGUMENTS"`
@@ -452,7 +452,7 @@ func SplitArgs(rawArgs string) (Args, error)
 
 type Context struct {
     Args Args
-    Env  map[string]string // $CWD, $GOOSE_HOME 등
+    Env  map[string]string // $CWD, $MINK_HOME 등
 }
 
 // Expand는 $ARGUMENTS / $1..$9 / $CWD / $$ → literal $ 치환.
@@ -577,7 +577,7 @@ submitMessage(prompt):
 | 선행 SPEC | SPEC-GOOSE-CONFIG-001 | `CommandConfig` (custom roots, max size) |
 | 선행 SPEC | SPEC-GOOSE-QUERY-001 | `submitMessage` 훅 포인트, `SlashCommandContext` 구현측 |
 | 후속 SPEC | SPEC-GOOSE-SKILLS-001 | `user-invocable` skill을 command로 노출 (Provider 인터페이스 구현) |
-| 후속 SPEC | SPEC-GOOSE-CLI-001 | CLI readline / history / `goose ask "/help"` 경로 |
+| 후속 SPEC | SPEC-GOOSE-CLI-001 | CLI readline / history / `mink ask "/help"` 경로 |
 | 후속 SPEC | SPEC-GOOSE-ROUTER-001 | `ResolveModelAlias` 구현 (/model 명령) |
 | 후속 SPEC | SPEC-GOOSE-CONTEXT-001 | `OnCompactRequest` 처리 (/compact 명령) |
 | 후속 SPEC | SPEC-GOOSE-SUBAGENT-001 | `PlanModeActive` 힌트 (REQ-CMD-011) |

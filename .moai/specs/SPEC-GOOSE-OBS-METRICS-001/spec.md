@@ -36,7 +36,7 @@ informed_by: ["SPEC-GOOSE-CMDCTX-TELEMETRY-001"]
 
 1. **vendor-neutral metrics sink interface** 정의 — counter, histogram, gauge 3종 instrument + Labels 타입.
 2. **Phase 1 backend = stdlib `expvar`** 어댑터 + **noop** 어댑터 구현. 의존성 0건 추가.
-3. **emit 정책** 확정 — label cardinality cap, PII 금지, env toggle (`GOOSE_METRICS_ENABLED`).
+3. **emit 정책** 확정 — label cardinality cap, PII 금지, env toggle (`MINK_METRICS_ENABLED`).
 4. **consumer SPEC `SPEC-GOOSE-CMDCTX-TELEMETRY-001` 의 BLOCKER 해소** — 본 SPEC 의 `metrics.Sink` 가 consumer 의 `adapter.Options.Metrics` 에 직접 주입 가능.
 
 본 SPEC 은 **interface contract + Phase 1 default backend** 만 정의한다. OTel SDK 어댑터, Prometheus client_golang 어댑터, distributed tracing, alerting 정의, exporter 운영 인프라는 OUT OF SCOPE.
@@ -92,7 +92,7 @@ informed_by: ["SPEC-GOOSE-CMDCTX-TELEMETRY-001"]
 4. **emit 정책 (HARD)**:
    - label cardinality cap: per-metric **100** unique label combinations. 초과 시 silent drop + 1회 warn log (expvar backend 만).
    - PII 금지: label 값에 user prompt 본문 / model output / credential / file path 의 `$HOME` / email 절대 금지. 정적 가이드라인 + code review 차단 (TRUST 5 — Secured).
-   - env toggle: `GOOSE_METRICS_ENABLED`.
+   - env toggle: `MINK_METRICS_ENABLED`.
      - alpha (v0.1.x) default: `false`.
      - beta+ default: `true`.
      - wiring 진입점에서 검사 후 expvar / noop sink 분기.
@@ -154,7 +154,7 @@ EARS 5 패턴: Ubiquitous (항상), Event-Driven (WHEN), State-Driven (WHILE/IF)
 
 **REQ-OBS-METRICS-007**: WHEN `Sink.Histogram(name, labels, buckets)` 가 호출될 때, 동일 `(name, labels)` 조합이 처음이면 새 histogram 이 `buckets` 로 초기화되고, 기존 조합이면 기존 handle 을 반환한다. `buckets == nil` 또는 `len(buckets) == 0` 일 때 backend default bucket 을 사용한다 (expvar 어댑터의 default: `[0.1, 1, 10, 100, 1000]` ms-scale).
 
-**REQ-OBS-METRICS-008**: WHEN env `GOOSE_METRICS_ENABLED` 가 wiring 진입점에서 검사될 때, `"true"` / `"1"` 이면 expvar sink 인스턴스를 주입하고, `"false"` / `"0"` / 미설정이면 noop sink 인스턴스를 주입한다. alpha (v0.1.x) 의 default 미설정 동작은 noop. (wiring 진입점은 본 SPEC 의 책임이 아니나, env 토글 contract 는 본 SPEC 이 정의.)
+**REQ-OBS-METRICS-008**: WHEN env `MINK_METRICS_ENABLED` 가 wiring 진입점에서 검사될 때, `"true"` / `"1"` 이면 expvar sink 인스턴스를 주입하고, `"false"` / `"0"` / 미설정이면 noop sink 인스턴스를 주입한다. alpha (v0.1.x) 의 default 미설정 동작은 noop. (wiring 진입점은 본 SPEC 의 책임이 아니나, env 토글 contract 는 본 SPEC 이 정의.)
 
 **REQ-OBS-METRICS-009**: WHEN expvar 어댑터의 `Counter(name, labels)` / `Histogram` / `Gauge` 가 새 `(name, labels)` 조합을 등록할 때, 해당 metric name 의 unique label combination 수가 cardinality cap (100) 을 초과하면, 새 조합 등록은 silent drop (return noop counter/histogram/gauge handle) 되며 1회 warn log (`Logger.Warn("metrics cardinality cap exceeded", "metric", name, "cap", 100)`) 가 발생한다.
 
@@ -186,7 +186,7 @@ EARS 5 패턴: Ubiquitous (항상), Event-Driven (WHEN), State-Driven (WHILE/IF)
 
 **REQ-OBS-METRICS-018**: WHERE daemon 모드로 실행되고 `net/http` HTTP server 가 활성화된 경우, expvar 어댑터의 `/debug/vars` endpoint 가 자동으로 노출된다. 본 SPEC 은 endpoint 의 access control / authentication 을 정의하지 않는다 (별도 SPEC 책임).
 
-**REQ-OBS-METRICS-019**: WHERE 운영자가 cardinality cap (100) 을 변경하고 싶다면, 본 SPEC v0.2.0 amendment 시 환경변수 `GOOSE_METRICS_LABEL_CAP` 도입 가능하다. v0.1.0 에서는 cap 이 hardcoded.
+**REQ-OBS-METRICS-019**: WHERE 운영자가 cardinality cap (100) 을 변경하고 싶다면, 본 SPEC v0.2.0 amendment 시 환경변수 `MINK_METRICS_LABEL_CAP` 도입 가능하다. v0.1.0 에서는 cap 이 hardcoded.
 
 **REQ-OBS-METRICS-020**: WHERE histogram bucket 을 도메인별로 customize 하고 싶다면, caller (consumer SPEC) 가 `Histogram(name, labels, buckets)` 호출 시 도메인 적합 bucket 슬라이스를 명시한다. 본 SPEC 은 bucket 의 도메인별 default 를 강제하지 않으며, expvar 어댑터의 fallback default (`[0.1, 1, 10, 100, 1000]`) 만 정의한다.
 
@@ -264,7 +264,7 @@ EARS 5 패턴: Ubiquitous (항상), Event-Driven (WHEN), State-Driven (WHILE/IF)
 | REQ-OBS-METRICS-005 | Ubiquitous | Labels 정적 보존 — caller 입력 그대로 보존, sink 측 변형 없음 | AC-020, AC-009 (보조) | Direct (2026-05-04 신규 AC) + 보조 검증 |
 | REQ-OBS-METRICS-006 | Event-Driven | WHEN Counter() — 신규 (name,labels) 등록 또는 기존 handle 반환, atomic Inc/Add | AC-006, AC-009 | Direct (counter increment + label distinguish) |
 | REQ-OBS-METRICS-007 | Event-Driven | WHEN Histogram() — bucket init 또는 reuse, nil 시 default bucket | AC-007 | Direct (bucket observe + default fallback) |
-| REQ-OBS-METRICS-008 | Event-Driven | WHEN env GOOSE_METRICS_ENABLED 검사 — expvar/noop sink 분기 | (deferred) | Deferred to SPEC-GOOSE-CMDCTX-CLI-INTEG-001 / DAEMON-INTEG-001 (env wiring 진입점은 본 SPEC scope 외, REQ-008 마지막 문장 명시) |
+| REQ-OBS-METRICS-008 | Event-Driven | WHEN env MINK_METRICS_ENABLED 검사 — expvar/noop sink 분기 | (deferred) | Deferred to SPEC-GOOSE-CMDCTX-CLI-INTEG-001 / DAEMON-INTEG-001 (env wiring 진입점은 본 SPEC scope 외, REQ-008 마지막 문장 명시) |
 | REQ-OBS-METRICS-009 | Event-Driven | WHEN expvar 신규 (name,labels) 등록 시 cardinality cap 초과 → silent drop + 1 warn log | AC-010 | Direct |
 | REQ-OBS-METRICS-010 | State-Driven | WHILE Sink 사용 중 factory+handle 메서드 race-free, -race detector PASS | AC-013, AC-014 | Direct (counter race + histogram race) |
 | REQ-OBS-METRICS-011 | State-Driven | IF Sink == noop, 모든 메서드 no-op + ≤5ns benchmark | AC-005, AC-011, AC-012 | Direct (factory + no-side-effect + benchmark) |
@@ -275,7 +275,7 @@ EARS 5 패턴: Ubiquitous (항상), Event-Driven (WHEN), State-Driven (WHILE/IF)
 | REQ-OBS-METRICS-016 | Unwanted | 어떤 구현체도 backend SDK lifecycle (init/shutdown/flush) 을 caller 에게 요구하지 않음 | (godoc/NFR-verified) | Verified by §6.1 Sink interface 정의에 Close()/Shutdown()/Flush() 메서드 부재 + godoc 명시 ("MUST NOT require lifecycle calls"). Test 불필요 — interface signature 부재가 contract |
 | REQ-OBS-METRICS-017 | Unwanted | 본 SPEC 의 산출물은 `internal/observability/metrics/` 트리만; consumer 패키지 emission code 작성 안 함 | (NFR/scope) | Scope discipline — §10 Deliverables 표가 산출물 트리 enumerate. PR diff review 로 enforce |
 | REQ-OBS-METRICS-018 | Optional | WHERE daemon + net/http active, /debug/vars 자동 노출 (access control 본 SPEC scope 외) | (deferred) | Deferred to SPEC-GOOSE-CMDCTX-DAEMON-INTEG-001 (HTTP server 활성화 컨텍스트). 본 SPEC 은 expvar `init()` 의 부수효과 godoc 명시만 |
-| REQ-OBS-METRICS-019 | Optional | WHERE 운영자가 cap 변경 원함, v0.2.0 `GOOSE_METRICS_LABEL_CAP` env amendment 가능 (v0.1.0 hardcoded) | (informational, future) | Future amendment — v0.1.0 cap 100 hardcoded. 본 SPEC 검증 대상 아님 |
+| REQ-OBS-METRICS-019 | Optional | WHERE 운영자가 cap 변경 원함, v0.2.0 `MINK_METRICS_LABEL_CAP` env amendment 가능 (v0.1.0 hardcoded) | (informational, future) | Future amendment — v0.1.0 cap 100 hardcoded. 본 SPEC 검증 대상 아님 |
 | REQ-OBS-METRICS-020 | Optional | WHERE caller 도메인별 bucket customize 원함, Histogram(name, labels, buckets) parameter 로 명시 | AC-007 | Direct (b) — buckets nil 시 default fallback 검증; non-nil 시 caller 책임 |
 
 **커버리지 결론**:
@@ -404,7 +404,7 @@ package noop
 import "github.com/modu-ai/goose/internal/observability/metrics"
 
 // New returns a no-op metrics.Sink. All methods return shared no-op handles.
-// Use as default fallback when GOOSE_METRICS_ENABLED is unset/false.
+// Use as default fallback when MINK_METRICS_ENABLED is unset/false.
 func New() metrics.Sink {
     return noopSink{}
 }
@@ -441,8 +441,8 @@ func (noopGauge) Add(delta float64) {}
 
 | env 값 | 동작 | wiring 진입점 |
 |--------|------|---------------|
-| `GOOSE_METRICS_ENABLED=true` 또는 `=1` | expvar.New() sink 주입 | CLI / daemon (별도 SPEC) |
-| `GOOSE_METRICS_ENABLED=false` 또는 `=0` 또는 미설정 (alpha) | noop.New() sink 주입 | CLI / daemon |
+| `MINK_METRICS_ENABLED=true` 또는 `=1` | expvar.New() sink 주입 | CLI / daemon (별도 SPEC) |
+| `MINK_METRICS_ENABLED=false` 또는 `=0` 또는 미설정 (alpha) | noop.New() sink 주입 | CLI / daemon |
 | 미설정 (beta+) | expvar.New() sink 주입 | CLI / daemon |
 
 본 SPEC 은 env 값을 검사하지 않는다. wiring 진입점 SPEC (CLI-INTEG / DAEMON-INTEG) 의 책임.
@@ -523,7 +523,7 @@ SPEC-GOOSE-OBS-METRICS-001 (본 SPEC, planned, P2)
   )
 
   func selectMetricsSink(logger *slog.Logger) metrics.Sink {
-      switch os.Getenv("GOOSE_METRICS_ENABLED") {
+      switch os.Getenv("MINK_METRICS_ENABLED") {
       case "true", "1":
           return metricsexpvar.New(logger)
       default:
@@ -560,7 +560,7 @@ NFR-OBS-METRICS-004 / 005 의 임계값은 plan phase 추정. run phase benchmar
 | ID | 위험 | 우선순위 | 완화 전략 |
 |----|------|----------|-----------|
 | R1 | expvar 어댑터의 histogram 자체 구현이 production-ready 수준 미달 (bucket overflow, percentile 미지원) | 중 | (a) bucket overflow: max bucket 초과 값은 별도 `+Inf` bucket counter 에 누적 (Prometheus 관행 모방). (b) percentile 미지원: 본 SPEC scope 외 — Phase 2 OTel 어댑터에서 OTel SDK percentile aggregation 사용. (c) Phase 1 의 expvar histogram 은 운영자 디버깅 / 카운트 수준 관찰용임을 godoc 명시. |
-| R2 | cardinality cap (100) 이 실제 운영 시 부족 | 중 | (a) Phase 1 hardcoded 100, 부족 시 v0.2.0 amendment 로 env `GOOSE_METRICS_LABEL_CAP` 도입 (REQ-OBS-METRICS-019). (b) cap 도달 시 warn log 가 운영자에게 신호 — 빠른 감지 가능. |
+| R2 | cardinality cap (100) 이 실제 운영 시 부족 | 중 | (a) Phase 1 hardcoded 100, 부족 시 v0.2.0 amendment 로 env `MINK_METRICS_LABEL_CAP` 도입 (REQ-OBS-METRICS-019). (b) cap 도달 시 warn log 가 운영자에게 신호 — 빠른 감지 가능. |
 | R3 | consumer SPEC TELEMETRY-001 의 `MetricsSink` interface 가 본 SPEC `metrics.Sink` 와 미세하게 불일치 (factory 시그니처 차이) | 낮음 | (a) §7.3 contract 일치 검증 표로 plan phase 시점에 호환성 확인. (b) consumer SPEC 의 §3.1 #1 이 "선행 SPEC 의 sink 를 그대로 alias" 로 명시 — 본 SPEC 이 source of truth, consumer 가 type alias 로 import. (c) Histogram 시그니처 차이: 본 SPEC 은 `buckets` parameter 추가, consumer 가 nil 전달 시 default bucket — backward compatible. |
 | R4 | expvar `init()` 의 `/debug/vars` HTTP handler 자동 등록이 사용자가 의도하지 않은 endpoint 노출 | 낮음 | (a) godoc 에 명시: "expvar imports register the /debug/vars handler in net/http.DefaultServeMux at init time." (b) production daemon 의 endpoint 보안 분리는 별도 SPEC `SPEC-GOOSE-OBS-METRICS-SECURITY-001` (TBD). (c) CLI 단발 호출에는 `net/http` HTTP server 미실행 → 영향 없음. |
 | R5 | Phase 2 OTel 어댑터 도입 시 본 SPEC 의 `Sink` interface 가 OTel `metric.Meter` 와 mapping 불가능 | 낮음 | (a) research.md §4.1 / §6.4 의 mapping 표로 mapping 가능성 검증 — Counter→Counter, Histogram→Histogram, Gauge→ObservableGauge or UpDownCounter 으로 자연스러움. (b) 호환성 테스트: Phase 2 SPEC implementation 시 동일 emit 패턴이 OTel collector 측에서 동일 series 로 수신됨을 검증. |

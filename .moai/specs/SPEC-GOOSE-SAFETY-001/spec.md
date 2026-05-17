@@ -38,7 +38,7 @@ REFLECT-001이 `HighConfidence`로 승격시킨 `LearningEntry`가 실제 사용
 ### 2.1 왜 지금 필요한가
 
 - REFLECT-001은 상태 머신만 구현하고 `MarkGraduated`에 SafetyToken을 요구한다. 이 토큰을 발급하는 유일한 컴포넌트가 SAFETY-001이다. 즉 SAFETY-001 없이는 어떤 학습도 실제로 Graduated 상태에 도달할 수 없다.
-- `.claude/rules/agency/constitution.md §5`가 명시한 5-layer safety architecture를 GOOSE 개인 학습 환경에 맞게 포팅하는 유일한 SPEC이다.
+- `.claude/rules/agency/constitution.md §5`가 명시한 5-layer safety architecture를 MINK 개인 학습 환경에 맞게 포팅하는 유일한 SPEC이다.
 - ROLLBACK-001은 SAFETY의 CanaryCheck 결과와 HumanOversight 승인 이력에 의존한다. SAFETY가 선행되어야 ROLLBACK이 건설된다.
 
 ### 2.2 상속 자산
@@ -49,7 +49,7 @@ REFLECT-001이 `HighConfidence`로 승격시킨 `LearningEntry`가 실제 사용
 
 ### 2.3 GOOSE-specific 차이점
 
-| 축 | MoAI (agency) | GOOSE (개인) |
+| 축 | MoAI (agency) | MINK (개인) |
 |----|--------------|------------|
 | Frozen 대상 | `.claude/rules/agency/constitution.md`, safety architecture, pipeline phase ordering | `CLAUDE.md`, `.claude/rules/core/*`, `.claude/rules/moai/core/*`, `learning-engine.md`, `user.yaml` |
 | Canary 대상 | 최근 3 project 재평가 | 최근 3 session shadow 재평가 (trajectory replay) |

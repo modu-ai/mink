@@ -25,7 +25,7 @@ labels: []
 
 ## 1. 개요 (Overview)
 
-GOOSE가 사용자를 "한 사람"으로 이해하기 위한 **Identity Graph** 를 정의한다. 사용자와 주변(사람/조직/위치/사건/사물)의 관계를 **POLE+O 스키마**(Person, Organization, Location, Event, Object)로 표현하고, 모든 사실(fact)에 **temporal validity window**(`valid_from`, `valid_until`)를 부여한다. 저장소는 로컬 임베디드 그래프 DB인 **Kuzu** 를 기본값으로 하고, 협업·다중 사용자 시나리오에서는 **Neo4j 어댑터**를 선택적으로 활성화한다.
+MINK가 사용자를 "한 사람"으로 이해하기 위한 **Identity Graph** 를 정의한다. 사용자와 주변(사람/조직/위치/사건/사물)의 관계를 **POLE+O 스키마**(Person, Organization, Location, Event, Object)로 표현하고, 모든 사실(fact)에 **temporal validity window**(`valid_from`, `valid_until`)를 부여한다. 저장소는 로컬 임베디드 그래프 DB인 **Kuzu** 를 기본값으로 하고, 협업·다중 사용자 시나리오에서는 **Neo4j 어댑터**를 선택적으로 활성화한다.
 
 본 SPEC은 다음 네 요소를 하나의 일관된 계약으로 제공한다:
 
@@ -48,7 +48,7 @@ GOOSE가 사용자를 "한 사람"으로 이해하기 위한 **Identity Graph** 
 
 ### 2.2 상속 자산 (패턴만 계승)
 
-- **Graphiti (Zep, 2024, open-source)**: Temporal Graph RAG 패턴. Entity extraction + episode-based fact tracking. GOOSE는 Graphiti의 validity-window 개념만 차용하고, 저장소는 Kuzu 임베디드로 대체.
+- **Graphiti (Zep, 2024, open-source)**: Temporal Graph RAG 패턴. Entity extraction + episode-based fact tracking. MINK는 Graphiti의 validity-window 개념만 차용하고, 저장소는 Kuzu 임베디드로 대체.
 - **Kuzu 0.11.x**: Embedded property-graph DB. Cypher 서브셋 지원, 단일 바이너리, ACID. `github.com/kuzu-db/kuzu-go` 바인딩.
 - **Neo4j 5.26**: 협업·멀티유저 백엔드 옵션. `github.com/neo4j/neo4j-go-driver/v5`.
 - **SHACL**(W3C Shapes Constraint Language): 스키마 제약 검증 표준. 본 SPEC은 **서브셋**(class, datatype, min/maxCount, inverseOf)만 구현.
@@ -69,7 +69,7 @@ GOOSE가 사용자를 "한 사람"으로 이해하기 위한 **Identity Graph** 
 3. 관계(predicate) 어휘 초기 목록: `KNOWS`, `WORKS_AT`, `REPORTS_TO`, `MEMBER_OF`, `LIVES_AT`, `WORKS_AT_LOC`, `FREQUENTS`, `CELEBRATES`, `ATTENDS`, `PLANS`, `LIKES`, `DISLIKES`, `OWNS`, `WORKS_ON`, `PREFERS` (YAML 파일 `internal/learning/identity/predicates.yaml`, 사용자 확장 가능).
 4. `TemporalFact` 구조체: (subject_id, predicate, object_id, valid_from, valid_until?, episode_id, confidence, source).
 5. `IdentityGraph` 인터페이스 — AssertFact, InvalidateFact, Query(cypher), GetEntity, PutEntity, ListFacts(entityID, asOf), Snapshot, Restore, Close.
-6. `KuzuBackend` 기본 구현: 임베디드 DB 파일 `$GOOSE_HOME/identity/graph.kuzu`.
+6. `KuzuBackend` 기본 구현: 임베디드 DB 파일 `$MINK_HOME/identity/graph.kuzu`.
 7. `Neo4jBackend` 어댑터: `--identity.backend=neo4j` 설정 시, bolt URL 필요. 본 SPEC은 인터페이스 동등성만 보장.
 8. 엔티티 추출 파이프라인 `Extractor`: 입력은 `[]Interaction`(SPEC-GOOSE-TRAJECTORY-001 결과), 출력은 `[]ExtractedEntity` + `[]ExtractedRelation`. NER 기본(rule-based+regex) + LLM-assisted(선택).
 9. SHACL 서브셋 검증기 `SHACLValidator`: subject class, object class, cardinality (min/max), inverseOf 체크. Fact 저장 전 호출.
@@ -124,7 +124,7 @@ When `AssertFact(subject, predicate, object, validFrom, validUntil)` is called, 
 When `AssertFact` is called with a predicate that already has an active (valid_until = nil) fact for the same subject and the predicate's `maxCardinality = 1`, the service shall close the previous fact by setting its `valid_until` to the new fact's `valid_from - 1ns` (atomic within a transaction).
 
 ### REQ-IDENTITY-006 [State-Driven]
-While the configuration value `identity.backend` is `kuzu` (default), all persistence operations shall be executed against a local Kuzu database at `$GOOSE_HOME/identity/graph.kuzu`.
+While the configuration value `identity.backend` is `kuzu` (default), all persistence operations shall be executed against a local Kuzu database at `$MINK_HOME/identity/graph.kuzu`.
 
 ### REQ-IDENTITY-007 [State-Driven]
 While the configuration value `identity.backend` is `neo4j`, the service shall establish a bolt connection using `identity.neo4j.uri` and delegate to the Neo4j driver; all interface contracts (REQ-IDENTITY-001..005) shall remain identical.
@@ -428,7 +428,7 @@ Given `valid_until = time.Now() - 31 days` 인 과거 fact 가 있을 때, When 
 
 - **상위 의존**: MEMORY-001(episode_id 참조), SAFETY-001(frozen-path 보호 호출 경로).
 - **하위 소비자**: VECTOR-001(엔티티 embedding), LORA-001(훈련 데이터 엔티티 인용), proactive engine(Phase 6+), A2A-001(외부 에이전트에게 Agent Card 표시 시 graph 발췌).
-- **CLI 영향**: `goose identity dump`, `goose identity export --format=jsonld`, `goose identity snapshot <path>` 세 명령 추가 (CLI-001 후속 PR).
+- **CLI 영향**: `mink identity dump`, `mink identity export --format=jsonld`, `mink identity snapshot <path>` 세 명령 추가 (CLI-001 후속 PR).
 
 ---
 

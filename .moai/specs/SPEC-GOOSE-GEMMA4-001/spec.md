@@ -3,14 +3,17 @@ id: SPEC-GOOSE-GEMMA4-001
 version: 0.1.0
 status: planned
 created_at: 2026-04-29
-updated_at: 2026-04-29
+updated_at: 2026-05-17
 author: manager-spec
-priority: P0
+priority: P1
 issue_number: null
 phase: 1
 size: 중(M)
 lifecycle: spec-anchored
-labels: [gemma4, local-llm, ollama, cross-platform, ml-lm, area/llm, type/feature, priority/p0-critical]
+labels: [gemma4, local-llm, ollama, cross-platform, ml-lm, area/llm, type/feature]
+target_milestone: v0.2.0
+mvp_status: deferred
+deferred_reason: "0.1.0 MVP 범위 외 — v0.2.0 이월 (2026-05-17 사용자 확정). 0.1.0은 기존 qwen2.5:3b 기본 유지, gemma4 전환은 v0.2.0. priority P0 → P1 강등."
 ---
 
 # SPEC-GOOSE-GEMMA4-001 — Gemma 4 Local Mode Integration
@@ -25,7 +28,7 @@ labels: [gemma4, local-llm, ollama, cross-platform, ml-lm, area/llm, type/featur
 
 ## 1. 개요 (Overview)
 
-AI.GOOSE의 **기본 로컬 LLM을 `qwen2.5:3b`에서 `ai-goose/gemma4-e4b-rl-v1`로 전환**하고, 사용자 시스템 RAM에 따른 최적 모델 프로파일 자동 추천, Ollama 모델 자동 다운로드, 그리고 local/cloud/hybrid 3모드 LLM 운영 체계를 확립한다.
+AI.MINK의 **기본 로컬 LLM을 `qwen2.5:3b`에서 `ai-goose/gemma4-e4b-rl-v1`로 전환**하고, 사용자 시스템 RAM에 따른 최적 모델 프로파일 자동 추천, Ollama 모델 자동 다운로드, 그리고 local/cloud/hybrid 3모드 LLM 운영 체계를 확립한다.
 
 수락 조건 통과 시점에서:
 
@@ -42,7 +45,7 @@ AI.GOOSE의 **기본 로컬 LLM을 `qwen2.5:3b`에서 `ai-goose/gemma4-e4b-rl-v1
 
 ### 2.1 왜 Gemma 4인가
 
-- Google Gemma 4는 2026년 기준 오픈모델 중 **성능/효율 최상위권**이다. RL(Reinforcement Learning) 파인튜닝을 통해 AI.GOOSE의 컴패니언 AI 시나리오(대화, 코드 생성, 도구 호출)에 최적화된 `gemma4-e4b-rl-v1` 모델을 개발했다.
+- Google Gemma 4는 2026년 기준 오픈모델 중 **성능/효율 최상위권**이다. RL(Reinforcement Learning) 파인튜닝을 통해 AI.MINK의 컴패니언 AI 시나리오(대화, 코드 생성, 도구 호출)에 최적화된 `gemma4-e4b-rl-v1` 모델을 개발했다.
 - E4B(4-billion effective parameters) 크기는 **8-16GB RAM 시스템**에서 실행 가능하며, M4 Max 128GB에서 훈련 후 Ollama registry를 통해 배포한다.
 - Ollama registry 배포를 통해 Windows/Mac/Linux 모든 사용자가 `ollama pull ai-goose/gemma4-e4b-rl-v1` 한 줄로 설치 가능하다.
 

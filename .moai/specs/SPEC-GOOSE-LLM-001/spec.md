@@ -26,7 +26,7 @@ labels: []
 
 ## 1. 개요 (Overview)
 
-AI.GOOSE의 모든 LLM 호출이 통과해야 할 **`LLMProvider` 인터페이스와 Ollama 어댑터 1종**을 정의한다. 본 SPEC은 Anthropic/OpenAI/Gemini 어댑터를 **포함하지 않는다** — 그것은 별도 SPEC에서 단일 인터페이스를 만족하는 추가 구현으로 붙는다.
+AI.MINK의 모든 LLM 호출이 통과해야 할 **`LLMProvider` 인터페이스와 Ollama 어댑터 1종**을 정의한다. 본 SPEC은 Anthropic/OpenAI/Gemini 어댑터를 **포함하지 않는다** — 그것은 별도 SPEC에서 단일 인터페이스를 만족하는 추가 구현으로 붙는다.
 
 수락 조건 통과 시점에서:
 

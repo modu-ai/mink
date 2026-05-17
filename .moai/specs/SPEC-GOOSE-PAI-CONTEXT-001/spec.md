@@ -40,7 +40,7 @@ labels: []
 ## Requirements (EARS)
 
 ### REQ-PAI-CONTEXT-001
-**WHEN** `goose init` 이 실행될 때, the system **SHALL** `./.goose/context/` 에 11개 템플릿 파일을 생성한다.
+**WHEN** `mink init` 이 실행될 때, the system **SHALL** `./.goose/context/` 에 11개 템플릿 파일을 생성한다.
 
 ### REQ-PAI-CONTEXT-002
 **WHEN** Agent Core가 Plan phase에서 context retrieval을 수행할 때, the system **SHALL** 관련 identity 파일을 relevance score 기반으로 선택적으로 로드한다.

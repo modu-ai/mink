@@ -3,14 +3,17 @@ id: SPEC-GOOSE-AUTH-001
 version: 0.1.0
 status: planned
 created_at: 2026-04-22
-updated_at: 2026-04-22
+updated_at: 2026-05-17
 author: session-decision
-priority: P0
+priority: P1
 issue_number: null
 phase: 6
 size: 중(M)
 lifecycle: spec-first
-labels: []
+labels: [auth, token, localhost, api-bearer, phase-6]
+target_milestone: v0.2.0
+mvp_status: deferred
+deferred_reason: "0.1.0 MVP 범위 외 — v0.2.0 이월 (2026-05-17 사용자 확정). 0.1.0의 인증은 SPEC-MINK-AUTH-CREDENTIAL-001 (v0.3.0 implemented, OS keyring 기반)이 담당. 본 SPEC의 localhost token 기반 Web UI auth는 WEBUI-001 와 함께 v0.2.0 동반 이월."
 ---
 
 # SPEC-GOOSE-AUTH-001 — Local Token-Based Authentication

@@ -3,14 +3,17 @@ id: SPEC-GOOSE-HEALTH-001
 version: 0.1.0
 status: planned
 created_at: 2026-04-22
-updated_at: 2026-04-22
+updated_at: 2026-05-17
 author: manager-spec
 priority: P1
 issue_number: null
 phase: 7
 size: 중(M)
 lifecycle: spec-anchored
-labels: []
+labels: [health, medication, meal-tracker, regulatory, phase-7]
+target_milestone: v0.2.0
+mvp_status: deferred
+deferred_reason: "0.1.0 MVP 범위 외 — v0.2.0 이월 (2026-05-17 사용자 확정). 의료 규제·DUR 외부 의존 큼, MVP 후순위."
 ---
 
 # SPEC-GOOSE-HEALTH-001 — Meal · Medication · Hydration Tracker (Post-Meal Ritual, Drug Interaction Warning, No Medical Advice)
@@ -25,7 +28,7 @@ labels: []
 
 ## 1. 개요 (Overview)
 
-GOOSE v6.0 Daily Companion의 **매 끼니 이후 리추얼**을 담당한다. 사용자 지시: "매 끼니 이후 건강/약 먹도록 안내". SCHEDULER-001이 `PostBreakfastTime` / `PostLunchTime` / `PostDinnerTime` HOOK 이벤트를 emit하면 본 SPEC이 활성화되어:
+MINK v6.0 Daily Companion의 **매 끼니 이후 리추얼**을 담당한다. 사용자 지시: "매 끼니 이후 건강/약 먹도록 안내". SCHEDULER-001이 `PostBreakfastTime` / `PostLunchTime` / `PostDinnerTime` HOOK 이벤트를 emit하면 본 SPEC이 활성화되어:
 
 1. **복약 리마인더** — 사용자가 등록한 약(이름·용량·복용시간) 알림
 2. **식사 로그** — "뭐 드셨어요?" 질문 + 사용자 답변을 MEMORY-001에 기록

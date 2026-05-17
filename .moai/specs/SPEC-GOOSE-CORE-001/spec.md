@@ -30,7 +30,7 @@ labels: [phase-0, area/core, area/runtime, area/health, type/feature]
 
 ## 1. 개요 (Overview)
 
-AI.GOOSE의 모든 후속 기능이 붙어야 할 **Go 데몬 프로세스 `goosed`의 최소 부트스트랩 경로**를 정의한다. 본 SPEC은 제품 기능을 포함하지 않는다. 오로지 "데몬이 결정론적으로 뜨고, 신호를 받으면 결정론적으로 내려간다"는 **플랫폼 기반 계약**만 규정한다.
+AI.MINK의 모든 후속 기능이 붙어야 할 **Go 데몬 프로세스 `goosed`의 최소 부트스트랩 경로**를 정의한다. 본 SPEC은 제품 기능을 포함하지 않는다. 오로지 "데몬이 결정론적으로 뜨고, 신호를 받으면 결정론적으로 내려간다"는 **플랫폼 기반 계약**만 규정한다.
 
 수락 조건을 통과한 시점에서 `goosed`는:
 
@@ -67,7 +67,7 @@ AI.GOOSE의 모든 후속 기능이 붙어야 할 **Go 데몬 프로세스 `goos
 
 1. Go 1.26+ 단일 바이너리 `goosed`가 `cmd/goosed/main.go`에 존재한다.
 2. 프로세스 생애주기: `init → bootstrap → serve → shutdown`의 4-단계 상태 머신.
-3. 환경 변수 `GOOSE_HOME` (기본값: `~/.goose`)에서 설정 파일 `~/.goose/config.yaml`을 읽는다. 파일 부재 시 템플릿 기본값으로 fallback.
+3. 환경 변수 `MINK_HOME` (기본값: `~/.goose`)에서 설정 파일 `~/.goose/config.yaml`을 읽는다. 파일 부재 시 템플릿 기본값으로 fallback.
 4. 구조화 로거(`uber-go/zap`) 초기화, JSON 포맷 + stderr 출력.
 5. `context.Context` 기반 shutdown 전파 (context cancellation을 모든 하위 goroutine이 구독).
 6. `SIGINT` 또는 `SIGTERM` 수신 시 30초 이내 cleanup + exit 0.
@@ -83,7 +83,7 @@ AI.GOOSE의 모든 후속 기능이 붙어야 할 **Go 데몬 프로세스 `goos
 - Agent/Tool/Memory 초기화 (각자 SPEC).
 - TLS/인증 (mTLS는 전송 SPEC에서).
 - 로그 회전(logrotate), 파일 로거 (stderr only).
-- `GOOSE_HOME` 외 복수 설정 탐색 경로 (예: `/etc/goose/`).
+- `MINK_HOME` 외 복수 설정 탐색 경로 (예: `/etc/goose/`).
 - Windows Service / launchd / systemd 유닛 파일 생성.
 - 백그라운드 데몬화(`daemon()` fork/setsid) — 포어그라운드 전용. systemd 등 상위 supervisor가 관리한다고 가정.
 
@@ -119,13 +119,13 @@ AI.GOOSE의 모든 후속 기능이 붙어야 할 **Go 데몬 프로세스 `goos
 
 **REQ-CORE-009 [Unwanted]** — **If** any cleanup hook panics, **then** the `goosed` process **shall** log the panic with full stack trace, continue executing remaining hooks, and exit with code `1` instead of `0`.
 
-**REQ-CORE-010 [Unwanted]** — **If** `GOOSE_HOME/config.yaml` exists but fails YAML parsing, **then** the `goosed` process **shall** exit with code `78` (EX_CONFIG) without starting the health server.
+**REQ-CORE-010 [Unwanted]** — **If** `MINK_HOME/config.yaml` exists but fails YAML parsing, **then** the `goosed` process **shall** exit with code `78` (EX_CONFIG) without starting the health server.
 
-**REQ-CORE-011 [Unwanted]** — **If** `GOOSE_LOG_LEVEL` is set to `info` or higher, **then** the `goosed` process **shall not** write any log line at level `DEBUG` or below.
+**REQ-CORE-011 [Unwanted]** — **If** `MINK_LOG_LEVEL` is set to `info` or higher, **then** the `goosed` process **shall not** write any log line at level `DEBUG` or below.
 
 ### 4.5 Optional (선택적)
 
-**REQ-CORE-012 [Optional]** — **Where** environment variable `GOOSE_HEALTH_PORT` is defined, the health server **shall** bind to that port instead of the default `17890`.
+**REQ-CORE-012 [Optional]** — **Where** environment variable `MINK_HEALTH_PORT` is defined, the health server **shall** bind to that port instead of the default `17890`.
 
 ### 4.6 Cross-Package Contracts (v1.1.0 신규 — `[Pending Implementation v1.1]`)
 
@@ -142,7 +142,7 @@ AI.GOOSE의 모든 후속 기능이 붙어야 할 **Go 데몬 프로세스 `goos
 > 각 AC는 Given-When-Then. `*_test.go`로 변환 가능한 수준.
 
 **AC-CORE-001 — 정상 부트스트랩 및 헬스체크 (REQ-CORE-001/002/003/005)**
-- **Given** `GOOSE_HOME`이 `t.TempDir()`로 설정되고 `config.yaml`이 비어있는 기본값 상태
+- **Given** `MINK_HOME`이 `t.TempDir()`로 설정되고 `config.yaml`이 비어있는 기본값 상태
 - **When** `goosed`를 실행하고 200ms 대기
 - **Then** 상태는 `serving`이고, `curl localhost:17890/healthz`가 200 + `{"status":"ok","state":"serving","version":"<semver>"}`를 반환하며, **응답 latency가 50ms 이내**임이 측정되어야 한다(REQ-CORE-005 — `time.Since(start) < 50*time.Millisecond` 단속).
 
@@ -152,7 +152,7 @@ AI.GOOSE의 모든 후속 기능이 붙어야 할 **Go 데몬 프로세스 `goos
 - **Then** 프로세스는 3초 이내 exit 0으로 종료하고, 등록된 cleanup hook 3개가 모두 호출되었음이 로그로 확인됨
 
 **AC-CORE-003 — 잘못된 YAML 설정 파일 거부**
-- **Given** `GOOSE_HOME/config.yaml`에 비-YAML 텍스트 (`"::: not yaml :::"`) 기록
+- **Given** `MINK_HOME/config.yaml`에 비-YAML 텍스트 (`"::: not yaml :::"`) 기록
 - **When** `goosed` 실행
 - **Then** exit code 78, stderr에 `config parse error` ERROR 레벨 로그 1건, 헬스서버는 기동하지 않음
 
@@ -177,12 +177,12 @@ AI.GOOSE의 모든 후속 기능이 붙어야 할 **Go 데몬 프로세스 `goos
 - **Then** 연결 시도가 `connection refused` 또는 동등한 OS 오류로 실패해야 한다(listener는 hook fan-out 이전에 close됨). 실패는 `draining` 상태 관측 시점으로부터 100ms 이내에 발생해야 한다.
 
 **AC-CORE-008 — DEBUG 로그 억제 (REQ-CORE-011)**
-- **Given** 환경변수 `GOOSE_LOG_LEVEL=info`로 `goosed` 시작
+- **Given** 환경변수 `MINK_LOG_LEVEL=info`로 `goosed` 시작
 - **When** 내부 코드가 `logger.Debug(...)`를 1회 이상 호출
 - **Then** stderr에서 캡처한 JSON 로그 라인 중 `"level":"debug"` 필드를 가진 라인이 **0건**이어야 한다.
 
 **AC-CORE-009 — 헬스 포트 override (REQ-CORE-012)**
-- **Given** 환경변수 `GOOSE_HEALTH_PORT=18999` 설정 후 `goosed` 시작
+- **Given** 환경변수 `MINK_HEALTH_PORT=18999` 설정 후 `goosed` 시작
 - **When** `curl http://127.0.0.1:18999/healthz` 200ms 이내 호출
 - **Then** 200 + `{"status":"ok","state":"serving",...}` 반환. 동시에 기본 포트 `:17890`에는 어떤 listener도 바인딩되어 있지 않아야 한다(`net.Dial("tcp", "127.0.0.1:17890")` → `connection refused`).
 
@@ -394,7 +394,7 @@ iter 1 감사에서 도출된 Major 결함 B4-1·B4-2(root context 미전파, Ru
 | R2 | `SIGTERM` 처리가 OS별로 상이 (Windows) | 중 | 낮 | 초기 타깃은 darwin/linux만. Windows 지원은 OUT OF SCOPE |
 | R3 | 30초 graceful 타임아웃 부족 (LoRA 훈련 중 종료 등) | 낮 | 중 | 본 SPEC은 학습 hook 없음. 학습 SPEC들이 자체 cancellable 패턴 보장 |
 | R4 | panic recovery가 stack trace를 분실 | 낮 | 중 | `debug.Stack()` 호출 보장, 테스트로 검증 (AC-CORE-005) |
-| R5 | 기본 포트 17890이 사용 중인 환경에서 기본값 충돌 | 중 | 낮 | `GOOSE_HEALTH_PORT` env override 제공 (REQ-CORE-012) |
+| R5 | 기본 포트 17890이 사용 중인 환경에서 기본값 충돌 | 중 | 낮 | `MINK_HEALTH_PORT` env override 제공 (REQ-CORE-012) |
 
 ---
 

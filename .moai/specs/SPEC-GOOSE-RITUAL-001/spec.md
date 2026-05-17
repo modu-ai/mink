@@ -33,7 +33,7 @@ labels: [ritual, orchestration, bond-score, streak, mood-adaptive, state-machine
 
 ## 1. 개요 (Overview)
 
-GOOSE v6.0 Daily Companion의 **최상위 orchestration 레이어**. Phase 7의 모든 하위 SPEC(SCHEDULER/BRIEFING/HEALTH/JOURNAL)을 **하나의 일관된 하루 경험**으로 묶는다.
+MINK v6.0 Daily Companion의 **최상위 orchestration 레이어**. Phase 7의 모든 하위 SPEC(SCHEDULER/BRIEFING/HEALTH/JOURNAL)을 **하나의 일관된 하루 경험**으로 묶는다.
 
 ```
 🌅 Morning (07:30)   → BRIEFING (운세·날씨·일정)

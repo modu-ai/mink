@@ -167,7 +167,7 @@ vision-level 1 단락 vs detail-level 4 단락의 차이:
 
 - **REQ-MINK-DST-STRUCT-002 [Ubiquitous]** Each of the 5 product sections (block/goose, Hermes, Replika, Routinery, OpenClaw) **shall** follow the 4-paragraph standard structure: (a) Identity, (b) MINK is NOT, (c) How MINK differs, (d) optional Note on coexistence.
 
-- **REQ-MINK-DST-BLOCK-001 [Ubiquitous]** The `## vs block/goose` section **shall** include the following factual identity: block (Stripe spinoff), Apache-2.0 license, github.com/block/goose repo, multi-tenant agent platform category.
+- **REQ-MINK-DST-BLOCK-001 [Ubiquitous]** The `## vs block/goose` section **shall** include the following factual identity: block (Stripe spinoff), Apache-2.0 license, github.com/block/mink repo, multi-tenant agent platform category.
 
 - **REQ-MINK-DST-HERMES-001 [Ubiquitous]** The `## vs Hermes` section **shall** describe Hermes as a Korean-market "AI girlfriend / friend LLM-bot" category (multiple commercial vendors, not a single product) and **shall not** name or attack any specific commercial vendor instance.
 
@@ -227,7 +227,7 @@ grep -c '^| 1\.0\.0 | 2026-05-12 |' .moai/project/distancing.md   # ≥ 1
 
 REQ 매핑: REQ-MINK-DST-FILE-001, REQ-MINK-DST-FILE-002
 
-### AC-002 — vs block/goose section grep ≥ 3
+### AC-002 — vs block/mink section grep ≥ 3
 
 **Given** 본 SPEC run-phase PR squash merge 후
 **When** `.moai/project/distancing.md` 의 본문에서 `block/goose` 또는 `block goose` 토큰을 grep 하면
@@ -584,7 +584,7 @@ AC:   AC-001 ~ AC-011
 
 ### 9.4 본 프로젝트 기존 자료
 
-- `.moai/project/branding.md` (v4.0 GLOBAL EDITION + v5.0 Tamagotchi, 24939 bytes, 2026-04-27): 옛 GOOSE 자료. v7.0 vision reset 이후 sibling 정정 후속 SPEC 대상. 본 SPEC 의 brand-voice 는 branding.md v4.0 의 GOOSE / 거위 / 다마고치 메타포 인용 안 함.
+- `.moai/project/branding.md` (v4.0 GLOBAL EDITION + v5.0 Tamagotchi, 24939 bytes, 2026-04-27): 옛 MINK 자료. v7.0 vision reset 이후 sibling 정정 후속 SPEC 대상. 본 SPEC 의 brand-voice 는 branding.md v4.0 의 MINK / 거위 / 다마고치 메타포 인용 안 함.
 - `.moai/project/brand/{brand-voice,visual-identity,target-audience}.md`: 모두 `_TBD_` stub (brand interview 미완). 본 SPEC 의 brand-voice 사양은 self-derived (research.md §3.2).
 - `CLAUDE.md` §10 Web Search Protocol (anti-hallucination): 5 product 사실 확인 의무 근거.
 - `CLAUDE.local.md` §1.4 (squash merge), §2.2 (한국어 commit body), §2.5 (code comment 영어 / 사용자 문서 한국어 1차 정책).

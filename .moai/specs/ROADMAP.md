@@ -17,7 +17,81 @@
 
 ---
 
-## 0. 진행 상태 스냅샷 ★ (2026-05-04 갱신)
+## 0. v0.1.0 MVP 범위 (FROZEN — 2026-05-17 사용자 확정)
+
+> **결정 (2026-05-17)**: 0.1.0 public 첫 릴리스에 집중하기 위해 일부 야심찬 기능을 **v0.2.0 으로 이월**. 이 결정은 ROADMAP/IMPLEMENTATION-ORDER 전반에 우선한다. 10건의 이월 SPEC 은 각 spec.md frontmatter 에 `target_milestone: v0.2.0` + `mvp_status: deferred` 표시됨.
+
+### 0.0 v0.1.0 MVP 핵심 경로 (지금 집중)
+
+```
+[Foundation 완성됨]
+CORE → CONFIG → TRANSPORT → QUERY → CONTEXT       ✅
+CREDPOOL → ROUTER → RATELIMIT → PROMPT-CACHE → ADAPTER   ✅
+SKILLS → MCP → HOOK → SUBAGENT → PLUGIN → PERMISSION    ✅
+TOOLS → COMMAND → CLI                                    ✅
+TRAJECTORY → MEMORY → ERROR-CLASS → AUDIT               ✅
+
+[v0.1.0 진행 중 / 잔여]
+SCHEDULER → WEATHER → JOURNAL → BRIEFING(M4)            ✅ (BRIEFING v0.3.1)
+MSG-TELEGRAM                                             ✅ (v0.1.4)
+MINK-LOCALE-001                                          ✅ (v0.4.0 implemented)
+MINK-AUTH-CREDENTIAL-001                                 ✅ (v0.3.0 implemented)
+MINK-BRAND-RENAME-001 / DISTANCING / PRODUCT-V7         ✅
+MINK-USERDATA-MIGRATE-001 / ENV-MIGRATE-001             ✅
+MINK-MEMORY-QMD-001                                      🟡 M1~M5a 완료 (90%), M5b 잔여
+MINK-LLM-ROUTING-V2-AMEND-001                            🟡 M1 stub, M2~M5 잔여
+MINK-CLI-TUI-003-AMEND-001                               ⏸️ plan merged, 코드 0%
+MINK-MSG-SLACK-001 / MSG-DISCORD-001                     ⏸️ plan merged, 코드 0%
+MINK-WEB-CONFIG-001                                      ⏸️ plan merged, 코드 0% (설치 후 설정 페이지)
+MINK-ONBOARDING-001 + Phase 5 AMEND                      ⏸️ Phase 1~4 wiring 부분, Phase 5 amend stub 🔴 launch 차단
+MINK-I18N-001 / MINK-CROSSPLAT-001                       ✅/🟡
+```
+
+### 0.1 v0.2.0 이월 10건 (2026-05-17 사용자 확정)
+
+다음 10개 SPEC은 0.1.0 MVP 외 — v0.2.0 마일스톤에서 다룬다. 각 spec.md frontmatter `target_milestone: v0.2.0` 마킹 완료.
+
+| SPEC | 이월 사유 |
+|---|---|
+| SPEC-GOOSE-CALENDAR-001 | 아침 브리핑은 0.1.0에서 WEATHER+JOURNAL+MSG-TELEGRAM 으로 축소. CalDAV/Google/iCloud/Outlook/Naver 통합은 v0.2.0. |
+| SPEC-GOOSE-FORTUNE-001 | 엔터테인먼트 기능, MVP 후순위. |
+| SPEC-GOOSE-HEALTH-001 | 의료 규제·DUR 외부 의존 큼, MVP 후순위. |
+| SPEC-GOOSE-LORA-001 | Deep personalization 영역, Rust crate 위임 의존. |
+| SPEC-GOOSE-GEMMA4-001 | 0.1.0은 기존 qwen2.5:3b 기본 모델 유지. gemma4 전환은 v0.2.0. priority P0→P1. |
+| SPEC-GOOSE-TRAIN-001 | GEMMA4 전환 이후 후순위. priority P1→P2. |
+| SPEC-GOOSE-AUTH-001 | 0.1.0의 인증은 MINK-AUTH-CREDENTIAL-001 (OS keyring 기반) 이 담당. 본 SPEC의 localhost Web UI auth 는 WEBUI-001 와 동반 이월. |
+| SPEC-GOOSE-A2A-001 | 외부 에이전트 통신·IDE 통합, MVP 후순위 (v2.0+ 검토). |
+| SPEC-GOOSE-WEBUI-001 | 0.1.0의 비개발자 채널은 ONBOARDING-001 설치 위저드 + Telegram/Slack/Discord. 일반 Web UI 는 v0.2.0. (ONBOARDING Phase 5 amend 의 Web 설치 위저드 + MINK-WEB-CONFIG-001 설치 후 설정 페이지는 0.1.0 유지). |
+| SPEC-GOOSE-DESKTOP-001 | 0.1.0의 PC 인터페이스는 CLI/TUI 한정. Tauri Desktop App 은 v0.2.0. priority critical→P1. |
+
+### 0.2 v0.1.0 잔여 backlog — 별도 결정 필요
+
+이월 10건 외 `planned` 상태로 남는 SPEC 들 (Phase 4 Self-Evolution / Phase 8 Personalization / Phase 6 보안 4건 / Channel / Identity 등) 은 0.1.0 시점에 코드 진입 여부를 별도 결정한다 (현 시점 명시적 v0.2.0 이월 결정 없음):
+
+- **Self-Evolution Layer 2~4** (5건): COMPRESSOR / INSIGHTS / REFLECT / SAFETY / ROLLBACK
+- **Identity/Vector** (2건): IDENTITY / VECTOR
+- **보안 4건** (v0.2 amendment 신규): CREDENTIAL-PROXY / FS-ACCESS / SECURITY-SANDBOX / SIGNING
+- **Channel / Daily Companion 잔여**: RITUAL / NOTIFY / GATEWAY-001 umbrella / GATEWAY-TG-001 / RELAY
+- **CMDCTX amendments** (3건): HOTRELOAD / PERMISSIVE-ALIAS / TELEMETRY
+- **PAI-CONTEXT-001 / REGION-SKILLS-001**: 부가 기능
+- **Draft 2건**: MINK-I18N-001 (v0.3.0 draft) / MINK-ONBOARDING-001 (v0.3.2 draft)
+
+### 0.3 MVP 핵심 ★ (v0.1.0 Launch Gate)
+
+0.1.0 public 첫 릴리스 진입 전 반드시 완료해야 하는 항목:
+
+1. **ONBOARDING-001 Phase 5 AMEND** 코드 (Web Step 2 LLM provider 로그인 wiring + Step 3 채널 연결) 🔴
+2. **LLM-ROUTING-V2-AMEND M2~M5** (5 curated provider 실 구현 + 2 패턴 인증)
+3. **MEMORY-QMD M5b** (cross-SPEC wiring + journal/briefing publish hooks)
+4. **CLI-TUI-003 AMEND** (TUI/CLI 패리티)
+5. **MSG-SLACK / MSG-DISCORD** 코드 (Telegram + 2 채널 완비)
+6. **MINK-WEB-CONFIG-001** 코드 (설치 후 설정 페이지)
+
+위 6개는 0.1.0 critical path. 나머지 §0.2 backlog 는 0.1.0 이후 추가 결정.
+
+---
+
+## 0.1. 진행 상태 스냅샷 ★ (2026-05-04 갱신)
 
 **Sync drift 정정 (2026-05-04)** — BRIDGE-001-AMEND-001 종결(#93~#98) 및 implemented→completed 3건(ADAPTER-001-AMEND-001, AGENT-RUNNER-001, CMDCTX-DAEMON-INTEG-001) 정정 반영. 활성 SPEC 83개 (amendment/meta 5건 포함, superseded 3건 제외, 전체 86건).
 

@@ -10,7 +10,7 @@ labels: [tui, cli, bubbletea, permission, ux]
 issue_number: null
 ---
 
-# SPEC-GOOSE-CLI-TUI-002 — goose CLI TUI 보강 (teatest harness + permission UI + streaming UX + session UX)
+# SPEC-GOOSE-CLI-TUI-002 — mink CLI TUI 보강 (teatest harness + permission UI + streaming UX + session UX)
 
 ## HISTORY
 
@@ -174,7 +174,7 @@ CLI-001 progress.md (lines 600-669) 기준:
 - **MCP server CLI 직접 기동**: MCP-001 daemon 내부 관리.
 - **Slash command 자동완성 popover**: 별도 UX SPEC 후보.
 - **Plugin install 실제 구현**: PLUGIN-001 의존.
-- **OAuth login UI** (`goose login`): AUTH-001 의존.
+- **OAuth login UI** (`mink login`): AUTH-001 의존.
 - **Session 검색 / fuzzy filter**: Recent menu 는 단순 mtime 정렬만. 향후.
 - **Inline image / video rendering** (kitty graphics protocol): CLI-001 §3.2 OUT 유지.
 - **다중 세션 동시 TUI** (split pane): CLI-001 §3.2 OUT 유지.
@@ -560,7 +560,7 @@ Daemon 측 구현은 본 SPEC 범위 밖 (QUERY-001 `engine.ResolvePermission` w
 - 본 SPEC 은 **MCP server CLI 직접 기동** 을 구현하지 않는다. MCP-001 daemon 내부 관리.
 - 본 SPEC 은 **slash command 자동완성 popover** 를 구현하지 않는다. 별도 UX SPEC 후보.
 - 본 SPEC 은 **plugin install 실제 구현** 을 포함하지 않는다 (PLUGIN-001 의존). CLI-001 stub 유지.
-- 본 SPEC 은 **OAuth login UI** (`goose login`) 를 구현하지 않는다 (AUTH-001 의존).
+- 본 SPEC 은 **OAuth login UI** (`mink login`) 를 구현하지 않는다 (AUTH-001 의존).
 - 본 SPEC 은 **session 검색 / fuzzy filter** 를 구현하지 않는다. recent menu 는 단순 mtime desc 정렬만.
 - 본 SPEC 은 **inline image / video rendering** (kitty graphics protocol) 을 구현하지 않는다. CLI-001 §3.2 OUT 유지.
 - 본 SPEC 은 **다중 세션 동시 TUI** (split pane, multi-tab) 를 구현하지 않는다. CLI-001 §3.2 OUT 유지.

@@ -56,7 +56,7 @@ labels: [phase-0, grpc, proto, transport, server, priority/p0-critical]
 ### 2.1 왜 지금
 
 - ROADMAP §4 Phase 0 row 03은 `TRANSPORT-001`을 CORE-001 의존 후속으로 명시. tech ADR-002가 근거("gRPC로 모든 언어 경계 통신").
-- CLI-001(goose CLI)은 gRPC로 `goosed`에 접속. LLM-001 역시 daemon 내부에서 동작하므로 전송을 직접 쓰지 않지만, 향후 MCP 서버 노출 또는 외부 세션 시 gRPC 경유 필요.
+- CLI-001(mink CLI)은 gRPC로 `goosed`에 접속. LLM-001 역시 daemon 내부에서 동작하므로 전송을 직접 쓰지 않지만, 향후 MCP 서버 노출 또는 외부 세션 시 gRPC 경유 필요.
 - proto 스키마가 없으면 CLI와 daemon이 ad-hoc JSON으로 붙게 되어 tech.md §3.3(proto 표준)의 원칙 위배.
 
 ### 2.2 범위 경계
@@ -67,7 +67,7 @@ labels: [phase-0, grpc, proto, transport, server, priority/p0-critical]
 ### 2.3 CORE-001과의 관계
 
 - CORE-001이 기동한 동일 `context.Context` 트리에 gRPC server가 등록된 cleanup hook으로 붙는다.
-- gRPC listener는 **별도 포트** (기본 `:17891`, ENV `GOOSE_GRPC_PORT`).
+- gRPC listener는 **별도 포트** (기본 `:17891`, ENV `MINK_GRPC_PORT`).
 - CORE-001의 HTTP health server는 그대로 유지. gRPC server 내부에서도 health checking protocol(`grpc.health.v1`)을 구현하여 gRPC 클라이언트가 `Check("goose.v1.DaemonService")`로 상태 조회 가능.
 
 ---
@@ -81,8 +81,8 @@ labels: [phase-0, grpc, proto, transport, server, priority/p0-critical]
 3. `internal/transport/grpc/server.go`에서 `*grpc.Server` 초기화, listener 바인드, 등록된 cleanup hook을 통해 `GracefulStop` 호출.
 4. Interceptor 2종: `LoggingInterceptor`(zap 기반 access log), `RecoveryInterceptor`(panic → `codes.Internal` + stack log).
 5. `grpc.health.v1.Health` 서비스 등록: `Check` + `Watch` 기본 구현.
-6. `grpc.reflection.v1alpha` reflection 서비스 등록 (DEBUG/개발 빌드에서만; `GOOSE_GRPC_REFLECTION=true` env로 제어).
-7. Shutdown RPC 인증: 초기 단순 static token(ENV `GOOSE_SHUTDOWN_TOKEN`). 없으면 Shutdown RPC 비활성.
+6. `grpc.reflection.v1alpha` reflection 서비스 등록 (DEBUG/개발 빌드에서만; `MINK_GRPC_REFLECTION=true` env로 제어).
+7. Shutdown RPC 인증: 초기 단순 static token(ENV `MINK_SHUTDOWN_TOKEN`). 없으면 Shutdown RPC 비활성.
 8. `buf.yaml` + `buf.gen.yaml`로 proto → Go 코드 생성 파이프라인(`buf generate`). 생성물은 `internal/transport/grpc/gen/`.
 9. 포트 충돌 시 CORE-001과 동일한 exit code 78 (EX_CONFIG) 계약.
 
@@ -104,7 +104,7 @@ labels: [phase-0, grpc, proto, transport, server, priority/p0-critical]
 
 ### 4.1 Ubiquitous
 
-**REQ-TR-001 [Ubiquitous]** — The gRPC server **shall** bind to `127.0.0.1` by default and only allow loopback connections unless `GOOSE_GRPC_BIND` is explicitly set to a non-loopback interface.
+**REQ-TR-001 [Ubiquitous]** — The gRPC server **shall** bind to `127.0.0.1` by default and only allow loopback connections unless `MINK_GRPC_BIND` is explicitly set to a non-loopback interface.
 
 **REQ-TR-002 [Ubiquitous]** — All gRPC requests **shall** pass through the `LoggingInterceptor`, which records `{method, peer, status_code, duration_ms}` at INFO level for success and ERROR level for non-OK responses.
 
@@ -116,7 +116,7 @@ labels: [phase-0, grpc, proto, transport, server, priority/p0-critical]
 
 **REQ-TR-005 [Event-Driven]** — **When** a client invokes `DaemonService/Ping`, the server **shall** respond with `PingResponse{version, uptime_ms, state}` where `state` matches the CORE-001 process state enum values (`init|bootstrap|serving|draining|stopped`).
 
-**REQ-TR-006 [Event-Driven]** — **When** a client invokes `DaemonService/Shutdown` with a valid `auth_token` header matching `GOOSE_SHUTDOWN_TOKEN`, the server **shall** reply `ShutdownResponse{accepted: true}` and then trigger the CORE-001 root context cancellation within 100ms after response is flushed.
+**REQ-TR-006 [Event-Driven]** — **When** a client invokes `DaemonService/Shutdown` with a valid `auth_token` header matching `MINK_SHUTDOWN_TOKEN`, the server **shall** reply `ShutdownResponse{accepted: true}` and then trigger the CORE-001 root context cancellation within 100ms after response is flushed.
 
 **REQ-TR-007 [Event-Driven]** — **When** the CORE-001 shutdown hook fires, the gRPC server **shall** call `GracefulStop()` and complete within 10s; if not completed, it **shall** call `Stop()` and log a WARN.
 
@@ -124,21 +124,21 @@ labels: [phase-0, grpc, proto, transport, server, priority/p0-critical]
 
 **REQ-TR-008 [State-Driven]** — **While** the process state is `draining`, new RPC invocations (except `Ping`) **shall** return `codes.Unavailable` with message `"daemon draining"`.
 
-**REQ-TR-009 [State-Driven]** — **While** `GOOSE_GRPC_REFLECTION` is unset or `false`, the reflection service **shall not** be registered on the server.
+**REQ-TR-009 [State-Driven]** — **While** `MINK_GRPC_REFLECTION` is unset or `false`, the reflection service **shall not** be registered on the server.
 
 ### 4.4 Unwanted Behavior
 
 **REQ-TR-010 [Unwanted]** — **If** `Shutdown` is invoked without a valid `auth_token` header, **then** the server **shall** return `codes.Unauthenticated` with message `"missing or invalid shutdown token"` and **shall not** initiate shutdown.
 
-**REQ-TR-011 [Unwanted]** — **If** `GOOSE_SHUTDOWN_TOKEN` is empty or unset, **then** the server **shall** register `Shutdown` RPC as disabled (returning `codes.Unimplemented`) — never accept shutdown via RPC in that mode.
+**REQ-TR-011 [Unwanted]** — **If** `MINK_SHUTDOWN_TOKEN` is empty or unset, **then** the server **shall** register `Shutdown` RPC as disabled (returning `codes.Unimplemented`) — never accept shutdown via RPC in that mode.
 
-**REQ-TR-012 [Unwanted]** — **If** `GOOSE_GRPC_BIND` is unset or set to `127.0.0.1` and a connection attempt originates from a non-loopback peer, **then** the listener **shall** reject the connection before it reaches any RPC handler. **Note (v0.1.1)**: When `GOOSE_GRPC_BIND` is explicitly set to a non-loopback interface (e.g., `0.0.0.0`), this REQ does not apply — that opt-in case is governed by REQ-TR-001 and is the operator's responsibility. This resolves the prior contradiction between REQ-TR-001 (explicit non-loopback opt-in permitted) and REQ-TR-012 v0.1.0 (which read as an absolute prohibition).
+**REQ-TR-012 [Unwanted]** — **If** `MINK_GRPC_BIND` is unset or set to `127.0.0.1` and a connection attempt originates from a non-loopback peer, **then** the listener **shall** reject the connection before it reaches any RPC handler. **Note (v0.1.1)**: When `MINK_GRPC_BIND` is explicitly set to a non-loopback interface (e.g., `0.0.0.0`), this REQ does not apply — that opt-in case is governed by REQ-TR-001 and is the operator's responsibility. This resolves the prior contradiction between REQ-TR-001 (explicit non-loopback opt-in permitted) and REQ-TR-012 v0.1.0 (which read as an absolute prohibition).
 
 **REQ-TR-013 [Unwanted]** — **If** the interceptor chain is constructed at server initialization time **without** `RecoveryInterceptor` attached as the outermost unary interceptor, **then** the build **shall** fail at compile time (or server startup **shall** abort with `codes.FailedPrecondition`). In other words, no RPC handler may be registered before `RecoveryInterceptor` is in place.
 
 ### 4.5 Optional
 
-**REQ-TR-014 [Optional]** — **Where** `GOOSE_GRPC_MAX_RECV_MSG_BYTES` is set to a positive integer, the server **shall** apply that value as `grpc.MaxRecvMsgSize` instead of the default `4 MiB`.
+**REQ-TR-014 [Optional]** — **Where** `MINK_GRPC_MAX_RECV_MSG_BYTES` is set to a positive integer, the server **shall** apply that value as `grpc.MaxRecvMsgSize` instead of the default `4 MiB`.
 
 ### 4.6 Health Check Service (v0.1.1 추가)
 
@@ -159,12 +159,12 @@ labels: [phase-0, grpc, proto, transport, server, priority/p0-critical]
 - **Then** `Status == SERVING`. 추가로 process state를 `draining`으로 강제 전이한 뒤 동일 호출 시 `Status == NOT_SERVING`이 반환되어 REQ-TR-015의 state-conditioned 계약이 관찰 가능함을 확인.
 
 **AC-TR-003 — Shutdown 토큰 없이 거부**
-- **Given** `GOOSE_SHUTDOWN_TOKEN=secret`, client metadata에 `auth_token` 헤더 미포함
+- **Given** `MINK_SHUTDOWN_TOKEN=secret`, client metadata에 `auth_token` 헤더 미포함
 - **When** `Shutdown(ctx, &ShutdownRequest{})`
 - **Then** `status.Code(err) == codes.Unauthenticated`, daemon은 계속 serving 상태
 
 **AC-TR-004 — Shutdown 토큰 포함 시 종료 개시**
-- **Given** `GOOSE_SHUTDOWN_TOKEN=secret`, client metadata `auth_token=secret`
+- **Given** `MINK_SHUTDOWN_TOKEN=secret`, client metadata `auth_token=secret`
 - **When** `Shutdown(ctx, &ShutdownRequest{})`
 - **Then** 응답 `accepted=true` 수신 후 500ms 이내 daemon process exit 0
 
@@ -179,14 +179,14 @@ labels: [phase-0, grpc, proto, transport, server, priority/p0-critical]
 - **Then** `status.Code(err) == codes.Internal`, 프로세스는 crash 없이 계속 serving, stderr에 panic stack trace 로그
 
 **AC-TR-007 — Reflection off by default**
-- **Given** `GOOSE_GRPC_REFLECTION` 미설정
+- **Given** `MINK_GRPC_REFLECTION` 미설정
 - **When** `grpcurl -plaintext localhost:17891 list`
 - **Then** `unknown service grpc.reflection.v1alpha.ServerReflection` 에러
 
 **AC-TR-008 — Non-loopback bind 거부 (REQ-TR-012 커버)**
-- **Given** `GOOSE_GRPC_BIND` 미설정(기본값 `127.0.0.1`)인 상태로 daemon 기동 + CI 플랫폼(linux/amd64 단일)에서만 실행
+- **Given** `MINK_GRPC_BIND` 미설정(기본값 `127.0.0.1`)인 상태로 daemon 기동 + CI 플랫폼(linux/amd64 단일)에서만 실행
 - **When** 동일 호스트의 non-loopback 인터페이스(예: docker bridge IP) 주소로 gRPC `Ping` 연결 시도
-- **Then** listener 수준에서 연결이 거부된다(해당 플랫폼에서 `ECONNREFUSED`). `GOOSE_GRPC_BIND=0.0.0.0`으로 명시적 opt-in한 별도 케이스는 동일 요청이 성공함을 대조로 확인.
+- **Then** listener 수준에서 연결이 거부된다(해당 플랫폼에서 `ECONNREFUSED`). `MINK_GRPC_BIND=0.0.0.0`으로 명시적 opt-in한 별도 케이스는 동일 요청이 성공함을 대조로 확인.
 
 **AC-TR-009 — LoggingInterceptor 필드 기록 (REQ-TR-002 커버, v0.1.1 추가)**
 - **Given** zap logger가 test observer sink로 주입된 gRPC 서버 + 테스트 client
@@ -204,7 +204,7 @@ labels: [phase-0, grpc, proto, transport, server, priority/p0-critical]
 - **Then** (a)는 wall clock 기준 10s 이내에 `GracefulStop` 리턴, WARN 로그 없음. (b)는 10s ± 500ms 시점에 `Stop()`이 호출되고 zap logger에 `"grpc server stop fallback after graceful timeout"` 류의 WARN 레벨 entry가 1개 기록.
 
 **AC-TR-012 — Shutdown 토큰 미설정 시 Unimplemented (REQ-TR-011 커버, v0.1.1 추가)**
-- **Given** `GOOSE_SHUTDOWN_TOKEN` 환경변수가 빈 문자열 또는 unset 상태로 daemon 기동
+- **Given** `MINK_SHUTDOWN_TOKEN` 환경변수가 빈 문자열 또는 unset 상태로 daemon 기동
 - **When** 클라이언트가 `Shutdown(ctx, &ShutdownRequest{})`를 임의 metadata로 호출
 - **Then** `status.Code(err) == codes.Unimplemented`가 반환되고, daemon은 종료 동작 없이 계속 `serving` 상태를 유지한다. AC-TR-003(토큰 설정됨 + 헤더 누락 → `Unauthenticated`)과는 의도적으로 다른 코드 경로임을 확인.
 
@@ -214,9 +214,9 @@ labels: [phase-0, grpc, proto, transport, server, priority/p0-critical]
 - **Then** `RecoveryInterceptor`가 chain의 outermost(인덱스 0)에 위치하며, 그 뒤로 `LoggingInterceptor` 순서로 등록되어 있음. 인터셉터가 누락되거나 순서가 뒤바뀌면 테스트 실패. 또는 서버 초기화가 `codes.FailedPrecondition`으로 abort함을 대체 assertion으로 허용.
 
 **AC-TR-014 — MaxRecvMsgSize 환경변수 override (REQ-TR-014 커버, v0.1.1 추가)**
-- **Given** `GOOSE_GRPC_MAX_RECV_MSG_BYTES=1024` 환경변수 설정 상태로 daemon 기동 (기본값 `4 MiB`를 1024 byte로 override)
+- **Given** `MINK_GRPC_MAX_RECV_MSG_BYTES=1024` 환경변수 설정 상태로 daemon 기동 (기본값 `4 MiB`를 1024 byte로 override)
 - **When** 클라이언트가 2048 byte 페이로드(예: `GetInfoRequest`를 패딩으로 확장한 테스트 variant)로 RPC 호출
-- **Then** `status.Code(err) == codes.ResourceExhausted` 반환, 메시지에 "received message larger than max" 문구 포함. 같은 테스트를 `GOOSE_GRPC_MAX_RECV_MSG_BYTES` 미설정 상태에서 수행하면 성공 응답이 반환되어 default 4MiB 동작과의 분기 확인.
+- **Then** `status.Code(err) == codes.ResourceExhausted` 반환, 메시지에 "received message larger than max" 문구 포함. 같은 테스트를 `MINK_GRPC_MAX_RECV_MSG_BYTES` 미설정 상태에서 수행하면 성공 응답이 반환되어 default 4MiB 동작과의 분기 확인.
 
 ---
 

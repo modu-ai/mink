@@ -200,7 +200,7 @@ CMDCTX-001 §6 (FROZEN) 은 ContextAdapter 의 atomic flag 와 `*atomic.Pointer[
 **[Event-Driven]** **When** `goosed` is launched with a valid `~/.goose/config.yaml`, an empty `~/.goose/skills/`, an unbound health port, and an absent `~/.goose/aliases.yaml`, the daemon **shall** complete bootstrap step 10.5–10.8 in declared order, **shall** instantiate `*ContextAdapter` and `*Dispatcher` exactly once each, **shall** transition to `StateServing` within 500 ms wall-clock, and **shall** report all of `ctxAdapter != nil`, `dispatcher != nil`, `loopCtrl != nil` via test harness reflection.
 
 **Test Scenario (verification)**:
-- **Given** 임시 `GOOSE_HOME=<tmpdir>` 에 `config.yaml` (default), 빈 `skills/`, alias 파일 없음, 자유 포트 확보
+- **Given** 임시 `MINK_HOME=<tmpdir>` 에 `config.yaml` (default), 빈 `skills/`, alias 파일 없음, 자유 포트 확보
 - **When** `goosed` 를 in-process `run()` 호출, 500 ms 대기
 - **Then** (a) zap 로그에서 다음 INFO 라인이 declared 순서대로 출력: `"alias config loaded"` (또는 `"alias config absent, using empty map"`) → `"loop controller initialized"` → `"context adapter initialized"` → `"dispatcher initialized"`, (b) reflect 로 wiring helper 의 반환값 inspection 시 `*ContextAdapter`, `*Dispatcher`, `LoopController` 모두 non-nil, (c) `rt.State.Load() == StateServing`, (d) `dispatcher.Commands()` (existing API in COMMAND-001) 가 4 개 빌트인 (`/clear`, `/compact`, `/model`, `/status`) 을 반환.
 

@@ -71,7 +71,7 @@ labels: []
 
 - **MoAI-ADK `.claude/skills/moai/**`**: 네임스페이스 기반 Skill 조직 패턴. 본 SPEC은 `region/` 네임스페이스 추가.
 - **SCHEDULER-001 공휴일 DB**: `rickar/cal/v2` 기반. REGION-SKILLS가 국가별 공휴일 Skill로 re-expose.
-- **Claude Code 기본 skills**: 영어권 중심. GOOSE는 지리적 확장.
+- **Claude Code 기본 skills**: 영어권 중심. MINK는 지리적 확장.
 
 ### 2.4 범위 경계
 
@@ -124,8 +124,8 @@ labels: []
    - SCHEDULER-001의 `rickar/cal/v2` 확장을 본 SPEC이 country별 필터로 래핑
    - Skill은 공휴일 DB 직접 접근 금지, `calendar.query` tool을 경유
 7. **수동 on/off API**:
-   - `goose skill region enable --country KR`
-   - `goose skill region disable --skill korean-holidays`
+   - `mink skill region enable --country KR`
+   - `mink skill region disable --skill korean-holidays`
    - 상태는 CONFIG-001의 `skills.region.disabled` 배열에 저장
 8. **LLM prompt 자동 주입**:
    - ONBOARDING-001 완료 시점에 활성 region skills가 QueryEngine system prompt에 자동 포함
@@ -165,7 +165,7 @@ labels: []
 
 **REQ-RS-006 [Event-Driven]** — **When** ONBOARDING-001 completes with `country = "JP"`, the activator **shall** automatically enable all `locales: [JP]` skills in the user's configuration, unless the user explicitly excluded them in Step 6 (Ritual Preferences).
 
-**REQ-RS-007 [Event-Driven]** — **When** the user changes their country in CONFIG-001 (via `goose locale set --country VN`), the activator **shall** (a) disable skills tied to the old country, (b) enable skills tied to the new country, and (c) notify the user of both changes.
+**REQ-RS-007 [Event-Driven]** — **When** the user changes their country in CONFIG-001 (via `mink locale set --country VN`), the activator **shall** (a) disable skills tied to the old country, (b) enable skills tied to the new country, and (c) notify the user of both changes.
 
 **REQ-RS-008 [Event-Driven]** — **When** a skill's `Locales` uses a `region:` group alias, the matcher **shall** expand the alias at load time using the canonical group table and cache the expansion; runtime lookups use the cached map.
 
@@ -206,7 +206,7 @@ labels: []
 - **Then** `gdpr-strict` 포함 (DE는 region:eu 그룹 멤버)
 
 **AC-RS-003 — 국가 변경 시 자동 전환**
-- **Given** 초기 `country="KR"`, `korean-holidays` 활성. 사용자가 `goose locale set --country JP` 실행
+- **Given** 초기 `country="KR"`, `korean-holidays` 활성. 사용자가 `mink locale set --country JP` 실행
 - **When** activator 재평가
 - **Then** `korean-holidays` 비활성, `japanese-holidays` 활성, 알림 표시
 
@@ -378,7 +378,7 @@ allowed-tools: [calendar.query, web.search]
 
 # 한국 공휴일 스킬
 
-사용자가 한국에 거주할 때 GOOSE가 알아야 할 공휴일·기념일 정보.
+사용자가 한국에 거주할 때 MINK가 알아야 할 공휴일·기념일 정보.
 
 ## 국경일 (5개)
 
@@ -513,7 +513,7 @@ ONBOARDING-001 완료 후 QueryEngine의 system prompt 빌드 로직:
 | R4 | 사용자 country 원격 전송 의도치 않은 누출 | 중 | 고 | REQ-RS-013 + AC-RS-010 자동 테스트 |
 | R5 | ISO 3166 코드 변경(예: 러시아 영토 분쟁) | 낮 | 낮 | `biter777/countries` 업데이트 주기 모니터 |
 | R6 | 공휴일 DB 라이센스(rickar/cal/v2는 MIT) 변경 | 낮 | 중 | MIT 고정 commit pin |
-| R7 | 사용자 authored skill이 번들 skill을 악의적으로 override | 중 | 중 | WARN 로그 필수(REQ-RS-009), CLI `goose skill region list --source`로 노출 |
+| R7 | 사용자 authored skill이 번들 skill을 악의적으로 override | 중 | 중 | WARN 로그 필수(REQ-RS-009), CLI `mink skill region list --source`로 노출 |
 
 ---
 

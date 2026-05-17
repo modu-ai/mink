@@ -3,14 +3,17 @@ id: SPEC-GOOSE-LORA-001
 version: 0.1.0
 status: planned
 created_at: 2026-04-21
-updated_at: 2026-04-21
+updated_at: 2026-05-17
 author: manager-spec
 priority: P2
 issue_number: null
 phase: 6
 size: 대(L)
 lifecycle: spec-anchored
-labels: []
+labels: [lora, qlora, fine-tuning, personalization, phase-6, rust-ffi]
+target_milestone: v0.2.0
+mvp_status: deferred
+deferred_reason: "0.1.0 MVP 범위 외 — v0.2.0 이월 (2026-05-17 사용자 확정). Deep personalization 영역, Rust crate 위임 의존."
 ---
 
 # SPEC-GOOSE-LORA-001 — User-specific QLoRA Trainer (Go 인터페이스 + Rust 위임 경계)
@@ -25,7 +28,7 @@ labels: []
 
 ## 1. 개요 (Overview)
 
-GOOSE 사용자별 **QLoRA adapter** (10~200 MB) 를 생성·관리·핫스왑·롤백하는 **Go 인터페이스 레이어** 를 정의한다. 실제 tensor 수학·GPU 커널·ONNX 실행 같은 **성능 크리티컬 레이어는 Rust `goose-ml` crate 로 위임**하며, Go 는 훈련 오케스트레이션·데이터셋 빌드·안전장치 통합·버전관리·서빙에 집중한다.
+MINK 사용자별 **QLoRA adapter** (10~200 MB) 를 생성·관리·핫스왑·롤백하는 **Go 인터페이스 레이어** 를 정의한다. 실제 tensor 수학·GPU 커널·ONNX 실행 같은 **성능 크리티컬 레이어는 Rust `goose-ml` crate 로 위임**하며, Go 는 훈련 오케스트레이션·데이터셋 빌드·안전장치 통합·버전관리·서빙에 집중한다.
 
 본 SPEC 의 네 가지 책임:
 
@@ -86,7 +89,7 @@ GOOSE 사용자별 **QLoRA adapter** (10~200 MB) 를 생성·관리·핫스왑·
 5. CGO 바인딩 경로 `internal/learning/lora/cgo/` — 선택적 핫패스, 빌드 태그 `cgo_lora`.
 6. `DatasetBuilder` — VECTOR-001 `Search(cosine>=0.7)` + IDENTITY-001 활성 fact 필터 → 200~500 sample JSON-L.
 7. `Trainer Runner` — Rust 서비스 프로세스 lifecycle (spawn, health check, graceful shutdown).
-8. `VersionRegistry` — `$GOOSE_HOME/lora/versions.json` (SemVer + SHA-256 checksum + timestamp).
+8. `VersionRegistry` — `$MINK_HOME/lora/versions.json` (SemVer + SHA-256 checksum + timestamp).
 9. `QLoRAConfig` / `DoRAConfig` — rank=16(기본), alpha=32, target_modules=["q_proj","v_proj","output"], 4-bit 양자화 on.
 10. `BaseModel` 선택지: `qwen3-0.6b` / `gemma-1b` / 사용자 경로 (config `lora.base_model`).
 11. Continual learning hooks: `WithEWC(fisher []float32)`, `WithLwF(prevAdapterPath string)`, `WithReplayBuffer(buf ReplayBuffer)`.
@@ -150,7 +153,7 @@ When `PrepareDataset(userID, opts)` is invoked, the service shall build a JSON-L
   (c) stripping PII via the redaction pipeline registered in TRAJECTORY-001.
 
 ### REQ-LORA-007 [Event-Driven]
-When `Train` succeeds, the resulting adapter file shall be written to `$GOOSE_HOME/lora/<userID>/<semver>.safetensors` and registered in `versions.json` atomically (temp file + `os.Rename`).
+When `Train` succeeds, the resulting adapter file shall be written to `$MINK_HOME/lora/<userID>/<semver>.safetensors` and registered in `versions.json` atomically (temp file + `os.Rename`).
 
 ### REQ-LORA-008 [Event-Driven]
 When `Apply(version)` is called, the service shall (a) drain in-flight inference requests for up to 5 seconds, (b) swap the active adapter file descriptor, (c) emit a `lora.applied` event via SAFETY-001 approval manager. Drop count during drain shall be 0 unless drain times out.
@@ -213,7 +216,7 @@ learning-engine.md §5.2 의 5 조건을 명시적으로 게이트화 → 사용
 
 ### DD-LORA-05 — 30-day cooldown
 
-Rollback 가능성을 보장하기 위해 삭제 미루기. 디스크 용량 초과 시 `goose lora gc --force` 로 수동 삭제 (경고 메시지 + 사용자 확인).
+Rollback 가능성을 보장하기 위해 삭제 미루기. 디스크 용량 초과 시 `mink lora gc --force` 로 수동 삭제 (경고 메시지 + 사용자 확인).
 
 ### DD-LORA-06 — Base model 자동 다운로드 거부
 
@@ -244,7 +247,7 @@ type LoRAAdapter struct {
     TargetModules  []string         // ["q_proj", "v_proj", "output"]
     UseDoRA        bool             // 기본 true
     UseQLoRA       bool             // 기본 true (4-bit)
-    FilePath       string           // $GOOSE_HOME/lora/<userID>/<version>.safetensors
+    FilePath       string           // $MINK_HOME/lora/<userID>/<version>.safetensors
     SizeBytes      int64
     Checksum       string           // SHA-256 hex
     CreatedAt      time.Time
@@ -452,7 +455,7 @@ Given `goose-ml` 서비스가 10 초간 health-check 실패할 때, When `Train`
 - **상위 의존**: VECTOR-001 (데이터셋 빌드), IDENTITY-001 (fact 필터), SAFETY-001 (승인·롤백), REFLECT-001 (5-tier 승격 후 훈련 트리거), TRAJECTORY-001 (raw episode + redaction).
 - **하위 소비자**: QueryEngine (SPEC-GOOSE-QUERY-001)의 inference path 가 `Apply(version)` 결과의 adapter 를 사용 (이는 ADAPTER-001 의 책임).
 - **Rust crate**: `crates/goose-ml/` — 본 SPEC 의 범위 외. ROADMAP-RUST.md 에서 관리.
-- **CLI 영향**: `goose lora list`, `goose lora train`, `goose lora rollback`, `goose lora gc`, `goose lora apply <version>`.
+- **CLI 영향**: `mink lora list`, `mink lora train`, `mink lora rollback`, `mink lora gc`, `mink lora apply <version>`.
 
 ---
 

@@ -1,4 +1,4 @@
-# GOOSE Specs Review Report
+# MINK Specs Review Report
 
 Date: 2026-04-21
 Scope: `.moai/specs/IMPLEMENTATION-ORDER.md`, `.moai/specs/ROADMAP.md`, active `SPEC-*/spec.md`, `research.md`, retained `DEPRECATED.md`

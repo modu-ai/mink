@@ -28,7 +28,7 @@ labels: [subagent, runtime, isolation, memory, phase-2]
 
 ## 1. 개요 (Overview)
 
-AI.GOOSE의 **Sub-agent 런타임**을 정의한다. Claude Code의 `runAgent()` 생명주기(3단계) + 3종 isolation(fork / worktree / background) + 3-scope memory(user / project / local) + role profile override를 Go로 포팅하여, 하나의 부모 `QueryEngine`(QUERY-001)에서 여러 sub-agent를 순차·병렬로 spawn하고, 각각의 tool budget·권한 정책·메모리 디렉토리를 독립적으로 유지한다.
+AI.MINK의 **Sub-agent 런타임**을 정의한다. Claude Code의 `runAgent()` 생명주기(3단계) + 3종 isolation(fork / worktree / background) + 3-scope memory(user / project / local) + role profile override를 Go로 포팅하여, 하나의 부모 `QueryEngine`(QUERY-001)에서 여러 sub-agent를 순차·병렬로 spawn하고, 각각의 tool budget·권한 정책·메모리 디렉토리를 독립적으로 유지한다.
 
 본 SPEC이 통과한 시점에서 `internal/subagent` 패키지는:
 
@@ -582,7 +582,7 @@ func (t *TeammateCanUseTool) Check(ctx context.Context, toolName string, input j
 | R5 | ResumeAgent가 transcript 손상 시 crash | 낮 | 중 | 로드 실패 시 `ErrTranscriptCorrupted` 반환, 사용자에게 재시작 권고 |
 | R6 | Permission bubbling이 parent 종료 후에도 호출됨 | 중 | 중 | `parentCanUseTool` 캐시 대신 매 호출마다 `ctx.Err()` 확인. parent ctx cancel되면 `Deny{parent_terminated}` |
 | R7 | `.claude/agents/*.md`의 MoAI-ADK existing agent 26개가 본 SPEC 스키마와 100% 호환되지 않음 | 고 | 중 | 초기 스캔 도구로 호환성 리포트 생성. 미호환 agent는 `source: "legacy"` 태그 + WARN 로그, 점진적 마이그레이션 |
-| R8 | Worktree cleanup 실패로 디스크 누수 | 중 | 낮 | `SessionEnd` hook + startup scan(`git worktree prune` + orphan directory 제거). 수동 `goose worktree gc` 커맨드 제공 |
+| R8 | Worktree cleanup 실패로 디스크 누수 | 중 | 낮 | `SessionEnd` hook + startup scan(`git worktree prune` + orphan directory 제거). 수동 `mink worktree gc` 커맨드 제공 |
 
 ---
 

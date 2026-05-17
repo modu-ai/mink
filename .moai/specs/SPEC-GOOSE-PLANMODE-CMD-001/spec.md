@@ -543,7 +543,7 @@ func Register(reg registrar) {
 
 4. **plan mode 의 다른 trigger 경로**
    - SIGUSR1 같은 signal 기반 토글
-   - 환경 변수 (`GOOSE_PLAN_MODE=1`)
+   - 환경 변수 (`MINK_PLAN_MODE=1`)
    - config file (`~/.config/goose/config.yaml` 의 `plan_mode: true`)
    - CLI flag (`goose --plan-mode chat`)
    - 본 SPEC 의 default 는 slash command 경로 only. 다른 trigger 경로는 후속 SPEC.

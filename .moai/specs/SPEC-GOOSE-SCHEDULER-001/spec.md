@@ -27,7 +27,7 @@ labels: [scheduler, ritual, hook, phase-7, daily-companion]
 
 ## 1. 개요 (Overview)
 
-GOOSE v6.0 **Daily Companion Edition**의 **Layer 3 (Daily Rituals)**를 구동하는 **proactive scheduler**를 정의한다. 사용자가 호출하지 않아도, 학습된 하루 리듬(기상 / 식사 ×3 / 취침)에 맞춰 **SCHEDULER가 먼저 이벤트를 emit**하면 하위 SPEC(BRIEFING / HEALTH / JOURNAL / RITUAL)이 리추얼을 실행한다.
+MINK v6.0 **Daily Companion Edition**의 **Layer 3 (Daily Rituals)**를 구동하는 **proactive scheduler**를 정의한다. 사용자가 호출하지 않아도, 학습된 하루 리듬(기상 / 식사 ×3 / 취침)에 맞춰 **SCHEDULER가 먼저 이벤트를 emit**하면 하위 SPEC(BRIEFING / HEALTH / JOURNAL / RITUAL)이 리추얼을 실행한다.
 
 SCHEDULER-001은 SPEC-GOOSE-HOOK-001의 lifecycle hook 시스템을 **time-based trigger로 확장**한다. HOOK-001이 QueryEngine의 tool-use / file-changed / session-start 같은 **agent-driven** 이벤트를 다뤘다면, SCHEDULER-001은 **wall-clock-driven** 이벤트(`MorningBriefingTime`, `PostMealTime`, `EveningCheckInTime`)를 생성하여 HOOK-001 dispatcher를 통해 전파한다.
 
@@ -48,7 +48,7 @@ SCHEDULER-001은 SPEC-GOOSE-HOOK-001의 lifecycle hook 시스템을 **time-based
 ### 2.1 왜 지금 필요한가
 
 - 사용자 지시(2026-04-22): "매일 사용자에게 아침마다 오늘의 운세와 날씨 정보, 하루 일정을 브리핑 해주고, 매 끼니 이후 건강/약 먹도록 안내, 저녁에 자기전 오늘 하루가 어땠는지 안부 묻고 일기 식으로 메모를 남기면..."
-- 기존 Phase 0~5는 **reactive**(사용자가 물어야 응답). Phase 7의 본질은 **proactive**(GOOSE가 먼저 말 건넴). SCHEDULER-001이 없으면 Daily Rituals 자체가 성립 불가.
+- 기존 Phase 0~5는 **reactive**(사용자가 물어야 응답). Phase 7의 본질은 **proactive**(MINK가 먼저 말 건넴). SCHEDULER-001이 없으면 Daily Rituals 자체가 성립 불가.
 - HOOK-001은 시간-이벤트를 생성하지 않는다 (`Setup`/`SessionStart`/`PreToolUse` 등 24개는 모두 agent-driven). 시간축은 본 SPEC이 **새로운 이벤트 소스**로 추가한다.
 - ROADMAP v2.0 §4 Phase 4~5 (INSIGHTS, MEMORY)가 "사용자 패턴을 학습"까지만 하고 "그 패턴에 따라 먼저 말 걸기"는 비어있었다. 본 SPEC이 그 공백을 메운다.
 
