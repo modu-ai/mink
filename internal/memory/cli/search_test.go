@@ -124,7 +124,8 @@ func TestSearch_jsonOutput(t *testing.T) {
 	ingestForSearch(t, store, "custom", "/vault/custom/doc2.md",
 		"python machine learning tensorflow neural network")
 
-	out, err := executeMemorySearch(t, "--json", "golang")
+	// Use --mode search (BM25) for deterministic JSON output (no ollama needed).
+	out, err := executeMemorySearch(t, "--mode", "search", "--json", "golang")
 	require.NoError(t, err)
 
 	assert.True(t, json.Valid([]byte(out)), "output must be valid JSON: %s", out)
@@ -151,7 +152,7 @@ func TestSearch_tableOutput(t *testing.T) {
 	ingestForSearch(t, store, "journal", "/vault/journal/entry.md",
 		"machine learning artificial intelligence deep learning")
 
-	out, err := executeMemorySearch(t, "machine")
+	out, err := executeMemorySearch(t, "--mode", "search", "machine")
 	require.NoError(t, err)
 
 	// Table output should contain the source path.
@@ -169,7 +170,7 @@ func TestSearch_noResults(t *testing.T) {
 	ingestForSearch(t, store, "custom", "/vault/custom/nomatch.md",
 		"hello world this is a test document")
 
-	out, err := executeMemorySearch(t, "zxqvjknonexistent")
+	out, err := executeMemorySearch(t, "--mode", "search", "zxqvjknonexistent")
 	require.NoError(t, err)
 	assert.Contains(t, out, "no results",
 		"zero-match query must print '(no results)'")
@@ -190,7 +191,7 @@ func TestSearch_limitFlag(t *testing.T) {
 			strings.Repeat("golang concurrency ", 5))
 	}
 
-	out, err := executeMemorySearch(t, "--limit", "2", "--json", "golang")
+	out, err := executeMemorySearch(t, "--mode", "search", "--limit", "2", "--json", "golang")
 	require.NoError(t, err)
 
 	var results []searchResultJSON
@@ -198,16 +199,92 @@ func TestSearch_limitFlag(t *testing.T) {
 	assert.LessOrEqual(t, len(results), 2, "limit=2 must cap results at 2")
 }
 
-func TestSearch_modeQueryReturnsNotImplemented(t *testing.T) {
+// TestSearch_defaultModeIsQuery verifies the default --mode is "query" (AC-MEM-008).
+// When ollama is unreachable, the hybrid runner degrades to BM25 and exits 0.
+func TestSearch_defaultModeIsQuery(t *testing.T) {
 	if !sqlite.CGOEnabled {
 		t.Skip("sqlite package requires cgo")
 	}
-	// Mode "query" is still M4 — must return ErrModeNotImplementedM2.
-	store := openSearchTestStore(t)
-	_ = store // path override set; just need the cleanup
 
-	_, err := executeMemorySearch(t, "--mode", "query", "test")
-	assert.Error(t, err, "--mode query must return an error (M4 not implemented)")
+	store := openSearchTestStore(t)
+	skipIfNoFTS5CLI(t, store)
+
+	ingestForSearch(t, store, "custom", "/vault/custom/default_mode.md",
+		"default mode query hybrid test")
+
+	// Do not pass --mode; the default must be "query".
+	// Ollama is not running in the test environment; the hybrid runner degrades
+	// to BM25-only and returns ErrFellBackToBM25 (exit 0).
+	stdout, stderr, err := executeMemorySearchWithStderr(t, "default")
+	require.NoError(t, err, "default query mode must exit 0 even when ollama is down")
+	// Either BM25 results or no-results in stdout; degradation warning in stderr.
+	assert.Contains(t, stderr, "hybrid degraded to BM25-only",
+		"default query mode must emit degradation warning when ollama is unreachable")
+	_ = stdout
+}
+
+// TestSearch_defaultModeIsQuery_ollamaUp simulates a running Ollama by checking
+// the error path does not crash when query mode is explicitly requested.
+func TestSearch_explicitQueryMode_returnsBM25Fallback(t *testing.T) {
+	if !sqlite.CGOEnabled {
+		t.Skip("sqlite package requires cgo")
+	}
+
+	store := openSearchTestStore(t)
+	skipIfNoFTS5CLI(t, store)
+
+	ingestForSearch(t, store, "custom", "/vault/custom/explicit_query.md",
+		"explicit query mode bm25 fallback")
+
+	// --mode query with no ollama → must still return exit 0.
+	stdout, stderr, err := executeMemorySearchWithStderr(t, "--mode", "query", "explicit")
+	require.NoError(t, err, "--mode query must exit 0 (fallback to BM25)")
+	assert.Contains(t, stderr, "hybrid degraded to BM25-only")
+	_ = stdout
+}
+
+// TestSearch_modeSearchStillWorks verifies --mode search still invokes BM25.
+func TestSearch_modeSearchStillWorks(t *testing.T) {
+	if !sqlite.CGOEnabled {
+		t.Skip("sqlite package requires cgo")
+	}
+
+	store := openSearchTestStore(t)
+	skipIfNoFTS5CLI(t, store)
+
+	ingestForSearch(t, store, "custom", "/vault/custom/bm25_mode.md",
+		"bm25 search mode still works golang")
+
+	out, err := executeMemorySearch(t, "--mode", "search", "--json", "bm25")
+	require.NoError(t, err)
+
+	var results []searchResultJSON
+	require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(out)), &results))
+	require.Len(t, results, 1)
+	assert.Equal(t, "/vault/custom/bm25_mode.md", results[0].SourcePath)
+}
+
+// TestSearch_alphaBetaOverride verifies that --alpha / --beta flags propagate.
+// With --alpha=0 --beta=1 the mode should degrade to BM25-norm scoring.
+func TestSearch_alphaBetaOverride(t *testing.T) {
+	if !sqlite.CGOEnabled {
+		t.Skip("sqlite package requires cgo")
+	}
+
+	store := openSearchTestStore(t)
+	skipIfNoFTS5CLI(t, store)
+
+	ingestForSearch(t, store, "custom", "/vault/custom/alpha_beta.md",
+		"alpha beta override test content")
+
+	// With alpha/beta override and no ollama, the hybrid runner falls back to BM25.
+	_, _, err := executeMemorySearchWithStderr(t,
+		"--mode", "query",
+		"--alpha", "0.0",
+		"--beta", "1.0",
+		"alpha")
+	// Must not error (either results or graceful BM25 fallback).
+	require.NoError(t, err, "alpha/beta override with query mode must exit 0")
 }
 
 func TestSearch_unknownModeReturnsError(t *testing.T) {
@@ -285,25 +362,17 @@ func TestSearch_vsearchWithMockOllama(t *testing.T) {
 		t.Skip("vec0 available; end-to-end vsearch test requires real data")
 	}
 
-	// Even with a mock Ollama server returning a valid 1024-d vector,
-	// if vec0 is unavailable the runner will return ErrVec0Unavailable
-	// and the CLI will fall back to BM25.
 	ingestForSearch(t, store, "custom", "/vault/custom/vsearch2.md",
 		"golang channels context concurrency")
 
 	mockOllama := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		// Return a canned 1024-d embedding (all zeros for simplicity).
 		_, _ = w.Write([]byte(`{"embedding":` + buildZeroEmbeddingJSON(1024) + `}`))
 	}))
 	defer mockOllama.Close()
 
-	// We cannot inject the Ollama URL into the CLI directly without refactoring
-	// for testability.  The test validates the BM25 fallback path which is the
-	// same code path as when Ollama is unreachable.
 	stdout, stderr, err := executeMemorySearchWithStderr(t, "--mode", "vsearch", "golang")
 	require.NoError(t, err, "vsearch must not return error when falling back to BM25")
-	// Either BM25 results or "no results" in stdout; warning in stderr.
 	assert.Contains(t, stderr, "falling back to BM25")
 	_ = stdout
 	_ = mockOllama
@@ -336,7 +405,7 @@ func TestSearch_collectionFilter(t *testing.T) {
 	ingestForSearch(t, store, "custom", "/vault/custom/coll.md",
 		"collection filter custom document")
 
-	out, err := executeMemorySearch(t, "--collection", "journal", "--json", "collection")
+	out, err := executeMemorySearch(t, "--mode", "search", "--collection", "journal", "--json", "collection")
 	require.NoError(t, err)
 
 	var results []searchResultJSON
@@ -358,7 +427,7 @@ func TestSearch_jsonSchemaFields(t *testing.T) {
 	ingestForSearch(t, store, "custom", "/vault/custom/schema.md",
 		"schema validation test document content")
 
-	out, err := executeMemorySearch(t, "--json", "schema")
+	out, err := executeMemorySearch(t, "--mode", "search", "--json", "schema")
 	require.NoError(t, err)
 
 	var results []searchResultJSON

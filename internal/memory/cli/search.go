@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"text/tabwriter"
+	"time"
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/modu-ai/mink/internal/memory/ollama"
@@ -21,17 +22,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// defaultOllamaModel is the embedding model used for vsearch when --model is
+// defaultOllamaModel is the embedding model used for vsearch/query when --model is
 // not specified.
 const defaultOllamaModel = "mxbai-embed-large"
 
 // searchFlags holds the parsed flags for `mink memory search`.
 type searchFlags struct {
-	collection string
-	limit      int
-	mode       string
-	model      string
-	jsonOut    bool
+	collection    string
+	limit         int
+	mode          string
+	model         string
+	jsonOut       bool
+	alpha         float64
+	beta          float64
+	gamma         float64
+	decayHalfLife time.Duration
 }
 
 // searchIndexPathOverride, when non-empty, replaces defaultIndexPath in runSearch.
@@ -56,28 +61,30 @@ const hardCapLimit = 100
 //
 // Usage: mink memory search QUERY [--collection NAME] [--limit N] [--mode MODE] [--json]
 //
-// Mode "search" (BM25) and "vsearch" (vector, M3) are implemented.
-// Mode "query" returns ErrModeNotImplementedM2 (M4).
+// Mode "query" (hybrid, M4) is the default.
+// Mode "search" (BM25) and "vsearch" (vector, M3) are also available.
 //
 // Exit codes:
 //
-//	0 — success (including zero matches, and BM25 fallback from vsearch)
+//	0 — success (including zero matches, and BM25 fallback from vsearch/query)
 //	1 — user error (bad flag, bad mode)
 //	2 — infrastructure error (SQLite unavailable, FTS5 missing)
 //
-// SPEC: SPEC-MINK-MEMORY-QMD-001 T2.3, T3.6
-// REQ:  REQ-MEM-015, REQ-MEM-016, REQ-MEM-017, REQ-MEM-018, REQ-MEM-019, REQ-MEM-030
+// SPEC: SPEC-MINK-MEMORY-QMD-001 T2.3, T3.6, T4.4
+// REQ:  REQ-MEM-008, REQ-MEM-015, REQ-MEM-016, REQ-MEM-017, REQ-MEM-018, REQ-MEM-019, REQ-MEM-030
 func NewSearchCommand() *cobra.Command {
 	var f searchFlags
 
 	cmd := &cobra.Command{
 		Use:   "search QUERY",
-		Short: "Search the memory vault using BM25 or vector search",
+		Short: "Search the memory vault using hybrid, BM25, or vector search",
 		Args:  cobra.ExactArgs(1),
 		Example: `  mink memory search "golang concurrency"
   mink memory search "오늘 날씨" --collection journal
   mink memory search "machine learning" --limit 5 --json
-  mink memory search "embeddings" --mode vsearch`,
+  mink memory search "embeddings" --mode vsearch
+  mink memory search "rust safety" --mode search
+  mink memory search "deep learning" --alpha 0.5 --beta 0.5`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runSearch(cmd, args[0], f)
 		},
@@ -87,19 +94,27 @@ func NewSearchCommand() *cobra.Command {
 		"Restrict search to this collection (sessions|journal|briefing|ritual|weather|custom)")
 	cmd.Flags().IntVar(&f.limit, "limit", 10,
 		"Maximum number of results (1–100)")
-	cmd.Flags().StringVar(&f.mode, "mode", "search",
-		"Retrieval mode: search (BM25, default), vsearch (vector, M3), query (M4)")
+	cmd.Flags().StringVar(&f.mode, "mode", "query",
+		"Retrieval mode: query (hybrid, default), search (BM25), vsearch (vector)")
 	cmd.Flags().StringVar(&f.model, "model", defaultOllamaModel,
-		"Ollama embedding model for --mode vsearch")
+		"Ollama embedding model for --mode vsearch or --mode query")
 	cmd.Flags().BoolVar(&f.jsonOut, "json", false,
 		"Emit results as a JSON array")
+	cmd.Flags().Float64Var(&f.alpha, "alpha", 0,
+		"Cosine weight for hybrid mode (overrides default 0.7; 0 = use default)")
+	cmd.Flags().Float64Var(&f.beta, "beta", 0,
+		"BM25 weight for hybrid mode (overrides default 0.3; 0 = use default)")
+	cmd.Flags().Float64Var(&f.gamma, "gamma", 0,
+		"Decay weight for hybrid mode (overrides default 0.0; 0 = use default)")
+	cmd.Flags().DurationVar(&f.decayHalfLife, "decay-half-life", 0,
+		"Temporal decay half-life for hybrid mode (0 = use default 30d)")
 
 	return cmd
 }
 
 // runSearch implements the `mink memory search` workflow.
 //
-// @MX:ANCHOR: [AUTO] CLI entry point wiring BM25Runner and VectorRunner to search.
+// @MX:ANCHOR: [AUTO] CLI entry point wiring BM25Runner, VectorRunner, and HybridRunner.
 // @MX:REASON: fan_in >= 3 (cobra RunE, integration tests, future gRPC bridge).
 // Invariant: must propagate exit codes 0/1/2 correctly.
 func runSearch(cmd *cobra.Command, query string, f searchFlags) error {
@@ -112,14 +127,12 @@ func runSearch(cmd *cobra.Command, query string, f searchFlags) error {
 		f.limit = hardCapLimit
 	}
 
-	// --- Validate mode (early-out before touching SQLite) ---
+	// --- Validate mode ---
 	switch f.mode {
-	case "search", "vsearch":
-		// OK — both wired in M3.
-	case "query":
-		return retrieval.ErrModeNotImplementedM2
+	case "query", "search", "vsearch":
+		// All three modes are wired in M4.
 	default:
-		return fmt.Errorf("unknown --mode %q; must be search, vsearch, or query", f.mode)
+		return fmt.Errorf("unknown --mode %q; must be query, search, or vsearch", f.mode)
 	}
 
 	// --- Open SQLite index ---
@@ -148,11 +161,14 @@ func runSearch(cmd *cobra.Command, query string, f searchFlags) error {
 		Mode:       f.mode,
 	}
 
-	if f.mode == "vsearch" {
+	switch f.mode {
+	case "vsearch":
 		return runVsearch(cmd, store, query, opts, f.model)
+	case "search":
+		return runBM25Search(cmd, store, query, opts)
+	default: // "query"
+		return runHybridQuery(cmd, store, query, opts, f)
 	}
-
-	return runBM25Search(cmd, store, query, opts)
 }
 
 // runBM25Search executes a BM25 search and writes results to cmd's output.
@@ -176,13 +192,7 @@ func runBM25Search(cmd *cobra.Command, store *sqlite.Store, query string, opts q
 		return fmt.Errorf("search error: %w", err)
 	}
 
-	return emitResults(cmd, results, opts.Mode == "search" && opts.Collection == "" && !isJSONMode(cmd))
-}
-
-// isJSONMode reports whether the --json flag is set.
-func isJSONMode(cmd *cobra.Command) bool {
-	f := cmd.Flags().Lookup("json")
-	return f != nil && f.Value.String() == "true"
+	return emitResults(cmd, results, false)
 }
 
 // runVsearch executes vector similarity search, falling back to BM25 on
@@ -212,6 +222,66 @@ func runVsearch(cmd *cobra.Command, store *sqlite.Store, query string, opts qmd.
 	}
 
 	return emitResults(cmd, results, false)
+}
+
+// runHybridQuery executes hybrid BM25 + vector + decay search (mode "query").
+// On ErrFellBackToBM25 it emits a warning to stderr and returns results with exit 0.
+func runHybridQuery(cmd *cobra.Command, store *sqlite.Store, query string, opts qmd.SearchOpts, f searchFlags) error {
+	ctx := cmd.Context()
+
+	ollamaClient := ollama.NewClient("")
+	embedFunc := func(embedCtx context.Context, m, text string) ([]float32, error) {
+		return ollamaClient.Embed(embedCtx, m, text)
+	}
+
+	bm25Reader := sqlite.NewBM25ReaderAdapter(sqlite.NewReader(store))
+	vecReader := sqlite.NewVectorReaderAdapter(store)
+	lookupAdapter := sqlite.NewChunkLookupStore(store)
+	embedLookup := sqlite.NewEmbeddingLookupStore(store)
+
+	cfg := retrieval.DefaultHybridConfig()
+	// Apply user overrides when non-zero flags are provided.
+	if f.alpha != 0 {
+		cfg.Alpha = f.alpha
+	}
+	if f.beta != 0 {
+		cfg.Beta = f.beta
+	}
+	if f.gamma != 0 {
+		cfg.Gamma = f.gamma
+	}
+	if f.decayHalfLife > 0 {
+		cfg.DecayHalfLife = f.decayHalfLife
+	}
+
+	runner := retrieval.NewHybridRunner(bm25Reader, vecReader, lookupAdapter, embedLookup, embedFunc, f.model, cfg)
+	results, err := runner.RunHybrid(ctx, query, opts)
+
+	if errors.Is(err, retrieval.ErrFellBackToBM25) {
+		_, _ = fmt.Fprintf(cmd.ErrOrStderr(),
+			"warning: ollama unreachable; hybrid degraded to BM25-only\n")
+		// Results are still valid — treat as success.
+		return emitResults(cmd, results, false)
+	}
+	if err != nil {
+		if errors.Is(err, retrieval.ErrEmptyQuery) {
+			return err
+		}
+		return fmt.Errorf("query error: %w", err)
+	}
+
+	// Apply MMR re-ranking (λ=0.7, k=opts.Limit).
+	if len(results) > 1 {
+		results = retrieval.MMRRerank(results, nil, retrieval.MMRConfig{Lambda: 0.7}, opts.Limit)
+	}
+
+	return emitResults(cmd, results, false)
+}
+
+// isJSONMode reports whether the --json flag is set.
+func isJSONMode(cmd *cobra.Command) bool {
+	f := cmd.Flags().Lookup("json")
+	return f != nil && f.Value.String() == "true"
 }
 
 // emitResults dispatches to JSON or table format based on the --json flag.
