@@ -96,6 +96,10 @@ Discord Interactions endpoint (HTTP) + Ed25519 서명 검증 + Slash command + M
 - **REQ-DCD-018 [P1]**: The adapter **shall not** post messages without user interaction trigger
 - **REQ-DCD-019 [P1]**: The adapter **shall not** retry failed webhook follow-up more than 3 times
 
+### 3.4.5 Additional Ubiquitous (audit D2 fix — Bot invite EARS REQ 신규)
+
+- **REQ-DCD-023 [P1]**: When bot invite link is requested, the adapter **shall** generate URL with OAuth2 scopes (`bot` + `applications.commands`) and explicit permission bits
+
 ### 3.5 Optional (3)
 
 - **REQ-DCD-020 [P2, OPT]**: Where `MINK_DISCORD_GATEWAY=1` env is set, the adapter **shall** connect to Gateway WebSocket (real-time features)
