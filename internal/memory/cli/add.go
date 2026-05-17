@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/mitchellh/go-homedir"
+	"github.com/modu-ai/mink/internal/memory/ollama"
 	"github.com/modu-ai/mink/internal/memory/qmd"
 	"github.com/modu-ai/mink/internal/memory/sqlite"
 	"github.com/spf13/cobra"
@@ -219,6 +220,18 @@ func runAdd(ctx context.Context, f addFlags, cmd *cobra.Command) error {
 
 	// --- Step 9: print summary ---
 	fmt.Fprintf(cmd.OutOrStdout(), "added: %d chunks from %s\n", len(chunks), f.source)
+
+	// --- Step 10: async backfill (REQ-MEM-030) ---
+	// Trigger background embedding for newly inserted chunks.  EnqueueAsync
+	// returns immediately so the CLI stays within the 100ms budget.  If Ollama
+	// is unavailable the chunks remain pending; the next `mink memory add` or a
+	// future `mink memory reindex` will retry.
+	go func() {
+		ollamaClient := ollama.NewClient("")
+		bf := sqlite.NewBackfiller(store, ollamaClient, defaultOllamaModel)
+		bf.EnqueueAsync(ctx)
+	}()
+
 	return nil
 }
 
