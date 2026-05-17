@@ -102,7 +102,7 @@ Coordinate workflows and multi-step processes:
 
 - manager-spec: SPEC document creation
 - manager-ddd: DDD implementation cycle
-- manager-tdd: TDD implementation cycle
+- manager-cycle: Unified DDD/TDD implementation cycle (replaces retired manager-tdd; manager-ddd remains for legacy code refactoring)
 - manager-docs: Documentation generation
 - manager-quality: Quality gates validation
 - manager-project: Project configuration

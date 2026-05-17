@@ -20,6 +20,21 @@ mx:
             - cpp
             - csharp
             - dart
+    danger_categories:
+        cleanup:
+            - defer missing
+            - Close not called
+        concurrency:
+            - goroutine leak
+            - unbounded channel
+            - race condition
+        resource-leak:
+            - missing Close
+            - fd leak
+        security:
+            - hardcoded credential
+            - sql injection
+            - xss
     discovery:
         enabled: true
         load_project_docs: true
@@ -264,6 +279,11 @@ mx:
         add_auto_prefix: true
         respect_code_comments: true
         validate_existing: true
+    test_paths:
+        - '*_test.go'
+        - tests/**
+        - testdata/**
+        - fixtures/**
     thresholds:
         branch_warn: 8
         complexity_warn: 15
