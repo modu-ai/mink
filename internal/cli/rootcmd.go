@@ -129,6 +129,9 @@ func NewRootCommand(version, commit, builtAt string) *cobra.Command {
 	// Messaging commands — Telegram channel setup, status, and start.
 	rootCmd.AddCommand(commands.NewMessagingCommand())
 
+	// Doctor command — subsystem health checks (auth-keyring, etc.).
+	rootCmd.AddCommand(commands.NewDoctorCommand())
+
 	return rootCmd
 }
 
