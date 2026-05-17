@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	zKeyring "github.com/zalando/go-keyring"
@@ -300,10 +301,8 @@ func (b *Backend) indexAdd(provider string) error {
 	if err != nil {
 		return err
 	}
-	for _, id := range ids {
-		if id == provider {
-			return nil // already in index
-		}
+	if slices.Contains(ids, provider) {
+		return nil // already in index
 	}
 	ids = append(ids, provider)
 	return b.indexSet(ids)

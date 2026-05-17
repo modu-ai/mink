@@ -2,6 +2,7 @@ package keyring_test
 
 import (
 	"errors"
+	"slices"
 	"testing"
 
 	zKeyring "github.com/zalando/go-keyring"
@@ -100,7 +101,7 @@ func TestStoreLoadDeleteRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
-	if !containsString(ids, provider) {
+	if !slices.Contains(ids, provider) {
 		t.Errorf("List() = %v; want to include %q", ids, provider)
 	}
 
@@ -120,7 +121,7 @@ func TestStoreLoadDeleteRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("List after Delete: %v", err)
 	}
-	if containsString(ids2, provider) {
+	if slices.Contains(ids2, provider) {
 		t.Errorf("List() after Delete still contains %q", provider)
 	}
 }
@@ -216,14 +217,4 @@ func TestHealthMissingCredential(t *testing.T) {
 	if status.Backend != "keyring" {
 		t.Errorf("Health.Backend = %q; want \"keyring\"", status.Backend)
 	}
-}
-
-// containsString reports whether target is in slice.
-func containsString(slice []string, target string) bool {
-	for _, s := range slice {
-		if s == target {
-			return true
-		}
-	}
-	return false
 }
