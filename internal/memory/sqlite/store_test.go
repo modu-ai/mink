@@ -24,7 +24,7 @@ func TestOpen_createsFileWithMode0600(t *testing.T) {
 
 	s, err := Open(dbPath)
 	require.NoError(t, err)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	info, err := os.Stat(dbPath)
 	require.NoError(t, err)
@@ -43,7 +43,7 @@ func TestOpen_createsParentDirWithMode0700(t *testing.T) {
 
 	s, err := Open(dbPath)
 	require.NoError(t, err)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	info, err := os.Stat(dir)
 	require.NoError(t, err)
@@ -59,7 +59,7 @@ func TestMigrateSchema_regularTablesPresent(t *testing.T) {
 	dir := t.TempDir()
 	s, err := Open(filepath.Join(dir, "test.sqlite"))
 	require.NoError(t, err)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	// Verify that the four regular tables were created.
 	for _, table := range []string{"files", "chunks", "metadata"} {
@@ -82,7 +82,7 @@ func TestMigrateSchema_ftsFTS5TablePresent(t *testing.T) {
 	dir := t.TempDir()
 	s, err := Open(filepath.Join(dir, "test.sqlite"))
 	require.NoError(t, err)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	// Check whether FTS5 is available in this build.
 	_, ftsErr := s.db.Exec("INSERT INTO chunks_fts(chunk_id, content) VALUES ('test-id', 'test content')")
@@ -109,7 +109,7 @@ func TestMigrateSchema_vec0SkippedGracefully(t *testing.T) {
 	s, err := Open(filepath.Join(dir, "novec.sqlite"))
 	require.NoError(t, err, "Open must succeed even when sqlite-vec is unavailable")
 	require.NotNil(t, s)
-	s.Close()
+	require.NoError(t, s.Close())
 }
 
 func TestOpen_idempotent(t *testing.T) {
@@ -123,11 +123,11 @@ func TestOpen_idempotent(t *testing.T) {
 	// First open.
 	s1, err := Open(dbPath)
 	require.NoError(t, err)
-	s1.Close()
+	require.NoError(t, s1.Close())
 
 	// Second open — MigrateSchema uses CREATE TABLE IF NOT EXISTS so it must
 	// not fail.
 	s2, err := Open(dbPath)
 	require.NoError(t, err)
-	s2.Close()
+	require.NoError(t, s2.Close())
 }
